@@ -14,6 +14,7 @@ namespace Weasel.Postgresql
 
         void ConfigureQueryCommand(CommandBuilder builder);
 
+        // TODO -- this needs to be async
         SchemaPatchDifference CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate);
 
         IEnumerable<DbObjectName> AllNames();

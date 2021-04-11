@@ -32,24 +32,17 @@ namespace Weasel.Postgresql
             return list;
         }
         
-        public static async Task<IReadOnlyList<T>> FetchList<T>(this NpgsqlCommand cmd, CancellationToken cancellation = default)
+        public static Task<IReadOnlyList<T>> FetchList<T>(this NpgsqlCommand cmd, CancellationToken cancellation = default)
         {
-            var list = new List<T>();
-
-            await using var reader = await cmd.ExecuteReaderAsync(cancellation);
-            while (await reader.ReadAsync(cancellation))
+            return cmd.FetchList(async reader =>
             {
                 if (await reader.IsDBNullAsync(0, cancellation))
                 {
-                    list.Add(default);
+                    return default;
                 }
-                else
-                {
-                    list.Add(await reader.GetFieldValueAsync<T>(0, cancellation));
-                }
-            }
 
-            return list;
+                return await reader.GetFieldValueAsync<T>(0, cancellation);
+            }, cancellation);
         }
 
         public static string UseParameter(this string text, NpgsqlParameter parameter)

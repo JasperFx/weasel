@@ -66,5 +66,10 @@ namespace Weasel.Postgresql
         {
             return $"create schema if not exists {schemaName};";
         }
+
+        public static Task ResetSchema(this NpgsqlConnection conn, string schemaName)
+        {
+            return conn.RunSql(DropStatementFor(schemaName, CascadeOption.Cascade), CreateStatementFor(schemaName));
+        }
     }
 }
