@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using Npgsql;
 
 namespace Weasel.Postgresql.Tables
 {
@@ -64,7 +67,7 @@ namespace Weasel.Postgresql.Tables
 
         public void WriteDropStatement(DdlRules rules, StringWriter writer)
         {
-            throw new NotImplementedException();
+            writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
         }
 
         public DbObjectName Identifier { get; }
@@ -129,6 +132,19 @@ namespace Weasel.Postgresql.Tables
         public IEnumerable<TableColumn> PrimaryKeyColumns()
         {
             return _columns.Where(x => x.IsPrimaryKey);
+        }
+
+        public async Task<bool> ExistsInDatabase(NpgsqlConnection conn)
+        {
+            var cmd = conn
+                .CreateCommand(
+                    "SELECT * FROM pg_stat_user_tables WHERE relname = :table AND schemaname = :schema;")
+                .With("table", Identifier.Name)
+                .With("schema", Identifier.Schema);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+            var any = await reader.ReadAsync();
+            return any;
         }
     }
 }
