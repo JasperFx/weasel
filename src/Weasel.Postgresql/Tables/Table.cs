@@ -40,12 +40,19 @@ namespace Weasel.Postgresql.Tables
         public Table(DbObjectName name)
         {
             Identifier = name ?? throw new ArgumentNullException(nameof(name));
+            PrimaryKeyConstraintName = $"pk_{name.Name}";
         }
 
         public Table(string tableName) : this(new DbObjectName(tableName))
         {
             
         }
+        
+        /// <summary>
+        /// The identifier for the primary key (if any). It may be valuable
+        /// to name the constraint for upserts and other operations
+        /// </summary>
+        public string PrimaryKeyConstraintName { get; set; }
 
         public void AddColumn(TableColumn column)
         {

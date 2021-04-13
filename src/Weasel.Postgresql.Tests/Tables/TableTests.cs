@@ -16,6 +16,13 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
+        public void default_primary_key_name_is_derived_from_table_name()
+        {
+            var table = new Table("mytable");
+            table.PrimaryKeyConstraintName.ShouldBe("pk_mytable");
+        }
+        
+        [Fact]
         public void add_column_by_name_and_type()
         {
             var table = new Table("mytable");

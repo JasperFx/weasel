@@ -47,5 +47,31 @@ namespace Weasel.Postgresql.Tests.Tables
             column.ColumnChecks.Single()
                 .ShouldBeOfType<AllowNulls>();
         }
+
+        [Fact]
+        public void is_primary_key_mechanics()
+        {
+            var column = new TableColumn("col1", "int");
+            column.IsPrimaryKey.ShouldBeFalse();
+
+            column.AsPrimaryKey();
+            
+            column.IsPrimaryKey.ShouldBeTrue();
+        }
+
+        [Fact]
+        public void determine_the_directive_with_basic_options()
+        {
+            var column = new TableColumn("col1", "int");
+            // nothing
+            column.CheckDeclarations()
+                .ShouldBeEmpty();
+
+            column.AllowNulls();
+            column.CheckDeclarations().ShouldBe("NULL");
+
+            column.NotNull();
+            column.CheckDeclarations().ShouldBe("NOT NULL");
+        }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using Baseline;
 
@@ -32,7 +33,7 @@ namespace Weasel.Postgresql.Tables
             return Type.Split('(')[0].Trim();
         }
 
-        public string Directive()
+        public string CheckDeclarations()
         {
             return ColumnChecks.Select(x => x.FullDeclaration()).Join(" ");
         }
@@ -66,12 +67,12 @@ namespace Weasel.Postgresql.Tables
         {
             // TODO -- use collation
             
-            return $"{Name.PadRight(length)}{Type} {Directive()}";
+            return $"{Name.PadRight(length)}{Type} {CheckDeclarations()}";
         }
 
         public override string ToString()
         {
-            return $"{Name} {Type} {Directive()}";
+            return $"{Name} {Type} {CheckDeclarations()}";
         }
 
         // TODO -- this needs to get a lot smarter
@@ -102,6 +103,18 @@ namespace Weasel.Postgresql.Tables
             ColumnChecks.Insert(0, new NotNull());
             return this;
         }
+
+        /// <summary>
+        /// Marks this column as being part of the parent table's primary key
+        /// </summary>
+        /// <returns></returns>
+        public TableColumn AsPrimaryKey()
+        {
+            IsPrimaryKey = true;
+            return this;
+        }
+
+        internal bool IsPrimaryKey { get; set; }
     }
 
     public abstract class ColumnCheck
