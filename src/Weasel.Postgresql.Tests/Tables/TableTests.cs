@@ -20,10 +20,32 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             var table = new Table("mytable");
             var column = table.AddColumn("col1", "varchar");
+            
             column.Name.ShouldBe("col1");
             column.Type.ShouldBe("varchar");
             
             table.Columns.ShouldContain(column);
+        }
+
+        [Fact]
+        public void add_column_directly_sets_the_parent()
+        {
+            var table = new Table("mytable");
+            var column = new TableColumn("col1", "varchar");
+
+            table.AddColumn(column);
+            
+            table.Columns.ShouldContain(column);
+            column.Parent.ShouldBe(table);
+        }
+
+        [Fact]
+        public void set_the_parent_on_add_column()
+        {
+            var table = new Table("mytable");
+            var column = table.AddColumn("col1", "varchar");
+
+            column.Parent.ShouldBe(table);
         }
 
         [Fact]

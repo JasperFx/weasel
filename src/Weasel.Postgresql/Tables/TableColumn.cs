@@ -24,8 +24,8 @@ namespace Weasel.Postgresql.Tables
         public string Name { get; }
 
 
-        // Needs to be writeable here.
         public string Type { get; set; }
+        public Table Parent { get; internal set; }
 
         public string RawType()
         {

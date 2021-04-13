@@ -1,14 +1,42 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
+using System.IO;
 
 namespace Weasel.Postgresql.Tables
 {
-    public class Table
+    public class Table : ISchemaObject
     {
-        public readonly List<TableColumn> Columns = new List<TableColumn>();
-        
+        private readonly List<TableColumn> _columns = new List<TableColumn>();
+
+        public IReadOnlyList<TableColumn> Columns => _columns;
+
+        public void Write(DdlRules rules, StringWriter writer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void WriteDropStatement(DdlRules rules, StringWriter writer)
+        {
+            throw new NotImplementedException();
+        }
+
         public DbObjectName Identifier { get; }
-        
+        public void ConfigureQueryCommand(CommandBuilder builder)
+        {
+            throw new NotImplementedException();
+        }
+
+        public SchemaPatchDifference CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
+        {
+            throw new NotImplementedException();
+        }
+
+        public IEnumerable<DbObjectName> AllNames()
+        {
+            throw new NotImplementedException();
+        }
+
         public Table(DbObjectName name)
         {
             Identifier = name ?? throw new ArgumentNullException(nameof(name));
@@ -19,10 +47,16 @@ namespace Weasel.Postgresql.Tables
             
         }
 
+        public void AddColumn(TableColumn column)
+        {
+            _columns.Add(column);
+            column.Parent = this;
+        }
+
         public TableColumn AddColumn(string columnName, string columnType)
         {
-            var column = new TableColumn(columnName, columnType);
-            Columns.Add(column);
+            var column = new TableColumn(columnName, columnType) {Parent = this};
+            _columns.Add(column);
 
             return column;
         }
