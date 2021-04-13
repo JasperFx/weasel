@@ -14,7 +14,52 @@ namespace Weasel.Postgresql.Tables
 
         public void Write(DdlRules rules, StringWriter writer)
         {
-            throw new NotImplementedException();
+            if (rules.TableCreation == CreationStyle.DropThenCreate)
+            {
+                writer.WriteLine("DROP TABLE IF EXISTS {0} CASCADE;", Identifier);
+                writer.WriteLine("CREATE TABLE {0} (", Identifier);
+            }
+            else
+            {
+                writer.WriteLine("CREATE TABLE IF NOT EXISTS {0} (", Identifier);
+            }
+
+            var columnLength = Columns.Max(x => x.Name.Length) + 4;
+            var typeLength = Columns.Max(x => x.Type.Length) + 4;
+
+            var lines = Columns.Select(column =>
+                $"    {column.Name.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.CheckDeclarations()}")
+                .ToList();
+
+            for (int i = 0; i < lines.Count - 1; i++)
+            {
+                writer.WriteLine(lines[i] + ",");
+            }
+
+            writer.WriteLine(lines.Last());
+
+            // TODO -- write multi-column primary keys
+            // if (PrimaryKeys.Any())
+            // {
+            //     writer.WriteLine($"   ,PRIMARY KEY ({PrimaryKeys.Select(x => x.Name).Join(", ")})");
+            // }
+
+            writer.WriteLine(");");
+
+            // TODO -- support OriginWriter
+            //writer.WriteLine(OriginWriter.OriginStatement("TABLE", Identifier.QualifiedName));
+
+            // foreach (var foreignKey in ForeignKeys)
+            // {
+            //     writer.WriteLine();
+            //     writer.WriteLine(foreignKey.ToDDL());
+            // }
+            //
+            // foreach (var index in Indexes)
+            // {
+            //     writer.WriteLine();
+            //     writer.WriteLine(index.ToDDL());
+            // }
         }
 
         public void WriteDropStatement(DdlRules rules, StringWriter writer)

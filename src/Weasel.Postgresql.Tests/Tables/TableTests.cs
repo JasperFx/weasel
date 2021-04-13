@@ -1,12 +1,23 @@
 using System;
+using System.IO;
+using System.Linq;
+using Baseline;
 using Shouldly;
 using Weasel.Postgresql.Tables;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Weasel.Postgresql.Tests.Tables
 {
     public class TableTests
     {
+        private readonly ITestOutputHelper _output;
+
+        public TableTests(ITestOutputHelper output)
+        {
+            _output = output;
+        }
+
         [Fact]
         public void build_table_by_name_only_puts_it_in_public()
         {
@@ -75,7 +86,57 @@ namespace Weasel.Postgresql.Tests.Tables
             
             table.Columns.ShouldContain(column);
         }
-        
-        
+
+        [Fact]
+        public void smoke_test_writing_table_code_with_columns()
+        {
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+
+            var rules = new DdlRules
+            {
+                TableCreation = CreationStyle.DropThenCreate
+            };
+
+            var writer = new StringWriter();
+            table.Write(rules, writer);
+
+            var ddl = writer.ToString();
+            
+            _output.WriteLine(ddl);
+            
+            var lines = ddl.ReadLines().ToArray();
+            
+            lines.ShouldContain("DROP TABLE IF EXISTS public.people CASCADE;");
+            lines.ShouldContain("CREATE TABLE public.people (");
+
+        }
+
+        [Fact]
+        public void write_table_with_if_exists_semantics()
+        {
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+
+            var rules = new DdlRules
+            {
+                TableCreation = CreationStyle.CreateIfNotExists
+            };
+
+            var writer = new StringWriter();
+            table.Write(rules, writer);
+
+            var ddl = writer.ToString();
+            
+            _output.WriteLine(ddl);
+            
+            var lines = ddl.ReadLines().ToArray();
+            
+            lines.ShouldContain("CREATE TABLE IF NOT EXISTS public.people (");
+        }
     }
 }
