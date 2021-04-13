@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
+using System.Linq;
 
 namespace Weasel.Postgresql.Tables
 {
@@ -78,6 +79,11 @@ namespace Weasel.Postgresql.Tables
 
             var type = TypeMappings.GetPgType(typeof(T), EnumStorage.AsInteger);
             return AddColumn(columnName, type);
+        }
+
+        public IEnumerable<TableColumn> PrimaryKeyColumns()
+        {
+            return _columns.Where(x => x.IsPrimaryKey);
         }
     }
 }

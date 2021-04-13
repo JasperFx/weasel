@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using Baseline;
+using Baseline.ImTools;
 
 namespace Weasel.Postgresql.Tables
 {
@@ -35,7 +36,16 @@ namespace Weasel.Postgresql.Tables
 
         public string CheckDeclarations()
         {
-            return ColumnChecks.Select(x => x.FullDeclaration()).Join(" ");
+            IEnumerable<ColumnCheck> checks = ColumnChecks;
+
+            if (IsPrimaryKey && Parent.PrimaryKeyColumns().Count() == 1)
+            {
+                checks = checks.Where(x => !(x is INullConstraint))
+                    .Concat(new ColumnCheck[]
+                        {new PrimaryKey(Parent.PrimaryKeyConstraintName, new TableColumn[] {this})});
+            }
+            
+            return checks.Select(x => x.FullDeclaration()).Join(" ");
         }
 
         protected bool Equals(TableColumn other)

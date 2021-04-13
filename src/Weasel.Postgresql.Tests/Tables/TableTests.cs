@@ -75,5 +75,7 @@ namespace Weasel.Postgresql.Tests.Tables
             
             table.Columns.ShouldContain(column);
         }
+        
+        
     }
 }
