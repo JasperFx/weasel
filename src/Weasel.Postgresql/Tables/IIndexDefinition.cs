@@ -1,0 +1,133 @@
+using System;
+using System.Text;
+using Baseline;
+using Baseline.ImTools;
+
+namespace Weasel.Postgresql.Tables
+{
+    public interface IIndexDefinition
+    {
+        string IndexName { get; }
+
+        string ToDDL(Table parent);
+
+        bool Matches(ActualIndex index);
+    }
+    
+    public enum IndexMethod
+    {
+        btree,
+        hash,
+        gist,
+        gin,
+        brin
+    }
+    
+    /// <summary>
+    /// Specifies the direction used to sort items
+    /// </summary>
+    public enum SortOrder
+    {
+        /// <summary>
+        /// Sorts in ascending order, from smallest to largest
+        /// </summary>
+        Asc,
+
+        /// <summary>
+        /// Sorts in descending order, from largest to smallest
+        /// </summary>
+        Desc,
+    }
+    
+    
+
+    public class IndexDefinition : IIndexDefinition
+    {
+        public IndexDefinition(string indexName)
+        {
+            IndexName = indexName;
+        }
+
+        public string IndexName { get; }
+        
+        public IndexMethod Method { get; set; } = IndexMethod.btree;
+
+        public SortOrder SortOrder { get; set; } = SortOrder.Asc;
+
+        public bool IsUnique { get; set; }
+
+        public bool IsConcurrent { get; set; }
+
+        public string Expression { get; set; }
+
+        public IndexDefinition AgainstColumns(params string[] columns)
+        {
+            Expression = $"({columns.Join(", ")})";
+            return this;
+        }
+        
+        /// <summary>
+        /// The tablespace in which to create the index. If not specified, default_tablespace is consulted,
+        /// </summary>
+        public string TableSpace { get; set; }
+
+        //public string With { get; set; }
+        //public string Where { get; set; }
+        
+        /*
+CREATE [ UNIQUE ] INDEX [ CONCURRENTLY ] [ name ] ON table [ USING method ]
+    ( { column | ( expression ) } [ COLLATE collation ] [ opclass ] [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [, ...] )
+    [ WITH ( storage_parameter = value [, ... ] ) ]
+    [ TABLESPACE tablespace ]
+    [ WHERE predicate ]
+         */
+        
+        public string ToDDL(Table parent)
+        {
+            if (Expression.IsEmpty())
+                throw new InvalidOperationException($"{nameof(Expression)} cannot be null or empty");
+            
+            var builder = new StringBuilder();
+
+            builder.Append("CREATE ");
+
+            if (IsUnique) builder.Append("UNIQUE ");
+            builder.Append("INDEX ");
+            
+            if (IsConcurrent) builder.Append("CONCURRENTLY ");
+
+            builder.Append(IndexName);
+
+            
+
+            builder.Append(" ON ");
+            builder.Append(parent.Identifier);
+            builder.Append(" USING ");
+            builder.Append(Method);
+            builder.Append(" ");
+            builder.Append(correctedExpression());
+            builder.Append(SortOrder == SortOrder.Asc ? " ASC" : " DESC");
+
+            if (TableSpace.IsNotEmpty())
+            {
+                builder.Append(" TABLESPACE ");
+                builder.Append(TableSpace);
+            }
+
+
+            return builder.ToString();
+        }
+
+        private string correctedExpression()
+        {
+            if (Expression.StartsWith('(') && Expression.EndsWith(')')) return Expression;
+
+            return $"({Expression})";
+        }
+
+        public bool Matches(ActualIndex index)
+        {
+            throw new System.NotImplementedException();
+        }
+    }
+}
