@@ -101,6 +101,17 @@ namespace Weasel.Postgresql.Tests.Tables
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) ASC TABLESPACE green");
         }
 
+        [Fact]
+        public void with_a_predicate()
+        {
+            theIndex.TableSpace = "green";
+            theIndex.Method = IndexMethod.gin;
+            theIndex.Predicate = "foo > 1";
+            
+            theIndex.ToDDL(parent)
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) ASC TABLESPACE green WHERE foo > 1");
+        }
+
         
     }
 }
