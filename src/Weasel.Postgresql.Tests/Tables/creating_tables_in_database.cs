@@ -1,3 +1,4 @@
+using System;
 using System.Threading.Tasks;
 using Shouldly;
 using Weasel.Postgresql.Tables;
@@ -54,6 +55,32 @@ namespace Weasel.Postgresql.Tests.Tables
             
             (await table.ExistsInDatabase(theConnection))
                 .ShouldBeFalse();
+        }
+        
+        [Fact]
+        public async Task create_tables_with_foreign_keys_too_in_the_database()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema("tables");
+
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+            
+            
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            (await table.ExistsInDatabase(theConnection))
+                .ShouldBeTrue();
+
         }
     }
 }

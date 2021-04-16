@@ -98,32 +98,12 @@ namespace Weasel.Postgresql.Tables
             return $"alter table {table.Identifier} alter column {Name.PadRight(Name.Length)} type {Type};";
         }
         */
-        public TableColumn AllowNulls()
-        {
 
-            ColumnChecks.RemoveAll(x => x is INullConstraint);
-            ColumnChecks.Insert(0, new AllowNulls());
-            return this;
-        }
 
-        public TableColumn NotNull()
-        {
-            ColumnChecks.RemoveAll(x => x is INullConstraint);
-            ColumnChecks.Insert(0, new NotNull());
-            return this;
-        }
-
-        /// <summary>
-        /// Marks this column as being part of the parent table's primary key
-        /// </summary>
-        /// <returns></returns>
-        public TableColumn AsPrimaryKey()
-        {
-            IsPrimaryKey = true;
-            return this;
-        }
 
         internal bool IsPrimaryKey { get; set; }
+
+
     }
 
     public abstract class ColumnCheck

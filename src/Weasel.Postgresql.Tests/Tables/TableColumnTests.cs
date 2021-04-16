@@ -10,8 +10,10 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public void set_as_null()
         {
-            var column = new TableColumn("col1", "varchar");
-            column.AllowNulls();
+            var states = new Table("states");
+
+            states.AddColumn("col1", "varchar").AllowNulls();
+            var column = states.Columns.Single();
 
             column.ColumnChecks.Single()
                 .ShouldBeOfType<AllowNulls>();
@@ -20,8 +22,10 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public void set_not_null()
         {
-            var column = new TableColumn("col1", "varchar");
-            column.NotNull();
+            var states = new Table("states");
+
+            states.AddColumn("col1", "varchar").NotNull();
+            var column = states.Columns.Single();
 
             column.ColumnChecks.Single()
                 .ShouldBeOfType<NotNull>();
@@ -30,8 +34,10 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public void allow_null_then_not_null()
         {
-            var column = new TableColumn("col1", "varchar");
-            column.AllowNulls().NotNull();
+            var states = new Table("states");
+
+            states.AddColumn("col1", "varchar").NotNull();
+            var column = states.Columns.Single();
             
             // last one wins
             column.ColumnChecks.Single()
@@ -41,36 +47,31 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public void not_null_then_allow_null()
         {
-            var column = new TableColumn("col1", "varchar");
-            column.NotNull().AllowNulls();
+            var states = new Table("states");
+
+            states.AddColumn("col1", "varchar").NotNull().AllowNulls();
+            var column = states.Columns.Single();
             
             column.ColumnChecks.Single()
                 .ShouldBeOfType<AllowNulls>();
         }
 
         [Fact]
-        public void is_primary_key_mechanics()
-        {
-            var column = new TableColumn("col1", "int");
-            column.IsPrimaryKey.ShouldBeFalse();
-
-            column.AsPrimaryKey();
-            
-            column.IsPrimaryKey.ShouldBeTrue();
-        }
-
-        [Fact]
         public void determine_the_directive_with_basic_options()
         {
-            var column = new TableColumn("col1", "int");
+            var states = new Table("states");
+
+            var expression = states.AddColumn("col1", "varchar");
+            var column = states.Columns.Single();
+            
             // nothing
             column.CheckDeclarations()
                 .ShouldBeEmpty();
 
-            column.AllowNulls();
+            expression.AllowNulls();
             column.CheckDeclarations().ShouldBe("NULL");
 
-            column.NotNull();
+            expression.NotNull();
             column.CheckDeclarations().ShouldBe("NOT NULL");
         }
 
@@ -78,10 +79,12 @@ namespace Weasel.Postgresql.Tests.Tables
         public void column_should_build_the_directive_for_primary_key_if_it_is_a_one_column_pk()
         {
             var table = new Table("mytable");
-            var column = table
+            table
                 .AddColumn("id", "int")
                 .NotNull()
                 .AsPrimaryKey();
+
+            var column = table.Columns.Single();
 
             table.PrimaryKeyConstraintName = "pk_mytable";
             

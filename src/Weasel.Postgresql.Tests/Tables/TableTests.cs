@@ -37,7 +37,8 @@ namespace Weasel.Postgresql.Tests.Tables
         public void add_column_by_name_and_type()
         {
             var table = new Table("mytable");
-            var column = table.AddColumn("col1", "varchar");
+            table.AddColumn("col1", "varchar");
+            var column = table.Columns.Single();
             
             column.Name.ShouldBe("col1");
             column.Type.ShouldBe("varchar");
@@ -61,8 +62,9 @@ namespace Weasel.Postgresql.Tests.Tables
         public void set_the_parent_on_add_column()
         {
             var table = new Table("mytable");
-            var column = table.AddColumn("col1", "varchar");
-
+            table.AddColumn("col1", "varchar");
+            var column = table.Columns.Single();
+            
             column.Parent.ShouldBe(table);
         }
 
@@ -80,7 +82,8 @@ namespace Weasel.Postgresql.Tests.Tables
         public void add_type_by_dotnet_type_and_name()
         {
             var table = new Table("mytable");
-            var column = table.AddColumn<int>("number");
+            table.AddColumn<int>("number");
+            var column = table.Columns.Single();
             column
                 .Type.ShouldBe(TypeMappings.GetPgType(typeof(int), EnumStorage.AsInteger));
             
@@ -138,5 +141,35 @@ namespace Weasel.Postgresql.Tests.Tables
             
             lines.ShouldContain("CREATE TABLE IF NOT EXISTS public.people (");
         }
+
+        [Fact]
+        public void add_foreign_key_to_table_with_fluent_interface()
+        {
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+            var fk = table.ForeignKeys.Single();
+            
+            fk.KeyName.ShouldBe("fkey_state_id");
+        }
+        
+        
+        [Fact]
+        public void is_primary_key_mechanics()
+        {
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            states.AddColumn<string>("abbreviation");
+            
+            states.Columns.First().IsPrimaryKey.ShouldBeTrue();
+            states.Columns.Last().IsPrimaryKey.ShouldBeFalse();
+        }
+
     }
 }

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Baseline;
 using Npgsql;
 
 namespace Weasel.Postgresql.Tables
@@ -14,6 +14,8 @@ namespace Weasel.Postgresql.Tables
         private readonly List<TableColumn> _columns = new List<TableColumn>();
 
         public IReadOnlyList<TableColumn> Columns => _columns;
+
+        public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
 
         public void Write(DdlRules rules, StringWriter writer)
         {
@@ -52,11 +54,12 @@ namespace Weasel.Postgresql.Tables
             // TODO -- support OriginWriter
             //writer.WriteLine(OriginWriter.OriginStatement("TABLE", Identifier.QualifiedName));
 
-            // foreach (var foreignKey in ForeignKeys)
-            // {
-            //     writer.WriteLine();
-            //     writer.WriteLine(foreignKey.ToDDL());
-            // }
+            foreach (var foreignKey in ForeignKeys)
+            {
+                writer.WriteLine();
+                writer.WriteLine(foreignKey.ToDDL(this));
+            }
+            
             //
             // foreach (var index in Indexes)
             // {
@@ -103,21 +106,21 @@ namespace Weasel.Postgresql.Tables
         /// </summary>
         public string PrimaryKeyConstraintName { get; set; }
 
-        public void AddColumn(TableColumn column)
+        public ColumnExpression AddColumn(TableColumn column)
         {
             _columns.Add(column);
             column.Parent = this;
+
+            return new ColumnExpression(this, column);
         }
 
-        public TableColumn AddColumn(string columnName, string columnType)
+        public ColumnExpression AddColumn(string columnName, string columnType)
         {
             var column = new TableColumn(columnName, columnType) {Parent = this};
-            _columns.Add(column);
-
-            return column;
+            return AddColumn(column);
         }
 
-        public TableColumn AddColumn<T>(string columnName)
+        public ColumnExpression AddColumn<T>(string columnName)
         {
             if (typeof(T).IsEnum)
             {
@@ -145,6 +148,68 @@ namespace Weasel.Postgresql.Tables
             await using var reader = await cmd.ExecuteReaderAsync();
             var any = await reader.ReadAsync();
             return any;
+        }
+
+        public class ColumnExpression
+        {
+            private readonly Table _parent;
+            private readonly TableColumn _column;
+
+            public ColumnExpression(Table parent, TableColumn column)
+            {
+                _parent = parent;
+                _column = column;
+            }
+
+            public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName, string fkName = null)
+            {
+                return ForeignKeyTo(new DbObjectName(referencedTableName), referencedColumnName, fkName);
+            }
+            
+            public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName, string fkName = null)
+            {
+                return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName);
+            }
+
+            public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
+                string fkName = null)
+            {
+                var fk = new ForeignKey(fkName ?? $"fkey_{_column.Name}")
+                {
+                    LinkedTable = referencedIdentifier,
+                    ColumnNames = new[] {_column.Name},
+                    LinkedNames = new[] {referencedColumnName}
+                };
+
+                _parent.ForeignKeys.Add(fk);
+
+                return this;
+            }
+            
+            /// <summary>
+            /// Marks this column as being part of the parent table's primary key
+            /// </summary>
+            /// <returns></returns>
+            public ColumnExpression AsPrimaryKey()
+            {
+                _column.IsPrimaryKey = true;
+                return this;
+            }
+            
+            public ColumnExpression AllowNulls()
+            {
+                _column.ColumnChecks.RemoveAll(x => x is INullConstraint);
+                _column.ColumnChecks.Insert(0, new AllowNulls());
+                return this;
+            }
+
+            public ColumnExpression NotNull()
+            {
+                _column.ColumnChecks.RemoveAll(x => x is INullConstraint);
+                _column.ColumnChecks.Insert(0, new NotNull());
+                return this;
+            }
+
         }
     }
 }
