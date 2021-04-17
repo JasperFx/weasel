@@ -156,7 +156,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var fk = table.ForeignKeys.Single();
             
-            fk.KeyName.ShouldBe("fkey_state_id");
+            fk.KeyName.ShouldBe("fkey_people_state_id");
         }
         
         

@@ -174,7 +174,7 @@ namespace Weasel.Postgresql.Tables
             public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
                 string fkName = null)
             {
-                var fk = new ForeignKey(fkName ?? $"fkey_{_column.Name}")
+                var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", _column.Name))
                 {
                     LinkedTable = referencedIdentifier,
                     ColumnNames = new[] {_column.Name},
