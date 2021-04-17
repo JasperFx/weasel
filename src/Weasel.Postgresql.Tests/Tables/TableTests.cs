@@ -161,6 +161,42 @@ namespace Weasel.Postgresql.Tests.Tables
         
         
         [Fact]
+        public void add_index_to_table_with_fluent_interface()
+        {
+
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").AddIndex();
+
+            var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
+            
+            index.IndexName.ShouldBe("idx_people_state_id");
+            index.Expression.ShouldBe("(state_id)");
+        }
+        
+                
+        
+        [Fact]
+        public void add_index_to_table_with_fluent_interface_with_customization()
+        {
+
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+
+            var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
+            
+            index.IndexName.ShouldBe("idx_people_state_id");
+            index.Expression.ShouldBe("(state_id)");
+            index.Method.ShouldBe(IndexMethod.hash);
+        }
+        
+        
+        [Fact]
         public void is_primary_key_mechanics()
         {
             var states = new Table("states");

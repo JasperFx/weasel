@@ -16,6 +16,8 @@ namespace Weasel.Postgresql.Tables
         public IReadOnlyList<TableColumn> Columns => _columns;
 
         public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
+        public IList<IIndexDefinition> Indexes { get; } = new List<IIndexDefinition>();
+        
 
         public void Write(DdlRules rules, StringWriter writer)
         {
@@ -210,6 +212,17 @@ namespace Weasel.Postgresql.Tables
                 return this;
             }
 
+            public void AddIndex(Action<IndexDefinition> configure = null)
+            {
+                var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", _column.Name))
+                {
+                    Expression = $"({_column.Name})"
+                };
+
+                _parent.Indexes.Add(index);
+                
+                configure?.Invoke(index);
+            }
         }
     }
 }
