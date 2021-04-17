@@ -42,7 +42,39 @@ namespace Weasel.Postgresql.Tests.Tables
                     .ShouldBe(TypeMappings.ConvertSynonyms(tableType));
 
             }
+        }
+
+        [Fact]
+        public async Task read_indexes_and_foreign_keys()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema("tables");
             
+            
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+
+            
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name").AddIndex();
+            table.AddColumn<string>("last_name").AddIndex(i =>
+            {
+                i.IsConcurrent = true;
+                i.Method = IndexMethod.hash;
+            });
+            
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            var existing = await table.FetchExisting(theConnection);
+            existing.ActualIndices.Count.ShouldBe(2);
+            existing.ActualIndices["idx_people_first_name"].DDL
+                .ShouldBe("CREATE INDEX idx_people_first_name ON public.people USING btree (first_name)");
             
         }
     }

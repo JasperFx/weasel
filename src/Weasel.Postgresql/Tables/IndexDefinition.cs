@@ -90,7 +90,7 @@ namespace Weasel.Postgresql.Tables
 
         private string correctedExpression()
         {
-            var suffix = " ASC";
+            var suffix = "";
             if (SortOrder != SortOrder.Asc)
             {
                 suffix = " DESC";

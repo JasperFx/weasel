@@ -42,7 +42,7 @@ namespace Weasel.Postgresql.Tests.Tables
         public void write_basic_index()
         {
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1 ASC);");
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1);");
         }
         
         [Fact]
@@ -51,7 +51,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.IsUnique = true;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE UNIQUE INDEX idx_1 ON public.people USING btree (column1 ASC);");
+                .ShouldBe("CREATE UNIQUE INDEX idx_1 ON public.people USING btree (column1);");
         }
         
         [Fact]
@@ -60,7 +60,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.IsConcurrent = true;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1 ASC);");
+                .ShouldBe("CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);");
         }
 
         [Fact]
@@ -70,7 +70,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.IsConcurrent = true;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1 ASC);");
+                .ShouldBe("CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);");
         }
         
         [Fact]
@@ -88,7 +88,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.Method = IndexMethod.gin;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1 ASC);");
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1);");
         }
 
         [Fact]
@@ -98,7 +98,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.Method = IndexMethod.gin;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1 ASC) TABLESPACE green;");
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green;");
         }
 
         [Fact]
@@ -109,7 +109,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.Predicate = "foo > 1";
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1 ASC) TABLESPACE green WHERE foo > 1;");
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE foo > 1;");
         }
 
         
