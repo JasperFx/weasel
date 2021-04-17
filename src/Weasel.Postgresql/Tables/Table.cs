@@ -9,7 +9,7 @@ using Npgsql;
 
 namespace Weasel.Postgresql.Tables
 {
-    public class Table : ISchemaObject
+    public partial class Table : ISchemaObject
     {
         private readonly List<TableColumn> _columns = new List<TableColumn>();
 
@@ -78,8 +78,78 @@ namespace Weasel.Postgresql.Tables
         public DbObjectName Identifier { get; }
         public void ConfigureQueryCommand(CommandBuilder builder)
         {
-            throw new NotImplementedException();
+            var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
+            var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
+
+            builder.Append($@"
+select column_name, data_type, character_maximum_length, udt_name
+from information_schema.columns where table_schema = :{schemaParam} and table_name = :{nameParam}
+order by ordinal_position;
+
+select a.attname, format_type(a.atttypid, a.atttypmod) as data_type
+from pg_index i
+join   pg_attribute a on a.attrelid = i.indrelid and a.attnum = ANY(i.indkey)
+where attrelid = (select pg_class.oid
+                  from pg_class
+                  join pg_catalog.pg_namespace n ON n.oid = pg_class.relnamespace
+                  where n.nspname = :{schemaParam} and relname = :{nameParam})
+and i.indisprimary;
+
+SELECT
+  R.rolname                AS user_name,
+  ns.nspname               AS schema_name,
+  pg_catalog.textin(pg_catalog.regclassout(idx.indrelid :: REGCLASS)) AS table_name,
+  i.relname                AS index_name,
+  pg_get_indexdef(i.oid) as ddl,
+  idx.indisunique          AS is_unique,
+  idx.indisprimary         AS is_primary,
+  am.amname                AS index_type,
+  idx.indkey,
+       ARRAY(
+           SELECT pg_get_indexdef(idx.indexrelid, k + 1, TRUE)
+           FROM
+             generate_subscripts(idx.indkey, 1) AS k
+           ORDER BY k
+       ) AS index_keys,
+  (idx.indexprs IS NOT NULL) OR (idx.indkey::int[] @> array[0]) AS is_functional,
+  idx.indpred IS NOT NULL AS is_partial
+FROM pg_index AS idx
+  JOIN pg_class AS i
+    ON i.oid = idx.indexrelid
+  JOIN pg_am AS am
+    ON i.relam = am.oid
+  JOIN pg_namespace AS NS ON i.relnamespace = NS.OID
+  JOIN pg_roles AS R ON i.relowner = r.oid
+WHERE
+  nspname = :{schemaParam} AND
+  NOT nspname LIKE 'pg%' AND
+  i.relname like 'mt_%';
+
+SELECT c.conname                                     AS constraint_name,
+       c.contype                                     AS constraint_type,
+       sch.nspname                                   AS schema_name,
+       tbl.relname                                   AS table_name,
+       ARRAY_AGG(col.attname ORDER BY u.attposition) AS columns,
+       pg_get_constraintdef(c.oid)                   AS definition
+FROM pg_constraint c
+       JOIN LATERAL UNNEST(c.conkey) WITH ORDINALITY AS u(attnum, attposition) ON TRUE
+       JOIN pg_class tbl ON tbl.oid = c.conrelid
+       JOIN pg_namespace sch ON sch.oid = tbl.relnamespace
+       JOIN pg_attribute col ON (col.attrelid = tbl.oid AND col.attnum = u.attnum)
+WHERE
+	c.conname like 'mt_%' and
+	c.contype = 'f' and
+	sch.nspname = :{schemaParam} and
+	tbl.relname = :{nameParam}
+GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
+
+");
         }
+        
+
+        
+
+
 
         public SchemaPatchDifference CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
