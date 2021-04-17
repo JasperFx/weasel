@@ -82,5 +82,63 @@ namespace Weasel.Postgresql.Tests.Tables
                 .ShouldBeTrue();
 
         }
+        
+        [Fact]
+        public async Task create_tables_with_indexes_too_in_the_database()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema("tables");
+
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+            
+            
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name").AddIndex(x => x.IsConcurrent = true);
+            table.AddColumn<string>("last_name").AddIndex();
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            (await table.ExistsInDatabase(theConnection))
+                .ShouldBeTrue();
+
+        }
+        
+        [Fact]
+        public async Task create_tables_with_indexes_too_in_the_database_with_different_methods()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema("tables");
+
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+            
+            
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name").AddIndex(x =>
+            {
+                x.IsConcurrent = true;
+                x.IsUnique = true;
+                x.SortOrder = SortOrder.Desc;
+                x.Predicate = "id > 3";
+            });
+            table.AddColumn<string>("last_name").AddIndex();
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            (await table.ExistsInDatabase(theConnection))
+                .ShouldBeTrue();
+
+        }
     }
 }

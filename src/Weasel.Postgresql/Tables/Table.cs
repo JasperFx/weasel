@@ -62,12 +62,12 @@ namespace Weasel.Postgresql.Tables
                 writer.WriteLine(foreignKey.ToDDL(this));
             }
             
-            //
-            // foreach (var index in Indexes)
-            // {
-            //     writer.WriteLine();
-            //     writer.WriteLine(index.ToDDL());
-            // }
+            
+            foreach (var index in Indexes)
+            {
+                writer.WriteLine();
+                writer.WriteLine(index.ToDDL(this));
+            }
         }
 
         public void WriteDropStatement(DdlRules rules, StringWriter writer)
@@ -216,7 +216,7 @@ namespace Weasel.Postgresql.Tables
             {
                 var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", _column.Name))
                 {
-                    Expression = $"({_column.Name})"
+                    ColumnNames = new[]{_column.Name}
                 };
 
                 _parent.Indexes.Add(index);

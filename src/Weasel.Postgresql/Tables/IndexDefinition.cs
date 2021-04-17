@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Text;
 using Baseline;
 
@@ -21,6 +22,8 @@ namespace Weasel.Postgresql.Tables
 
         public bool IsConcurrent { get; set; }
 
+        public string[] ColumnNames { get; set; }
+        
         public string Expression { get; set; }
 
         /// <summary>
@@ -30,7 +33,7 @@ namespace Weasel.Postgresql.Tables
         /// <returns></returns>
         public IndexDefinition AgainstColumns(params string[] columns)
         {
-            Expression = $"({columns.Join(", ")})";
+            ColumnNames = columns;
             return this;
         }
         
@@ -46,9 +49,7 @@ namespace Weasel.Postgresql.Tables
 
         public string ToDDL(Table parent)
         {
-            if (Expression.IsEmpty())
-                throw new InvalidOperationException($"{nameof(Expression)} cannot be null or empty");
-            
+
             var builder = new StringBuilder();
 
             builder.Append("CREATE ");
@@ -68,7 +69,6 @@ namespace Weasel.Postgresql.Tables
             builder.Append(Method);
             builder.Append(" ");
             builder.Append(correctedExpression());
-            builder.Append(SortOrder == SortOrder.Asc ? " ASC" : " DESC");
 
             if (TableSpace.IsNotEmpty())
             {
@@ -82,15 +82,29 @@ namespace Weasel.Postgresql.Tables
                 builder.Append(Predicate);
             }
 
+            builder.Append(";");
+
 
             return builder.ToString();
         }
 
         private string correctedExpression()
         {
-            if (Expression.StartsWith('(') && Expression.EndsWith(')')) return Expression;
+            var suffix = " ASC";
+            if (SortOrder != SortOrder.Asc)
+            {
+                suffix = " DESC";
+            }
+            
+            if (ColumnNames != null && ColumnNames.Any())
+            {
+                return $"({ColumnNames.Select(x => $"{x}{suffix}").Join(", ")})";
+            }
+            
+            if (Expression.IsEmpty())
+                throw new InvalidOperationException($"Either {nameof(Expression)} or {nameof(ColumnNames)} must be specified");
 
-            return $"({Expression})";
+            return $"({Expression} {suffix})";
         }
 
         public bool Matches(ActualIndex index)

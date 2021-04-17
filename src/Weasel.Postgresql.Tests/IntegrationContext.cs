@@ -25,14 +25,21 @@ namespace Weasel.Postgresql.Tests
             theConnection?.Dispose();
         }
 
-        protected Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
+        protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
         {
             var rules = new DdlRules();
             var writer = new StringWriter();
             schemaObject.Write(rules, writer);
 
-            return theConnection.CreateCommand(writer.ToString())
-                .ExecuteNonQueryAsync();
+            try
+            {
+                await theConnection.CreateCommand(writer.ToString())
+                    .ExecuteNonQueryAsync();
+            }
+            catch (Exception e)
+            {
+                throw new Exception("DDL Execution Failure.\n" + writer.ToString(), e);
+            }
         }
 
         protected Task DropSchemaObjectInDatabase(ISchemaObject schemaObject)
