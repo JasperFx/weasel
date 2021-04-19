@@ -35,16 +35,7 @@ namespace Weasel.Postgresql.Tables
 
         public string CheckDeclarations()
         {
-            IEnumerable<ColumnCheck> checks = ColumnChecks;
-
-            if (IsPrimaryKey && Parent.PrimaryKeyColumns().Count() == 1)
-            {
-                checks = checks.Where(x => !(x is INullConstraint))
-                    .Concat(new ColumnCheck[]
-                        {new PrimaryKey(Parent.PrimaryKeyConstraintName, new TableColumn[] {this})});
-            }
-            
-            return checks.Select(x => x.FullDeclaration()).Join(" ");
+            return ColumnChecks.Select(x => x.FullDeclaration()).Join(" ");
         }
 
         protected bool Equals(TableColumn other)
@@ -74,9 +65,11 @@ namespace Weasel.Postgresql.Tables
 
         public string ToDeclaration(int length)
         {
-            // TODO -- use collation
-            
-            return $"{Name.PadRight(length)}{Type} {CheckDeclarations()}";
+            var checkDeclarations = CheckDeclarations();
+
+            return checkDeclarations.IsEmpty() 
+                ? $"{Name.PadRight(length)}{Type}" 
+                : $"{Name.PadRight(length)}{Type} {checkDeclarations}";
         }
 
         public override string ToString()

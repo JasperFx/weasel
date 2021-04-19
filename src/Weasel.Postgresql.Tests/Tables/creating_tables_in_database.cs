@@ -58,6 +58,26 @@ namespace Weasel.Postgresql.Tests.Tables
         }
         
         [Fact]
+        public async Task create_with_multi_column_pk()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema("tables");
+            
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("tenant_id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            (await table.ExistsInDatabase(theConnection))
+                .ShouldBeTrue();
+        }
+
+        
+        [Fact]
         public async Task create_tables_with_foreign_keys_too_in_the_database()
         {
             await theConnection.OpenAsync();

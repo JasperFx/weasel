@@ -109,9 +109,9 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
                 existing.AddColumn(column);
             }
 
-            if (pks.Any())
+            foreach (var pkColumn in pks)
             {
-                //existing.SetPrimaryKey(pks.First());
+                existing.ColumnFor(pkColumn).IsPrimaryKey = true;
             }
 
             existing.ActualIndices = indexes;

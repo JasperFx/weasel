@@ -75,23 +75,5 @@ namespace Weasel.Postgresql.Tests.Tables
             column.CheckDeclarations().ShouldBe("NOT NULL");
         }
 
-        [Fact]
-        public void column_should_build_the_directive_for_primary_key_if_it_is_a_one_column_pk()
-        {
-            var table = new Table("mytable");
-            table
-                .AddColumn("id", "int")
-                .NotNull()
-                .AsPrimaryKey();
-
-            var column = table.Columns.Single();
-
-            table.PrimaryKeyConstraintName = "pk_mytable";
-            
-            column.CheckDeclarations()
-                .ShouldBe("CONSTRAINT pk_mytable PRIMARY KEY");
-
-
-        }
     }
 }

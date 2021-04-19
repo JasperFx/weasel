@@ -17,7 +17,8 @@ namespace Weasel.Postgresql.Tables
 
         public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
         public IList<IIndexDefinition> Indexes { get; } = new List<IIndexDefinition>();
-        
+
+        public IReadOnlyList<string> PrimaryKeyColumns => _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
 
         public void Write(DdlRules rules, StringWriter writer)
         {
@@ -45,11 +46,10 @@ namespace Weasel.Postgresql.Tables
 
             writer.WriteLine(lines.Last());
 
-            // TODO -- write multi-column primary keys
-            // if (PrimaryKeys.Any())
-            // {
-            //     writer.WriteLine($"   ,PRIMARY KEY ({PrimaryKeys.Select(x => x.Name).Join(", ")})");
-            // }
+            if (PrimaryKeyColumns.Any())
+            {
+                writer.WriteLine($"   ,CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})");
+            }
 
             writer.WriteLine(");");
 
@@ -77,6 +77,18 @@ namespace Weasel.Postgresql.Tables
 
         public DbObjectName Identifier { get; }
 
+        private string _primaryKeyName = null;
+
+        public string PrimaryKeyName
+        {
+            get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
+            set => _primaryKeyName = value;
+        }
+        
+        public TableColumn ColumnFor(string columnName)
+        {
+            return Columns.FirstOrDefault(x => x.Name == columnName);
+        }
 
 
 
@@ -93,19 +105,12 @@ namespace Weasel.Postgresql.Tables
         public Table(DbObjectName name)
         {
             Identifier = name ?? throw new ArgumentNullException(nameof(name));
-            PrimaryKeyConstraintName = $"pk_{name.Name}";
         }
 
         public Table(string tableName) : this(new DbObjectName(tableName))
         {
             
         }
-        
-        /// <summary>
-        /// The identifier for the primary key (if any). It may be valuable
-        /// to name the constraint for upserts and other operations
-        /// </summary>
-        public string PrimaryKeyConstraintName { get; set; }
 
         public ColumnExpression AddColumn(TableColumn column)
         {
@@ -131,11 +136,6 @@ namespace Weasel.Postgresql.Tables
 
             var type = TypeMappings.GetPgType(typeof(T), EnumStorage.AsInteger);
             return AddColumn(columnName, type);
-        }
-
-        public IEnumerable<TableColumn> PrimaryKeyColumns()
-        {
-            return _columns.Where(x => x.IsPrimaryKey);
         }
 
         public async Task<bool> ExistsInDatabase(NpgsqlConnection conn)

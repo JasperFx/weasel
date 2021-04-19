@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Shouldly;
 using Weasel.Postgresql.Tables;
@@ -45,6 +46,47 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
+        public async Task read_single_pk_field()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema("tables");
+            
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            var existing = await table.FetchExisting(theConnection);
+            
+            existing.PrimaryKeyColumns.Single()
+                .ShouldBe("id");
+        }
+        
+        [Fact]
+        public async Task read_multi_pk_fields()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema("tables");
+            
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("tenant_id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            var existing = await table.FetchExisting(theConnection);
+            
+            existing.PrimaryKeyColumns.OrderBy(x => x)
+                .ShouldBe(new []{"id", "tenant_id"});
+        }
+
+        [Fact]
         public async Task read_indexes_and_foreign_keys()
         {
             await theConnection.OpenAsync();
@@ -72,6 +114,9 @@ namespace Weasel.Postgresql.Tests.Tables
             await CreateSchemaObjectInDatabase(table);
 
             var existing = await table.FetchExisting(theConnection);
+            
+            
+            
             existing.ActualIndices.Count.ShouldBe(2);
             existing.ActualIndices["idx_people_first_name"].DDL
                 .ShouldBe("CREATE INDEX idx_people_first_name ON public.people USING btree (first_name)");

@@ -27,13 +27,6 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
-        public void default_primary_key_name_is_derived_from_table_name()
-        {
-            var table = new Table("mytable");
-            table.PrimaryKeyConstraintName.ShouldBe("pk_mytable");
-        }
-        
-        [Fact]
         public void add_column_by_name_and_type()
         {
             var table = new Table("mytable");
@@ -193,6 +186,43 @@ namespace Weasel.Postgresql.Tests.Tables
             index.IndexName.ShouldBe("idx_people_state_id");
             index.ColumnNames.Single().ShouldBe("state_id");
             index.Method.ShouldBe(IndexMethod.hash);
+        }
+
+        [Fact]
+        public void default_primary_key_name()
+        {
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+
+            table.PrimaryKeyName.ShouldBe("pkey_people_id");
+        }
+
+        [Fact]
+        public void multi_column_primary_key()
+        {
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name").AsPrimaryKey();
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+
+            table.PrimaryKeyName.ShouldBe("pkey_people_id_first_name");
+        }
+        
+        [Fact]
+        public void override_primary_key_name()
+        {
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name").AsPrimaryKey();
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+
+            table.PrimaryKeyName = "pk_people";
+            table.PrimaryKeyName.ShouldBe("pk_people");
         }
         
         
