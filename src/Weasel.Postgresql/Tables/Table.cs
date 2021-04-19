@@ -89,8 +89,12 @@ namespace Weasel.Postgresql.Tables
         {
             return Columns.FirstOrDefault(x => x.Name == columnName);
         }
-
-
+        
+        
+        public bool HasColumn(string columnName)
+        {
+            return Columns.Any(x => x.Name == columnName);
+        }
 
         public SchemaPatchDifference CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {

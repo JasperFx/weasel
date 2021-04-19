@@ -80,7 +80,7 @@ namespace Weasel.Postgresql.Tables
         // TODO -- this needs to get a lot smarter
         //public bool CanAdd { get; set; } = false;
 
-        /*
+        
         public virtual string AddColumnSql(Table table)
         {
             return $"alter table {table.Identifier} add column {ToDeclaration(Name.Length + 1)};";
@@ -90,9 +90,6 @@ namespace Weasel.Postgresql.Tables
         {
             return $"alter table {table.Identifier} alter column {Name.PadRight(Name.Length)} type {Type};";
         }
-        */
-
-
 
         internal bool IsPrimaryKey { get; set; }
 
