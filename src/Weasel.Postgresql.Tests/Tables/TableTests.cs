@@ -246,7 +246,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var sql = states.ToBasicCreateTableSql();
             
-            sql.ShouldContain("id    integer    SERIAL");
+            sql.ShouldContain("id integer SERIAL");
         }
 
     }

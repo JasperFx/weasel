@@ -17,6 +17,8 @@ namespace Weasel.Postgresql
         public readonly LightweightCache<string, DdlTemplate> Templates
             = new LightweightCache<string, DdlTemplate>(name => new DdlTemplate(name));
 
+        public DdlFormatting Formatting { get; set; } = DdlFormatting.Pretty;
+        
         /// <summary>
         ///     Alters the syntax used to create tables in DDL
         /// </summary>

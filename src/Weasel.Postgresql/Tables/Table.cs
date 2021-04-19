@@ -28,7 +28,7 @@ namespace Weasel.Postgresql.Tables
         public string ToBasicCreateTableSql()
         {
             var writer = new StringWriter();
-            var rules = new DdlRules();
+            var rules = new DdlRules{Formatting = DdlFormatting.Concise};
             Write(rules, writer);
 
             return writer.ToString();
@@ -45,25 +45,49 @@ namespace Weasel.Postgresql.Tables
             {
                 writer.WriteLine("CREATE TABLE IF NOT EXISTS {0} (", Identifier);
             }
-
-            var columnLength = Columns.Max(x => x.Name.Length) + 4;
-            var typeLength = Columns.Max(x => x.Type.Length) + 4;
-
-            var lines = Columns.Select(column =>
-                $"    {column.Name.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.CheckDeclarations()}")
-                .ToList();
-
-            for (int i = 0; i < lines.Count - 1; i++)
+            
+            if (rules.Formatting == DdlFormatting.Pretty)
             {
-                writer.WriteLine(lines[i] + ",");
+                var columnLength = Columns.Max(x => x.Name.Length) + 4;
+                var typeLength = Columns.Max(x => x.Type.Length) + 4;
+
+                var lines = Columns.Select(column =>
+                        $"    {column.Name.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.CheckDeclarations()}")
+                    .ToList();
+
+                if (PrimaryKeyColumns.Any())
+                {
+                    lines.Add(primaryKeyDeclaration());
+                }
+
+                for (int i = 0; i < lines.Count - 1; i++)
+                {
+                    writer.WriteLine(lines[i] + ",");
+                }
+
+                writer.WriteLine(lines.Last());
             }
-
-            writer.WriteLine(lines.Last());
-
-            if (PrimaryKeyColumns.Any())
+            else
             {
-                writer.WriteLine($"   ,CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})");
+                var lines = Columns
+                    .Select(column => column.ToDeclaration())
+                    .ToList();
+                
+                if (PrimaryKeyColumns.Any())
+                {
+                    lines.Add(primaryKeyDeclaration());
+                }
+
+                for (int i = 0; i < lines.Count - 1; i++)
+                {
+                    writer.WriteLine(lines[i] + ",");
+                }
+
+                writer.WriteLine(lines.Last());
             }
+            
+
+
 
             writer.WriteLine(");");
 
@@ -82,6 +106,11 @@ namespace Weasel.Postgresql.Tables
                 writer.WriteLine();
                 writer.WriteLine(index.ToDDL(this));
             }
+        }
+
+        private string primaryKeyDeclaration()
+        {
+            return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
         }
 
         public void WriteDropStatement(DdlRules rules, StringWriter writer)

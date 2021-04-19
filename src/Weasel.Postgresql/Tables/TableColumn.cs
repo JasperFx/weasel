@@ -63,13 +63,13 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        public string ToDeclaration(int length)
+        public string ToDeclaration()
         {
             var checkDeclarations = CheckDeclarations();
 
             return checkDeclarations.IsEmpty() 
-                ? $"{Name.PadRight(length)}{Type}" 
-                : $"{Name.PadRight(length)}{Type} {checkDeclarations}";
+                ? $"{Name} {Type}" 
+                : $"{Name} {Type} {checkDeclarations}";
         }
 
         public override string ToString()
@@ -84,7 +84,7 @@ namespace Weasel.Postgresql.Tables
         // TODO -- test
         public virtual string AddColumnSql(Table table)
         {
-            return $"alter table {table.Identifier} add column {ToDeclaration(Name.Length + 1)};";
+            return $"alter table {table.Identifier} add column {ToDeclaration()};";
         }
 
         // TODO -- test
