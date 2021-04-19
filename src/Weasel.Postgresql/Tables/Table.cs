@@ -20,6 +20,20 @@ namespace Weasel.Postgresql.Tables
 
         public IReadOnlyList<string> PrimaryKeyColumns => _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
 
+        /// <summary>
+        /// Generate the CREATE TABLE SQL expression with default
+        /// DDL rules. This is useful for quick diagnostics
+        /// </summary>
+        /// <returns></returns>
+        public string ToBasicCreateTableSql()
+        {
+            var writer = new StringWriter();
+            var rules = new DdlRules();
+            Write(rules, writer);
+
+            return writer.ToString();
+        }
+        
         public void Write(DdlRules rules, StringWriter writer)
         {
             if (rules.TableCreation == CreationStyle.DropThenCreate)
@@ -215,7 +229,7 @@ namespace Weasel.Postgresql.Tables
                 return this;
             }
 
-            public void AddIndex(Action<IndexDefinition> configure = null)
+            public ColumnExpression AddIndex(Action<IndexDefinition> configure = null)
             {
                 var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", _column.Name))
                 {
@@ -225,6 +239,14 @@ namespace Weasel.Postgresql.Tables
                 _parent.Indexes.Add(index);
                 
                 configure?.Invoke(index);
+
+                return this;
+            }
+
+            public ColumnExpression Serial()
+            {
+                _column.ColumnChecks.Add(new SerialValue());
+                return this;
             }
         }
     }

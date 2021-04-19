@@ -237,5 +237,17 @@ namespace Weasel.Postgresql.Tests.Tables
             states.Columns.Last().IsPrimaryKey.ShouldBeFalse();
         }
 
+        [Fact]
+        public void add_serial_as_default_value()
+        {
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey().Serial();
+
+
+            var sql = states.ToBasicCreateTableSql();
+            
+            sql.ShouldContain("id    integer    SERIAL");
+        }
+
     }
 }

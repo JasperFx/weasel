@@ -81,11 +81,13 @@ namespace Weasel.Postgresql.Tables
         //public bool CanAdd { get; set; } = false;
 
         
+        // TODO -- test
         public virtual string AddColumnSql(Table table)
         {
             return $"alter table {table.Identifier} add column {ToDeclaration(Name.Length + 1)};";
         }
 
+        // TODO -- test
         public virtual string AlterColumnTypeSql(Table table)
         {
             return $"alter table {table.Identifier} alter column {Name.PadRight(Name.Length)} type {Type};";
@@ -125,11 +127,25 @@ namespace Weasel.Postgresql.Tables
         public override string Declaration() => "NOT NULL";
     }
 
-    /*
+    public class SerialValue : ColumnCheck
+    {
+        public override string Declaration() => "SERIAL";
+    }
+
+    
     public class DefaultValue : ColumnCheck
     {
-        
+        public string Expression { get; }
+
+        public DefaultValue(string expression)
+        {
+            Expression = expression;
+        }
+
+        public override string Declaration() => Expression;
     }
+    
+    /*
 
     public class GeneratedAlwaysAsStored : ColumnCheck
     {
