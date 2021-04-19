@@ -10,6 +10,11 @@ namespace Weasel.Postgresql
 
         private readonly long? _startWith;
 
+        public Sequence(string identifier)
+        {
+            Identifier = DbObjectName.Parse(identifier);
+        } 
+        
         public Sequence(DbObjectName identifier)
         {
             Identifier = identifier;

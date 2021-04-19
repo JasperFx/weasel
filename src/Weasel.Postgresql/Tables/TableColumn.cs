@@ -142,7 +142,7 @@ namespace Weasel.Postgresql.Tables
             Expression = expression;
         }
 
-        public override string Declaration() => Expression;
+        public override string Declaration() => "DEFAULT " + Expression;
     }
     
     /*

@@ -154,7 +154,7 @@ namespace Weasel.Postgresql.Tables
             Identifier = name ?? throw new ArgumentNullException(nameof(name));
         }
 
-        public Table(string tableName) : this(new DbObjectName(tableName))
+        public Table(string tableName) : this(DbObjectName.Parse(tableName))
         {
             
         }
@@ -274,7 +274,45 @@ namespace Weasel.Postgresql.Tables
 
             public ColumnExpression Serial()
             {
-                _column.ColumnChecks.Add(new SerialValue());
+                _column.Type = "SERIAL";
+                return this;
+            }
+
+            public ColumnExpression DefaultValue(string value)
+            {
+                return DefaultValueByExpression($"'{value}'");
+            }
+            
+            public ColumnExpression DefaultValue(int value)
+            {
+                return DefaultValueByExpression(value.ToString());
+            }
+            
+            public ColumnExpression DefaultValue(long value)
+            {
+                return DefaultValueByExpression(value.ToString());
+            }
+            
+            public ColumnExpression DefaultValue(double value)
+            {
+                return DefaultValueByExpression(value.ToString());
+            }
+
+            public ColumnExpression DefaultValueFromSequence(Sequence sequence)
+            {
+                return DefaultValueFromSequence(sequence.Identifier);
+            }
+            
+            public ColumnExpression DefaultValueFromSequence(DbObjectName sequenceName)
+            {
+                return DefaultValueByExpression($"nextval('{sequenceName}')");
+            }
+
+            public ColumnExpression DefaultValueByExpression(string expression)
+            {
+                var check = new DefaultValue(expression);
+                _column.ColumnChecks.Add(check);
+
                 return this;
             }
         }

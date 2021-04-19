@@ -10,6 +10,7 @@ namespace Weasel.Postgresql.Tests
 {
     public abstract class IntegrationContext : IDisposable
     {
+        private readonly string _schemaName;
         protected readonly NpgsqlConnection theConnection = new NpgsqlConnection(ConnectionSource.ConnectionString);
         
         protected IntegrationContext(string schemaName)
@@ -18,11 +19,20 @@ namespace Weasel.Postgresql.Tests
             {
                 throw new InvalidOperationException("You must decorate this class with a [Collection(\"schemaname\"] attribute. Preferably w/ the schema name");
             }
+
+            _schemaName = schemaName;
         }
 
         public void Dispose()
         {
             theConnection?.Dispose();
+        }
+        
+        protected async Task ResetSchema()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.ResetSchema(_schemaName);
         }
 
         protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
