@@ -28,6 +28,33 @@ namespace Weasel.Postgresql.Tables
             KeyName = keyName;
         }
 
+        /// <summary>
+        /// Read the DDL definition from the server
+        /// </summary>
+        /// <param name="definition"></param>
+        /// <exception cref="NotImplementedException"></exception>
+        public void Parse(string definition)
+        {
+            // // FOREIGN KEY (state_id, tenant_id) REFERENCES states(id, tenant_id)
+
+            var open1 = definition.IndexOf('(');
+            var closed1 = definition.IndexOf(')');
+
+            ColumnNames = definition.Substring(open1 + 1, closed1 - open1 - 1).ToDelimitedArray(',');
+
+            var open2 = definition.IndexOf('(', closed1);
+            var closed2 = definition.IndexOf(')', open2);
+            
+            LinkedNames = definition.Substring(open2 + 1, closed2 - open2 - 1).ToDelimitedArray(',');
+
+
+            var references = "REFERENCES";
+            var tableStart = definition.IndexOf(references) + references.Length;
+
+            var tableName = definition.Substring(tableStart, open2 - tableStart).Trim();
+            LinkedTable = DbObjectName.Parse(tableName);
+        }
+
         public string KeyName { get; set; }
         public string[] ColumnNames { get; set; }
         public string[] LinkedNames { get; set; } 

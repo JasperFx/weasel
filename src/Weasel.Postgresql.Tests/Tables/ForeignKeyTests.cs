@@ -1,3 +1,4 @@
+using System.Linq;
 using Shouldly;
 using Weasel.Postgresql.Tables;
 using Xunit;
@@ -81,6 +82,36 @@ namespace Weasel.Postgresql.Tests.Tables
             ddl.ShouldContain("ALTER TABLE public.people");
             ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id, tenant_id)");
             ddl.ShouldContain("REFERENCES public.states(id, tenant_id)");
+        }
+
+        [Fact]
+        public void parse_single_column_fk_definition()
+        {
+            var fk = new ForeignKey("fk_people_state_id")
+            {
+
+            };
+            
+            fk.Parse("FOREIGN KEY (state_id) REFERENCES states(id)");
+            
+            fk.ColumnNames.Single().ShouldBe("state_id");
+            fk.LinkedNames.Single().ShouldBe("id");
+            fk.LinkedTable.ShouldBe(new DbObjectName("states"));
+        }
+        
+        [Fact]
+        public void parse_multiple_column_fk_definition()
+        {
+            var fk = new ForeignKey("fk_people_state_id")
+            {
+
+            };
+            
+            fk.Parse("FOREIGN KEY (state_id, tenant_id) REFERENCES states(id, tenant_id)");
+            
+            fk.ColumnNames.ShouldBe(new string[]{"state_id", "tenant_id"});
+            fk.LinkedNames.ShouldBe(new string[]{"id", "tenant_id"});
+            fk.LinkedTable.ShouldBe(new DbObjectName("states"));
         }
     }
 }

@@ -17,11 +17,7 @@ namespace Weasel.Postgresql.Tests.Tables
         /*
          * TODO
          * 1. Column constraints, to find deltas
-         * 2. Indexes
-         *    a. New
-         *    b. Obsolete
-         *    c. Changed
-         *    d. Matched
+
          * 3. Foreign Keys
          *    a. New
          *    b. Obsolete
@@ -221,6 +217,13 @@ namespace Weasel.Postgresql.Tests.Tables
             yield return ("Simple hash", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.hash));
             
             
+        }
+
+
+        [Fact]
+        public async Task detect_all_new_foreign_key()
+        {
+            throw new NotImplementedException("do this");
         }
         
         

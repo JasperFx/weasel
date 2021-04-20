@@ -131,6 +131,8 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
         
         private async Task<List<ActualForeignKey>> readConstraints(DbDataReader reader)
         {
+            
+            
             await reader.NextResultAsync();
             var constraints = new List<ActualForeignKey>();
             while (await reader.ReadAsync())
