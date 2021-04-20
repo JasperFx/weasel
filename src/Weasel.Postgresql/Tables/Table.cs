@@ -209,24 +209,26 @@ namespace Weasel.Postgresql.Tables
                 _column = column;
             }
 
-            public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName, string fkName = null)
+            public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName, string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
-                return ForeignKeyTo(new DbObjectName(referencedTableName), referencedColumnName, fkName);
+                return ForeignKeyTo(new DbObjectName(referencedTableName), referencedColumnName, fkName, onDelete, onUpdate);
             }
             
-            public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName, string fkName = null)
+            public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName, string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
-                return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName);
+                return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName, onDelete, onUpdate);
             }
 
             public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
-                string fkName = null)
+                string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
                 var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", _column.Name))
                 {
                     LinkedTable = referencedIdentifier,
                     ColumnNames = new[] {_column.Name},
-                    LinkedNames = new[] {referencedColumnName}
+                    LinkedNames = new[] {referencedColumnName},
+                    OnDelete = onDelete,
+                    OnUpdate = onUpdate
                 };
 
                 _parent.ForeignKeys.Add(fk);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Baseline;
 
@@ -21,11 +22,45 @@ namespace Weasel.Postgresql.Tables
         }
     }
 
-    public class ForeignKey
+    public class ForeignKey : INamed
     {
-        public ForeignKey(string keyName)
+        protected bool Equals(ForeignKey other)
         {
-            KeyName = keyName;
+            return ColumnNames.SequenceEqual(other.ColumnNames) 
+                   && LinkedNames.SequenceEqual(other.LinkedNames) 
+                   && Equals(LinkedTable, other.LinkedTable) 
+                   && OnDelete == other.OnDelete 
+                   && OnUpdate == other.OnUpdate;
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj))
+            {
+                return false;
+            }
+
+            if (ReferenceEquals(this, obj))
+            {
+                return true;
+            }
+
+            if (obj.GetType() != this.GetType())
+            {
+                return false;
+            }
+
+            return Equals((ForeignKey) obj);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(ColumnNames, LinkedNames, LinkedTable, (int) OnDelete, (int) OnUpdate);
+        }
+
+        public ForeignKey(string name)
+        {
+            Name = name;
         }
 
         /// <summary>
@@ -35,8 +70,6 @@ namespace Weasel.Postgresql.Tables
         /// <exception cref="NotImplementedException"></exception>
         public void Parse(string definition)
         {
-            // // FOREIGN KEY (state_id, tenant_id) REFERENCES states(id, tenant_id)
-
             var open1 = definition.IndexOf('(');
             var closed1 = definition.IndexOf(')');
 
@@ -53,9 +86,45 @@ namespace Weasel.Postgresql.Tables
 
             var tableName = definition.Substring(tableStart, open2 - tableStart).Trim();
             LinkedTable = DbObjectName.Parse(tableName);
+
+            if (definition.ContainsIgnoreCase("ON DELETE CASCADE"))
+            {
+                OnDelete = CascadeAction.Cascade;
+            }
+            else if (definition.ContainsIgnoreCase("ON DELETE RESTRICT"))
+            {
+                OnDelete = CascadeAction.Restrict;
+            }
+            else if (definition.ContainsIgnoreCase("ON DELETE SET NULL"))
+            {
+                OnDelete = CascadeAction.SetNull;
+            }
+            else if (definition.ContainsIgnoreCase("ON DELETE SET DEFAULT"))
+            {
+                OnDelete = CascadeAction.SetDefault;
+            }
+            
+            if (definition.ContainsIgnoreCase("ON UPDATE CASCADE"))
+            {
+                OnUpdate = CascadeAction.Cascade;
+            }
+            else if (definition.ContainsIgnoreCase("ON UPDATE RESTRICT"))
+            {
+                OnUpdate = CascadeAction.Restrict;
+            }
+            else if (definition.ContainsIgnoreCase("ON UPDATE SET NULL"))
+            {
+                OnUpdate = CascadeAction.SetNull;
+            }
+            else if (definition.ContainsIgnoreCase("ON UPDATE SET DEFAULT"))
+            {
+                OnUpdate = CascadeAction.SetDefault;
+            }
+            
+            
         }
 
-        public string KeyName { get; set; }
+        public string Name { get; set; }
         public string[] ColumnNames { get; set; }
         public string[] LinkedNames { get; set; } 
         
@@ -69,7 +138,7 @@ namespace Weasel.Postgresql.Tables
             var sb = new StringBuilder();
 
             sb.AppendLine($"ALTER TABLE {parent.Identifier}");
-            sb.AppendLine($"ADD CONSTRAINT {KeyName} FOREIGN KEY({ColumnNames.Join(", ")})");
+            sb.AppendLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
             sb.Append($"REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
             sb.WriteCascadeAction("ON DELETE", OnDelete);
             sb.WriteCascadeAction("ON UPDATE", OnUpdate);

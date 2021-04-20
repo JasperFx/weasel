@@ -223,8 +223,126 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public async Task detect_all_new_foreign_key()
         {
-            throw new NotImplementedException("do this");
+            var states = new Table("deltas.states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+            
+            
+            var table = new Table("deltas.people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+
+            await CreateSchemaObjectInDatabase(table);
+            
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+            var delta = await table.FindDelta(theConnection);
+            
+            delta.Matches.ShouldBeFalse();
+            
+            delta.ForeignKeys.Missing.Single()
+                .ShouldBeSameAs(table.ForeignKeys.Single());
+
+
         }
+        
+        [Fact]
+        public async Task detect_extra_foreign_key()
+        {
+            var states = new Table("deltas.states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+            
+            
+            var table = new Table("deltas.people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+
+            await CreateSchemaObjectInDatabase(table);
+            
+            table.ForeignKeys.Clear();
+            
+            var delta = await table.FindDelta(theConnection);
+            
+            delta.Matches.ShouldBeFalse();
+            
+            delta.ForeignKeys.Extras.Single().Name
+                .ShouldBe("fkey_people_state_id");
+
+
+        }
+        
+                
+        [Fact]
+        public async Task match_foreign_key()
+        {
+            var states = new Table("deltas.states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+            
+            
+            var table = new Table("deltas.people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+
+            await CreateSchemaObjectInDatabase(table);
+            
+
+            var delta = await table.FindDelta(theConnection);
+            
+            delta.Matches.ShouldBeTrue();
+            
+            delta.ForeignKeys.Matched.Single().Name
+                .ShouldBe("fkey_people_state_id");
+
+
+        }
+        
+                
+                
+        [Fact]
+        public async Task different_foreign_key()
+        {
+            var states = new Table("deltas.states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+            
+            await CreateSchemaObjectInDatabase(states);
+            
+            
+            var table = new Table("deltas.people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+
+            await CreateSchemaObjectInDatabase(table);
+
+            table.ForeignKeys.Single().OnDelete = CascadeAction.Cascade;
+
+            var delta = await table.FindDelta(theConnection);
+            
+            delta.Matches.ShouldBeFalse();
+            
+            delta.ForeignKeys.Different.Single().Actual.Name
+                .ShouldBe("fkey_people_state_id");
+
+
+        }
+
         
         
 

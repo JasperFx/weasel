@@ -84,6 +84,35 @@ namespace Weasel.Postgresql.Tests.Tables
             ddl.ShouldContain("REFERENCES public.states(id, tenant_id)");
         }
 
+        [Theory]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id)", CascadeAction.NoAction, CascadeAction.NoAction)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE", CascadeAction.Cascade,
+            CascadeAction.NoAction)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON UPDATE CASCADE", CascadeAction.NoAction,
+            CascadeAction.Cascade)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE CASCADE",
+            CascadeAction.Cascade, CascadeAction.Cascade)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE RESTRICT",
+            CascadeAction.Cascade, CascadeAction.Restrict)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE SET NULL",
+            CascadeAction.Cascade, CascadeAction.SetNull)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE SET DEFAULT",
+            CascadeAction.Cascade, CascadeAction.SetDefault)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE RESTRICT", CascadeAction.Restrict, CascadeAction.NoAction)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE SET DEFAULT", CascadeAction.SetDefault, CascadeAction.NoAction)]
+        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE SET NULL", CascadeAction.SetNull, CascadeAction.NoAction)]
+        public void read_on_delete_and_on_update(string definition, CascadeAction onDelete, CascadeAction onUpdate)
+        {
+            var fk = new ForeignKey("fk_people_state_id")
+            {
+
+            };
+            
+            fk.Parse(definition);
+            fk.OnDelete.ShouldBe(onDelete);
+            fk.OnUpdate.ShouldBe(onUpdate);
+        }
+
         [Fact]
         public void parse_single_column_fk_definition()
         {

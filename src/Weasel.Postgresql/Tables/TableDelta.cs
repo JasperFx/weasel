@@ -75,51 +75,16 @@ namespace Weasel.Postgresql.Tables
             Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
             Indexes = new ItemDelta<IIndexDefinition>(expected.Indexes, actual.Indexes,
                 (e, a) => ActualIndex.Matches(e, a, expected));
+
+            ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
             
             _tableName = expected.Identifier;
-
-            compareForeignKeys(expected, actual);
         }
         
         public ItemDelta<TableColumn> Columns { get; }
         public ItemDelta<IIndexDefinition> Indexes { get; }
-
-        private void compareForeignKeys(Table expected, Table actual)
-        {
-            // var schemaName = expected.Identifier.Schema;
-            // var tableName = expected.Identifier.Name;
-            //
-            // // Locate FKs that exist, but aren't defined
-            // var obsoleteFkeys = actual.ActualForeignKeys.Where(afk => expected.ForeignKeys.All(fk => fk.KeyName != afk.Name));
-            // foreach (var fkey in obsoleteFkeys)
-            // {
-            //     ForeignKeyMissing.Add($"ALTER TABLE {schemaName}.{tableName} DROP CONSTRAINT {fkey.Name};");
-            //     ForeignKeyMissingRollbacks.Add($"ALTER TABLE {schemaName}.{tableName} ADD CONSTRAINT {fkey.Name} {fkey.DDL};");
-            // }
-            //
-            // // Detect changes
-            // foreach (var fkey in expected.ForeignKeys)
-            // {
-            //     var actualFkey = actual.ActualForeignKeys.SingleOrDefault(afk => afk.Name == fkey.KeyName);
-            //     if (actualFkey != null && fkey.CascadeDeletes != actualFkey.DoesCascadeDeletes())
-            //     {
-            //         // The fkey cascading has changed, drop and re-create the key
-            //         ForeignKeyChanges.Add($"ALTER TABLE {schemaName}.{tableName} DROP CONSTRAINT {actualFkey.Name}; {fkey.ToDDL()};");
-            //         ForeignKeyRollbacks.Add($"ALTER TABLE {schemaName}.{tableName} DROP CONSTRAINT {fkey.KeyName}; ALTER TABLE {schemaName}.{tableName} ADD CONSTRAINT {actualFkey.Name} {actualFkey.DDL};");
-            //     }
-            //     else if (actualFkey == null)// The foreign key is missing
-            //     {
-            //         ForeignKeyChanges.Add(fkey.ToDDL());
-            //         ForeignKeyRollbacks.Add($"ALTER TABLE {schemaName}.{tableName} DROP CONSTRAINT {fkey.KeyName};");
-            //     }
-            // }
-        }
-
-        public readonly IList<string> ForeignKeyMissing = new List<string>();
-        public readonly IList<string> ForeignKeyMissingRollbacks = new List<string>();
-
-        public readonly IList<string> ForeignKeyChanges = new List<string>();
-        public readonly IList<string> ForeignKeyRollbacks = new List<string>();
+        
+        public ItemDelta<ForeignKey> ForeignKeys { get; }
 
         public readonly IList<string> AlteredColumnTypes = new List<string>();
         public readonly IList<string> AlteredColumnTypeRollbacks = new List<string>();
@@ -132,8 +97,7 @@ namespace Weasel.Postgresql.Tables
 
                 if (Indexes.HasChanges()) return false;
 
-                if (ForeignKeyChanges.Any())
-                    return false;
+                if (ForeignKeys.HasChanges()) return false;
 
                 return true;
             }

@@ -98,7 +98,7 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
             await readColumns(reader, existing);
             var pks = await readPrimaryKeys(reader);
             await readIndexes(reader, existing);
-            var constraints = await readConstraints(reader);
+            await readConstraints(reader, existing);
 
             foreach (var pkColumn in pks)
             {
@@ -129,18 +129,19 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
             }
         }
         
-        private async Task<List<ActualForeignKey>> readConstraints(DbDataReader reader)
+        private async Task readConstraints(DbDataReader reader, Table existing)
         {
-            
-            
             await reader.NextResultAsync();
-            var constraints = new List<ActualForeignKey>();
             while (await reader.ReadAsync())
             {
-                constraints.Add(new ActualForeignKey(Identifier, await reader.GetFieldValueAsync<string>(0), await reader.GetFieldValueAsync<string>(5)));
-            }
+                var name = await reader.GetFieldValueAsync<string>(0);
+                var definition = await reader.GetFieldValueAsync<string>(5);
 
-            return constraints;
+                var fk = new ForeignKey(name);
+                fk.Parse(definition);
+                
+                existing.ForeignKeys.Add(fk);
+            }
         }
 
         private async Task readIndexes(DbDataReader reader, Table existing)
