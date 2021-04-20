@@ -5,65 +5,84 @@ using Baseline;
 
 namespace Weasel.Postgresql.Tables
 {
+    public class Change<T>
+    {
+        public Change(T expected, T actual)
+        {
+            Expected = expected;
+            Actual = actual;
+        }
+
+        public T Expected { get; }
+        public T Actual { get; }
+    }
+    
+    public class ItemDelta<T> where T: INamed
+    {
+        private readonly List<Change<T>> _different = new List<Change<T>>();
+        private readonly List<T> _matched = new List<T>();
+        private readonly List<T> _extras = new List<T>();
+        private readonly List<T> _missing = new List<T>();
+
+        public bool HasChanges()
+        {
+            return _different.Any() || _extras.Any() || _missing.Any();
+        }
+
+        public IReadOnlyList<Change<T>> Different => _different;
+
+        public IReadOnlyList<T> Matched => _matched;
+
+        public IReadOnlyList<T> Extras => _extras;
+
+        public IReadOnlyList<T> Missing => _missing;
+        
+        public ItemDelta(IEnumerable<T> expectedItems, IEnumerable<T> actualItems, Func<T, T, bool> comparison = null)
+        {
+            comparison ??= (expected, actual) => expected.Equals(actual);
+            var expecteds = expectedItems.ToDictionary(x => x.Name);
+
+            foreach (var actual in actualItems)
+            {
+                if (expecteds.TryGetValue(actual.Name, out var expected))
+                {
+                    if (comparison(expected, actual))
+                    {
+                        _matched.Add(actual);
+                    }
+                    else
+                    {
+                        _different.Add(new Change<T>(expected, actual));
+                    }
+                }
+                else
+                {
+                    _extras.Add(actual);
+                }
+            }
+
+            var actuals = actualItems.ToDictionary(x => x.Name);
+            _missing.AddRange(expectedItems.Where(x => !actuals.ContainsKey(x.Name)));
+        }
+    }    
+    
     public class TableDelta
     {
         private readonly DbObjectName _tableName;
 
         public TableDelta(Table expected, Table actual)
         {
-            Missing = expected.Columns.Where(x => actual.Columns.All(_ => _.Name != x.Name)).ToArray();
-            Extras = actual.Columns.Where(x => expected.Columns.All(_ => _.Name != x.Name)).ToArray();
-            Matched = expected.Columns.Where(x => actual.Columns.Any(a => Equals(a, x))).ToArray();
-            Different =
-                expected.Columns.Where(x => actual.HasColumn(x.Name) && !x.Equals(actual.ColumnFor(x.Name))).ToArray();
-
+            Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
+            Indexes = new ItemDelta<IIndexDefinition>(expected.Indexes, actual.Indexes,
+                (e, a) => ActualIndex.Matches(e, a, expected));
+            
             _tableName = expected.Identifier;
-
-            compareColumns(expected, actual, Different);
-
-            compareIndices(expected, actual);
 
             compareForeignKeys(expected, actual);
         }
-
-        private void compareIndices(Table expected, Table actual)
-        {
-            // TODO -- drop obsolete indices?
-
-            var schemaName = expected.Identifier.Schema;
-
-            var obsoleteIndexes = actual.ActualIndices.Values.Where(x => expected.Indexes.All(_ => _.IndexName != x.Name));
-            foreach (var index in obsoleteIndexes)
-            {
-                IndexRollbacks.Add(index.DDL);
-
-                if (!index.Name.Contains("pkey"))
-                {
-                    IndexChanges.Add($"drop index concurrently if exists {schemaName}.{index.Name};");
-                }
-                /*                else
-                                {
-                                    IndexChanges.Add($"alter table {_tableName} drop constraint if exists {schemaName}.{index.Name};");
-                                }*/
-            }
-
-            foreach (var index in expected.Indexes)
-            {
-                if (actual.ActualIndices.TryGetValue(index.IndexName, out var actualIndex))
-                {
-                    if (!index.Matches(actualIndex))
-                    {
-                        IndexChanges.Add($"drop index {schemaName}.{index.IndexName};{Environment.NewLine}{index.ToDDL(expected)};");
-                        IndexRollbacks.Add($"drop index {schemaName}.{index.IndexName};{Environment.NewLine}{actualIndex.DDL};");
-                    }
-                }
-                else
-                {
-                    IndexChanges.Add(index.ToDDL(expected));
-                    IndexRollbacks.Add($"drop index concurrently if exists {schemaName}.{index.IndexName};");
-                }
-            }
-        }
+        
+        public ItemDelta<TableColumn> Columns { get; }
+        public ItemDelta<IIndexDefinition> Indexes { get; }
 
         private void compareForeignKeys(Table expected, Table actual)
         {
@@ -96,26 +115,6 @@ namespace Weasel.Postgresql.Tables
             // }
         }
 
-        private void compareColumns(Table expected, Table actual, IEnumerable<TableColumn> changedColumns)
-        {
-            foreach (var expectedColumn in changedColumns)
-            {
-                var actualColumn = actual.ColumnFor(expectedColumn.Name);
-                var actualType = TypeMappings.ConvertSynonyms(actualColumn.Type);
-                var expectedType = TypeMappings.ConvertSynonyms(expectedColumn.Type);
-
-                // check for altered column type which can be auto converted
-                if (actualType.EqualsIgnoreCase(expectedType) ||
-                    !TypeMappings.CanAutoConvertType(actualType, expectedType)) continue;
-
-                AlteredColumnTypes.Add(expectedColumn.AlterColumnTypeSql(expected));
-                AlteredColumnTypeRollbacks.Add(actualColumn.AlterColumnTypeSql(actual));
-            }
-        }
-
-        public readonly IList<string> IndexChanges = new List<string>();
-        public readonly IList<string> IndexRollbacks = new List<string>();
-
         public readonly IList<string> ForeignKeyMissing = new List<string>();
         public readonly IList<string> ForeignKeyMissingRollbacks = new List<string>();
 
@@ -125,26 +124,14 @@ namespace Weasel.Postgresql.Tables
         public readonly IList<string> AlteredColumnTypes = new List<string>();
         public readonly IList<string> AlteredColumnTypeRollbacks = new List<string>();
 
-        public TableColumn[] Different { get; set; }
-
-        public TableColumn[] Matched { get; set; }
-
-        public TableColumn[] Extras { get; set; }
-
-        public TableColumn[] Missing { get; set; }
-
         public bool Matches
         {
             get
             {
-                if (Missing.Any())
-                    return false;
-                if (Extras.Any())
-                    return false;
-                if (Different.Any())
-                    return false;
-                if (IndexChanges.Any())
-                    return false;
+                if (Columns.HasChanges()) return false;
+
+                if (Indexes.HasChanges()) return false;
+
                 if (ForeignKeyChanges.Any())
                     return false;
 
@@ -156,5 +143,6 @@ namespace Weasel.Postgresql.Tables
         {
             return $"TableDiff for {_tableName}";
         }
+
     }
 }

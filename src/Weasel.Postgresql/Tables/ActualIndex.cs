@@ -1,7 +1,17 @@
 namespace Weasel.Postgresql.Tables
 {
-    public class ActualIndex
+    public class ActualIndex : IIndexDefinition
     {
+        public static bool Matches(IIndexDefinition expected, IIndexDefinition actual, Table parent)
+        {
+            var expectedSql = expected.ToDDL(parent)
+                .Replace("INDEX CONCURRENTLY", "INDEX");
+
+            var actualSql = actual.ToDDL(parent);
+
+            return expectedSql == actualSql;
+        }
+        
         public DbObjectName Table { get; }
 
         public string Name { get; }
@@ -11,7 +21,7 @@ namespace Weasel.Postgresql.Tables
         {
             Table = table;
             Name = name;
-            DDL = ddl.Replace("  ", " ");
+            DDL = ddl.Replace("  ", " ") + ";";
         }
 
         public override string ToString()
@@ -42,5 +52,11 @@ namespace Weasel.Postgresql.Tables
                 return ((Name != null ? Name.GetHashCode() : 0) * 397) ^ (DDL != null ? DDL.GetHashCode() : 0);
             }
         }
+
+        public string ToDDL(Table parent)
+        {
+            return DDL;
+        }
+
     }
 }

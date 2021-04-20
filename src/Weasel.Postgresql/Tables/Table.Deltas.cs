@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using Npgsql;
 
 namespace Weasel.Postgresql.Tables
 {
     public partial class Table
     {
-        internal List<ActualForeignKey> ActualForeignKeys { get; set; } = new List<ActualForeignKey>();
+        internal async Task<TableDelta> FindDelta(NpgsqlConnection conn)
+        {
+            var actual = await FetchExisting(conn);
+            return new TableDelta(this, actual);
+        }
 
-        internal Dictionary<string, ActualIndex> ActualIndices { get; set; } = new Dictionary<string, ActualIndex>();
 
     }
     

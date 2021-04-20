@@ -1,13 +1,10 @@
+using System;
 using Baseline.ImTools;
 
 namespace Weasel.Postgresql.Tables
 {
-    public interface IIndexDefinition
+    public interface IIndexDefinition : INamed
     {
-        string IndexName { get; }
-
         string ToDDL(Table parent);
-
-        bool Matches(ActualIndex index);
     }
 }

@@ -6,7 +6,12 @@ using Baseline;
 
 namespace Weasel.Postgresql.Tables
 {
-    public class TableColumn
+    public interface INamed
+    {
+        string Name { get; }
+    }
+    
+    public class TableColumn : INamed
     {
         public TableColumn(string name, string type)
         {

@@ -118,8 +118,8 @@ namespace Weasel.Postgresql.Tests.Tables
             
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name").AddIndex(x => x.IsConcurrent = true);
-            table.AddColumn<string>("last_name").AddIndex();
+            table.AddColumn<string>("first_name").NotNull().AddIndex(x => x.IsConcurrent = true);
+            table.AddColumn<string>("last_name").NotNull().AddIndex();
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
             await CreateSchemaObjectInDatabase(table);

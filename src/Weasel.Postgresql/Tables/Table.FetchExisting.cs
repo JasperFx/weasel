@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
+using Baseline;
 using Npgsql;
 
 namespace Weasel.Postgresql.Tables
@@ -76,10 +77,7 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
 ");
         }
-        
 
-        
-        
         internal async Task<Table> FetchExisting(NpgsqlConnection conn)
         {
             var cmd = conn.CreateCommand();
@@ -95,34 +93,23 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
         
         private async Task<Table> readExistingTable(DbDataReader reader)
         {
-            var columns = await readColumns(reader);
-            var pks = await readPrimaryKeys(reader);
-            var indexes = await readIndexes(reader);
-            var constraints = await readConstraints(reader);
-
-            if (!columns.Any())
-                return null;
-
             var existing = new Table(Identifier);
-            foreach (var column in columns)
-            {
-                existing.AddColumn(column);
-            }
+            
+            await readColumns(reader, existing);
+            var pks = await readPrimaryKeys(reader);
+            await readIndexes(reader, existing);
+            var constraints = await readConstraints(reader);
 
             foreach (var pkColumn in pks)
             {
                 existing.ColumnFor(pkColumn).IsPrimaryKey = true;
             }
-
-            existing.ActualIndices = indexes;
-            existing.ActualForeignKeys = constraints;
-
+            
             return existing;
         }
         
-        private static async Task<List<TableColumn>> readColumns(DbDataReader reader)
+        private static async Task readColumns(DbDataReader reader, Table existing)
         {
-            var columns = new List<TableColumn>();
             while (await reader.ReadAsync())
             {
                 var column = new TableColumn(await reader.GetFieldValueAsync<string>(0), await reader.GetFieldValueAsync<string>(1));
@@ -138,9 +125,8 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
                     column.Type = $"{column.Type}({length})";
                 }
 
-                columns.Add(column);
+                existing._columns.Add(column);
             }
-            return columns;
         }
         
         private async Task<List<ActualForeignKey>> readConstraints(DbDataReader reader)
@@ -155,10 +141,8 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
             return constraints;
         }
 
-        private async Task<Dictionary<string, ActualIndex>> readIndexes(DbDataReader reader)
+        private async Task readIndexes(DbDataReader reader, Table existing)
         {
-            var dict = new Dictionary<string, ActualIndex>();
-
             await reader.NextResultAsync();
             while (await reader.ReadAsync())
             {
@@ -170,19 +154,18 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
                 var schemaName = await reader.GetFieldValueAsync<string>(1);
                 var tableName = await reader.GetFieldValueAsync<string>(2);
-
+                var ddl = await reader.GetFieldValueAsync<string>(4);
                 
 
                 if ((Identifier.Schema == schemaName && Identifier.Name == tableName) || Identifier.QualifiedName == tableName)
                 {
+                    
                     var index = new ActualIndex(Identifier, await reader.GetFieldValueAsync<string>(3),
-                        await reader.GetFieldValueAsync<string>(4));
+                        ddl);
 
-                    dict.Add(index.Name, index);
+                    existing.Indexes.Add(index);
                 }
             }
-
-            return dict;
         }
         
         private static async Task<List<string>> readPrimaryKeys(DbDataReader reader)

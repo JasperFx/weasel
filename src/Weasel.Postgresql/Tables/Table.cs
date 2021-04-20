@@ -316,5 +316,16 @@ namespace Weasel.Postgresql.Tables
                 return this;
             }
         }
+
+        public void RemoveColumn(string columnName)
+        {
+            _columns.RemoveAll(x => x.Name.EqualsIgnoreCase(columnName));
+        }
+
+        public ColumnExpression ModifyColumn(string columnName)
+        {
+            var column = ColumnFor(columnName) ?? throw new ArgumentOutOfRangeException($"Column '{columnName}' does not exist in table {Identifier}");
+            return new ColumnExpression(this, column);
+        }
     }
 }

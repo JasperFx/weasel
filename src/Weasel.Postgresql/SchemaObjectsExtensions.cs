@@ -2,6 +2,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
+using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql
 {
@@ -35,5 +36,6 @@ namespace Weasel.Postgresql
             
             return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
         }
+        
     }
 }

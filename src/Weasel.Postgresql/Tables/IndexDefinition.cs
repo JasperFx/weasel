@@ -9,10 +9,10 @@ namespace Weasel.Postgresql.Tables
     {
         public IndexDefinition(string indexName)
         {
-            IndexName = indexName;
+            Name = indexName;
         }
 
-        public string IndexName { get; }
+        public string Name { get; }
         
         public IndexMethod Method { get; set; } = IndexMethod.btree;
 
@@ -59,7 +59,7 @@ namespace Weasel.Postgresql.Tables
             
             if (IsConcurrent) builder.Append("CONCURRENTLY ");
 
-            builder.Append(IndexName);
+            builder.Append(Name);
 
             
 
@@ -79,7 +79,10 @@ namespace Weasel.Postgresql.Tables
             if (Predicate.IsNotEmpty())
             {
                 builder.Append(" WHERE ");
-                builder.Append(Predicate);
+                
+                
+                
+                builder.Append($"({Predicate})");
             }
 
             builder.Append(";");
@@ -107,9 +110,5 @@ namespace Weasel.Postgresql.Tables
             return $"({Expression} {suffix})";
         }
 
-        public bool Matches(ActualIndex index)
-        {
-            throw new System.NotImplementedException();
-        }
     }
 }

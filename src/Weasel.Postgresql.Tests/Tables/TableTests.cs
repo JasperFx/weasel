@@ -165,7 +165,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
             
-            index.IndexName.ShouldBe("idx_people_state_id");
+            index.Name.ShouldBe("idx_people_state_id");
             index.ColumnNames.Single().ShouldBe("state_id");
         }
         
@@ -183,7 +183,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
             
-            index.IndexName.ShouldBe("idx_people_state_id");
+            index.Name.ShouldBe("idx_people_state_id");
             index.ColumnNames.Single().ShouldBe("state_id");
             index.Method.ShouldBe(IndexMethod.hash);
         }

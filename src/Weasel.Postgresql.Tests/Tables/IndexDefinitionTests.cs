@@ -109,7 +109,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.Predicate = "foo > 1";
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE foo > 1;");
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1);");
         }
 
         

@@ -116,11 +116,9 @@ namespace Weasel.Postgresql.Tests.Tables
             var existing = await table.FetchExisting(theConnection);
             
             
+            existing.Indexes.Count.ShouldBe(2);
             
-            existing.ActualIndices.Count.ShouldBe(2);
-            existing.ActualIndices["idx_people_first_name"].DDL
-                .ShouldBe("CREATE INDEX idx_people_first_name ON public.people USING btree (first_name)");
-            
+
         }
     }
 }
