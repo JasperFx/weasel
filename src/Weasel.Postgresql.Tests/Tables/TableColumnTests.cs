@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Shouldly;
 using Weasel.Postgresql.Tables;
@@ -38,7 +39,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             states.AddColumn("col1", "varchar").NotNull();
             var column = states.Columns.Single();
-            
+
             // last one wins
             column.ColumnChecks.Single()
                 .ShouldBeOfType<NotNull>();
@@ -51,7 +52,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             states.AddColumn("col1", "varchar").NotNull().AllowNulls();
             var column = states.Columns.Single();
-            
+
             column.ColumnChecks.Single()
                 .ShouldBeOfType<AllowNulls>();
         }
@@ -63,7 +64,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var expression = states.AddColumn("col1", "varchar");
             var column = states.Columns.Single();
-            
+
             // nothing
             column.CheckDeclarations()
                 .ShouldBeEmpty();
@@ -74,6 +75,27 @@ namespace Weasel.Postgresql.Tests.Tables
             expression.NotNull();
             column.CheckDeclarations().ShouldBe("NOT NULL");
         }
+
+        public static IEnumerable<object[]> TableColumnsCanAdd()
+        {
+            var table = new Table("people");
+
+            yield return new object[] {table.AddColumn<string>("name1").Column, true};
+            yield return new object[] {table.AddColumn<string>("name2").AllowNulls().Column, true};
+            yield return new object[] {table.AddColumn<string>("name3").NotNull().Column, false};
+            yield return new object[] {table.AddColumn<string>("name4").DefaultValue("foo").Column, true};
+            yield return new object[] {table.AddColumn<string>("name5").NotNull().DefaultValue("foo").Column, true};
+        }
+    
+
+
+        [Theory]
+        [MemberData(nameof(TableColumnsCanAdd))]
+        public void can_add(TableColumn column, bool canAdd)
+        {
+            column.CanAdd().ShouldBe(canAdd);
+        }
+
 
     }
 }

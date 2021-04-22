@@ -17,16 +17,6 @@ namespace Weasel.Postgresql.Tests.Tables
         /*
          * TODO
          * 1. Column constraints, to find deltas
-
-         * 3. Foreign Keys
-         *    a. New
-         *    b. Obsolete
-         *    c. Changed
-         *    d. Matched
-         * 4. Primary Keys
-         *    a. New
-         *    b. Changed
-         *    c. Removed
          * 5. Table constraints?
          * 6. Partitions?
          *
@@ -81,6 +71,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.Columns.Extras.Any().ShouldBeFalse();
             delta.Columns.Different.Any().ShouldBeFalse();
 
+            await AssertNoDeltasAfterPatching();
         }
         
         [Fact]
@@ -98,6 +89,8 @@ namespace Weasel.Postgresql.Tests.Tables
             
             delta.Columns.Missing.Any().ShouldBeFalse();
             delta.Columns.Different.Any().ShouldBeFalse();
+            
+            await AssertNoDeltasAfterPatching();
         }
         
 
@@ -113,6 +106,8 @@ namespace Weasel.Postgresql.Tests.Tables
             
             delta.Indexes.Missing.Single()
                 .Name.ShouldBe("idx_people_user_name");
+            
+            await AssertNoDeltasAfterPatching();
 
         }
         
@@ -130,6 +125,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.Indexes.Matched.Single()
                 .Name.ShouldBe("idx_people_user_name");
 
+            await AssertNoDeltasAfterPatching();
         }
         
         [Fact]
@@ -149,6 +145,7 @@ namespace Weasel.Postgresql.Tests.Tables
                 .Expected
                 .Name.ShouldBe("idx_people_user_name");
 
+            await AssertNoDeltasAfterPatching();
         }
 
         [Fact]
@@ -165,6 +162,8 @@ namespace Weasel.Postgresql.Tests.Tables
             
             delta.Indexes.Extras.Single().Name
                 .ShouldBe("idx_people_user_name");
+            
+            await AssertNoDeltasAfterPatching();
         }
 
 
@@ -186,6 +185,7 @@ namespace Weasel.Postgresql.Tests.Tables
             // And no deltas
             var delta = await theTable.FindDelta(theConnection);
             delta.Indexes.Matched.Count.ShouldBe(1);
+
         }
 
         public static IEnumerable<object[]> IndexTestData()
@@ -256,7 +256,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.ForeignKeys.Missing.Single()
                 .ShouldBeSameAs(table.ForeignKeys.Single());
 
-
+            await AssertNoDeltasAfterPatching();
         }
         
         [Fact]
@@ -287,7 +287,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.ForeignKeys.Extras.Single().Name
                 .ShouldBe("fkey_people_state_id");
 
-
+            await AssertNoDeltasAfterPatching();
         }
         
                 
@@ -318,7 +318,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.ForeignKeys.Matched.Single().Name
                 .ShouldBe("fkey_people_state_id");
 
-
+            await AssertNoDeltasAfterPatching();
         }
         
                 
@@ -351,7 +351,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.ForeignKeys.Different.Single().Actual.Name
                 .ShouldBe("fkey_people_state_id");
 
-
+            await AssertNoDeltasAfterPatching();
         }
 
         

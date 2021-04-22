@@ -139,9 +139,66 @@ namespace Weasel.Postgresql.Tables
             return Columns.Any(x => x.Name == columnName);
         }
 
-        public Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
+        public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
             throw new NotImplementedException();
+            // var existing = await readExistingTable(reader);
+            // if (existing == null)
+            // {
+            //     Write(patch.Rules, patch.UpWriter);
+            //     patch.Rollbacks.Drop(this, Identifier);
+            //
+            //     return SchemaPatchDifference.Create;
+            // }
+            //
+            // var delta = new TableDelta(this, existing);
+            // if (!delta.HasChanges())
+            // {
+            //     return SchemaPatchDifference.None;
+            // }
+            //
+            //
+            // if (delta.Extras.Any() || delta.Different.Any())
+            // {
+            //     if (autoCreate == AutoCreate.All)
+            //     {
+            //         delta.ForeignKeyMissing.Each(x => patch.Updates.Apply(this, x));
+            //         delta.ForeignKeyRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //         delta.ForeignKeyMissingRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            //         Write(patch.Rules, patch.UpWriter);
+            //
+            //         return SchemaPatchDifference.Create;
+            //     }
+            //
+            //     if (!delta.AlteredColumnTypes.Any())
+            //     {
+            //         return SchemaPatchDifference.Invalid;
+            //     }
+            // }
+            //
+            // if (!delta.Missing.All(x => x.CanAdd))
+            // {
+            //     return SchemaPatchDifference.Invalid;
+            // }
+            //
+            // foreach (var missing in delta.Missing)
+            // {
+            //     patch.Updates.Apply(this, missing.AddColumnSql(this));
+            //     patch.Rollbacks.RemoveColumn(this, Identifier, missing.Name);
+            // }
+            //
+            // delta.AlteredColumnTypes.Each(x => patch.Updates.Apply(this, x));
+            // delta.AlteredColumnTypeRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            // delta.IndexChanges.Each(x => patch.Updates.Apply(this, x));
+            // delta.IndexRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            // delta.ForeignKeyChanges.Each(x => patch.Updates.Apply(this, x));
+            // delta.ForeignKeyRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            // delta.ForeignKeyMissingRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            // return SchemaPatchDifference.Update;
         }
 
         public IEnumerable<DbObjectName> AllNames()
@@ -201,13 +258,14 @@ namespace Weasel.Postgresql.Tables
         public class ColumnExpression
         {
             private readonly Table _parent;
-            private readonly TableColumn _column;
 
             public ColumnExpression(Table parent, TableColumn column)
             {
                 _parent = parent;
-                _column = column;
+                Column = column;
             }
+
+            internal TableColumn Column { get; }
 
             public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName, string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
@@ -222,10 +280,10 @@ namespace Weasel.Postgresql.Tables
             public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
                 string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
-                var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", _column.Name))
+                var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", Column.Name))
                 {
                     LinkedTable = referencedIdentifier,
-                    ColumnNames = new[] {_column.Name},
+                    ColumnNames = new[] {Column.Name},
                     LinkedNames = new[] {referencedColumnName},
                     OnDelete = onDelete,
                     OnUpdate = onUpdate
@@ -242,29 +300,29 @@ namespace Weasel.Postgresql.Tables
             /// <returns></returns>
             public ColumnExpression AsPrimaryKey()
             {
-                _column.IsPrimaryKey = true;
+                Column.IsPrimaryKey = true;
                 return this;
             }
             
             public ColumnExpression AllowNulls()
             {
-                _column.ColumnChecks.RemoveAll(x => x is INullConstraint);
-                _column.ColumnChecks.Insert(0, new AllowNulls());
+                Column.ColumnChecks.RemoveAll(x => x is INullConstraint);
+                Column.ColumnChecks.Insert(0, new AllowNulls());
                 return this;
             }
 
             public ColumnExpression NotNull()
             {
-                _column.ColumnChecks.RemoveAll(x => x is INullConstraint);
-                _column.ColumnChecks.Insert(0, new NotNull());
+                Column.ColumnChecks.RemoveAll(x => x is INullConstraint);
+                Column.ColumnChecks.Insert(0, new NotNull());
                 return this;
             }
 
             public ColumnExpression AddIndex(Action<IndexDefinition> configure = null)
             {
-                var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", _column.Name))
+                var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", Column.Name))
                 {
-                    ColumnNames = new[]{_column.Name}
+                    ColumnNames = new[]{Column.Name}
                 };
 
                 _parent.Indexes.Add(index);
@@ -276,7 +334,7 @@ namespace Weasel.Postgresql.Tables
 
             public ColumnExpression Serial()
             {
-                _column.Type = "SERIAL";
+                Column.Type = "SERIAL";
                 return this;
             }
 
@@ -313,7 +371,7 @@ namespace Weasel.Postgresql.Tables
             public ColumnExpression DefaultValueByExpression(string expression)
             {
                 var check = new DefaultValue(expression);
-                _column.ColumnChecks.Add(check);
+                Column.ColumnChecks.Add(check);
 
                 return this;
             }

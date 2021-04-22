@@ -18,8 +18,7 @@ namespace Weasel.Postgresql.Tests
         [Fact]
         public async Task can_create_sequence_without_blowing_up()
         {
-            await theConnection.OpenAsync();
-            await theConnection.ResetSchema("sequences");
+            await ResetSchema();
 
             await theSequence.Create(theConnection);
         }
@@ -29,9 +28,8 @@ namespace Weasel.Postgresql.Tests
         public async Task can_create_with_startup_sequence_without_blowing_up()
         {
             var sequence = new Sequence(new DbObjectName("sequences", "seq1"), 5);
-            
-            await theConnection.OpenAsync();
-            await theConnection.ResetSchema("sequences");
+
+            await ResetSchema();
 
             await sequence.Create(theConnection);
         }
@@ -40,8 +38,7 @@ namespace Weasel.Postgresql.Tests
         [Fact]
         public async Task determine_that_it_is_missing()
         {
-            await theConnection.OpenAsync();
-            await theConnection.ResetSchema("sequences");
+            await ResetSchema();
 
             var patch = await theSequence.CreatePatch(theConnection);
 
@@ -61,8 +58,7 @@ namespace Weasel.Postgresql.Tests
         [Fact]
         public async Task create_and_drop()
         {
-            await theConnection.OpenAsync();
-            await theConnection.ResetSchema("sequences");
+            await ResetSchema();
 
             await theSequence.Create(theConnection);
             

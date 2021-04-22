@@ -79,7 +79,7 @@ namespace Weasel.Postgresql.Tables
 
         public override string ToString()
         {
-            return $"{Name} {Type} {CheckDeclarations()}";
+            return ToDeclaration();
         }
 
         // TODO -- this needs to get a lot smarter
@@ -100,6 +100,16 @@ namespace Weasel.Postgresql.Tables
 
         internal bool IsPrimaryKey { get; set; }
 
+
+        public virtual bool CanAdd()
+        {
+            if (ColumnChecks.OfType<DefaultValue>().Any()) return true;
+
+            var nullables = ColumnChecks.OfType<INullConstraint>().FirstOrDefault();
+            if (nullables == null) return true;
+
+            return nullables is AllowNulls;
+        }
 
     }
 
