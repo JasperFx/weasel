@@ -96,6 +96,16 @@ namespace Weasel.Postgresql.Tests.Tables
             column.CanAdd().ShouldBe(canAdd);
         }
 
+        [Fact]
+        public void add_column_sql()
+        {
+            var table = new Table("people");
+            var column = table.AddColumn<string>("name1").NotNull().Column;
+            
+            column.AddColumnSql(table)
+                .ShouldBe("alter table public.people add column name1 varchar NOT NULL;");
+        }
+
 
     }
 }

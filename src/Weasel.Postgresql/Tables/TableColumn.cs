@@ -86,11 +86,6 @@ namespace Weasel.Postgresql.Tables
         //public bool CanAdd { get; set; } = false;
 
         
-        // TODO -- test
-        public virtual string AddColumnSql(Table table)
-        {
-            return $"alter table {table.Identifier} add column {ToDeclaration()};";
-        }
 
         // TODO -- test
         public virtual string AlterColumnTypeSql(Table table)
@@ -110,6 +105,13 @@ namespace Weasel.Postgresql.Tables
 
             return nullables is AllowNulls;
         }
+
+        public virtual string AddColumnSql(Table parent)
+        {
+            return $"alter table {parent.Identifier} add column {ToDeclaration()};";
+        }
+        
+        
 
     }
 
