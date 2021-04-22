@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace Weasel.Postgresql
 {
@@ -14,8 +15,7 @@ namespace Weasel.Postgresql
 
         void ConfigureQueryCommand(CommandBuilder builder);
 
-        // TODO -- this needs to be async
-        SchemaPatchDifference CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate);
+        Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate);
 
         IEnumerable<DbObjectName> AllNames();
     }

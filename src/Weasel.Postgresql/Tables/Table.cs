@@ -139,7 +139,7 @@ namespace Weasel.Postgresql.Tables
             return Columns.Any(x => x.Name == columnName);
         }
 
-        public SchemaPatchDifference CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
+        public Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
             throw new NotImplementedException();
         }

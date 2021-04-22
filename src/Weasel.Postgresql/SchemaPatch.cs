@@ -4,6 +4,7 @@ using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
 
@@ -169,7 +170,7 @@ namespace Weasel.Postgresql
             }
         }
 
-        public void Apply(NpgsqlConnection conn, AutoCreate autoCreate, ISchemaObject[] schemaObjects)
+        public async Task Apply(NpgsqlConnection conn, AutoCreate autoCreate, ISchemaObject[] schemaObjects)
         {
             if (!schemaObjects.Any())
                 return;
@@ -191,14 +192,12 @@ namespace Weasel.Postgresql
 
             try
             {
-                using (var reader = cmd.ExecuteReader())
+                using var reader = await cmd.ExecuteReaderAsync();
+                await apply(schemaObjects[0], autoCreate, reader);
+                for (var i = 1; i < schemaObjects.Length; i++)
                 {
-                    apply(schemaObjects[0], autoCreate, reader);
-                    for (var i = 1; i < schemaObjects.Length; i++)
-                    {
-                        reader.NextResult();
-                        apply(schemaObjects[i], autoCreate, reader);
-                    }
+                    await reader.NextResultAsync();
+                    await apply(schemaObjects[i], autoCreate, reader);
                 }
             }
             catch (Exception e)
@@ -209,15 +208,15 @@ namespace Weasel.Postgresql
             AssertPatchingIsValid(autoCreate);
         }
 
-        private void apply(ISchemaObject schemaObject, AutoCreate autoCreate, DbDataReader reader)
+        private async Task apply(ISchemaObject schemaObject, AutoCreate autoCreate, DbDataReader reader)
         {
-            var difference = schemaObject.CreatePatch(reader, this, autoCreate);
+            var difference = await schemaObject.CreatePatch(reader, this, autoCreate);
             Migrations.Add(new ObjectMigration(schemaObject, difference));
         }
 
-        public void Apply(NpgsqlConnection connection, AutoCreate autoCreate, ISchemaObject schemaObject)
+        public Task Apply(NpgsqlConnection connection, AutoCreate autoCreate, ISchemaObject schemaObject)
         {
-            Apply(connection, autoCreate, new ISchemaObject[] { schemaObject });
+            return Apply(connection, autoCreate, new ISchemaObject[] { schemaObject });
         }
     }
 

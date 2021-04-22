@@ -79,6 +79,16 @@ namespace Weasel.Postgresql.Tables
             ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
             
             _tableName = expected.Identifier;
+
+
+            if (expected.PrimaryKeyName != actual.PrimaryKeyName)
+            {
+                PrimaryKeyChanged = true;
+            }
+            else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
+            {
+                PrimaryKeyChanged = true;
+            }
         }
         
         public ItemDelta<TableColumn> Columns { get; }
@@ -89,19 +99,12 @@ namespace Weasel.Postgresql.Tables
         public readonly IList<string> AlteredColumnTypes = new List<string>();
         public readonly IList<string> AlteredColumnTypeRollbacks = new List<string>();
 
-        public bool Matches
+        public bool HasChanges()
         {
-            get
-            {
-                if (Columns.HasChanges()) return false;
-
-                if (Indexes.HasChanges()) return false;
-
-                if (ForeignKeys.HasChanges()) return false;
-
-                return true;
-            }
+            return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() || PrimaryKeyChanged;
         }
+
+        public bool PrimaryKeyChanged { get; }
 
         public override string ToString()
         {

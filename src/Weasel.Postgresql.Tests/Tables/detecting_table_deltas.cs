@@ -46,6 +46,16 @@ namespace Weasel.Postgresql.Tests.Tables
             
             ResetSchema().GetAwaiter().GetResult();
         }
+        
+        protected async Task AssertNoDeltasAfterPatching(Table table = null)
+        {
+            table ??= theTable;
+            await table.ApplyChanges(theConnection);
+
+            var delta = await table.FindDelta(theConnection);
+            
+            delta.HasChanges().ShouldBeFalse();
+        }
 
         [Fact]
         public async Task no_delta()
@@ -54,7 +64,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = await theTable.FindDelta(theConnection);
 
-            delta.Matches.ShouldBeTrue();
+            delta.HasChanges().ShouldBeFalse();
         }
 
         [Fact]
@@ -64,12 +74,13 @@ namespace Weasel.Postgresql.Tests.Tables
 
             theTable.AddColumn<DateTimeOffset>("birth_day");
             var delta = await theTable.FindDelta(theConnection);
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.Columns.Missing.Single().Name.ShouldBe("birth_day");
             
             delta.Columns.Extras.Any().ShouldBeFalse();
             delta.Columns.Different.Any().ShouldBeFalse();
+
         }
         
         [Fact]
@@ -81,7 +92,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theTable.RemoveColumn("birth_day");
             
             var delta = await theTable.FindDelta(theConnection);
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.Columns.Extras.Single().Name.ShouldBe("birth_day");
             
@@ -98,7 +109,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
             
             var delta = await theTable.FindDelta(theConnection);
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.Indexes.Missing.Single()
                 .Name.ShouldBe("idx_people_user_name");
@@ -114,7 +125,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
 
             var delta = await theTable.FindDelta(theConnection);
-            delta.Matches.ShouldBeTrue();
+            delta.HasChanges().ShouldBeFalse();
             
             delta.Indexes.Matched.Single()
                 .Name.ShouldBe("idx_people_user_name");
@@ -132,7 +143,7 @@ namespace Weasel.Postgresql.Tests.Tables
                 .Method = IndexMethod.hash;
 
             var delta = await theTable.FindDelta(theConnection);
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.Indexes.Different.Single()
                 .Expected
@@ -150,7 +161,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theTable.Indexes.Clear();
             
             var delta = await theTable.FindDelta(theConnection);
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.Indexes.Extras.Single().Name
                 .ShouldBe("idx_people_user_name");
@@ -240,7 +251,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = await table.FindDelta(theConnection);
             
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.ForeignKeys.Missing.Single()
                 .ShouldBeSameAs(table.ForeignKeys.Single());
@@ -271,7 +282,7 @@ namespace Weasel.Postgresql.Tests.Tables
             
             var delta = await table.FindDelta(theConnection);
             
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.ForeignKeys.Extras.Single().Name
                 .ShouldBe("fkey_people_state_id");
@@ -302,7 +313,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = await table.FindDelta(theConnection);
             
-            delta.Matches.ShouldBeTrue();
+            delta.HasChanges().ShouldBeFalse();
             
             delta.ForeignKeys.Matched.Single().Name
                 .ShouldBe("fkey_people_state_id");
@@ -335,7 +346,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = await table.FindDelta(theConnection);
             
-            delta.Matches.ShouldBeFalse();
+            delta.HasChanges().ShouldBeTrue();
             
             delta.ForeignKeys.Different.Single().Actual.Name
                 .ShouldBe("fkey_people_state_id");

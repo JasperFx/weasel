@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
+using System.Threading.Tasks;
 using Npgsql;
 
 namespace Weasel.Postgresql.Functions
@@ -46,9 +47,9 @@ AND    n.nspname = :{schemaParam};
 ");
         }
 
-        public SchemaPatchDifference CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
+        public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
-            var diff = fetchDelta(reader, patch.Rules);
+            var diff = await fetchDelta(reader, patch.Rules);
 
             if (diff == null && IsRemoved)
             {
@@ -92,24 +93,24 @@ AND    n.nspname = :{schemaParam};
             yield return Identifier;
         }
 
-        protected FunctionDelta fetchDelta(DbDataReader reader, DdlRules rules)
+        protected async Task<FunctionDelta> fetchDelta(DbDataReader reader, DdlRules rules)
         {
-            if (!reader.Read())
+            if (!await reader.ReadAsync())
             {
-                reader.NextResult();
+                await reader.NextResultAsync();
                 return null;
             }
 
-            var existingFunction = reader.GetString(0);
+            var existingFunction = await reader.GetFieldValueAsync<string>(0);
 
             if (string.IsNullOrEmpty(existingFunction))
                 return null;
 
-            reader.NextResult();
+            await reader.NextResultAsync();
             var drops = new List<string>();
-            while (reader.Read())
+            while (await reader.ReadAsync())
             {
-                drops.Add(reader.GetString(0));
+                drops.Add(await reader.GetFieldValueAsync<string>(0));
             }
 
             var actualBody = new FunctionBody(Identifier, drops.ToArray(), existingFunction.TrimEnd() + ";");
@@ -141,7 +142,7 @@ AND    n.nspname = :{schemaParam};
             writer.WriteLine(dropSql);
         }
 
-        public FunctionDelta FetchDelta(NpgsqlConnection conn, DdlRules rules)
+        public async Task<FunctionDelta> FetchDelta(NpgsqlConnection conn, DdlRules rules)
         {
             var cmd = conn.CreateCommand();
             var builder = new CommandBuilder(cmd);
@@ -150,10 +151,8 @@ AND    n.nspname = :{schemaParam};
 
             cmd.CommandText = builder.ToString();
 
-            using (var reader = cmd.ExecuteReader())
-            {
-                return fetchDelta(reader, rules);
-            }
+            using var reader = await cmd.ExecuteReaderAsync();
+            return await fetchDelta(reader, rules);
         }
     }
 }

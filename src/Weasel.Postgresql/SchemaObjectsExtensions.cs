@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using Baseline;
@@ -13,12 +14,20 @@ namespace Weasel.Postgresql
             return $"{prefix}_{name.Name}_{columnNames.Join("_")}";
         }
         
-        public static Task<SchemaPatch> CreatePatch(this ISchemaObject schemaObject, NpgsqlConnection conn)
+        public static async Task<SchemaPatch> CreatePatch(this ISchemaObject schemaObject, NpgsqlConnection conn)
         {
             var patch = new SchemaPatch(new DdlRules());
-            patch.Apply(conn, AutoCreate.All, schemaObject);
+            await patch.Apply(conn, AutoCreate.All, schemaObject);
 
-            return Task.FromResult(patch);
+            return patch;
+        }
+
+        public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn)
+        {
+            var patch = new SchemaPatch(new DdlRules());
+            await patch.Apply(conn, AutoCreate.All, schemaObject);
+
+            await conn.CreateCommand(patch.UpdateDDL).ExecuteNonQueryAsync();
         }
 
         public static Task Drop(this ISchemaObject schemaObject, NpgsqlConnection conn)

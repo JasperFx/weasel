@@ -84,16 +84,16 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await theConnection.ResetSchema("tables");
 
-            var states = new Table("states");
+            var states = new Table("tables.states");
             states.AddColumn<int>("id").AsPrimaryKey();
             
             await CreateSchemaObjectInDatabase(states);
             
             
-            var table = new Table("people");
+            var table = new Table("tables.people");
             table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
+            table.AddColumn<string>("first_name").NotNull();
+            table.AddColumn<string>("last_name").NotNull();
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
             await CreateSchemaObjectInDatabase(table);
