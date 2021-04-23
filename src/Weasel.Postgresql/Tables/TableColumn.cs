@@ -110,9 +110,12 @@ namespace Weasel.Postgresql.Tables
         {
             return $"alter table {parent.Identifier} add column {ToDeclaration()};";
         }
-        
-        
 
+
+        public virtual bool CanAlter(TableColumn actual)
+        {
+            return false;
+        }
     }
 
     public abstract class ColumnCheck

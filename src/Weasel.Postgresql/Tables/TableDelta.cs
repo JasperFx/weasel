@@ -36,6 +36,13 @@ namespace Weasel.Postgresql.Tables
         public IReadOnlyList<T> Extras => _extras;
 
         public IReadOnlyList<T> Missing => _missing;
+
+        public SchemaPatchDifference Difference()
+        {
+            if (!HasChanges()) return SchemaPatchDifference.None;
+
+            return SchemaPatchDifference.Update;
+        }
         
         public ItemDelta(IEnumerable<T> expectedItems, IEnumerable<T> actualItems, Func<T, T, bool> comparison = null)
         {
@@ -80,15 +87,51 @@ namespace Weasel.Postgresql.Tables
             
             _tableName = expected.Identifier;
 
-
-            if (expected.PrimaryKeyName != actual.PrimaryKeyName)
+            PrimaryKeyDifference = SchemaPatchDifference.None;
+            if (expected.PrimaryKeyName.IsEmpty())
             {
-                PrimaryKeyChanged = true;
+                if (actual.PrimaryKeyName.IsNotEmpty())
+                {
+                    PrimaryKeyDifference = SchemaPatchDifference.Update;
+                }
+            }
+            else if (actual.PrimaryKeyName.IsEmpty())
+            {
+                PrimaryKeyDifference = SchemaPatchDifference.Create;
             }
             else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
             {
-                PrimaryKeyChanged = true;
+                PrimaryKeyDifference = SchemaPatchDifference.Update;
             }
+        }
+
+        public SchemaPatchDifference DeterminePatchDifference()
+        {
+            if (!HasChanges()) return SchemaPatchDifference.None;
+            
+            // If there are any columns that are different and at least one cannot
+            // automatically generate an `ALTER TABLE` statement, the patch is invalid
+            if (Columns.Different.Any(x => !x.Expected.CanAlter(x.Actual)))
+            {
+                return SchemaPatchDifference.Invalid;
+            }
+
+            // If there are any missing columns and at least one
+            // cannot generate an `ALTER TABLE * ADD COLUMN` statement
+            if (Columns.Missing.Any(x => !x.CanAdd()))
+            {
+                return SchemaPatchDifference.Invalid;
+            }
+
+            var differences = new SchemaPatchDifference[]
+            {
+                Columns.Difference(),
+                ForeignKeys.Difference(),
+                Indexes.Difference(),
+                PrimaryKeyDifference
+            };
+
+            return differences.Min();
         }
         
         public ItemDelta<TableColumn> Columns { get; }
@@ -96,15 +139,12 @@ namespace Weasel.Postgresql.Tables
         
         public ItemDelta<ForeignKey> ForeignKeys { get; }
 
-        public readonly IList<string> AlteredColumnTypes = new List<string>();
-        public readonly IList<string> AlteredColumnTypeRollbacks = new List<string>();
-
         public bool HasChanges()
         {
-            return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() || PrimaryKeyChanged;
+            return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() || PrimaryKeyDifference != SchemaPatchDifference.None;
         }
 
-        public bool PrimaryKeyChanged { get; }
+        public SchemaPatchDifference PrimaryKeyDifference { get; }
 
         public override string ToString()
         {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Threading.Tasks;
 using Npgsql;
 
@@ -13,55 +14,69 @@ namespace Weasel.Postgresql.Tables
             return new TableDelta(this, actual);
         }
 
-
-    }
-    
-    public class ActualForeignKey
-    {
-        public DbObjectName Table { get; }
-        public string Name { get; }
-        public string DDL { get; }
-
-        public bool DoesCascadeDeletes()
+        public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
-            // NOTE: Use .IndexOf() so it's not effected by whitespace
-            return DDL.IndexOf("on delete cascade", StringComparison.OrdinalIgnoreCase) != -1;
-        }
-
-        public ActualForeignKey(DbObjectName table, string name, string ddl)
-        {
-            Table = table;
-            Name = name;
-            DDL = ddl;
-        }
-
-        public override string ToString()
-        {
-            return $"Table: {Table}, Name: {Name}, DDL: {DDL}";
-        }
-
-        protected bool Equals(ActualIndex other)
-        {
-            return string.Equals(Name, other.Name) && string.Equals(DDL, other.DDL);
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (ReferenceEquals(null, obj))
-                return false;
-            if (ReferenceEquals(this, obj))
-                return true;
-            if (obj.GetType() != this.GetType())
-                return false;
-            return Equals((ActualForeignKey)obj);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
+            var existing = await readExistingTable(reader);
+            if (existing == null)
             {
-                return ((Name != null ? Name.GetHashCode() : 0) * 397) ^ (DDL != null ? DDL.GetHashCode() : 0);
+                Write(patch.Rules, patch.UpWriter);
+                patch.Rollbacks.Drop(this, Identifier);
+            
+                return SchemaPatchDifference.Create;
             }
+            
+            var delta = new TableDelta(this, existing);
+            if (!delta.HasChanges())
+            {
+                return SchemaPatchDifference.None;
+            }
+            
+            
+            
+            
+            // if (delta.Extras.Any() || delta.Different.Any())
+            // {
+            //     if (autoCreate == AutoCreate.All)
+            //     {
+            //         delta.ForeignKeyMissing.Each(x => patch.Updates.Apply(this, x));
+            //         delta.ForeignKeyRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //         delta.ForeignKeyMissingRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            //         Write(patch.Rules, patch.UpWriter);
+            //
+            //         return SchemaPatchDifference.Create;
+            //     }
+            //
+            //     if (!delta.AlteredColumnTypes.Any())
+            //     {
+            //         return SchemaPatchDifference.Invalid;
+            //     }
+            // }
+            //
+            // if (!delta.Missing.All(x => x.CanAdd))
+            // {
+            //     return SchemaPatchDifference.Invalid;
+            // }
+            //
+            // foreach (var missing in delta.Missing)
+            // {
+            //     patch.Updates.Apply(this, missing.AddColumnSql(this));
+            //     patch.Rollbacks.RemoveColumn(this, Identifier, missing.Name);
+            // }
+            //
+            // delta.AlteredColumnTypes.Each(x => patch.Updates.Apply(this, x));
+            // delta.AlteredColumnTypeRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            // delta.IndexChanges.Each(x => patch.Updates.Apply(this, x));
+            // delta.IndexRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            // delta.ForeignKeyChanges.Each(x => patch.Updates.Apply(this, x));
+            // delta.ForeignKeyRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            // delta.ForeignKeyMissingRollbacks.Each(x => patch.Rollbacks.Apply(this, x));
+            //
+            return SchemaPatchDifference.Update;
         }
+
     }
+
 }
