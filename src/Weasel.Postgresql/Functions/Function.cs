@@ -25,7 +25,7 @@ namespace Weasel.Postgresql.Functions
         /// </summary>
         /// <param name="rules"></param>
         /// <param name="writer"></param>
-        public abstract void Write(DdlRules rules, StringWriter writer);
+        public abstract void WriteCreateStatement(DdlRules rules, StringWriter writer);
 
         public void ConfigureQueryCommand(CommandBuilder builder)
         {
@@ -47,6 +47,11 @@ AND    n.nspname = :{schemaParam};
 ");
         }
 
+        public Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+        {
+            throw new System.NotImplementedException();
+        }
+
         public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
             var diff = await fetchDelta(reader, patch.Rules);
@@ -58,7 +63,7 @@ AND    n.nspname = :{schemaParam};
 
             if (diff == null)
             {
-                Write(patch.Rules, patch.UpWriter);
+                WriteCreateStatement(patch.Rules, patch.UpWriter);
                 WriteDropStatement(patch.Rules, patch.DownWriter);
 
                 return SchemaPatchDifference.Create;
@@ -66,13 +71,13 @@ AND    n.nspname = :{schemaParam};
 
             if (diff.Removed)
             {
-                Write(patch.Rules, patch.UpWriter);
+                WriteCreateStatement(patch.Rules, patch.UpWriter);
                 return SchemaPatchDifference.Update;
             }
 
             if (diff.AllNew)
             {
-                Write(patch.Rules, patch.UpWriter);
+                WriteCreateStatement(patch.Rules, patch.UpWriter);
                 WriteDropStatement(patch.Rules, patch.DownWriter);
 
                 return SchemaPatchDifference.Create;
@@ -125,7 +130,7 @@ AND    n.nspname = :{schemaParam};
             var dropSql = toDropSql();
 
             var writer = new StringWriter();
-            Write(rules, writer);
+            WriteCreateStatement(rules, writer);
 
             return new FunctionBody(Identifier, new string[] { dropSql }, writer.ToString());
         }

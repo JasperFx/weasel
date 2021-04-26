@@ -35,7 +35,7 @@ namespace Weasel.Postgresql
             yield return Identifier;
         }
 
-        public void Write(DdlRules rules, StringWriter writer)
+        public void WriteCreateStatement(DdlRules rules, StringWriter writer)
         {
             writer.WriteLine($"CREATE SEQUENCE {Identifier}{(_startWith.HasValue ? $" START {_startWith.Value}" : string.Empty)};");
 
@@ -61,11 +61,16 @@ namespace Weasel.Postgresql
         {
             if (!await reader.ReadAsync() || (await reader.GetFieldValueAsync<int>(0)) == 0)
             {
-                Write(patch.Rules, patch.UpWriter);
+                WriteCreateStatement(patch.Rules, patch.UpWriter);
                 return SchemaPatchDifference.Create;
             }
 
             return SchemaPatchDifference.None;
+        }
+
+        public Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+        {
+            throw new System.NotImplementedException();
         }
     }
 }

@@ -73,12 +73,20 @@ namespace Weasel.Postgresql.Tables
         }
     }    
     
-    public class TableDelta
+    public class TableDelta : ISchemaObjectDelta
     {
         private readonly DbObjectName _tableName;
 
         public TableDelta(Table expected, Table actual)
         {
+            SchemaObject = expected;
+
+            if (actual == null)
+            {
+                Difference = SchemaPatchDifference.None;
+                return;
+            }
+            
             Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
             Indexes = new ItemDelta<IIndexDefinition>(expected.Indexes, actual.Indexes,
                 (e, a) => ActualIndex.Matches(e, a, expected));
@@ -103,9 +111,19 @@ namespace Weasel.Postgresql.Tables
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Update;
             }
+
+            Difference = determinePatchDifference();
         }
 
-        public SchemaPatchDifference DeterminePatchDifference()
+        public ISchemaObject SchemaObject { get; }
+        public SchemaPatchDifference Difference { get; }
+        
+        public void WriteUpdates(SchemaPatch patch)
+        {
+            throw new NotImplementedException();
+        }
+
+        private SchemaPatchDifference determinePatchDifference()
         {
             if (!HasChanges()) return SchemaPatchDifference.None;
             

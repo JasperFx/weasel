@@ -25,7 +25,7 @@ namespace Weasel.Postgresql
         public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn)
         {
             var patch = new SchemaPatch(new DdlRules());
-            await patch.Apply(conn, AutoCreate.All, schemaObject);
+            await patch.Apply(conn, AutoCreate.CreateOrUpdate, schemaObject);
 
             await conn.CreateCommand(patch.UpdateDDL).ExecuteNonQueryAsync();
         }
@@ -41,7 +41,7 @@ namespace Weasel.Postgresql
         public static Task Create(this ISchemaObject schemaObject, NpgsqlConnection conn)
         {
             var writer = new StringWriter();
-            schemaObject.Write(new DdlRules(), writer);
+            schemaObject.WriteCreateStatement(new DdlRules(), writer);
             
             return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
         }

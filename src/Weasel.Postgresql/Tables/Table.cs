@@ -29,12 +29,12 @@ namespace Weasel.Postgresql.Tables
         {
             var writer = new StringWriter();
             var rules = new DdlRules{Formatting = DdlFormatting.Concise};
-            Write(rules, writer);
+            WriteCreateStatement(rules, writer);
 
             return writer.ToString();
         }
         
-        public void Write(DdlRules rules, StringWriter writer)
+        public void WriteCreateStatement(DdlRules rules, StringWriter writer)
         {
             if (rules.TableCreation == CreationStyle.DropThenCreate)
             {

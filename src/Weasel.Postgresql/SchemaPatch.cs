@@ -136,11 +136,11 @@ namespace Weasel.Postgresql
             WriteFile(file, RollbackDDL, transactionalScript);
         }
 
-        public readonly IList<ObjectMigration> Migrations = new List<ObjectMigration>();
+        public readonly IList<SchemaObjectDelta> Migrations = new List<SchemaObjectDelta>();
 
         public void Log(ISchemaObject schemaObject, SchemaPatchDifference difference)
         {
-            var migration = new ObjectMigration(schemaObject, difference);
+            var migration = new SchemaObjectDelta(schemaObject, difference);
             Migrations.Add(migration);
         }
 
@@ -211,7 +211,7 @@ namespace Weasel.Postgresql
         private async Task apply(ISchemaObject schemaObject, AutoCreate autoCreate, DbDataReader reader)
         {
             var difference = await schemaObject.CreatePatch(reader, this, autoCreate);
-            Migrations.Add(new ObjectMigration(schemaObject, difference));
+            Migrations.Add(new SchemaObjectDelta(schemaObject, difference));
         }
 
         public Task Apply(NpgsqlConnection connection, AutoCreate autoCreate, ISchemaObject schemaObject)
@@ -236,15 +236,5 @@ namespace Weasel.Postgresql
         }
     }
 
-    public class ObjectMigration
-    {
-        public ISchemaObject SchemaObject { get; }
-        public SchemaPatchDifference Difference { get; }
 
-        public ObjectMigration(ISchemaObject schemaObject, SchemaPatchDifference difference)
-        {
-            SchemaObject = schemaObject;
-            Difference = difference;
-        }
-    }
 }

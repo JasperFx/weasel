@@ -18,7 +18,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = new TableDelta(expected, actual);
             
-            delta.DeterminePatchDifference().ShouldBe(SchemaPatchDifference.Invalid);
+            delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
         }
         
         [Fact]
@@ -34,7 +34,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = new TableDelta(expected, actual);
             
-            delta.DeterminePatchDifference().ShouldBe(SchemaPatchDifference.Invalid);
+            delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
         }
 
         public class CannotAddColumn : TableColumn

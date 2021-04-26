@@ -97,7 +97,7 @@ namespace Weasel.Postgresql.Tests.Tables
             };
 
             var writer = new StringWriter();
-            table.Write(rules, writer);
+            table.WriteCreateStatement(rules, writer);
 
             var ddl = writer.ToString();
             
@@ -124,7 +124,7 @@ namespace Weasel.Postgresql.Tests.Tables
             };
 
             var writer = new StringWriter();
-            table.Write(rules, writer);
+            table.WriteCreateStatement(rules, writer);
 
             var ddl = writer.ToString();
             

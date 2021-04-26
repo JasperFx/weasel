@@ -40,7 +40,7 @@ namespace Weasel.Postgresql.Tests
         {
             var rules = new DdlRules();
             var writer = new StringWriter();
-            schemaObject.Write(rules, writer);
+            schemaObject.WriteCreateStatement(rules, writer);
 
             try
             {

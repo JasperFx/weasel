@@ -14,25 +14,51 @@ namespace Weasel.Postgresql.Tables
             return new TableDelta(this, actual);
         }
 
+        public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+        {
+            var existing = await readExistingTable(reader);
+            return new TableDelta(this, existing);
+        }
+
         public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
             var existing = await readExistingTable(reader);
             if (existing == null)
             {
-                Write(patch.Rules, patch.UpWriter);
+                WriteCreateStatement(patch.Rules, patch.UpWriter);
                 patch.Rollbacks.Drop(this, Identifier);
             
                 return SchemaPatchDifference.Create;
             }
+
+            throw new NotImplementedException("Getting rid of this anyway");
+            // var delta = new TableDelta(this, existing);
+            // var difference = delta.determinePatchDifference();
+            //
+            // if (autoCreate == AutoCreate.None) return difference;
+            //
+            // switch (difference)
+            // {
+            //     case SchemaPatchDifference.None:
+            //     case SchemaPatchDifference.Invalid:
+            //         return difference;
+            //     
+            //     case SchemaPatchDifference.Update:
+            //         switch (autoCreate)
+            //         {
+            //             case AutoCreate.All:
+            //             case AutoCreate.CreateOrUpdate:
+            //                 // write out all columns
+            //                 // all index changes
+            //                 // all foreign key changes
+            //                 // all primary key changes
+            //                 break;
+            //         }
+            //
+            //         return SchemaPatchDifference.Update;
+            // }  
             
-            var delta = new TableDelta(this, existing);
-            if (!delta.HasChanges())
-            {
-                return SchemaPatchDifference.None;
-            }
-            
-            
-            
+
             
             // if (delta.Extras.Any() || delta.Different.Any())
             // {
