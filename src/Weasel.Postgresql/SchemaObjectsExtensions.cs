@@ -1,9 +1,7 @@
-using System;
 using System.IO;
 using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
-using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql
 {
@@ -24,10 +22,9 @@ namespace Weasel.Postgresql
 
         public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn)
         {
-            var patch = new SchemaPatch(new DdlRules());
-            await patch.Apply(conn, AutoCreate.CreateOrUpdate, schemaObject);
+            var migration = await SchemaMigration.Determine(conn, new ISchemaObject[] {schemaObject});
 
-            await conn.CreateCommand(patch.UpdateDDL).ExecuteNonQueryAsync();
+            await migration.ApplyAll(conn, new DdlRules());
         }
 
         public static Task Drop(this ISchemaObject schemaObject, NpgsqlConnection conn)

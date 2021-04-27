@@ -35,7 +35,8 @@ namespace Weasel.Postgresql
         ISchemaObject SchemaObject { get; }
         SchemaPatchDifference Difference { get; }
 
-        void WriteUpdates(SchemaPatch patch);
+        void WriteUpdate(DdlRules rules, StringWriter writer);
+        void WriteRollback(DdlRules rules, StringWriter writer);
     }
 
     public class SchemaObjectDelta : ISchemaObjectDelta
@@ -49,10 +50,15 @@ namespace Weasel.Postgresql
             Difference = difference;
         }
 
-        public virtual void WriteUpdates(SchemaPatch patch)
+        public void WriteUpdate(DdlRules rules, StringWriter writer)
         {
-            SchemaObject.WriteDropStatement(patch.Rules, patch.UpWriter);
-            SchemaObject.WriteCreateStatement(patch.Rules, patch.UpWriter);
+            SchemaObject.WriteDropStatement(rules, writer);
+            SchemaObject.WriteCreateStatement(rules, writer);
+        }
+
+        public void WriteRollback(DdlRules rules, StringWriter writer)
+        {
+            
         }
     }
     

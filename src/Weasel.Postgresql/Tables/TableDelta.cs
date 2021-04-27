@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Baseline;
 
@@ -117,8 +118,13 @@ namespace Weasel.Postgresql.Tables
 
         public ISchemaObject SchemaObject { get; }
         public SchemaPatchDifference Difference { get; }
-        
-        public void WriteUpdates(SchemaPatch patch)
+
+        public void WriteUpdate(DdlRules rules, StringWriter writer)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void WriteRollback(DdlRules rules, StringWriter writer)
         {
             throw new NotImplementedException();
         }

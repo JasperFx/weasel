@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Npgsql;
@@ -50,5 +52,18 @@ namespace Weasel.Postgresql
         public IReadOnlyList<ISchemaObjectDelta> Deltas => _deltas;
 
         public SchemaPatchDifference Difference { get; private set; } = SchemaPatchDifference.None;
+
+
+        public Task ApplyAll(NpgsqlConnection conn, DdlRules rules)
+        {
+            var writer = new StringWriter();
+            foreach (var delta in _deltas)
+            {
+                delta.WriteUpdate(rules, writer);
+            }
+
+            return conn.CreateCommand(writer.ToString())
+                .ExecuteNonQueryAsync();
+        }
     }
 }
