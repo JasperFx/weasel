@@ -68,9 +68,14 @@ namespace Weasel.Postgresql
             return SchemaPatchDifference.None;
         }
 
-        public Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+        public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            throw new System.NotImplementedException();
+            if (!await reader.ReadAsync() || (await reader.GetFieldValueAsync<int>(0)) == 0)
+            {
+                return new SchemaObjectDelta(this, SchemaPatchDifference.Create);
+            }
+
+            return new SchemaObjectDelta(this, SchemaPatchDifference.None);
         }
     }
 }

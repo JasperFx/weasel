@@ -77,10 +77,11 @@ namespace Weasel.Postgresql.Tables
     public class TableDelta : ISchemaObjectDelta
     {
         private readonly DbObjectName _tableName;
+        private Table _table;
 
-        public TableDelta(Table expected, Table actual)
+        public TableDelta(Table table, Table actual)
         {
-            SchemaObject = expected;
+            _table = table;
 
             if (actual == null)
             {
@@ -88,16 +89,16 @@ namespace Weasel.Postgresql.Tables
                 return;
             }
             
-            Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
-            Indexes = new ItemDelta<IIndexDefinition>(expected.Indexes, actual.Indexes,
-                (e, a) => ActualIndex.Matches(e, a, expected));
+            Columns = new ItemDelta<TableColumn>(table.Columns, actual.Columns);
+            Indexes = new ItemDelta<IIndexDefinition>(table.Indexes, actual.Indexes,
+                (e, a) => ActualIndex.Matches(e, a, table));
 
-            ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
+            ForeignKeys = new ItemDelta<ForeignKey>(table.ForeignKeys, actual.ForeignKeys);
             
-            _tableName = expected.Identifier;
+            _tableName = table.Identifier;
 
             PrimaryKeyDifference = SchemaPatchDifference.None;
-            if (expected.PrimaryKeyName.IsEmpty())
+            if (table.PrimaryKeyName.IsEmpty())
             {
                 if (actual.PrimaryKeyName.IsNotEmpty())
                 {
@@ -108,7 +109,7 @@ namespace Weasel.Postgresql.Tables
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Create;
             }
-            else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
+            else if (!table.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Update;
             }
@@ -116,12 +117,88 @@ namespace Weasel.Postgresql.Tables
             Difference = determinePatchDifference();
         }
 
-        public ISchemaObject SchemaObject { get; }
+        public ISchemaObject SchemaObject => _table;
         public SchemaPatchDifference Difference { get; }
 
         public void WriteUpdate(DdlRules rules, StringWriter writer)
         {
-            throw new NotImplementedException();
+            if (Difference == SchemaPatchDifference.Invalid)
+            {
+                throw new InvalidOperationException($"TableDelta for {_tableName} is invalid");
+            }
+            
+            if (Difference == SchemaPatchDifference.Create)
+            {
+                SchemaObject.WriteCreateStatement(rules, writer);
+            }
+
+            writeColumnUpdates(writer);
+            
+            writeIndexUpdates(writer);
+
+            writeForeignKeyUpdates(writer);
+        }
+
+        private void writeForeignKeyUpdates(StringWriter writer)
+        {
+            foreach (var foreignKey in ForeignKeys.Missing)
+            {
+                foreignKey.WriteAddStatement(_table, writer);
+            }
+
+            foreach (var foreignKey in ForeignKeys.Extras)
+            {
+                foreignKey.WriteDropStatement(_table, writer);
+            }
+
+            foreach (var change in ForeignKeys.Different)
+            {
+                change.Actual.WriteDropStatement(_table, writer);
+                change.Expected.WriteAddStatement(_table, writer);
+            }
+        }
+
+        private void writeIndexUpdates(StringWriter writer)
+        {
+            // Missing indexes
+            foreach (var indexDefinition in Indexes.Missing)
+            {
+                writer.WriteLine(indexDefinition.ToDDL(_table));
+            }
+
+            // Extra indexes
+            foreach (var extra in Indexes.Extras)
+            {
+                writer.WriteLine($"drop index concurrently if exists {_table.Identifier.Schema}.{extra.Name};");
+            }
+
+            // Different indexes
+            foreach (var change in Indexes.Different)
+            {
+                writer.WriteLine($"drop index concurrently if exists {_table.Identifier.Schema}.{change.Actual.Name};");
+                writer.WriteLine(change.Expected.ToDDL(_table));
+            }
+        }
+
+        private void writeColumnUpdates(StringWriter writer)
+        {
+            // Missing columns
+            foreach (var column in Columns.Missing)
+            {
+                writer.WriteLine(column.AddColumnSql(_table));
+            }
+
+            // Extra columns
+            foreach (var column in Columns.Extras)
+            {
+                writer.WriteLine($"alter table {_table.Identifier} drop column {column.Name};");
+            }
+
+            // Different columns
+            foreach (var change in Columns.Different)
+            {
+                writer.WriteLine(change.Expected.AlterColumnTypeSql(_table, change.Actual));
+            }
         }
 
         public void WriteRollback(DdlRules rules, StringWriter writer)

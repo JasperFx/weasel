@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -40,9 +39,9 @@ namespace Weasel.Postgresql
             return new SchemaMigration(deltas);
         }
 
-        private SchemaMigration(List<ISchemaObjectDelta> deltas)
+        public SchemaMigration(IEnumerable<ISchemaObjectDelta> deltas)
         {
-            _deltas = deltas;
+            _deltas = new List<ISchemaObjectDelta>(deltas);
             if (_deltas.Any())
             {
                 Difference = _deltas.Min(x => x.Difference);
@@ -54,8 +53,13 @@ namespace Weasel.Postgresql
         public SchemaPatchDifference Difference { get; private set; } = SchemaPatchDifference.None;
 
 
-        public Task ApplyAll(NpgsqlConnection conn, DdlRules rules)
+        public Task ApplyAllUpdates(NpgsqlConnection conn, DdlRules rules)
         {
+            if (Difference == SchemaPatchDifference.None) return Task.CompletedTask;
+            if (!_deltas.Any()) return Task.CompletedTask;
+            
+            // TODO -- if any deltas are invalid, throw
+            
             var writer = new StringWriter();
             foreach (var delta in _deltas)
             {
@@ -64,6 +68,37 @@ namespace Weasel.Postgresql
 
             return conn.CreateCommand(writer.ToString())
                 .ExecuteNonQueryAsync();
+        }
+        
+        public void AssertPatchingIsValid(AutoCreate autoCreate)
+        {
+            if (Difference == SchemaPatchDifference.None) return;
+            
+            switch (autoCreate)
+            {
+                case AutoCreate.All:
+                case AutoCreate.None:
+                    return;
+                
+                case AutoCreate.CreateOnly:
+                    if (Difference != SchemaPatchDifference.Create)
+                    {
+                        var invalids = _deltas.Where(x => x.Difference < SchemaPatchDifference.Create);
+                        throw new SchemaMigrationException(autoCreate, invalids);
+                    }
+
+                    break;
+                
+                case AutoCreate.CreateOrUpdate:
+                    if (Difference == SchemaPatchDifference.Invalid)
+                    {
+                        var invalids = _deltas.Where(x => x.Difference == SchemaPatchDifference.Invalid);
+                        throw new SchemaMigrationException(autoCreate, invalids);
+                    }
+
+                    break;
+            }
+
         }
     }
 }

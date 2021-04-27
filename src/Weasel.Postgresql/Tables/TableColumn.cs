@@ -88,7 +88,7 @@ namespace Weasel.Postgresql.Tables
         
 
         // TODO -- test
-        public virtual string AlterColumnTypeSql(Table table)
+        public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
         {
             return $"alter table {table.Identifier} alter column {Name.PadRight(Name.Length)} type {Type};";
         }

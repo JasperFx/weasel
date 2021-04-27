@@ -55,6 +55,8 @@ namespace Weasel.Postgresql.Tests.Tables
             var delta = await theTable.FindDelta(theConnection);
 
             delta.HasChanges().ShouldBeFalse();
+
+            await AssertNoDeltasAfterPatching();
         }
 
         [Fact]
@@ -141,8 +143,10 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(theTable);
 
-            theTable.Indexes.Single().As<IndexDefinition>()
+            var indexDefinition = theTable.Indexes.Single().As<IndexDefinition>();
+            indexDefinition
                 .Method = IndexMethod.hash;
+            indexDefinition.IsUnique = false;
 
             var delta = await theTable.FindDelta(theConnection);
             delta.HasChanges().ShouldBeTrue();
@@ -269,7 +273,7 @@ namespace Weasel.Postgresql.Tests.Tables
             
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
-            await AssertNoDeltasAfterPatching();
+            await AssertNoDeltasAfterPatching(table);
         }
         
         [Fact]
@@ -302,7 +306,7 @@ namespace Weasel.Postgresql.Tests.Tables
             
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
-            await AssertNoDeltasAfterPatching();
+            await AssertNoDeltasAfterPatching(table);
         }
         
                 
@@ -335,7 +339,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
             
-            await AssertNoDeltasAfterPatching();
+            await AssertNoDeltasAfterPatching(table);
         }
         
                 
@@ -370,7 +374,7 @@ namespace Weasel.Postgresql.Tests.Tables
             
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
-            await AssertNoDeltasAfterPatching();
+            await AssertNoDeltasAfterPatching(table);
         }
 
         

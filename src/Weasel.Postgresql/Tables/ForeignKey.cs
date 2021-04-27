@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using Baseline;
@@ -135,40 +136,26 @@ namespace Weasel.Postgresql.Tables
 
         public string ToDDL(Table parent)
         {
-            var sb = new StringBuilder();
+            var writer = new StringWriter();
+            WriteAddStatement(parent, writer);
 
-            sb.AppendLine($"ALTER TABLE {parent.Identifier}");
-            sb.AppendLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
-            sb.Append($"REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
-            sb.WriteCascadeAction("ON DELETE", OnDelete);
-            sb.WriteCascadeAction("ON UPDATE", OnUpdate);
-
-            sb.Append(";");
-            return sb.ToString();
+            return writer.ToString();
         }
-    }
 
-    internal static class StringBuilderExtensions
-    {
-        public static void WriteCascadeAction(this StringBuilder sb, string prefix, CascadeAction action)
+        public void WriteAddStatement(Table parent, StringWriter writer)
         {
-            switch (action)
-            {
-                case CascadeAction.Cascade:
-                    sb.AppendLine($"{prefix} CASCADE");
-                    break;
-                case CascadeAction.Restrict:
-                    sb.AppendLine($"{prefix} RESTRICT");
-                    break;
-                case CascadeAction.NoAction:
-                    return;
-                case CascadeAction.SetDefault:
-                    sb.AppendLine($"{prefix} SET DEFAULT");
-                    break;
-                case CascadeAction.SetNull:
-                    sb.AppendLine($"{prefix} SET NULL");
-                    break;
-            }
+            writer.WriteLine($"ALTER TABLE {parent.Identifier}");
+            writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
+            writer.Write($"REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
+            writer.WriteCascadeAction("ON DELETE", OnDelete);
+            writer.WriteCascadeAction("ON UPDATE", OnUpdate);
+            writer.Write(";");
+            writer.WriteLine();
+        }
+
+        public void WriteDropStatement(Table parent, StringWriter writer)
+        {
+            writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT {Name};");
         }
     }
 }
