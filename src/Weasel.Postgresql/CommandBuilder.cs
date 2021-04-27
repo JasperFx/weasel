@@ -1,5 +1,7 @@
 using System;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -109,6 +111,15 @@ namespace Weasel.Postgresql
             }
 
             return parameters;
+        }
+
+        public Task<NpgsqlDataReader> ExecuteReaderAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction tx = null)
+        {
+            var cmd = Compile();
+            cmd.Connection = conn;
+            cmd.Transaction = tx;
+
+            return cmd.ExecuteReaderAsync(cancellation);
         }
     }
 }

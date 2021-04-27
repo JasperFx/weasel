@@ -1,7 +1,9 @@
+using System;
 using System.IO;
 
 namespace Weasel.Postgresql
 {
+    [Obsolete("Doesn't add any value")]
     public interface IDDLRunner
     {
         void Apply(object subject, string ddl);
@@ -9,25 +11,23 @@ namespace Weasel.Postgresql
 
     public class DDLRecorder: IDDLRunner
     {
-        private readonly StringWriter _writer;
-
         public DDLRecorder() : this(new StringWriter())
         {
         }
 
         public DDLRecorder(StringWriter writer)
         {
-            _writer = writer;
+            Writer = writer;
         }
 
-        public StringWriter Writer => _writer;
+        public StringWriter Writer { get; }
 
         public void Apply(object subject, string ddl)
         {
-            _writer.WriteLine($"-- {subject}");
-            _writer.WriteLine(ddl);
-            _writer.WriteLine("");
-            _writer.WriteLine("");
+            Writer.WriteLine($"-- {subject}");
+            Writer.WriteLine(ddl);
+            Writer.WriteLine("");
+            Writer.WriteLine("");
         }
     }
 }

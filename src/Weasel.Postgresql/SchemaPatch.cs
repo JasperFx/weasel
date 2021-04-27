@@ -10,6 +10,7 @@ using Npgsql;
 
 namespace Weasel.Postgresql
 {
+    [Obsolete("Replace w/ new SchemaMigration")]
     public class SchemaPatch
     {
         private readonly Action<NpgsqlCommand, Exception> _exceptionHandler;
@@ -136,7 +137,7 @@ namespace Weasel.Postgresql
             WriteFile(file, RollbackDDL, transactionalScript);
         }
 
-        public readonly IList<SchemaObjectDelta> Migrations = new List<SchemaObjectDelta>();
+        public readonly IList<ISchemaObjectDelta> Migrations = new List<ISchemaObjectDelta>();
 
         public void Log(ISchemaObject schemaObject, SchemaPatchDifference difference)
         {
@@ -210,8 +211,12 @@ namespace Weasel.Postgresql
 
         private async Task apply(ISchemaObject schemaObject, AutoCreate autoCreate, DbDataReader reader)
         {
-            var difference = await schemaObject.CreatePatch(reader, this, autoCreate);
-            Migrations.Add(new SchemaObjectDelta(schemaObject, difference));
+            var delta = await schemaObject.CreateDelta(reader);
+
+            // TODO -- does anything need to happen here if there's no delta?
+            
+            // Cleaner if the answer is no
+            Migrations.Add(delta);
         }
 
         public Task Apply(NpgsqlConnection connection, AutoCreate autoCreate, ISchemaObject schemaObject)
