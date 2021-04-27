@@ -64,8 +64,54 @@ namespace Weasel.Postgresql.Tests
             });
 
         }
+
+        [Fact]
+        public void writing_out_updates_when_schema_object_is_invalid()
+        {
+            var migration = migrationFor(SchemaPatchDifference.Invalid);
+
+            var writer = new StringWriter();
+            var delta = migration.Deltas.Single();
+
+            var rules = new DdlRules();
+            migration.WriteAllUpdates(writer, rules, AutoCreate.All);
+            
+            delta.DidNotReceive().WriteUpdate(rules, writer);
+            delta.SchemaObject.Received().WriteDropStatement(rules, writer);
+            delta.SchemaObject.Received().WriteCreateStatement(rules, writer);
+        }
         
+        [Fact]
+        public void writing_out_updates_when_schema_object_is_create()
+        {
+            var migration = migrationFor(SchemaPatchDifference.Create);
+
+            var writer = new StringWriter();
+            var delta = migration.Deltas.Single();
+
+            var rules = new DdlRules();
+            migration.WriteAllUpdates(writer, rules, AutoCreate.All);
+            
+            delta.DidNotReceive().WriteUpdate(rules, writer);
+            delta.SchemaObject.DidNotReceive().WriteDropStatement(rules, writer);
+            delta.SchemaObject.Received().WriteCreateStatement(rules, writer);
+        }
         
+        [Fact]
+        public void writing_out_updates_when_schema_object_is_update()
+        {
+            var migration = migrationFor(SchemaPatchDifference.Update);
+
+            var writer = new StringWriter();
+            var delta = migration.Deltas.Single();
+
+            var rules = new DdlRules();
+            migration.WriteAllUpdates(writer, rules, AutoCreate.All);
+            
+            delta.Received().WriteUpdate(rules, writer);
+            delta.SchemaObject.DidNotReceive().WriteDropStatement(rules, writer);
+            delta.SchemaObject.DidNotReceive().WriteCreateStatement(rules, writer);
+        }
         
     }
 

@@ -24,7 +24,7 @@ namespace Weasel.Postgresql
         {
             var migration = await SchemaMigration.Determine(conn, new ISchemaObject[] {schemaObject});
 
-            await migration.ApplyAllUpdates(conn, new DdlRules());
+            await migration.ApplyAll(conn, new DdlRules(), AutoCreate.CreateOrUpdate);
         }
 
         public static Task Drop(this ISchemaObject schemaObject, NpgsqlConnection conn)

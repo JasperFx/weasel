@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -51,25 +52,52 @@ namespace Weasel.Postgresql
         public IReadOnlyList<ISchemaObjectDelta> Deltas => _deltas;
 
         public SchemaPatchDifference Difference { get; private set; } = SchemaPatchDifference.None;
-
-
-        public Task ApplyAllUpdates(NpgsqlConnection conn, DdlRules rules)
+        
+        public Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate)
         {
+            if (autoCreate == AutoCreate.None) return Task.CompletedTask;
             if (Difference == SchemaPatchDifference.None) return Task.CompletedTask;
             if (!_deltas.Any()) return Task.CompletedTask;
             
-            // TODO -- if any deltas are invalid, throw
             
-            var writer = new StringWriter();
-            foreach (var delta in _deltas)
-            {
-                delta.WriteUpdate(rules, writer);
-            }
 
+            var writer = new StringWriter();
+            
+            WriteAllUpdates(writer, rules, autoCreate);
+            
             return conn.CreateCommand(writer.ToString())
                 .ExecuteNonQueryAsync();
         }
-        
+
+        public void WriteAllUpdates(StringWriter writer, DdlRules rules, AutoCreate autoCreate)
+        {
+            AssertPatchingIsValid(autoCreate);
+            foreach (var delta in _deltas)
+            {
+                switch (delta.Difference)
+                {
+                    case SchemaPatchDifference.None:
+                        return;
+                    
+                    case SchemaPatchDifference.Create:
+                        delta.SchemaObject.WriteCreateStatement(rules, writer);
+                        break;
+                    
+                    case SchemaPatchDifference.Update:
+                        delta.WriteUpdate(rules, writer);
+                        break;
+                    
+                    case SchemaPatchDifference.Invalid:
+                        delta.SchemaObject.WriteDropStatement(rules, writer);
+                        delta.SchemaObject.WriteCreateStatement(rules, writer);
+                        break;
+                    
+                    
+                }
+            }
+        }
+
+
         public void AssertPatchingIsValid(AutoCreate autoCreate)
         {
             if (Difference == SchemaPatchDifference.None) return;
