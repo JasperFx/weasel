@@ -77,11 +77,13 @@ namespace Weasel.Postgresql.Tables
     public class TableDelta : ISchemaObjectDelta
     {
         private readonly DbObjectName _tableName;
-        private Table _table;
+        private readonly Table _table;
+        private readonly Table _actual;
 
         public TableDelta(Table table, Table actual)
         {
             _table = table;
+            _actual = actual;
 
             if (actual == null)
             {
@@ -137,6 +139,19 @@ namespace Weasel.Postgresql.Tables
             writeIndexUpdates(writer);
 
             writeForeignKeyUpdates(writer);
+
+            switch (PrimaryKeyDifference)
+            {
+                case SchemaPatchDifference.Invalid:
+                case SchemaPatchDifference.Update:
+                    writer.WriteLine($"alter table {_table.Identifier} drop constraint {_actual.PrimaryKeyName};");
+                    writer.WriteLine($"alter table {_table.Identifier} add {_table.PrimaryKeyDeclaration()};");
+                    break;
+                
+                case SchemaPatchDifference.Create:
+                    writer.WriteLine($"alter table {_table.Identifier} add {_table.PrimaryKeyDeclaration()};");
+                    break;
+            }
         }
 
         private void writeForeignKeyUpdates(StringWriter writer)

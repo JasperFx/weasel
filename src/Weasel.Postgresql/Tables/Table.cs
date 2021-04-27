@@ -57,7 +57,7 @@ namespace Weasel.Postgresql.Tables
 
                 if (PrimaryKeyColumns.Any())
                 {
-                    lines.Add(primaryKeyDeclaration());
+                    lines.Add(PrimaryKeyDeclaration());
                 }
 
                 for (int i = 0; i < lines.Count - 1; i++)
@@ -75,7 +75,7 @@ namespace Weasel.Postgresql.Tables
                 
                 if (PrimaryKeyColumns.Any())
                 {
-                    lines.Add(primaryKeyDeclaration());
+                    lines.Add(PrimaryKeyDeclaration());
                 }
 
                 for (int i = 0; i < lines.Count - 1; i++)
@@ -110,7 +110,7 @@ namespace Weasel.Postgresql.Tables
         
         
 
-        private string primaryKeyDeclaration()
+        internal string PrimaryKeyDeclaration()
         {
             return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
         }

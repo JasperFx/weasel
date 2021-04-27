@@ -377,7 +377,40 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching(table);
         }
 
+        [Fact]
+        public async Task detect_primary_key_change()
+        {
+            await CreateSchemaObjectInDatabase(theTable);
+
+            theTable.AddColumn<string>("tenant_id").AsPrimaryKey();
+            var delta = await theTable.FindDelta(theConnection);
+            
+            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+            delta.HasChanges().ShouldBeTrue();
+            
+            await AssertNoDeltasAfterPatching(theTable);
+        }
         
+        
+        [Fact]
+        public async Task detect_new_primary_key_change()
+        {
+            await CreateSchemaObjectInDatabase(theTable);
+
+            var table = new Table("deltas.states");
+            table.AddColumn<string>("abbreviation");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            table.ModifyColumn("abbreviation").AsPrimaryKey();
+            
+            var delta = await table.FindDelta(theConnection);
+            
+            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+            delta.HasChanges().ShouldBeTrue();
+            
+            await AssertNoDeltasAfterPatching(theTable);
+        }
         
 
     }
