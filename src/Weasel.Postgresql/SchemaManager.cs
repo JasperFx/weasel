@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ namespace Weasel.Postgresql
     
     public static class SchemaManager
     {
-        public static async Task EnsureSchemaExists(NpgsqlConnection conn, string schemaName, CancellationToken cancellation = default)
+        public static async Task EnsureSchemaExists(this NpgsqlConnection conn, string schemaName, CancellationToken cancellation = default)
         {
             bool shouldClose = false;
             if (conn.State != ConnectionState.Open)
@@ -70,6 +71,25 @@ namespace Weasel.Postgresql
         public static Task ResetSchema(this NpgsqlConnection conn, string schemaName)
         {
             return conn.RunSql(DropStatementFor(schemaName, CascadeOption.Cascade), CreateStatementFor(schemaName));
+        }
+
+        public static async Task<bool> FunctionExists(this NpgsqlConnection conn, DbObjectName functionIdentifier)
+        {
+            var sql =
+                "SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger' and routine_name like :name and specific_schema = :schema;";
+
+            using var reader = await conn.CreateCommand(sql)
+                .AddNamedParameter("name", functionIdentifier.Name)
+                .AddNamedParameter("schema", functionIdentifier.Schema)
+                .ExecuteReaderAsync();
+
+            return await reader.ReadAsync();
+
+        }
+        
+        private static async Task<DbObjectName> Transform(DbDataReader reader)
+        {
+            return new DbObjectName(await reader.GetFieldValueAsync<string>(0), await reader.GetFieldValueAsync<string>(1));
         }
     }
 }

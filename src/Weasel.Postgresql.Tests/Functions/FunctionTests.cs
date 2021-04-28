@@ -125,6 +125,8 @@ $$ LANGUAGE plpgsql;
                 .ExecuteScalarAsync();
             
             next.As<int>().ShouldBe(0);
+
+            await theConnection.FunctionExists(function.Identifier);
         }
 
 
