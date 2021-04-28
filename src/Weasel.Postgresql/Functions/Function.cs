@@ -106,7 +106,7 @@ AND    n.nspname = :{schemaParam};
             throw new NotImplementedException();
         }
         
-        public bool IsRemoved { get; set; }
+        public bool IsRemoved { get; private set; }
 
         public async Task<Function> FetchExisting(NpgsqlConnection conn)
         {
@@ -184,6 +184,19 @@ AND    n.nspname = :{schemaParam};
         {
             var existing = await FetchExisting(conn);
             return new FunctionDelta(this, existing);
+        }
+
+        public static Function ForRemoval(string identifier)
+        {
+            return ForRemoval(DbObjectName.Parse(identifier));
+        }
+        
+        public static Function ForRemoval(DbObjectName identifier)
+        {
+            return new Function(identifier, null)
+            {
+                IsRemoved = true
+            };
         }
     }
 }

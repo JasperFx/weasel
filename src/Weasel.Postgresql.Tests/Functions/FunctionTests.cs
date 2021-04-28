@@ -87,6 +87,14 @@ $$ LANGUAGE plpgsql;
         }
 
         [Fact]
+        public void for_removal()
+        {
+            var function = Function.ForRemoval("functions.mt_hilo");
+            function.IsRemoved.ShouldBeTrue();
+            function.Identifier.QualifiedName.ShouldBe("functions.mt_hilo");
+        }
+
+        [Fact]
         public void can_read_the_function_identifier_from_a_function_body()
         {
             Function.ParseIdentifier(theFunctionBody)
@@ -162,6 +170,27 @@ $$ LANGUAGE plpgsql;
             var delta = await function.FindDelta(theConnection);
             
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
+        }
+
+        [Fact]
+        public async Task for_removal_mechanics()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+
+            var function = Function.ForSql(theFunctionBody);
+
+            await CreateSchemaObjectInDatabase(function);
+
+            var toRemove = Function.ForRemoval(function.Identifier);
+
+            var delta = await toRemove.FindDelta(theConnection);
+            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+            await AssertNoDeltasAfterPatching(toRemove);
+            
+            (await theConnection.FunctionExists(toRemove.Identifier)).ShouldBeFalse();
         }
         
         [Fact]

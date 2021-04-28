@@ -15,8 +15,12 @@ namespace Weasel.Postgresql.Functions
             
             SchemaObject = expected;
 
-            
-            if (Actual == null)
+
+            if (Expected.IsRemoved)
+            {
+                Difference = Actual == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update;
+            }
+            else if (Actual == null)
             {
                 Difference = SchemaPatchDifference.Create;
             }
@@ -36,7 +40,16 @@ namespace Weasel.Postgresql.Functions
         {
             if (Expected.IsRemoved)
             {
-                throw new NotImplementedException("REMOVE THE ACTUAL");
+                foreach (var drop in Actual.DropStatements())
+                {
+                    var sql = drop;
+                    if (!sql.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sql = sql.TrimEnd(';') + " cascade;";
+                    }
+
+                    writer.WriteLine(sql);
+                }
             }
             else
             {
