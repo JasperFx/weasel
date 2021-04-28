@@ -1,32 +1,85 @@
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
+using Baseline;
 using Npgsql;
 
 namespace Weasel.Postgresql.Functions
 {
-    /// <summary>
-    /// Base class for an ISchemaObject manager for a Postgresql function
-    /// </summary>
-    public abstract class Function: ISchemaObject
+    public class Function : ISchemaObject
     {
-        public DbObjectName Identifier { get; }
-        public bool IsRemoved { get; }
+        /* TODO
+         * load from a file?
+         * load from an embedded resource
+         * parse drop statements
+         *
+         *
+         * 
+         * 
+         */
 
-        protected Function(DbObjectName identifier, bool isRemoved = false)
+
+        private readonly string _body;
+        private readonly string[] _dropStatements;
+
+        public static string ParseSignature(string body)
         {
-            Identifier = identifier;
-            IsRemoved = isRemoved;
+            var functionIndex = body.IndexOf("FUNCTION", StringComparison.OrdinalIgnoreCase);
+            var openParen = body.IndexOf("(");
+            var closeParen = body.IndexOf(")");
+
+            var args = body.Substring(openParen + 1, closeParen - openParen - 1).Trim()
+                .Split(',').Select(x =>
+                {
+                    var parts = x.Trim().Split(' ');
+                    return parts.Skip(1).Join(" ");
+                }).Join(", ");
+
+            var nameStart = functionIndex + "function".Length;
+            var funcName = body.Substring(nameStart, openParen - nameStart).Trim();
+
+            return $"{funcName}({args})";
+        }
+        
+        public static DbObjectName ParseIdentifier(string functionSql)
+        {
+            var signature = ParseSignature(functionSql);
+            var open = signature.IndexOf('(');
+            return DbObjectName.Parse(signature.Substring(0, open));
         }
 
-        /// <summary>
-        /// Override to write the actual DDL code
-        /// </summary>
-        /// <param name="rules"></param>
-        /// <param name="writer"></param>
-        public abstract void WriteCreateStatement(DdlRules rules, StringWriter writer);
 
+        public Function(DbObjectName identifier, string body, string[] dropStatements)
+        {
+            _body = body;
+            _dropStatements = dropStatements;
+            Identifier = identifier;
+        }
+
+        public Function(DbObjectName identifier, string body)
+        {
+            _body = body;
+            Identifier = identifier;
+        }
+
+
+        public virtual void WriteCreateStatement(DdlRules rules, StringWriter writer)
+        {
+            writer.WriteLine(_body);
+        }
+
+        public void WriteDropStatement(DdlRules rules, StringWriter writer)
+        {
+            foreach (var dropStatement in _dropStatements)
+            {
+                writer.WriteLine(dropStatement);
+            }
+        }
+
+        public DbObjectName Identifier { get; }
         public void ConfigureQueryCommand(CommandBuilder builder)
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
@@ -47,58 +100,25 @@ AND    n.nspname = :{schemaParam};
 ");
         }
 
-        public Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+
+        public Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
-            throw new System.NotImplementedException();
+            throw new NotImplementedException();
         }
+        
+        public bool IsRemoved { get; set; }
 
-        public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
+        public async Task<Function> FetchExisting(NpgsqlConnection conn)
         {
-            var diff = await fetchDelta(reader, patch.Rules);
+            var builder = new CommandBuilder();
 
-            if (diff == null && IsRemoved)
-            {
-                return SchemaPatchDifference.None;
-            }
+            ConfigureQueryCommand(builder);
 
-            if (diff == null)
-            {
-                WriteCreateStatement(patch.Rules, patch.UpWriter);
-                WriteDropStatement(patch.Rules, patch.DownWriter);
-
-                return SchemaPatchDifference.Create;
-            }
-
-            if (diff.Removed)
-            {
-                WriteCreateStatement(patch.Rules, patch.UpWriter);
-                return SchemaPatchDifference.Update;
-            }
-
-            if (diff.AllNew)
-            {
-                WriteCreateStatement(patch.Rules, patch.UpWriter);
-                WriteDropStatement(patch.Rules, patch.DownWriter);
-
-                return SchemaPatchDifference.Create;
-            }
-
-            if (diff.HasChanged)
-            {
-                diff.WritePatch(patch);
-
-                return SchemaPatchDifference.Update;
-            }
-
-            return SchemaPatchDifference.None;
+            using var reader = await builder.ExecuteReaderAsync(conn);
+            return await readExisting(reader);
         }
-
-        public IEnumerable<DbObjectName> AllNames()
-        {
-            yield return Identifier;
-        }
-
-        protected async Task<FunctionDelta> fetchDelta(DbDataReader reader, DdlRules rules)
+        
+        private async Task<Function> readExisting(DbDataReader reader)
         {
             if (!await reader.ReadAsync())
             {
@@ -109,7 +129,9 @@ AND    n.nspname = :{schemaParam};
             var existingFunction = await reader.GetFieldValueAsync<string>(0);
 
             if (string.IsNullOrEmpty(existingFunction))
+            {
                 return null;
+            }
 
             await reader.NextResultAsync();
             var drops = new List<string>();
@@ -118,46 +140,49 @@ AND    n.nspname = :{schemaParam};
                 drops.Add(await reader.GetFieldValueAsync<string>(0));
             }
 
-            var actualBody = new FunctionBody(Identifier, drops.ToArray(), existingFunction.TrimEnd() + ";");
-
-            var expectedBody = IsRemoved ? null : ToBody(rules);
-
-            return new FunctionDelta(expectedBody, actualBody);
+            return new Function(Identifier, existingFunction.TrimEnd() + ";", drops.ToArray());
         }
 
-        public FunctionBody ToBody(DdlRules rules)
+        public Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            var dropSql = toDropSql();
+            throw new NotImplementedException();
+        }
 
+        public IEnumerable<DbObjectName> AllNames()
+        {
+            throw new NotImplementedException();
+        }
+
+        public string Body()
+        {
             var writer = new StringWriter();
-            WriteCreateStatement(rules, writer);
+            WriteCreateStatement(new DdlRules(), writer);
 
-            return new FunctionBody(Identifier, new string[] { dropSql }, writer.ToString());
+            return writer.ToString();
         }
 
-        /// <summary>
-        /// Override to customize the DROP statements for this function
-        /// </summary>
-        /// <returns></returns>
-        protected abstract string toDropSql();
-
-        public void WriteDropStatement(DdlRules rules, StringWriter writer)
+        public string[] DropStatements()
         {
-            var dropSql = toDropSql();
-            writer.WriteLine(dropSql);
+            if (_dropStatements?.Length > 0) return _dropStatements;
+
+            var signature = ParseSignature(Body());
+
+            var drop = $"drop function {signature};";
+
+            return new [] {drop};
         }
 
-        public async Task<FunctionDelta> FetchDelta(NpgsqlConnection conn, DdlRules rules)
+
+        public static Function ForSql(string sql)
         {
-            var cmd = conn.CreateCommand();
-            var builder = new CommandBuilder(cmd);
+            var identifier = ParseIdentifier(sql);
+            return new Function(identifier, sql);
+        }
 
-            ConfigureQueryCommand(builder);
-
-            cmd.CommandText = builder.ToString();
-
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await fetchDelta(reader, rules);
+        public async Task<FunctionDelta> FetchDelta(NpgsqlConnection conn)
+        {
+            var existing = await FetchExisting(conn);
+            return new FunctionDelta(this, existing);
         }
     }
 }

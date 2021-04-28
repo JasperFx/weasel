@@ -80,18 +80,17 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
         internal async Task<Table> FetchExisting(NpgsqlConnection conn)
         {
-            var cmd = conn.CreateCommand();
-            var builder = new CommandBuilder(cmd);
+            var builder = new CommandBuilder();
 
             ConfigureQueryCommand(builder);
 
             builder.Compile();
 
-            using var reader = await cmd.ExecuteReaderAsync();
-            return await readExistingTable(reader);
+            using var reader = await builder.ExecuteReaderAsync(conn);
+            return await readExisting(reader);
         }
         
-        private async Task<Table> readExistingTable(DbDataReader reader)
+        private async Task<Table> readExisting(DbDataReader reader)
         {
             var existing = new Table(Identifier);
             

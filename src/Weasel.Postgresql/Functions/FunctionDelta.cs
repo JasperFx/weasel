@@ -1,67 +1,57 @@
 using System;
+using System.IO;
 using Baseline;
 
 namespace Weasel.Postgresql.Functions
 {
-    public class FunctionDelta
+    public class FunctionDelta : ISchemaObjectDelta
     {
-        public FunctionBody Expected { get; set; }
-        public FunctionBody Actual { get; set; }
+        public Function Expected { get; set; }
+        public Function Actual { get; set; }
 
-        public FunctionDelta(FunctionBody expected, FunctionBody actual)
+        public FunctionDelta(Function expected, Function actual)
         {
             Expected = expected;
             Actual = actual;
+            
+            SchemaObject = expected;
+
+            
+            if (Actual == null)
+            {
+                Difference = SchemaPatchDifference.Create;
+            }
+            else if (!Expected.Body().CanonicizeSql().Equals(Actual.Body().CanonicizeSql(), StringComparison.OrdinalIgnoreCase))
+            {
+                Difference = SchemaPatchDifference.Update;
+            }
+            else
+            {
+                Difference = SchemaPatchDifference.None;
+            }
         }
 
-        public bool AllNew => Actual == null;
+        public ISchemaObject SchemaObject { get; }
+        public SchemaPatchDifference Difference { get; }
+        public void WriteUpdate(DdlRules rules, StringWriter writer)
+        {
+            throw new NotImplementedException();
+        }
 
-        public bool Removed => Expected == null && Actual != null;
+        public void WriteRollback(DdlRules rules, StringWriter writer)
+        {
+            throw new NotImplementedException();
+        }
 
-        public bool HasChanged => AllNew || (Expected != null && !Expected.Body.CanonicizeSql().Equals(Actual.Body.CanonicizeSql(), StringComparison.OrdinalIgnoreCase));
 
         public void WritePatch(SchemaPatch patch)
         {
-            if (AllNew)
-            {
-                patch.Updates.Apply(this, Expected.Body);
-
-                Expected.DropStatements.Each(drop =>
-                {
-                    if (!drop.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
-                    {
-                        drop = drop.TrimEnd(';') + " cascade;";
-                    }
-
-                    patch.Rollbacks.Apply(this, drop);
-                });
-            }
-            else if (HasChanged)
-            {
-                Actual.DropStatements.Each(drop =>
-                {
-                    if (!drop.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
-                    {
-                        drop = drop.TrimEnd(';') + " cascade;";
-                    }
-
-                    patch.Updates.Apply(this, drop);
-                });
-
-                patch.Updates.Apply(this, Expected.Body);
-
-                Expected.DropStatements.Each(drop =>
-                {
-                    patch.Rollbacks.Apply(this, drop);
-                });
-
-                patch.Rollbacks.Apply(this, Actual.Body);
-            }
+            throw new NotImplementedException();
         }
 
         public override string ToString()
         {
-            return Expected.Function.QualifiedName + " Diff";
+            return Expected.Identifier.QualifiedName + " Diff";
         }
     }
 }

@@ -16,13 +16,13 @@ namespace Weasel.Postgresql.Tables
 
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            var existing = await readExistingTable(reader);
+            var existing = await readExisting(reader);
             return new TableDelta(this, existing);
         }
 
         public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
         {
-            var existing = await readExistingTable(reader);
+            var existing = await readExisting(reader);
             if (existing == null)
             {
                 WriteCreateStatement(patch.Rules, patch.UpWriter);
