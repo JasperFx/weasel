@@ -143,9 +143,10 @@ AND    n.nspname = :{schemaParam};
             return new Function(Identifier, existingFunction.TrimEnd() + ";", drops.ToArray());
         }
 
-        public Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+        public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            throw new NotImplementedException();
+            var existing = await readExisting(reader);
+            return new FunctionDelta(this, existing);
         }
 
         public IEnumerable<DbObjectName> AllNames()
@@ -179,7 +180,7 @@ AND    n.nspname = :{schemaParam};
             return new Function(identifier, sql);
         }
 
-        public async Task<FunctionDelta> FetchDelta(NpgsqlConnection conn)
+        public async Task<FunctionDelta> FindDelta(NpgsqlConnection conn)
         {
             var existing = await FetchExisting(conn);
             return new FunctionDelta(this, existing);

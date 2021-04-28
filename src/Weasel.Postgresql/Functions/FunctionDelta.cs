@@ -35,7 +35,25 @@ namespace Weasel.Postgresql.Functions
         public SchemaPatchDifference Difference { get; }
         public void WriteUpdate(DdlRules rules, StringWriter writer)
         {
-            throw new NotImplementedException();
+            if (Expected.IsRemoved)
+            {
+                throw new NotImplementedException("REMOVE THE ACTUAL");
+            }
+            else
+            {
+                foreach (var drop in Actual.DropStatements())
+                {
+                    var sql = drop;
+                    if (!sql.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
+                    {
+                        sql = sql.TrimEnd(';') + " cascade;";
+                    }
+
+                    writer.WriteLine(sql);
+                }  
+                
+                Expected.WriteCreateStatement(rules, writer);
+            }
         }
 
         public void WriteRollback(DdlRules rules, StringWriter writer)

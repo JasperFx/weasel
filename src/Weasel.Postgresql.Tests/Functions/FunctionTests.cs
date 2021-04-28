@@ -51,6 +51,21 @@ END
 
 $$ LANGUAGE plpgsql;
 ";
+        
+        private readonly string theEvenDifferentBody = @"
+CREATE OR REPLACE FUNCTION functions.mt_get_next_hi(entity varchar, name varchar) RETURNS integer AS
+$$
+DECLARE
+    current_value bigint;
+    next_value bigint;
+BEGIN
+    update functions.mt_hilo set hi_value = next_value where entity_name = entity and hi_value = current_value;
+
+    return 1;
+END
+
+$$ LANGUAGE plpgsql;
+";
 
         private Table theHiloTable;
 
@@ -60,6 +75,15 @@ $$ LANGUAGE plpgsql;
             theHiloTable.AddColumn<string>("entity_name").AsPrimaryKey();
             theHiloTable.AddColumn<int>("next_value");
             theHiloTable.AddColumn<int>("hi_value");
+        }
+        
+        protected async Task AssertNoDeltasAfterPatching(Function func)
+        {
+            await func.ApplyChanges(theConnection);
+
+            var delta = await func.FindDelta(theConnection);
+            
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
         [Fact]
@@ -133,7 +157,7 @@ $$ LANGUAGE plpgsql;
             
             (await function.FetchExisting(theConnection)).ShouldBeNull();
 
-            var delta = await function.FetchDelta(theConnection);
+            var delta = await function.FindDelta(theConnection);
             
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
@@ -149,7 +173,7 @@ $$ LANGUAGE plpgsql;
 
             await CreateSchemaObjectInDatabase(function);
 
-            var delta = await function.FetchDelta(theConnection);
+            var delta = await function.FindDelta(theConnection);
             
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
@@ -166,10 +190,52 @@ $$ LANGUAGE plpgsql;
 
             var different = Function.ForSql(theDifferentBody);
 
-            var delta = await different.FetchDelta(theConnection);
+            var delta = await different.FindDelta(theConnection);
             
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
+        }
+
+        [Fact]
+        public async Task can_apply_the_creation_delta()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+            
+            var function = Function.ForSql(theFunctionBody);
+
+            await AssertNoDeltasAfterPatching(function);
+        }
+
+        [Fact]
+        public async Task can_apply_a_changed_delta()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+
+            var function = Function.ForSql(theFunctionBody);
+            await CreateSchemaObjectInDatabase(function);
+
+            var different = Function.ForSql(theDifferentBody);
+
+            await AssertNoDeltasAfterPatching(different);
+        }
+        
+        [Fact]
+        public async Task can_apply_a_changed_delta_with_different_signature()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+
+            var function = Function.ForSql(theFunctionBody);
+            await CreateSchemaObjectInDatabase(function);
+
+            var different = Function.ForSql(theEvenDifferentBody);
+
+            await AssertNoDeltasAfterPatching(different);
         }
     }
 
