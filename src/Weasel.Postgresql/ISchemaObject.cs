@@ -40,6 +40,38 @@ namespace Weasel.Postgresql
         void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer);
     }
 
+    public abstract class SchemaObjectDelta<T> : ISchemaObjectDelta where T : ISchemaObject
+    {
+        public T Expected { get; }
+        public T Actual { get; }
+
+        protected SchemaObjectDelta(T expected, T actual)
+        {
+            Expected = expected;
+            Actual = actual;
+
+            Difference = compare(Expected, Actual);
+        }
+
+        protected abstract SchemaPatchDifference compare(T expected, T actual);
+
+        public ISchemaObject SchemaObject => Expected;
+
+        public SchemaPatchDifference Difference { get; }
+        public abstract void WriteUpdate(DdlRules rules, TextWriter writer);
+
+        public virtual void WriteRollback(DdlRules rules, TextWriter writer)
+        {
+            Expected.WriteDropStatement(rules, writer);
+            Actual.WriteCreateStatement(rules, writer);
+        }
+
+        public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
+        {
+            Actual.WriteCreateStatement(rules, writer);
+        }
+    }
+
     public class SchemaObjectDelta : ISchemaObjectDelta
     {
         public ISchemaObject SchemaObject { get; }

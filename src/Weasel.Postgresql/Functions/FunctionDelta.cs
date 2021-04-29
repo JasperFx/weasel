@@ -3,40 +3,35 @@ using System.IO;
 
 namespace Weasel.Postgresql.Functions
 {
-    public class FunctionDelta : ISchemaObjectDelta
+    public class FunctionDelta : SchemaObjectDelta<Function>
     {
-        public Function Expected { get; set; }
-        public Function Actual { get; set; }
-
-        public FunctionDelta(Function expected, Function actual)
+        public FunctionDelta(Function expected, Function actual) : base(expected, actual)
         {
-            Expected = expected;
-            Actual = actual;
-            
-            SchemaObject = expected;
 
-
-            if (Expected.IsRemoved)
-            {
-                Difference = Actual == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update;
-            }
-            else if (Actual == null)
-            {
-                Difference = SchemaPatchDifference.Create;
-            }
-            else if (!Expected.Body().CanonicizeSql().Equals(Actual.Body().CanonicizeSql(), StringComparison.OrdinalIgnoreCase))
-            {
-                Difference = SchemaPatchDifference.Update;
-            }
-            else
-            {
-                Difference = SchemaPatchDifference.None;
-            }
         }
 
-        public ISchemaObject SchemaObject { get; }
-        public SchemaPatchDifference Difference { get; }
-        public void WriteUpdate(DdlRules rules, TextWriter writer)
+        protected override SchemaPatchDifference compare(Function expected, Function actual)
+        {
+            if (expected.IsRemoved)
+            {
+                return actual == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update;
+            }
+
+            if (actual == null)
+            {
+                return SchemaPatchDifference.Create;
+            }
+            
+            if (!expected.Body().CanonicizeSql().Equals(actual.Body().CanonicizeSql(), StringComparison.OrdinalIgnoreCase))
+            {
+                return SchemaPatchDifference.Update;
+            }
+            
+            return SchemaPatchDifference.None;
+        }
+
+
+        public override void WriteUpdate(DdlRules rules, TextWriter writer)
         {
             if (Expected.IsRemoved)
             {
@@ -67,18 +62,7 @@ namespace Weasel.Postgresql.Functions
                 Expected.WriteCreateStatement(rules, writer);
             }
         }
-
-        public void WriteRollback(DdlRules rules, TextWriter writer)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
-        {
-            Actual.WriteCreateStatement(rules, writer);
-        }
-
-
+        
         public void WritePatch(SchemaPatch patch)
         {
             throw new NotImplementedException();

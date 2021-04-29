@@ -1,106 +1,32 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Baseline;
 
 namespace Weasel.Postgresql.Tables
 {
-    public class Change<T>
+    public class TableDelta : SchemaObjectDelta<Table>
     {
-        public Change(T expected, T actual)
+        public TableDelta(Table expected, Table actual) : base(expected, actual)
         {
-            Expected = expected;
-            Actual = actual;
+
         }
 
-        public T Expected { get; }
-        public T Actual { get; }
-    }
-    
-    public class ItemDelta<T> where T: INamed
-    {
-        private readonly List<Change<T>> _different = new List<Change<T>>();
-        private readonly List<T> _matched = new List<T>();
-        private readonly List<T> _extras = new List<T>();
-        private readonly List<T> _missing = new List<T>();
-
-        public bool HasChanges()
+        protected override SchemaPatchDifference compare(Table expected, Table actual)
         {
-            return _different.Any() || _extras.Any() || _missing.Any();
-        }
-
-        public IReadOnlyList<Change<T>> Different => _different;
-
-        public IReadOnlyList<T> Matched => _matched;
-
-        public IReadOnlyList<T> Extras => _extras;
-
-        public IReadOnlyList<T> Missing => _missing;
-
-        public SchemaPatchDifference Difference()
-        {
-            if (!HasChanges()) return SchemaPatchDifference.None;
-
-            return SchemaPatchDifference.Update;
-        }
-        
-        public ItemDelta(IEnumerable<T> expectedItems, IEnumerable<T> actualItems, Func<T, T, bool> comparison = null)
-        {
-            comparison ??= (expected, actual) => expected.Equals(actual);
-            var expecteds = expectedItems.ToDictionary(x => x.Name);
-
-            foreach (var actual in actualItems)
-            {
-                if (expecteds.TryGetValue(actual.Name, out var expected))
-                {
-                    if (comparison(expected, actual))
-                    {
-                        _matched.Add(actual);
-                    }
-                    else
-                    {
-                        _different.Add(new Change<T>(expected, actual));
-                    }
-                }
-                else
-                {
-                    _extras.Add(actual);
-                }
-            }
-
-            var actuals = actualItems.ToDictionary(x => x.Name);
-            _missing.AddRange(expectedItems.Where(x => !actuals.ContainsKey(x.Name)));
-        }
-    }    
-    
-    public class TableDelta : ISchemaObjectDelta
-    {
-        private readonly DbObjectName _tableName;
-        private readonly Table _table;
-        private readonly Table _actual;
-
-        public TableDelta(Table table, Table actual)
-        {
-            _table = table;
-            _actual = actual;
-
             if (actual == null)
             {
-                Difference = SchemaPatchDifference.None;
-                return;
+                return SchemaPatchDifference.None;
             }
             
-            Columns = new ItemDelta<TableColumn>(table.Columns, actual.Columns);
-            Indexes = new ItemDelta<IIndexDefinition>(table.Indexes, actual.Indexes,
-                (e, a) => ActualIndex.Matches(e, a, table));
+            Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
+            Indexes = new ItemDelta<IIndexDefinition>(expected.Indexes, actual.Indexes,
+                (e, a) => ActualIndex.Matches(e, a, expected));
 
-            ForeignKeys = new ItemDelta<ForeignKey>(table.ForeignKeys, actual.ForeignKeys);
+            ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
             
-            _tableName = table.Identifier;
-
             PrimaryKeyDifference = SchemaPatchDifference.None;
-            if (table.PrimaryKeyName.IsEmpty())
+            if (expected.PrimaryKeyName.IsEmpty())
             {
                 if (actual.PrimaryKeyName.IsNotEmpty())
                 {
@@ -111,22 +37,19 @@ namespace Weasel.Postgresql.Tables
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Create;
             }
-            else if (!table.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
+            else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Update;
             }
-
-            Difference = determinePatchDifference();
+            
+            return determinePatchDifference();
         }
 
-        public ISchemaObject SchemaObject => _table;
-        public SchemaPatchDifference Difference { get; }
-
-        public void WriteUpdate(DdlRules rules, TextWriter writer)
+        public override void WriteUpdate(DdlRules rules, TextWriter writer)
         {
             if (Difference == SchemaPatchDifference.Invalid)
             {
-                throw new InvalidOperationException($"TableDelta for {_tableName} is invalid");
+                throw new InvalidOperationException($"TableDelta for {Expected.Identifier} is invalid");
             }
             
             if (Difference == SchemaPatchDifference.Create)
@@ -144,12 +67,12 @@ namespace Weasel.Postgresql.Tables
             {
                 case SchemaPatchDifference.Invalid:
                 case SchemaPatchDifference.Update:
-                    writer.WriteLine($"alter table {_table.Identifier} drop constraint {_actual.PrimaryKeyName};");
-                    writer.WriteLine($"alter table {_table.Identifier} add {_table.PrimaryKeyDeclaration()};");
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual.PrimaryKeyName};");
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                     break;
                 
                 case SchemaPatchDifference.Create:
-                    writer.WriteLine($"alter table {_table.Identifier} add {_table.PrimaryKeyDeclaration()};");
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                     break;
             }
         }
@@ -158,18 +81,18 @@ namespace Weasel.Postgresql.Tables
         {
             foreach (var foreignKey in ForeignKeys.Missing)
             {
-                foreignKey.WriteAddStatement(_table, writer);
+                foreignKey.WriteAddStatement(Expected, writer);
             }
 
             foreach (var foreignKey in ForeignKeys.Extras)
             {
-                foreignKey.WriteDropStatement(_table, writer);
+                foreignKey.WriteDropStatement(Expected, writer);
             }
 
             foreach (var change in ForeignKeys.Different)
             {
-                change.Actual.WriteDropStatement(_table, writer);
-                change.Expected.WriteAddStatement(_table, writer);
+                change.Actual.WriteDropStatement(Expected, writer);
+                change.Expected.WriteAddStatement(Expected, writer);
             }
         }
 
@@ -178,20 +101,20 @@ namespace Weasel.Postgresql.Tables
             // Missing indexes
             foreach (var indexDefinition in Indexes.Missing)
             {
-                writer.WriteLine(indexDefinition.ToDDL(_table));
+                writer.WriteLine(indexDefinition.ToDDL(Expected));
             }
 
             // Extra indexes
             foreach (var extra in Indexes.Extras)
             {
-                writer.WriteLine($"drop index concurrently if exists {_table.Identifier.Schema}.{extra.Name};");
+                writer.WriteLine($"drop index concurrently if exists {Expected.Identifier.Schema}.{extra.Name};");
             }
 
             // Different indexes
             foreach (var change in Indexes.Different)
             {
-                writer.WriteLine($"drop index concurrently if exists {_table.Identifier.Schema}.{change.Actual.Name};");
-                writer.WriteLine(change.Expected.ToDDL(_table));
+                writer.WriteLine($"drop index concurrently if exists {Expected.Identifier.Schema}.{change.Actual.Name};");
+                writer.WriteLine(change.Expected.ToDDL(Expected));
             }
         }
 
@@ -200,30 +123,25 @@ namespace Weasel.Postgresql.Tables
             // Missing columns
             foreach (var column in Columns.Missing)
             {
-                writer.WriteLine(column.AddColumnSql(_table));
+                writer.WriteLine(column.AddColumnSql(Expected));
             }
 
             // Extra columns
             foreach (var column in Columns.Extras)
             {
-                writer.WriteLine($"alter table {_table.Identifier} drop column {column.Name};");
+                writer.WriteLine($"alter table {Expected.Identifier} drop column {column.Name};");
             }
 
             // Different columns
             foreach (var change in Columns.Different)
             {
-                writer.WriteLine(change.Expected.AlterColumnTypeSql(_table, change.Actual));
+                writer.WriteLine(change.Expected.AlterColumnTypeSql(Expected, change.Actual));
             }
         }
 
-        public void WriteRollback(DdlRules rules, TextWriter writer)
+        public override void WriteRollback(DdlRules rules, TextWriter writer)
         {
             throw new NotImplementedException();
-        }
-
-        public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
-        {
-            _actual.WriteCreateStatement(rules, writer);
         }
 
         private SchemaPatchDifference determinePatchDifference()
@@ -255,21 +173,21 @@ namespace Weasel.Postgresql.Tables
             return differences.Min();
         }
         
-        public ItemDelta<TableColumn> Columns { get; }
-        public ItemDelta<IIndexDefinition> Indexes { get; }
+        internal ItemDelta<TableColumn> Columns { get; private set; }
+        internal ItemDelta<IIndexDefinition> Indexes { get; private set; }
         
-        public ItemDelta<ForeignKey> ForeignKeys { get; }
+        internal ItemDelta<ForeignKey> ForeignKeys { get; private set; }
 
         public bool HasChanges()
         {
             return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() || PrimaryKeyDifference != SchemaPatchDifference.None;
         }
 
-        public SchemaPatchDifference PrimaryKeyDifference { get; }
+        public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
 
         public override string ToString()
         {
-            return $"TableDiff for {_tableName}";
+            return $"TableDelta for {Expected.Identifier}";
         }
 
     }
