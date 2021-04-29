@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
+using Weasel.Postgresql.Functions;
 
 namespace Weasel.Postgresql
 {
@@ -48,6 +49,12 @@ namespace Weasel.Postgresql
             {
                 Difference = _deltas.Min(x => x.Difference);
             }
+        }
+
+        public SchemaMigration(ISchemaObjectDelta delta)
+        {
+            _deltas = new List<ISchemaObjectDelta> {delta};
+            Difference = delta.Difference;
         }
 
         public IReadOnlyList<ISchemaObjectDelta> Deltas => _deltas;

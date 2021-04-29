@@ -1,4 +1,6 @@
+using System;
 using System.IO;
+using Weasel.Postgresql.Functions;
 
 namespace Weasel.Postgresql.Tables
 {
@@ -28,6 +30,27 @@ namespace Weasel.Postgresql.Tables
         public static void WriteDropIndex(this TextWriter writer, Table table, IIndexDefinition index)
         {
             writer.WriteLine($"drop index concurrently if exists {table.Identifier.Schema}.{index.Name};");
+        }
+
+        public static void WriteDropFunction(this TextWriter writer, Function function)
+        {
+            foreach (var drop in function.DropStatements())
+            {
+                var sql = drop;
+                if (!sql.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
+                {
+                    sql = sql.TrimEnd(';') + " cascade;";
+                }
+
+                writer.WriteLine(sql);
+            }  
+
+        }
+
+        public static void WriteReplaceFunction(this TextWriter writer, DdlRules rules, Function oldFunction, Function newFunction)
+        {
+            writer.WriteDropFunction(oldFunction);
+            newFunction.WriteCreateStatement(rules, writer);
         }
     }
 }

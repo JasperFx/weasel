@@ -73,7 +73,7 @@ namespace Weasel.Postgresql.Functions
 
         public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
-            foreach (var dropStatement in _dropStatements)
+            foreach (var dropStatement in DropStatements())
             {
                 writer.WriteLine(dropStatement);
             }
@@ -160,6 +160,8 @@ AND    n.nspname = :{schemaParam};
         public string[] DropStatements()
         {
             if (_dropStatements?.Length > 0) return _dropStatements;
+
+            if (IsRemoved) return new string[0];
 
             var signature = ParseSignature(Body());
 

@@ -194,6 +194,31 @@ $$ LANGUAGE plpgsql;
         }
         
         [Fact]
+        public async Task rollback_existing()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+
+            var function = Function.ForSql(theFunctionBody);
+
+            await CreateSchemaObjectInDatabase(function);
+
+            var toRemove = Function.ForRemoval(function.Identifier);
+
+            var delta = await toRemove.FindDelta(theConnection);
+            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+            var migration = new SchemaMigration(delta);
+
+            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+
+            await migration.RollbackAll(theConnection, new DdlRules());
+            
+            (await theConnection.FunctionExists(toRemove.Identifier)).ShouldBeTrue();
+        }
+        
+        [Fact]
         public async Task can_fetch_the_delta_when_the_existing_matches()
         {
             await ResetSchema();
@@ -267,6 +292,54 @@ $$ LANGUAGE plpgsql;
             var different = Function.ForSql(theEvenDifferentBody);
 
             await AssertNoDeltasAfterPatching(different);
+        }
+
+        [Fact]
+        public async Task can_rollback_a_function_change()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+
+            var function = Function.ForSql(theFunctionBody);
+            await CreateSchemaObjectInDatabase(function);
+
+            var different = Function.ForSql(theEvenDifferentBody);
+
+            var delta = await different.FindDelta(theConnection);
+
+            var migration = new SchemaMigration(delta);
+
+            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+
+            await migration.RollbackAll(theConnection, new DdlRules());
+            
+            // Should be back to the original function
+
+            var lastDelta = await function.FindDelta(theConnection);
+             
+            lastDelta.Difference.ShouldBe(SchemaPatchDifference.None);
+        }
+
+        [Fact]
+        public async Task rollback_a_function_creation()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+
+            var function = Function.ForSql(theFunctionBody);
+            
+            var delta = await function.FindDelta(theConnection);
+            var migration = new SchemaMigration(delta);
+            
+            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+            
+            (await theConnection.FunctionExists(function.Identifier)).ShouldBeTrue();
+
+            await migration.RollbackAll(theConnection, new DdlRules());
+            
+            (await theConnection.FunctionExists(function.Identifier)).ShouldBeFalse();
         }
     }
 

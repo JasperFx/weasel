@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql.Functions
 {
@@ -30,36 +31,36 @@ namespace Weasel.Postgresql.Functions
             return SchemaPatchDifference.None;
         }
 
+        public override void WriteRollback(DdlRules rules, TextWriter writer)
+        {
+            if (Expected.IsRemoved)
+            {
+                Actual.WriteCreateStatement(rules, writer);
+            }
+            else
+            {
+                if (Actual != null)
+                {
+                    writer.WriteReplaceFunction(rules, Expected, Actual);
+                }
+                else
+                {
+                    writer.WriteDropFunction(Expected);
+                }
+            }
+        }
+        
+
 
         public override void WriteUpdate(DdlRules rules, TextWriter writer)
         {
             if (Expected.IsRemoved)
             {
-                foreach (var drop in Actual.DropStatements())
-                {
-                    var sql = drop;
-                    if (!sql.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sql = sql.TrimEnd(';') + " cascade;";
-                    }
-
-                    writer.WriteLine(sql);
-                }
+                writer.WriteDropFunction(Actual);
             }
             else
             {
-                foreach (var drop in Actual.DropStatements())
-                {
-                    var sql = drop;
-                    if (!sql.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
-                    {
-                        sql = sql.TrimEnd(';') + " cascade;";
-                    }
-
-                    writer.WriteLine(sql);
-                }  
-                
-                Expected.WriteCreateStatement(rules, writer);
+                writer.WriteReplaceFunction(rules, Actual, Expected);
             }
         }
 

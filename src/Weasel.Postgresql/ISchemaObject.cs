@@ -44,6 +44,8 @@ namespace Weasel.Postgresql
 
         protected SchemaObjectDelta(T expected, T actual)
         {
+            if (expected == null) throw new ArgumentNullException(nameof(expected));
+            
             Expected = expected;
             Actual = actual;
 
