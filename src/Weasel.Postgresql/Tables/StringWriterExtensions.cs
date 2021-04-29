@@ -4,7 +4,7 @@ namespace Weasel.Postgresql.Tables
 {
     internal static class StringWriterExtensions
     {
-        public static void WriteCascadeAction(this StringWriter writer, string prefix, CascadeAction action)
+        public static void WriteCascadeAction(this TextWriter writer, string prefix, CascadeAction action)
         {
             switch (action)
             {

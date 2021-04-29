@@ -36,7 +36,7 @@ namespace Weasel.Postgresql.Functions
 
         public ISchemaObject SchemaObject { get; }
         public SchemaPatchDifference Difference { get; }
-        public void WriteUpdate(DdlRules rules, StringWriter writer)
+        public void WriteUpdate(DdlRules rules, TextWriter writer)
         {
             if (Expected.IsRemoved)
             {
@@ -68,9 +68,14 @@ namespace Weasel.Postgresql.Functions
             }
         }
 
-        public void WriteRollback(DdlRules rules, StringWriter writer)
+        public void WriteRollback(DdlRules rules, TextWriter writer)
         {
             throw new NotImplementedException();
+        }
+
+        public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
+        {
+            Actual.WriteCreateStatement(rules, writer);
         }
 
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Baseline;
 using Npgsql;
 
 namespace Weasel.Postgresql
@@ -69,7 +70,7 @@ namespace Weasel.Postgresql
                 .ExecuteNonQueryAsync();
         }
 
-        public void WriteAllUpdates(StringWriter writer, DdlRules rules, AutoCreate autoCreate)
+        public void WriteAllUpdates(TextWriter writer, DdlRules rules, AutoCreate autoCreate)
         {
             AssertPatchingIsValid(autoCreate);
             foreach (var delta in _deltas)
@@ -91,10 +92,44 @@ namespace Weasel.Postgresql
                         delta.SchemaObject.WriteDropStatement(rules, writer);
                         delta.SchemaObject.WriteCreateStatement(rules, writer);
                         break;
-                    
-                    
                 }
             }
+        }
+
+        public void WriteAllRollbacks(TextWriter writer, DdlRules rules)
+        {
+            foreach (var delta in _deltas)
+            {
+                switch (delta.Difference)
+                {
+                    case SchemaPatchDifference.None:
+                        return;
+                    
+                    case SchemaPatchDifference.Create:
+                        delta.SchemaObject.WriteDropStatement(rules, writer);
+                        break;
+                    
+                    case SchemaPatchDifference.Update:
+                        delta.WriteRollback(rules, writer);
+                        break;
+                    
+                    case SchemaPatchDifference.Invalid:
+                        delta.SchemaObject.WriteDropStatement(rules, writer);
+                        delta.WriteRestorationOfPreviousState(rules, writer);
+                        break;
+                }
+            }
+        }
+        
+        public static string ToDropFileName(string updateFile)
+        {
+            var containingFolder = updateFile.ParentDirectory();
+            var rawFileName = Path.GetFileNameWithoutExtension(updateFile);
+            var ext = Path.GetExtension(updateFile);
+
+            var dropFile = $"{rawFileName}.drop{ext}";
+
+            return containingFolder.IsEmpty() ? dropFile : containingFolder.AppendPath(dropFile);
         }
 
 
@@ -128,5 +163,7 @@ namespace Weasel.Postgresql
             }
 
         }
+        
+
     }
 }

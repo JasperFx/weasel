@@ -35,7 +35,7 @@ namespace Weasel.Postgresql
             yield return Identifier;
         }
 
-        public void WriteCreateStatement(DdlRules rules, StringWriter writer)
+        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
         {
             writer.WriteLine($"CREATE SEQUENCE {Identifier}{(_startWith.HasValue ? $" START {_startWith.Value}" : string.Empty)};");
 
@@ -45,7 +45,7 @@ namespace Weasel.Postgresql
             }
         }
 
-        public void WriteDropStatement(DdlRules rules, StringWriter writer)
+        public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
             writer.WriteLine($"DROP SEQUENCE IF EXISTS {Identifier};");
         }

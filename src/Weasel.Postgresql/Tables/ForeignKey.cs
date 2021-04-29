@@ -142,7 +142,7 @@ namespace Weasel.Postgresql.Tables
             return writer.ToString();
         }
 
-        public void WriteAddStatement(Table parent, StringWriter writer)
+        public void WriteAddStatement(Table parent, TextWriter writer)
         {
             writer.WriteLine($"ALTER TABLE {parent.Identifier}");
             writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
@@ -153,7 +153,7 @@ namespace Weasel.Postgresql.Tables
             writer.WriteLine();
         }
 
-        public void WriteDropStatement(Table parent, StringWriter writer)
+        public void WriteDropStatement(Table parent, TextWriter writer)
         {
             writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT {Name};");
         }

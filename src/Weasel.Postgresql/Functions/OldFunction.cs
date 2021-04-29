@@ -26,7 +26,7 @@ namespace Weasel.Postgresql.Functions
         /// </summary>
         /// <param name="rules"></param>
         /// <param name="writer"></param>
-        public abstract void WriteCreateStatement(DdlRules rules, StringWriter writer);
+        public abstract void WriteCreateStatement(DdlRules rules, TextWriter writer);
 
         public void ConfigureQueryCommand(CommandBuilder builder)
         {
@@ -147,7 +147,7 @@ AND    n.nspname = :{schemaParam};
         /// <returns></returns>
         protected abstract string toDropSql();
 
-        public void WriteDropStatement(DdlRules rules, StringWriter writer)
+        public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
             var dropSql = toDropSql();
             writer.WriteLine(dropSql);

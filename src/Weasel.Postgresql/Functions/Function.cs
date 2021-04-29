@@ -66,12 +66,12 @@ namespace Weasel.Postgresql.Functions
         }
 
 
-        public virtual void WriteCreateStatement(DdlRules rules, StringWriter writer)
+        public virtual void WriteCreateStatement(DdlRules rules, TextWriter writer)
         {
             writer.WriteLine(_body);
         }
 
-        public void WriteDropStatement(DdlRules rules, StringWriter writer)
+        public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
             foreach (var dropStatement in _dropStatements)
             {

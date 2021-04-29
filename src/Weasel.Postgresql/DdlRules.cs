@@ -17,6 +17,12 @@ namespace Weasel.Postgresql
         public readonly LightweightCache<string, DdlTemplate> Templates
             = new LightweightCache<string, DdlTemplate>(name => new DdlTemplate(name));
 
+        /// <summary>
+        /// Should all generated DDL files be written with transactional semantics
+        /// so that everything succeeds or everything fails together
+        /// </summary>
+        public bool IsTransactional { get; set; }
+        
         public DdlFormatting Formatting { get; set; } = DdlFormatting.Pretty;
         
         /// <summary>
@@ -64,6 +70,59 @@ namespace Weasel.Postgresql
         public void ReadTemplates()
         {
             ReadTemplates(AppContext.BaseDirectory);
+        }
+        
+        /// <summary>
+        /// Write templated SQL to the supplied file name
+        /// </summary>
+        /// <param name="filename"></param>
+        /// <param name="writeStep"></param>
+        public void WriteTemplatedFile(string filename, Action<DdlRules, TextWriter> writeStep)
+        {
+            using (var stream = new FileStream(filename, FileMode.Create))
+            {
+                var writer = new StreamWriter(stream) { AutoFlush = true };
+
+                WriteTemplated(writer, writeStep);
+
+                stream.Flush(true);
+            }
+        }
+
+        /// <summary>
+        /// Write out a templated SQL script with all rules
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="writeStep">A continuation to write the inner SQL</param>
+        public void WriteTemplated(TextWriter writer, Action<DdlRules, TextWriter> writeStep)
+        {
+            if (IsTransactional)
+            {
+                writer.WriteLine("DO LANGUAGE plpgsql $tran$");
+                writer.WriteLine("BEGIN");
+                writer.WriteLine("");
+            }
+
+            if (Role.IsNotEmpty())
+            {
+                writer.WriteLine($"SET ROLE {Role};");
+                writer.WriteLine("");
+            }
+
+            writeStep(this, writer);
+
+            if (Role.IsNotEmpty())
+            {
+                writer.WriteLine($"RESET ROLE;");
+                writer.WriteLine("");
+            }
+
+            if (IsTransactional)
+            {
+                writer.WriteLine("");
+                writer.WriteLine("END;");
+                writer.WriteLine("$tran$;");
+            }
         }
     }
 

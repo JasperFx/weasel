@@ -34,7 +34,7 @@ namespace Weasel.Postgresql.Tables
             return writer.ToString();
         }
         
-        public void WriteCreateStatement(DdlRules rules, StringWriter writer)
+        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
         {
             if (rules.TableCreation == CreationStyle.DropThenCreate)
             {
@@ -115,7 +115,7 @@ namespace Weasel.Postgresql.Tables
             return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
         }
 
-        public void WriteDropStatement(DdlRules rules, StringWriter writer)
+        public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
             writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
         }

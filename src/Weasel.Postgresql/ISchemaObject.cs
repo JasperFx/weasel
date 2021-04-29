@@ -8,9 +8,9 @@ namespace Weasel.Postgresql
 {
     public interface ISchemaObject
     {
-        void WriteCreateStatement(DdlRules rules, StringWriter writer);
+        void WriteCreateStatement(DdlRules rules, TextWriter writer);
 
-        void WriteDropStatement(DdlRules rules, StringWriter writer);
+        void WriteDropStatement(DdlRules rules, TextWriter writer);
 
         DbObjectName Identifier { get; }
 
@@ -35,8 +35,9 @@ namespace Weasel.Postgresql
         ISchemaObject SchemaObject { get; }
         SchemaPatchDifference Difference { get; }
 
-        void WriteUpdate(DdlRules rules, StringWriter writer);
-        void WriteRollback(DdlRules rules, StringWriter writer);
+        void WriteUpdate(DdlRules rules, TextWriter writer);
+        void WriteRollback(DdlRules rules, TextWriter writer);
+        void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer);
     }
 
     public class SchemaObjectDelta : ISchemaObjectDelta
@@ -50,15 +51,20 @@ namespace Weasel.Postgresql
             Difference = difference;
         }
 
-        public void WriteUpdate(DdlRules rules, StringWriter writer)
+        public void WriteUpdate(DdlRules rules, TextWriter writer)
         {
             SchemaObject.WriteDropStatement(rules, writer);
             SchemaObject.WriteCreateStatement(rules, writer);
         }
 
-        public void WriteRollback(DdlRules rules, StringWriter writer)
+        public void WriteRollback(DdlRules rules, TextWriter writer)
         {
             
+        }
+
+        public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
+        {
+            throw new NotImplementedException();
         }
     }
     

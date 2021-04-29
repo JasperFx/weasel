@@ -122,7 +122,7 @@ namespace Weasel.Postgresql.Tables
         public ISchemaObject SchemaObject => _table;
         public SchemaPatchDifference Difference { get; }
 
-        public void WriteUpdate(DdlRules rules, StringWriter writer)
+        public void WriteUpdate(DdlRules rules, TextWriter writer)
         {
             if (Difference == SchemaPatchDifference.Invalid)
             {
@@ -154,7 +154,7 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        private void writeForeignKeyUpdates(StringWriter writer)
+        private void writeForeignKeyUpdates(TextWriter writer)
         {
             foreach (var foreignKey in ForeignKeys.Missing)
             {
@@ -173,7 +173,7 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        private void writeIndexUpdates(StringWriter writer)
+        private void writeIndexUpdates(TextWriter writer)
         {
             // Missing indexes
             foreach (var indexDefinition in Indexes.Missing)
@@ -195,7 +195,7 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        private void writeColumnUpdates(StringWriter writer)
+        private void writeColumnUpdates(TextWriter writer)
         {
             // Missing columns
             foreach (var column in Columns.Missing)
@@ -216,9 +216,14 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        public void WriteRollback(DdlRules rules, StringWriter writer)
+        public void WriteRollback(DdlRules rules, TextWriter writer)
         {
             throw new NotImplementedException();
+        }
+
+        public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
+        {
+            _actual.WriteCreateStatement(rules, writer);
         }
 
         private SchemaPatchDifference determinePatchDifference()
