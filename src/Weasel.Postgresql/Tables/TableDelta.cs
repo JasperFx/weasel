@@ -55,13 +55,55 @@ namespace Weasel.Postgresql.Tables
             if (Difference == SchemaPatchDifference.Create)
             {
                 SchemaObject.WriteCreateStatement(rules, writer);
+                return;
+            }
+            
+            // Extra indexes
+            foreach (var extra in Indexes.Extras)
+            {
+                writer.WriteDropIndex(Expected, extra);
+            }
+            
+            // Different indexes
+            foreach (var change in Indexes.Different)
+            {
+                writer.WriteDropIndex(Expected, change.Actual);
+            }
+            
+            // Missing columns
+            foreach (var column in Columns.Missing)
+            {
+                writer.WriteLine(column.AddColumnSql(Expected));
+            }
+            
+            
+            // Different columns
+            foreach (var change1 in Columns.Different)
+            {
+                writer.WriteLine(change1.Expected.AlterColumnTypeSql(Expected, change1.Actual));
+            }
+            
+            writeForeignKeyUpdates(writer);
+            
+            // Missing indexes
+            foreach (var indexDefinition in Indexes.Missing)
+            {
+                writer.WriteLine(indexDefinition.ToDDL(Expected));
             }
 
-            writeColumnUpdates(writer);
-            
-            writeIndexUpdates(writer);
+            // Different indexes
+            foreach (var change in Indexes.Different)
+            {
+                writer.WriteLine(change.Expected.ToDDL(Expected));
+            }
 
-            writeForeignKeyUpdates(writer);
+
+            // Extra columns
+            foreach (var column in Columns.Extras)
+            {
+                writer.WriteLine(column.DropColumnSql(Expected));
+            }
+
 
             switch (PrimaryKeyDifference)
             {
@@ -96,52 +138,93 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        private void writeIndexUpdates(TextWriter writer)
+        public override void WriteRollback(DdlRules rules, TextWriter writer)
+        {
+            if (Actual == null)
+            {
+                Expected.WriteDropStatement(rules, writer);
+                return;
+            }
+            
+            foreach (var foreignKey in ForeignKeys.Missing)
+            {
+                foreignKey.WriteDropStatement(Expected, writer);
+            }
+            
+            foreach (var change in ForeignKeys.Different)
+            {
+                change.Expected.WriteDropStatement(Expected, writer);
+            }
+            
+            // Extra columns
+            foreach (var column in Columns.Extras)
+            {
+                writer.WriteLine(column.AddColumnSql(Expected));
+            }
+
+            // Different columns
+            foreach (var change1 in Columns.Different)
+            {
+                writer.WriteLine(change1.Actual.AlterColumnTypeSql(Actual, change1.Expected));
+            }
+            
+            foreach (var change in ForeignKeys.Different)
+            {
+                change.Actual.WriteAddStatement(Expected, writer);
+            }
+            
+            rollbackIndexes(writer);
+
+            // Missing columns
+            foreach (var column in Columns.Missing)
+            {
+                writer.WriteLine(column.DropColumnSql(Expected));
+            }
+
+
+
+
+            foreach (var foreignKey in ForeignKeys.Extras)
+            {
+                foreignKey.WriteAddStatement(Expected, writer);
+            }
+
+
+
+            switch (PrimaryKeyDifference)
+            {
+                case SchemaPatchDifference.Invalid:
+                case SchemaPatchDifference.Update:
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Actual.PrimaryKeyDeclaration()};");
+                    break;
+                
+                case SchemaPatchDifference.Create:
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                    break;
+            }
+        }
+
+        private void rollbackIndexes(TextWriter writer)
         {
             // Missing indexes
             foreach (var indexDefinition in Indexes.Missing)
             {
-                writer.WriteLine(indexDefinition.ToDDL(Expected));
+                writer.WriteDropIndex(Expected, indexDefinition);
             }
 
             // Extra indexes
             foreach (var extra in Indexes.Extras)
             {
-                writer.WriteLine($"drop index concurrently if exists {Expected.Identifier.Schema}.{extra.Name};");
+                writer.WriteLine(extra.ToDDL(Actual));
             }
 
             // Different indexes
             foreach (var change in Indexes.Different)
             {
-                writer.WriteLine($"drop index concurrently if exists {Expected.Identifier.Schema}.{change.Actual.Name};");
-                writer.WriteLine(change.Expected.ToDDL(Expected));
+                writer.WriteDropIndex(Actual, change.Expected);
+                writer.WriteLine(change.Actual.ToDDL(Actual));
             }
-        }
-
-        private void writeColumnUpdates(TextWriter writer)
-        {
-            // Missing columns
-            foreach (var column in Columns.Missing)
-            {
-                writer.WriteLine(column.AddColumnSql(Expected));
-            }
-
-            // Extra columns
-            foreach (var column in Columns.Extras)
-            {
-                writer.WriteLine($"alter table {Expected.Identifier} drop column {column.Name};");
-            }
-
-            // Different columns
-            foreach (var change in Columns.Different)
-            {
-                writer.WriteLine(change.Expected.AlterColumnTypeSql(Expected, change.Actual));
-            }
-        }
-
-        public override void WriteRollback(DdlRules rules, TextWriter writer)
-        {
-            throw new NotImplementedException();
         }
 
         private SchemaPatchDifference determinePatchDifference()

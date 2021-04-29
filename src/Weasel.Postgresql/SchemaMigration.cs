@@ -161,7 +161,16 @@ namespace Weasel.Postgresql
             }
 
         }
-        
 
+
+        public Task RollbackAll(NpgsqlConnection conn, DdlRules rules)
+        {
+            var writer = new StringWriter();
+            WriteAllRollbacks(writer, rules);
+
+            return conn
+                .CreateCommand(writer.ToString())
+                .ExecuteNonQueryAsync();
+        }
     }
 }

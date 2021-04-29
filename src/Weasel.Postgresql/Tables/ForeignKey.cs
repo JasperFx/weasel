@@ -155,7 +155,7 @@ namespace Weasel.Postgresql.Tables
 
         public void WriteDropStatement(Table parent, TextWriter writer)
         {
-            writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT {Name};");
+            writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
         }
     }
 }
