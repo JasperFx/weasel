@@ -66,6 +66,30 @@ namespace Weasel.Postgresql.Tests
         }
 
         [Fact]
+        public void difference_is_none_by_default()
+        {
+            var migration = migrationFor(); // no objects
+            migration.Difference.ShouldBe(SchemaPatchDifference.None);
+        }
+
+        [Fact]
+        public void none_if_no_changes_detected()
+        {
+            var migration = migrationFor(SchemaPatchDifference.None, SchemaPatchDifference.None); 
+            migration.Difference.ShouldBe(SchemaPatchDifference.None);
+        }
+        
+        
+        [Fact]
+        public void translates_the_file_name()
+        {
+            SchemaMigration.ToDropFileName("update.sql").ShouldBe("update.drop.sql");
+            SchemaMigration.ToDropFileName("1.update.sql").ShouldBe("1.update.drop.sql");
+            SchemaMigration.ToDropFileName("folder\\1.update.sql").ShouldBe("folder\\1.update.drop.sql");
+        }
+
+
+        [Fact]
         public void writing_out_updates_when_schema_object_is_invalid()
         {
             var migration = migrationFor(SchemaPatchDifference.Invalid);

@@ -59,8 +59,6 @@ namespace Weasel.Postgresql
             if (autoCreate == AutoCreate.None) return Task.CompletedTask;
             if (Difference == SchemaPatchDifference.None) return Task.CompletedTask;
             if (!_deltas.Any()) return Task.CompletedTask;
-            
-            
 
             var writer = new StringWriter();
             

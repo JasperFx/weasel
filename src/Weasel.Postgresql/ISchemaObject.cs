@@ -21,9 +21,6 @@ namespace Weasel.Postgresql
         /// <param name="builder"></param>
         void ConfigureQueryCommand(CommandBuilder builder);
 
-        [Obsolete("Let's move this to CreateDelta")]
-        Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate);
-
         Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader);
         
         IEnumerable<DbObjectName> AllNames();

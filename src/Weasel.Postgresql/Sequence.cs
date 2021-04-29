@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Threading.Tasks;
+using Npgsql;
 
 namespace Weasel.Postgresql
 {
@@ -57,17 +58,6 @@ namespace Weasel.Postgresql
             builder.Append($"select count(*) from information_schema.sequences where sequence_schema = :{schemaParam} and sequence_name = :{nameParam};");
         }
 
-        public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
-        {
-            if (!await reader.ReadAsync() || (await reader.GetFieldValueAsync<int>(0)) == 0)
-            {
-                WriteCreateStatement(patch.Rules, patch.UpWriter);
-                return SchemaPatchDifference.Create;
-            }
-
-            return SchemaPatchDifference.None;
-        }
-
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
             if (!await reader.ReadAsync() || (await reader.GetFieldValueAsync<int>(0)) == 0)
@@ -76,6 +66,17 @@ namespace Weasel.Postgresql
             }
 
             return new SchemaObjectDelta(this, SchemaPatchDifference.None);
+        }
+
+        public async Task<ISchemaObjectDelta> FindDelta(NpgsqlConnection conn)
+        {
+            var builder = new CommandBuilder();
+
+            ConfigureQueryCommand(builder);
+
+            using var reader = await builder.ExecuteReaderAsync(conn);
+
+            return await CreateDelta(reader);
         }
     }
 }

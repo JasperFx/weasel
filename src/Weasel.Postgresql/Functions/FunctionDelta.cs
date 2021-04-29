@@ -62,11 +62,6 @@ namespace Weasel.Postgresql.Functions
                 Expected.WriteCreateStatement(rules, writer);
             }
         }
-        
-        public void WritePatch(SchemaPatch patch)
-        {
-            throw new NotImplementedException();
-        }
 
         public override string ToString()
         {

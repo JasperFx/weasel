@@ -84,8 +84,6 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
             ConfigureQueryCommand(builder);
 
-            builder.Compile();
-
             using var reader = await builder.ExecuteReaderAsync(conn);
             return await readExisting(reader);
         }

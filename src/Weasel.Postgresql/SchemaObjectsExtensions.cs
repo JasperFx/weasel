@@ -11,14 +11,6 @@ namespace Weasel.Postgresql
         {
             return $"{prefix}_{name.Name}_{columnNames.Join("_")}";
         }
-        
-        public static async Task<SchemaPatch> CreatePatch(this ISchemaObject schemaObject, NpgsqlConnection conn)
-        {
-            var patch = new SchemaPatch(new DdlRules());
-            await patch.Apply(conn, AutoCreate.All, schemaObject);
-
-            return patch;
-        }
 
         public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn)
         {

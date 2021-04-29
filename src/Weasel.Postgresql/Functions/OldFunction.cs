@@ -53,47 +53,6 @@ AND    n.nspname = :{schemaParam};
             throw new System.NotImplementedException();
         }
 
-        public async Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
-        {
-            var diff = await fetchDelta(reader, patch.Rules);
-
-            if (diff == null && IsRemoved)
-            {
-                return SchemaPatchDifference.None;
-            }
-
-            if (diff == null)
-            {
-                WriteCreateStatement(patch.Rules, patch.UpWriter);
-                WriteDropStatement(patch.Rules, patch.DownWriter);
-
-                return SchemaPatchDifference.Create;
-            }
-
-            // if (diff.Removed)
-            // {
-            //     WriteCreateStatement(patch.Rules, patch.UpWriter);
-            //     return SchemaPatchDifference.Update;
-            // }
-            //
-            // if (diff.AllNew)
-            // {
-            //     WriteCreateStatement(patch.Rules, patch.UpWriter);
-            //     WriteDropStatement(patch.Rules, patch.DownWriter);
-            //
-            //     return SchemaPatchDifference.Create;
-            // }
-            //
-            // if (diff.HasChanged)
-            // {
-            //     diff.WritePatch(patch);
-            //
-            //     return SchemaPatchDifference.Update;
-            // }
-
-            return SchemaPatchDifference.None;
-        }
-
         public IEnumerable<DbObjectName> AllNames()
         {
             yield return Identifier;

@@ -101,11 +101,6 @@ AND    n.nspname = :{schemaParam};
         }
 
 
-        public Task<SchemaPatchDifference> CreatePatch(DbDataReader reader, SchemaPatch patch, AutoCreate autoCreate)
-        {
-            throw new NotImplementedException();
-        }
-        
         public bool IsRemoved { get; private set; }
 
         public async Task<Function> FetchExisting(NpgsqlConnection conn)

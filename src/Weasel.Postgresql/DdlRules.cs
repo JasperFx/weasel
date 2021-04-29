@@ -21,7 +21,7 @@ namespace Weasel.Postgresql
         /// Should all generated DDL files be written with transactional semantics
         /// so that everything succeeds or everything fails together
         /// </summary>
-        public bool IsTransactional { get; set; }
+        public bool IsTransactional { get; set; } = true;
         
         public DdlFormatting Formatting { get; set; } = DdlFormatting.Pretty;
         
@@ -83,7 +83,7 @@ namespace Weasel.Postgresql
             {
                 var writer = new StreamWriter(stream) { AutoFlush = true };
 
-                WriteTemplated(writer, writeStep);
+                WriteScript(writer, writeStep);
 
                 stream.Flush(true);
             }
@@ -94,7 +94,7 @@ namespace Weasel.Postgresql
         /// </summary>
         /// <param name="writer"></param>
         /// <param name="writeStep">A continuation to write the inner SQL</param>
-        public void WriteTemplated(TextWriter writer, Action<DdlRules, TextWriter> writeStep)
+        public void WriteScript(TextWriter writer, Action<DdlRules, TextWriter> writeStep)
         {
             if (IsTransactional)
             {

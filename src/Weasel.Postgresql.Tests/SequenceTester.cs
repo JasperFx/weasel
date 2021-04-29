@@ -40,9 +40,9 @@ namespace Weasel.Postgresql.Tests
         {
             await ResetSchema();
 
-            var patch = await theSequence.CreatePatch(theConnection);
-
-            patch.Difference.ShouldBe(SchemaPatchDifference.Create);
+            var delta = await theSequence.FindDelta(theConnection);
+            
+            delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
 
         [Fact]
@@ -50,9 +50,9 @@ namespace Weasel.Postgresql.Tests
         {
             await can_create_sequence_without_blowing_up();
 
-            var patch = await theSequence.CreatePatch(theConnection);
+            var delta = await theSequence.FindDelta(theConnection);
 
-            patch.Difference.ShouldBe(SchemaPatchDifference.None);
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
         [Fact]
@@ -62,14 +62,14 @@ namespace Weasel.Postgresql.Tests
 
             await theSequence.Create(theConnection);
             
-            var patch = await theSequence.CreatePatch(theConnection);
-            patch.Difference.ShouldBe(SchemaPatchDifference.None);
+            var delta = await theSequence.FindDelta(theConnection);
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
 
             await theSequence.Drop(theConnection);
             
-            patch = await theSequence.CreatePatch(theConnection);
+            delta = await theSequence.FindDelta(theConnection);
 
-            patch.Difference.ShouldBe(SchemaPatchDifference.Create);
+            delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
 
     }
