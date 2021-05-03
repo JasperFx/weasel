@@ -16,8 +16,7 @@ namespace Weasel.Postgresql.Tests.Tables
             states.AddColumn("col1", "varchar").AllowNulls();
             var column = states.Columns.Single();
 
-            column.ColumnChecks.Single()
-                .ShouldBeOfType<AllowNulls>();
+            column.AllowNulls.ShouldBeTrue();
         }
 
         [Fact]
@@ -28,8 +27,7 @@ namespace Weasel.Postgresql.Tests.Tables
             states.AddColumn("col1", "varchar").NotNull();
             var column = states.Columns.Single();
 
-            column.ColumnChecks.Single()
-                .ShouldBeOfType<NotNull>();
+            column.AllowNulls.ShouldBeFalse();
         }
 
         [Fact]
@@ -39,10 +37,12 @@ namespace Weasel.Postgresql.Tests.Tables
 
             states.AddColumn("col1", "varchar").NotNull();
             var column = states.Columns.Single();
+            
+            
 
             // last one wins
-            column.ColumnChecks.Single()
-                .ShouldBeOfType<NotNull>();
+            column.AllowNulls.ShouldBeFalse();
+
         }
 
         [Fact]
@@ -53,8 +53,7 @@ namespace Weasel.Postgresql.Tests.Tables
             states.AddColumn("col1", "varchar").NotNull().AllowNulls();
             var column = states.Columns.Single();
 
-            column.ColumnChecks.Single()
-                .ShouldBeOfType<AllowNulls>();
+            column.AllowNulls.ShouldBeTrue();
         }
 
         [Fact]
@@ -66,14 +65,30 @@ namespace Weasel.Postgresql.Tests.Tables
             var column = states.Columns.Single();
 
             // nothing
-            column.CheckDeclarations()
-                .ShouldBeEmpty();
+            column.Declaration()
+                .ShouldBe("NULL");
 
             expression.AllowNulls();
-            column.CheckDeclarations().ShouldBe("NULL");
+            column.Declaration().ShouldBe("NULL");
 
             expression.NotNull();
-            column.CheckDeclarations().ShouldBe("NOT NULL");
+            column.Declaration().ShouldBe("NOT NULL");
+        }
+
+        [Fact]
+        public void automatically_allow_nulls_false_if_primary_key()
+        {
+            var states = new Table("states");
+
+            var expression = states.AddColumn("col1", "varchar").AsPrimaryKey();
+            var column = states.Columns.Single();
+            
+            column.AllowNulls.ShouldBeFalse();
+
+            // ignore it if _pk
+            column.AllowNulls = true;
+            
+            column.Declaration().ShouldBe("NOT NULL");
         }
 
         public static IEnumerable<object[]> TableColumnsCanAdd()

@@ -393,7 +393,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await CreateSchemaObjectInDatabase(theTable);
 
-            theTable.AddColumn<string>("tenant_id").AsPrimaryKey();
+            theTable.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValue("foo");
             var delta = await theTable.FindDelta(theConnection);
             
             delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);

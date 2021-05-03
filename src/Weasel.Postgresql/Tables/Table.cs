@@ -52,7 +52,7 @@ namespace Weasel.Postgresql.Tables
                 var typeLength = Columns.Max(x => x.Type.Length) + 4;
 
                 var lines = Columns.Select(column =>
-                        $"    {column.Name.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.CheckDeclarations()}")
+                        $"    {column.Name.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}")
                     .ToList();
 
                 if (PrimaryKeyColumns.Any())
@@ -258,18 +258,19 @@ namespace Weasel.Postgresql.Tables
             public ColumnExpression AsPrimaryKey()
             {
                 Column.IsPrimaryKey = true;
+                Column.AllowNulls = false;
                 return this;
             }
             
             public ColumnExpression AllowNulls()
             {
-                Column.AllowNulls(true);
+                Column.AllowNulls = true;
                 return this;
             }
 
             public ColumnExpression NotNull()
             {
-                Column.AllowNulls(false);
+                Column.AllowNulls = false;
                 return this;
             }
 

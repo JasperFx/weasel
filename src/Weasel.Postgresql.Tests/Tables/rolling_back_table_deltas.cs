@@ -110,7 +110,7 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public async Task changed_primary_key()
         {
-            configured.AddColumn<string>("tenant_id").AsPrimaryKey();
+            configured.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValue("foo");
             
             await AssertRollbackIsSuccessful();
         }

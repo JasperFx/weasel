@@ -28,24 +28,7 @@ namespace Weasel.Postgresql.Tables
 
         public IList<ColumnCheck> ColumnChecks { get; } = new List<ColumnCheck>();
 
-        public void AllowNulls(bool allow)
-        {
-            if (allow)
-            {
-                ColumnChecks.RemoveAll(x => x is INullConstraint);
-                ColumnChecks.Insert(0, new AllowNulls());
-            }
-            else
-            {
-                ColumnChecks.RemoveAll(x => x is INullConstraint);
-                ColumnChecks.Insert(0, new NotNull());
-            }
-        }
-
-        public bool AllowNulls()
-        {
-            return !ColumnChecks.OfType<NotNull>().Any();
-        }
+        public bool AllowNulls { get; set; } = true;
 
         public string Name { get; }
 
@@ -58,9 +41,11 @@ namespace Weasel.Postgresql.Tables
             return Type.Split('(')[0].Trim();
         }
 
-        public string CheckDeclarations()
+        public string Declaration()
         {
-            return ColumnChecks.Select(x => x.FullDeclaration()).Join(" ");
+            var declaration = !IsPrimaryKey && AllowNulls ? "NULL" : "NOT NULL";
+
+            return $"{declaration} {ColumnChecks.Select(x => x.FullDeclaration()).Join(" ")}".TrimEnd();
         }
 
         protected bool Equals(TableColumn other)
@@ -90,11 +75,11 @@ namespace Weasel.Postgresql.Tables
 
         public string ToDeclaration()
         {
-            var checkDeclarations = CheckDeclarations();
+            var declaration = Declaration();
 
-            return checkDeclarations.IsEmpty() 
+            return declaration.IsEmpty() 
                 ? $"{Name} {Type}" 
-                : $"{Name} {Type} {checkDeclarations}";
+                : $"{Name} {Type} {declaration}";
         }
 
         public override string ToString()
@@ -118,12 +103,7 @@ namespace Weasel.Postgresql.Tables
 
         public virtual bool CanAdd()
         {
-            if (ColumnChecks.OfType<DefaultValue>().Any()) return true;
-
-            var nullables = ColumnChecks.OfType<INullConstraint>().FirstOrDefault();
-            if (nullables == null) return true;
-
-            return nullables is AllowNulls;
+            return AllowNulls || ColumnChecks.OfType<DefaultValue>().Any();
         }
 
         public virtual string AddColumnSql(Table parent)
@@ -155,17 +135,6 @@ namespace Weasel.Postgresql.Tables
         }
     }
 
-    internal interface INullConstraint{}
-    
-    public class AllowNulls : ColumnCheck, INullConstraint
-    {
-        public override string Declaration() => "NULL";
-    }
-
-    public class NotNull : ColumnCheck, INullConstraint
-    {
-        public override string Declaration() => "NOT NULL";
-    }
 
     public class SerialValue : ColumnCheck
     {
