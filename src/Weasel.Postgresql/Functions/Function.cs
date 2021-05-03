@@ -65,6 +65,11 @@ namespace Weasel.Postgresql.Functions
             Identifier = identifier;
         }
 
+        protected Function(DbObjectName identifier)
+        {
+            Identifier = identifier;
+        }
+
 
         public virtual void WriteCreateStatement(DdlRules rules, TextWriter writer)
         {
@@ -101,7 +106,7 @@ AND    n.nspname = :{schemaParam};
         }
 
 
-        public bool IsRemoved { get; private set; }
+        public bool IsRemoved { get; protected set; }
 
         public async Task<Function> FetchExisting(NpgsqlConnection conn)
         {
@@ -149,10 +154,11 @@ AND    n.nspname = :{schemaParam};
             throw new NotImplementedException();
         }
 
-        public string Body()
+        public string Body(DdlRules rules = null)
         {
+            rules ??= new DdlRules();
             var writer = new StringWriter();
-            WriteCreateStatement(new DdlRules(), writer);
+            WriteCreateStatement(rules, writer);
 
             return writer.ToString();
         }
@@ -194,6 +200,26 @@ AND    n.nspname = :{schemaParam};
             {
                 IsRemoved = true
             };
+        }
+        
+        public string BuildTemplate(string template)
+        {
+            var body = Body();
+            var signature = ParseSignature(body);
+            
+            return template
+                    .Replace(DdlRules.SCHEMA, Identifier.Schema)
+                    .Replace(DdlRules.FUNCTION, Identifier.Name)
+                    .Replace(DdlRules.SIGNATURE, signature);
+        }
+
+        public void WriteTemplate(DdlTemplate template, StringWriter writer)
+        {
+            var text = template?.FunctionCreation;
+            if (text.IsNotEmpty())
+            {
+                writer.WriteLine(BuildTemplate(text));
+            }
         }
     }
 }

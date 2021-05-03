@@ -78,14 +78,14 @@ namespace Weasel.Postgresql
             return _command.AddParameter(value, dbType);
         }
 
-        public void AddJsonParameter(string json)
+        public NpgsqlParameter AddJsonParameter(string json)
         {
-            _command.AddParameter(json, NpgsqlDbType.Jsonb);
+            return _command.AddParameter(json, NpgsqlDbType.Jsonb);
         }
 
-        public void AddNamedParameter(string name, object value)
+        public NpgsqlParameter AddNamedParameter(string name, object value)
         {
-            _command.AddNamedParameter(name, value);
+            return _command.AddNamedParameter(name, value);
         }
 
         public void UseParameter(NpgsqlParameter parameter)

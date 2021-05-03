@@ -80,7 +80,7 @@ namespace Weasel.Postgresql
             return value;
         }
 
-        internal static Type[] ResolveTypes(NpgsqlDbType npgsqlDbType)
+        public static Type[] ResolveTypes(NpgsqlDbType npgsqlDbType)
         {
             if (TypeMemo.Value.TryFind(npgsqlDbType, out var values))
                 return values;

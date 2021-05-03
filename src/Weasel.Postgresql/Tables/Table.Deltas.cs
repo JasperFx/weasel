@@ -8,7 +8,7 @@ namespace Weasel.Postgresql.Tables
 {
     public partial class Table
     {
-        internal async Task<TableDelta> FindDelta(NpgsqlConnection conn)
+        public async Task<TableDelta> FindDelta(NpgsqlConnection conn)
         {
             var actual = await FetchExisting(conn);
             return new TableDelta(this, actual);

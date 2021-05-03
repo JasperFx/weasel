@@ -60,7 +60,30 @@ namespace Weasel.Postgresql
         public IReadOnlyList<ISchemaObjectDelta> Deltas => _deltas;
 
         public SchemaPatchDifference Difference { get; private set; } = SchemaPatchDifference.None;
+
+        [Obsolete("Only here for testing. Make this a method at the least")]
+        public string UpdateDDL
+        {
+            get
+            {
+                var writer = new StringWriter();
+                WriteAllUpdates(writer, new DdlRules(), AutoCreate.CreateOrUpdate);
+
+                return writer.ToString();
+            }
+        }
         
+        [Obsolete("Only here for testing. Make this a method at the least")]
+        public string RollbackDDL
+        {
+            get
+            {
+                var writer = new StringWriter();
+                WriteAllRollbacks(writer, new DdlRules());
+
+                return writer.ToString();
+            }
+        }
         public Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate)
         {
             if (autoCreate == AutoCreate.None) return Task.CompletedTask;

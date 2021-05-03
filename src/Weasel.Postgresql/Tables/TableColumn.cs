@@ -23,9 +23,29 @@ namespace Weasel.Postgresql.Tables
             Name = name.ToLower().Trim().Replace(' ', '_');
             Type = type.ToLower();
         }
+        
+        
 
         public IList<ColumnCheck> ColumnChecks { get; } = new List<ColumnCheck>();
 
+        public void AllowNulls(bool allow)
+        {
+            if (allow)
+            {
+                ColumnChecks.RemoveAll(x => x is INullConstraint);
+                ColumnChecks.Insert(0, new AllowNulls());
+            }
+            else
+            {
+                ColumnChecks.RemoveAll(x => x is INullConstraint);
+                ColumnChecks.Insert(0, new NotNull());
+            }
+        }
+
+        public bool AllowNulls()
+        {
+            return !ColumnChecks.OfType<NotNull>().Any();
+        }
 
         public string Name { get; }
 
@@ -82,10 +102,6 @@ namespace Weasel.Postgresql.Tables
             return ToDeclaration();
         }
 
-        // TODO -- this needs to get a lot smarter
-        //public bool CanAdd { get; set; } = false;
-
-        
 
         public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
         {
@@ -97,7 +113,7 @@ namespace Weasel.Postgresql.Tables
             return $"alter table {table.Identifier} drop column {Name};";
         }
 
-        internal bool IsPrimaryKey { get; set; }
+        public bool IsPrimaryKey { get; internal set; }
 
 
         public virtual bool CanAdd()

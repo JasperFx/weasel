@@ -79,8 +79,9 @@ namespace Weasel.Postgresql
                 "SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger' and routine_name like :name and specific_schema = :schema;";
 
             using var reader = await conn.CreateCommand(sql)
-                .AddNamedParameter("name", functionIdentifier.Name)
-                .AddNamedParameter("schema", functionIdentifier.Schema)
+                .With("name", functionIdentifier.Name)
+                .With("schema", functionIdentifier.Schema)
+
                 .ExecuteReaderAsync();
 
             return await reader.ReadAsync();

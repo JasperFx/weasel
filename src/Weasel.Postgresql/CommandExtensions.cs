@@ -86,7 +86,7 @@ namespace Weasel.Postgresql
             return parameter;
         }
 
-                public static void AddParameters(this NpgsqlCommand command, object parameters)
+        public static void AddParameters(this NpgsqlCommand command, object parameters)
         {
             if (parameters == null)
                 return;
@@ -105,17 +105,17 @@ namespace Weasel.Postgresql
 
 
              // TODO -- add strong typed overloads?
-        public static NpgsqlCommand AddNamedParameter(this NpgsqlCommand command, string name, object value)
+        public static NpgsqlParameter AddNamedParameter(this NpgsqlCommand command, string name, object value)
         {
             var existing = command.Parameters.FirstOrDefault(x => x.ParameterName == name);
-            if (existing != null) return command;
+            if (existing != null) return existing;
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = name;
             parameter.Value = value ?? DBNull.Value;
             command.Parameters.Add(parameter);
 
-            return command;
+            return parameter;
         }
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, Guid value)

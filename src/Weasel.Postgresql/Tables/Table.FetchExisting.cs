@@ -78,7 +78,7 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 ");
         }
 
-        internal async Task<Table> FetchExisting(NpgsqlConnection conn)
+                public async Task<Table> FetchExisting(NpgsqlConnection conn)
         {
             var builder = new CommandBuilder();
 

@@ -171,6 +171,12 @@ namespace Weasel.Postgresql.Tables
             return AddColumn(column);
         }
 
+        public ColumnExpression AddColumn<T>() where T : TableColumn, new()
+        {
+            var column = new T();
+            return AddColumn(column);
+        }
+
         public ColumnExpression AddColumn<T>(string columnName)
         {
             if (typeof(T).IsEnum)
@@ -247,15 +253,13 @@ namespace Weasel.Postgresql.Tables
             
             public ColumnExpression AllowNulls()
             {
-                Column.ColumnChecks.RemoveAll(x => x is INullConstraint);
-                Column.ColumnChecks.Insert(0, new AllowNulls());
+                Column.AllowNulls(true);
                 return this;
             }
 
             public ColumnExpression NotNull()
             {
-                Column.ColumnChecks.RemoveAll(x => x is INullConstraint);
-                Column.ColumnChecks.Insert(0, new NotNull());
+                Column.AllowNulls(false);
                 return this;
             }
 
@@ -263,7 +267,7 @@ namespace Weasel.Postgresql.Tables
             {
                 var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", Column.Name))
                 {
-                    ColumnNames = new[]{Column.Name}
+                    Columns = new[]{Column.Name}
                 };
 
                 _parent.Indexes.Add(index);

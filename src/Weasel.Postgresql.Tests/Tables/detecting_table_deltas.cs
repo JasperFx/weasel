@@ -412,6 +412,22 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching(theTable);
         }
         
+        [Fact]
+        public async Task equivalency_with_the_postgres_synonym_issue()
+        {
+            var table2 = new Table("deltas.people");
+            table2.AddColumn<int>("id").AsPrimaryKey();
+            table2.AddColumn("first_name", "character varying");
+            table2.AddColumn("last_name", "character varying");
+            table2.AddColumn("user_name", "character varying");
+            table2.AddColumn("data", "jsonb");
+
+            await CreateSchemaObjectInDatabase(theTable);
+
+            var delta = await table2.FindDelta(theConnection);
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
+        }
+        
 
     }
 }

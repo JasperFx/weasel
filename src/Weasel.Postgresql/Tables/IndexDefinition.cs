@@ -7,13 +7,40 @@ namespace Weasel.Postgresql.Tables
 {
     public class IndexDefinition : IIndexDefinition
     {
+        private string _indexName;
+        
         public IndexDefinition(string indexName)
         {
-            Name = indexName;
+            _indexName = indexName;
         }
 
-        public string Name { get; }
-        
+        protected IndexDefinition()
+        {
+        }
+
+
+        public string Name
+        {
+            get
+            {
+                if (_indexName.IsNotEmpty())
+                {
+                    return _indexName;
+                }
+
+                return deriveIndexName();
+            }
+            set
+            {
+                _indexName = value;
+            }
+        }
+
+        protected virtual string deriveIndexName()
+        {
+            throw new NotSupportedException();
+        }
+
         public IndexMethod Method { get; set; } = IndexMethod.btree;
 
         public SortOrder SortOrder { get; set; } = SortOrder.Asc;
@@ -22,7 +49,7 @@ namespace Weasel.Postgresql.Tables
 
         public bool IsConcurrent { get; set; }
 
-        public string[] ColumnNames { get; set; }
+        public virtual string[] Columns { get; set; }
         
         public string Expression { get; set; }
 
@@ -33,7 +60,7 @@ namespace Weasel.Postgresql.Tables
         /// <returns></returns>
         public IndexDefinition AgainstColumns(params string[] columns)
         {
-            ColumnNames = columns;
+            Columns = columns;
             return this;
         }
         
@@ -99,13 +126,13 @@ namespace Weasel.Postgresql.Tables
                 suffix = " DESC";
             }
             
-            if (ColumnNames != null && ColumnNames.Any())
+            if (Columns != null && Columns.Any())
             {
-                return $"({ColumnNames.Select(x => $"{x}{suffix}").Join(", ")})";
+                return $"({Columns.Select(x => $"{x}{suffix}").Join(", ")})";
             }
             
             if (Expression.IsEmpty())
-                throw new InvalidOperationException($"Either {nameof(Expression)} or {nameof(ColumnNames)} must be specified");
+                throw new InvalidOperationException($"Either {nameof(Expression)} or {nameof(Columns)} must be specified");
 
             return $"({Expression} {suffix})";
         }
