@@ -16,7 +16,7 @@ namespace Weasel.Postgresql.Tables
         {
             if (actual == null)
             {
-                return SchemaPatchDifference.None;
+                return SchemaPatchDifference.Create;
             }
             
             Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);

@@ -150,7 +150,7 @@ namespace Weasel.Postgresql
         public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctions(this NpgsqlConnection conn, string namePattern = null, string[] schemas = null)
         {
             var builder = new CommandBuilder();
-            builder.Append("SELECT schemaname, relname FROM pg_stat_user_tables WHERE type_udt_name != 'trigger'");
+            builder.Append("SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger'");
 
             if (namePattern.IsNotEmpty())
             {
