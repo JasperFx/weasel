@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Data.Common;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -120,6 +122,15 @@ namespace Weasel.Postgresql
             cmd.Transaction = tx;
 
             return cmd.ExecuteReaderAsync(cancellation);
+        }
+
+        public Task<IReadOnlyList<T>> FetchList<T>(NpgsqlConnection conn, Func<DbDataReader, Task<T>> transform, CancellationToken cancellation = default, NpgsqlTransaction tx = null)
+        {
+            var cmd = Compile();
+            cmd.Connection = conn;
+            cmd.Transaction = tx;
+
+            return cmd.FetchList(transform, cancellation: cancellation);
         }
     }
 }

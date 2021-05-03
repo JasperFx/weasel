@@ -18,11 +18,11 @@ namespace Weasel.Postgresql.Tests
 
             await theConnection.DropSchema("one");
             
-            (await SchemaManager.ActiveSchemaNames(theConnection)).ShouldNotContain("one");
+            (await theConnection.ActiveSchemaNames()).ShouldNotContain("one");
 
             await theConnection.CreateSchema("one");
             
-            var schemas = await SchemaManager.ActiveSchemaNames(theConnection);
+            var schemas = await theConnection.ActiveSchemaNames();
             
             schemas.ShouldContain("one");
         }

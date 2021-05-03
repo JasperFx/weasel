@@ -151,7 +151,7 @@ AND    n.nspname = :{schemaParam};
 
         public IEnumerable<DbObjectName> AllNames()
         {
-            throw new NotImplementedException();
+            yield return Identifier;
         }
 
         public string Body(DdlRules rules = null)
@@ -201,7 +201,7 @@ AND    n.nspname = :{schemaParam};
                 IsRemoved = true
             };
         }
-        
+
         public string BuildTemplate(string template)
         {
             var body = Body();
@@ -213,7 +213,7 @@ AND    n.nspname = :{schemaParam};
                     .Replace(DdlRules.SIGNATURE, signature);
         }
 
-        public void WriteTemplate(DdlTemplate template, StringWriter writer)
+        public void WriteTemplate(DdlRules rules, DdlTemplate template, TextWriter writer)
         {
             var text = template?.FunctionCreation;
             if (text.IsNotEmpty())

@@ -93,6 +93,9 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
             var existing = new Table(Identifier);
             
             await readColumns(reader, existing);
+
+            if (!existing.Columns.Any()) return null;
+            
             var pks = await readPrimaryKeys(reader);
             await readIndexes(reader, existing);
             await readConstraints(reader, existing);

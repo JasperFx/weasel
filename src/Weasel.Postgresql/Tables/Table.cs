@@ -144,7 +144,17 @@ namespace Weasel.Postgresql.Tables
 
         public IEnumerable<DbObjectName> AllNames()
         {
-            throw new NotImplementedException();
+            yield return Identifier;
+
+            foreach (var index in Indexes)
+            {
+                yield return new DbObjectName(Identifier.Schema, index.Name);
+            }
+
+            foreach (var fk in ForeignKeys)
+            {
+                yield return new DbObjectName(Identifier.Schema, fk.Name);
+            }
         }
 
         public Table(DbObjectName name)
