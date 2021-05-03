@@ -10,7 +10,7 @@ namespace Weasel.Postgresql.Tables
 {
     public partial class Table
     {
-                public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(CommandBuilder builder)
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -94,8 +94,6 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
             
             await readColumns(reader, existing);
 
-            if (!existing.Columns.Any()) return null;
-            
             var pks = await readPrimaryKeys(reader);
             await readIndexes(reader, existing);
             await readConstraints(reader, existing);
@@ -105,7 +103,9 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
                 existing.ColumnFor(pkColumn).IsPrimaryKey = true;
             }
             
-            return existing;
+            return !existing.Columns.Any() 
+                ? null 
+                : existing;
         }
         
         private static async Task readColumns(DbDataReader reader, Table existing)
