@@ -48,6 +48,17 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
+        public async Task detect_all_new_table()
+        {
+            var table = await theTable.FetchExisting(theConnection);
+            table.ShouldBeNull();
+
+            var delta = await theTable.FindDelta(theConnection);
+            delta.Difference.ShouldBe(SchemaPatchDifference.Create);
+
+        }
+
+        [Fact]
         public async Task no_delta()
         {
             await CreateSchemaObjectInDatabase(theTable);
