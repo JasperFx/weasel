@@ -326,8 +326,7 @@ namespace Weasel.Postgresql.Tables
 
             public ColumnExpression DefaultValueByExpression(string expression)
             {
-                var check = new DefaultValue(expression);
-                Column.ColumnChecks.Add(check);
+                Column.DefaultExpression = expression;
 
                 return this;
             }

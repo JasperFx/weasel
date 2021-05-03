@@ -29,6 +29,8 @@ namespace Weasel.Postgresql.Tables
         public IList<ColumnCheck> ColumnChecks { get; } = new List<ColumnCheck>();
 
         public bool AllowNulls { get; set; } = true;
+        
+        public string DefaultExpression { get; set; }
 
         public string Name { get; }
 
@@ -44,6 +46,10 @@ namespace Weasel.Postgresql.Tables
         public string Declaration()
         {
             var declaration = !IsPrimaryKey && AllowNulls ? "NULL" : "NOT NULL";
+            if (DefaultExpression.IsNotEmpty())
+            {
+                declaration += " DEFAULT " + DefaultExpression;
+            }
 
             return $"{declaration} {ColumnChecks.Select(x => x.FullDeclaration()).Join(" ")}".TrimEnd();
         }
@@ -103,7 +109,7 @@ namespace Weasel.Postgresql.Tables
 
         public virtual bool CanAdd()
         {
-            return AllowNulls || ColumnChecks.OfType<DefaultValue>().Any();
+            return AllowNulls || DefaultExpression.IsNotEmpty();
         }
 
         public virtual string AddColumnSql(Table parent)
@@ -141,19 +147,7 @@ namespace Weasel.Postgresql.Tables
         public override string Declaration() => "SERIAL";
     }
 
-    
-    public class DefaultValue : ColumnCheck
-    {
-        public string Expression { get; }
 
-        public DefaultValue(string expression)
-        {
-            Expression = expression;
-        }
-
-        public override string Declaration() => "DEFAULT " + Expression;
-    }
-    
     /*
 
     public class GeneratedAlwaysAsStored : ColumnCheck
