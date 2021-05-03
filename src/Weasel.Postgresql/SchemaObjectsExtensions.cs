@@ -59,7 +59,7 @@ namespace Weasel.Postgresql
             try
             {
                 await conn
-                    .CreateCommand(CreateSchemaStatementFor(schemaName))
+                    .CreateCommand(SchemaMigration.CreateSchemaStatementFor(schemaName))
                     .ExecuteNonQueryAsync(cancellation);
             }
             finally
@@ -90,17 +90,12 @@ namespace Weasel.Postgresql
 
         public static Task CreateSchema(this NpgsqlConnection conn, string schemaName)
         {
-            return conn.CreateCommand(CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync();
-        }
-
-        public static string CreateSchemaStatementFor(string schemaName)
-        {
-            return $"create schema if not exists {schemaName};";
+            return conn.CreateCommand(SchemaMigration.CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync();
         }
 
         public static Task ResetSchema(this NpgsqlConnection conn, string schemaName)
         {
-            return conn.RunSql(DropStatementFor(schemaName, CascadeOption.Cascade), CreateSchemaStatementFor(schemaName));
+            return conn.RunSql(DropStatementFor(schemaName, CascadeOption.Cascade), SchemaMigration.CreateSchemaStatementFor(schemaName));
         }
 
         public static async Task<bool> FunctionExists(this NpgsqlConnection conn, DbObjectName functionIdentifier)

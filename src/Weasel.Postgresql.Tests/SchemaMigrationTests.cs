@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NSubstitute;
 using Shouldly;
 using Xunit;
@@ -136,7 +137,8 @@ namespace Weasel.Postgresql.Tests
             delta.SchemaObject.DidNotReceive().WriteDropStatement(rules, writer);
             delta.SchemaObject.DidNotReceive().WriteCreateStatement(rules, writer);
         }
-        
+
+
     }
 
 

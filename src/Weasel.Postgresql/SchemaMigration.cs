@@ -12,10 +12,14 @@ namespace Weasel.Postgresql
     public class SchemaMigration
     {
         private readonly List<ISchemaObjectDelta> _deltas;
-        
+        private static string[] _schemas;
+
         public static async Task<SchemaMigration> Determine(NpgsqlConnection conn, ISchemaObject[] schemaObjects)
         {
             var deltas = new List<ISchemaObjectDelta>();
+
+            _schemas = schemaObjects.SelectMany(x => x.AllNames()).Select(x => x.Schema)
+                .Distinct().ToArray();
             
             if (!schemaObjects.Any())
             {
@@ -91,6 +95,13 @@ namespace Weasel.Postgresql
             if (!_deltas.Any()) return Task.CompletedTask;
 
             var writer = new StringWriter();
+
+            foreach (var schema in _schemas)
+            {
+                writer.WriteLine(CreateSchemaStatementFor(schema));
+            }
+            
+            
             
             WriteAllUpdates(writer, rules, autoCreate);
             
@@ -201,6 +212,11 @@ namespace Weasel.Postgresql
             return conn
                 .CreateCommand(writer.ToString())
                 .ExecuteNonQueryAsync();
+        }
+
+        public static string CreateSchemaStatementFor(string schemaName)
+        {
+            return $"create schema if not exists {schemaName};";
         }
     }
 }

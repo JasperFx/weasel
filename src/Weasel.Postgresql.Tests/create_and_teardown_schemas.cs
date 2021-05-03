@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Shouldly;
+using Weasel.Postgresql.Tables;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests
@@ -25,6 +26,30 @@ namespace Weasel.Postgresql.Tests
             var schemas = await theConnection.ActiveSchemaNames();
             
             schemas.ShouldContain("one");
+        }
+
+        [Fact]
+        public async Task create_a_schema_on_the_fly_for_migrations()
+        {
+            await theConnection.OpenAsync();
+
+            await theConnection.DropSchema("one");
+            await theConnection.DropSchema("two");
+
+            var table1 = new Table("one.table1");
+            table1.AddColumn<string>("name").AsPrimaryKey();
+            
+            var table2 = new Table("two.table2");
+            table2.AddColumn<string>("name").AsPrimaryKey();
+
+            var migration = await SchemaMigration.Determine(theConnection, new ISchemaObject[] {table1, table2});
+            migration.Difference.ShouldBe(SchemaPatchDifference.Create);
+
+            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+
+            (await table1.FetchExisting(theConnection)).ShouldNotBeNull();
+            (await table2.FetchExisting(theConnection)).ShouldNotBeNull();
+
         }
     }
 }
