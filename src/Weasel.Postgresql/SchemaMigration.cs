@@ -119,7 +119,7 @@ namespace Weasel.Postgresql
                 switch (delta.Difference)
                 {
                     case SchemaPatchDifference.None:
-                        return;
+                        break;
                     
                     case SchemaPatchDifference.Create:
                         delta.SchemaObject.WriteCreateStatement(rules, writer);
