@@ -8,7 +8,8 @@ namespace Weasel.Postgresql.Tables
     public class IndexDefinition : IIndexDefinition
     {
         private string _indexName;
-        
+        private string _expression;
+
         public IndexDefinition(string indexName)
         {
             _indexName = indexName;
@@ -50,8 +51,33 @@ namespace Weasel.Postgresql.Tables
         public bool IsConcurrent { get; set; }
 
         public virtual string[] Columns { get; set; }
-        
-        public string Expression { get; set; }
+
+        public string Expression
+        {
+            get => _expression;
+            set
+            {
+                if (value.IsNotEmpty())
+                {
+                    if (!value.StartsWith("("))
+                    {
+                        value = "(" + value;
+                    }
+
+                    if (!value.EndsWith(")"))
+                    {
+                        value += ")";
+                    }
+
+                    _expression = value;
+                }
+                else
+                {
+                    _expression = value;
+                }
+                
+            }
+        }
 
         /// <summary>
         /// Set the Index expression against the supplied columns
@@ -120,21 +146,27 @@ namespace Weasel.Postgresql.Tables
 
         private string correctedExpression()
         {
-            var suffix = "";
-            if (SortOrder != SortOrder.Asc)
+            var ordering = "";
+            if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
             {
-                suffix = " DESC";
+                ordering = " DESC";
             }
             
             if (Columns != null && Columns.Any())
             {
-                return $"({Columns.Select(x => $"{x}{suffix}").Join(", ")})";
+                var columns = Columns.Select(x => $"{x}{ordering}").Join(", ");
+                if (Expression.IsEmpty())
+                {
+                    return $"({columns})";
+                }
+
+                return Expression.Replace("?", $"({columns})");
             }
             
             if (Expression.IsEmpty())
                 throw new InvalidOperationException($"Either {nameof(Expression)} or {nameof(Columns)} must be specified");
 
-            return $"({Expression} {suffix})";
+            return $"({Expression} {ordering})";
         }
 
     }

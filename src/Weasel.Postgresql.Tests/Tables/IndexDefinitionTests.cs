@@ -10,7 +10,31 @@ namespace Weasel.Postgresql.Tests.Tables
             .AgainstColumns("column1");
         
         private Table parent = new Table("people");
+        
+        
+        [InlineData(IndexMethod.btree, true)]
+        [InlineData(IndexMethod.gin, false)]
+        [InlineData(IndexMethod.brin, false)]
+        [InlineData(IndexMethod.gist, false)]
+        [InlineData(IndexMethod.hash, false)]
+        [Theory]
+        public void sort_order_only_applied_for_btree_index(IndexMethod method, bool shouldUseSort)
+        {
 
+            theIndex.Method = method;
+            theIndex.SortOrder = SortOrder.Desc;
+
+            var ddl = theIndex.ToDDL(parent);
+
+            if (shouldUseSort)
+            {
+                ddl.ShouldEndWith(" DESC);");
+            }
+            else
+            {
+                ddl.ShouldNotEndWith(" DESC);");
+            }
+        }
         
         [Fact]
         public void default_sort_order_is_asc()
@@ -111,6 +135,18 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1);");
         }
+        
+        [Fact]
+        public void generate_ddl_for_descending_sort_order()
+        {
+            theIndex.SortOrder = SortOrder.Desc;
+
+            theIndex.ToDDL(parent)
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1 DESC);");
+        }
+
+
+
 
         
     }

@@ -203,10 +203,10 @@ namespace Weasel.Postgresql.Tests.Tables
             var existing = await theTable.FetchExisting(theConnection);
             
             // The index DDL should match what the database thinks it is in order to match
-            theTable.Indexes.Single().ToDDL(theTable)
-                .Replace("INDEX CONCURRENTLY", "INDEX")
-                
-                .ShouldBe(existing.Indexes.Single().ToDDL(theTable));
+
+            var actualSql = ActualIndex.CanonicizeDdl(existing.Indexes.Single(), theTable);
+            var expectedSql = ActualIndex.CanonicizeDdl(theTable.Indexes.Single(), theTable);
+            actualSql.ShouldBe(expectedSql);
 
             // And no deltas
             var delta = await theTable.FindDelta(theConnection);
@@ -225,10 +225,11 @@ namespace Weasel.Postgresql.Tests.Tables
         private static IEnumerable<(string, Action<Table>)> IndexConfigs()
         {
             yield return ("Simple btree", t => t.ModifyColumn("user_name").AddIndex());
-            yield return ("Simple btree with expression", t => t.ModifyColumn("user_name").AddIndex(i => i.Expression = "(lower(user_name))"));
+            yield return ("Simple btree with expression", t => t.ModifyColumn("user_name").AddIndex(i => i.Expression = "(lower(?))"));
             yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
-                i.Expression = "(lower(user_name))";
+                i.Expression = "(lower(?))";
+                i.Columns = new[] {"user_name"};
                 i.Predicate = "id > 5";
             }));
             

@@ -1,15 +1,23 @@
 namespace Weasel.Postgresql.Tables
 {
+    // TODO -- just put this in IndexDefinition? Or make an extension method?
     public class ActualIndex : IIndexDefinition
     {
         public static bool Matches(IIndexDefinition expected, IIndexDefinition actual, Table parent)
         {
-            var expectedSql = expected.ToDDL(parent)
-                .Replace("INDEX CONCURRENTLY", "INDEX");
+            var expectedSql = CanonicizeDdl(expected, parent);
 
-            var actualSql = actual.ToDDL(parent);
+            var actualSql = CanonicizeDdl(actual, parent);
 
             return expectedSql == actualSql;
+        }
+
+        public static string CanonicizeDdl(IIndexDefinition index, Table parent)
+        {
+            return index.ToDDL(parent)
+                    .Replace("INDEX CONCURRENTLY", "INDEX")
+                    .Replace("::text", "")
+                ;
         }
         
         public DbObjectName Table { get; }
