@@ -98,8 +98,8 @@ namespace Weasel.Postgresql.Tests.Tables
             yield return new object[] {table.AddColumn<string>("name1").Column, true};
             yield return new object[] {table.AddColumn<string>("name2").AllowNulls().Column, true};
             yield return new object[] {table.AddColumn<string>("name3").NotNull().Column, false};
-            yield return new object[] {table.AddColumn<string>("name4").DefaultValue("foo").Column, true};
-            yield return new object[] {table.AddColumn<string>("name5").NotNull().DefaultValue("foo").Column, true};
+            yield return new object[] {table.AddColumn<string>("name4").DefaultValueByString("foo").Column, true};
+            yield return new object[] {table.AddColumn<string>("name5").NotNull().DefaultValueByString("foo").Column, true};
         }
     
 

@@ -12,14 +12,12 @@ namespace Weasel.Postgresql
     public class SchemaMigration
     {
         private readonly List<ISchemaObjectDelta> _deltas;
-        private static string[] _schemas;
+        private string[] _schemas;
 
         public static async Task<SchemaMigration> Determine(NpgsqlConnection conn, ISchemaObject[] schemaObjects)
         {
             var deltas = new List<ISchemaObjectDelta>();
-
-            _schemas = schemaObjects.SelectMany(x => x.AllNames()).Select(x => x.Schema)
-                .Distinct().ToArray();
+            
             
             if (!schemaObjects.Any())
             {
@@ -49,16 +47,20 @@ namespace Weasel.Postgresql
         public SchemaMigration(IEnumerable<ISchemaObjectDelta> deltas)
         {
             _deltas = new List<ISchemaObjectDelta>(deltas);
+            _schemas = _deltas.SelectMany(x => x.SchemaObject.AllNames())
+                .Select(x => x.Schema)
+                .Where(x => x != "public")
+                .Distinct().ToArray();
+            
             if (_deltas.Any())
             {
                 Difference = _deltas.Min(x => x.Difference);
             }
         }
 
-        public SchemaMigration(ISchemaObjectDelta delta)
+        public SchemaMigration(ISchemaObjectDelta delta) : this(new ISchemaObjectDelta[]{delta})
         {
-            _deltas = new List<ISchemaObjectDelta> {delta};
-            Difference = delta.Difference;
+
         }
 
         public IReadOnlyList<ISchemaObjectDelta> Deltas => _deltas;
@@ -142,7 +144,7 @@ namespace Weasel.Postgresql
                 switch (delta.Difference)
                 {
                     case SchemaPatchDifference.None:
-                        return;
+                        continue;
                     
                     case SchemaPatchDifference.Create:
                         delta.SchemaObject.WriteDropStatement(rules, writer);

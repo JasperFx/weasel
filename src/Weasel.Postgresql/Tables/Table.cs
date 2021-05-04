@@ -294,7 +294,7 @@ namespace Weasel.Postgresql.Tables
                 return this;
             }
 
-            public ColumnExpression DefaultValue(string value)
+            public ColumnExpression DefaultValueByString(string value)
             {
                 return DefaultValueByExpression($"'{value}'");
             }

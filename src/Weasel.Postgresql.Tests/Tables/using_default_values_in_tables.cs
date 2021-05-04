@@ -21,7 +21,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var states = new Table("defaults.states");
             states.AddColumn<int>("id").AsPrimaryKey().Serial();
             states.AddColumn<string>("name").NotNull();
-            states.AddColumn<string>("abbr").NotNull().DefaultValue("XX");
+            states.AddColumn<string>("abbr").NotNull().DefaultValueByString("XX");
 
             await CreateSchemaObjectInDatabase(states);
 
