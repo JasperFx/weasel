@@ -141,6 +141,11 @@ namespace Weasel.Postgresql.Tables
             return Columns.Any(x => x.Name == columnName);
         }
 
+        public IIndexDefinition IndexFor(string indexName)
+        {
+            return Indexes.FirstOrDefault(x => x.Name == indexName);
+        }
+
 
         public IEnumerable<DbObjectName> AllNames()
         {
@@ -341,6 +346,11 @@ namespace Weasel.Postgresql.Tables
         {
             var column = ColumnFor(columnName) ?? throw new ArgumentOutOfRangeException($"Column '{columnName}' does not exist in table {Identifier}");
             return new ColumnExpression(this, column);
+        }
+
+        public bool HasIndex(string indexName)
+        {
+            return Indexes.Any(x => x.Name == indexName);
         }
     }
 }

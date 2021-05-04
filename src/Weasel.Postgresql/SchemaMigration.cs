@@ -12,7 +12,7 @@ namespace Weasel.Postgresql
     public class SchemaMigration
     {
         private readonly List<ISchemaObjectDelta> _deltas;
-        private string[] _schemas;
+        private readonly string[] _schemas;
 
         public static async Task<SchemaMigration> Determine(NpgsqlConnection conn, ISchemaObject[] schemaObjects)
         {

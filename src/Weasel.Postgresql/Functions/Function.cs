@@ -171,7 +171,7 @@ AND    n.nspname = :{schemaParam};
 
             var signature = ParseSignature(Body());
 
-            var drop = $"drop function {signature};";
+            var drop = $"drop function if exists {signature};";
 
             return new [] {drop};
         }

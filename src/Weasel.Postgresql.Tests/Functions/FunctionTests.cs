@@ -105,7 +105,7 @@ $$ LANGUAGE plpgsql;
         public void can_derive_the_drop_statement_from_the_body()
         {
             var function = new Function(DbObjectName.Parse("functions.mt_get_next_hi"), theFunctionBody);
-            function.DropStatements().Single().ShouldBe("drop function functions.mt_get_next_hi(varchar);");
+            function.DropStatements().Single().ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
         }
 
         [Fact]
@@ -115,7 +115,7 @@ $$ LANGUAGE plpgsql;
             function.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
             
             function.DropStatements().Single()
-                .ShouldBe("drop function functions.mt_get_next_hi(varchar);");
+                .ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
         }
 
         [Fact]

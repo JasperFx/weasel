@@ -120,7 +120,8 @@ namespace Weasel.Postgresql.Tables
 
         public virtual bool CanAlter(TableColumn actual)
         {
-            return false;
+            // TODO -- need this to be more systematic
+            return true;
         }
     }
 
