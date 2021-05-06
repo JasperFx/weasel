@@ -9,8 +9,4 @@
       <PackageReference Include="Npgsql" Version="5.0.4" />
     </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
-    </ItemGroup>
-
 </Project>

@@ -132,5 +132,14 @@ namespace Weasel.Postgresql
 
             return cmd.FetchList(transform, cancellation: cancellation);
         }
+
+        public Task<int> ExecuteNonQueryAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction tx = null)
+        {
+            var cmd = Compile();
+            cmd.Connection = conn;
+            cmd.Transaction = tx;
+
+            return cmd.ExecuteNonQueryAsync(cancellation);
+        }
     }
 }

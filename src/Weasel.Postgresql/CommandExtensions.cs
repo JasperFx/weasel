@@ -159,6 +159,26 @@ namespace Weasel.Postgresql
 
             return command;
         }
+        
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, string[] value)
+        {
+            var parameter = command.CreateParameter();
+            parameter.ParameterName = name;
+
+            if (value == null)
+            {
+                parameter.Value = DBNull.Value;
+            }
+            else
+            {
+                parameter.Value = value;
+            }
+            
+            parameter.NpgsqlDbType = NpgsqlDbType.Varchar | NpgsqlDbType.Array;
+            command.Parameters.Add(parameter);
+
+            return command;
+        }
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value, NpgsqlDbType dbType)
         {
@@ -206,6 +226,21 @@ namespace Weasel.Postgresql
 
             return cmd;
         }
+        
+        
+        public static NpgsqlCommand CallsSproc(this NpgsqlCommand cmd, DbObjectName function)
+        {
+            if (cmd == null)
+                throw new ArgumentNullException(nameof(cmd));
+            if (function == null)
+                throw new ArgumentNullException(nameof(function));
+
+            cmd.CommandText = function.QualifiedName;
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            return cmd;
+        }
+
 
     }
 }

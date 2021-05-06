@@ -24,7 +24,7 @@ namespace Weasel.Postgresql
         public bool IsTransactional { get; set; } = true;
         
         public DdlFormatting Formatting { get; set; } = DdlFormatting.Pretty;
-        
+
         /// <summary>
         ///     Alters the syntax used to create tables in DDL
         /// </summary>

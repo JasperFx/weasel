@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Weasel.Postgresql
 {
-    public static class Canonicalization
+    internal static class Canonicalization
     {
         public static string ReplaceMultiSpace(this string str, string newStr)
         {

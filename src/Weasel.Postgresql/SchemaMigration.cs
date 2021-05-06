@@ -13,6 +13,8 @@ namespace Weasel.Postgresql
     {
         private readonly List<ISchemaObjectDelta> _deltas;
         private readonly string[] _schemas;
+        private Lazy<string> _updates;
+        private Lazy<string> _rollbacks;
 
         public static async Task<SchemaMigration> Determine(NpgsqlConnection conn, ISchemaObject[] schemaObjects)
         {
@@ -56,6 +58,22 @@ namespace Weasel.Postgresql
             {
                 Difference = _deltas.Min(x => x.Difference);
             }
+
+            _updates = new Lazy<string>(() =>
+            {
+                var writer = new StringWriter();
+                WriteAllUpdates(writer, new DdlRules(), AutoCreate.CreateOrUpdate);
+
+                return writer.ToString();
+            });
+
+            _rollbacks = new Lazy<string>(() =>
+            {
+                var writer = new StringWriter();
+                WriteAllRollbacks(writer, new DdlRules());
+
+                return writer.ToString();
+            });
         }
 
         public SchemaMigration(ISchemaObjectDelta delta) : this(new ISchemaObjectDelta[]{delta})
@@ -67,29 +85,16 @@ namespace Weasel.Postgresql
 
         public SchemaPatchDifference Difference { get; private set; } = SchemaPatchDifference.None;
 
-        [Obsolete("Only here for testing. Make this a method at the least")]
-        public string UpdateDDL
-        {
-            get
-            {
-                var writer = new StringWriter();
-                WriteAllUpdates(writer, new DdlRules(), AutoCreate.CreateOrUpdate);
+        /// <summary>
+        /// The SQL that will be executed to update this migration
+        /// </summary>
+        public string UpdateSql => _updates.Value;
 
-                return writer.ToString();
-            }
-        }
-        
-        [Obsolete("Only here for testing. Make this a method at the least")]
-        public string RollbackDDL
-        {
-            get
-            {
-                var writer = new StringWriter();
-                WriteAllRollbacks(writer, new DdlRules());
+        /// <summary>
+        /// The SQL to rollback the application of this migration
+        /// </summary>
+        public string RollbackSql => _rollbacks.Value;
 
-                return writer.ToString();
-            }
-        }
         public Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate)
         {
             if (autoCreate == AutoCreate.None) return Task.CompletedTask;

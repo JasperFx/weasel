@@ -1,9 +1,11 @@
 namespace Weasel.Postgresql
 {
-// TODO -- think this is a duplication
-    public enum CascadeOption
+    public enum CascadeAction
     {
-        Cascade,
-        Restrict
+        SetNull,
+        SetDefault,
+        Restrict,
+        NoAction,
+        Cascade
     }
 }

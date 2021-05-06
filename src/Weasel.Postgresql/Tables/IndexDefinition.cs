@@ -7,6 +7,8 @@ namespace Weasel.Postgresql.Tables
 {
     public class IndexDefinition : IIndexDefinition
     {
+        private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
+        
         private string _indexName;
         private string _expression;
 
@@ -61,12 +63,7 @@ namespace Weasel.Postgresql.Tables
                 {
                     if (!value.StartsWith("("))
                     {
-                        value = "(" + value;
-                    }
-
-                    if (!value.EndsWith(")"))
-                    {
-                        value += ")";
+                        value = "(" + value + ")";
                     }
 
                     _expression = value;
@@ -154,7 +151,9 @@ namespace Weasel.Postgresql.Tables
             
             if (Columns != null && Columns.Any())
             {
-                var columns = Columns.Select(x => $"{x}{ordering}").Join(", ");
+                var columns = Columns
+                    .Select(x => _reserved_words.Contains(x) ? $"\"{x}\"" : x)
+                    .Select(x => $"{x}{ordering}").Join(", ");
                 if (Expression.IsEmpty())
                 {
                     return $"({columns})";

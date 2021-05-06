@@ -7,14 +7,7 @@ using Baseline;
 
 namespace Weasel.Postgresql.Tables
 {
-    public enum CascadeAction
-    {
-        SetNull,
-        SetDefault,
-        Restrict,
-        NoAction,
-        Cascade
-    }
+
 
     public class MisconfiguredForeignKeyException : Exception
     {

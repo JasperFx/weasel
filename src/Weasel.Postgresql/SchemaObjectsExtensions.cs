@@ -83,7 +83,7 @@ namespace Weasel.Postgresql
             return conn.CreateCommand(DropStatementFor(schemaName)).ExecuteNonQueryAsync();
         }
         
-        public static string DropStatementFor(string schemaName, CascadeOption option = CascadeOption.Cascade)
+        public static string DropStatementFor(string schemaName, CascadeAction option = CascadeAction.Cascade)
         {
             return $"drop schema if exists {schemaName} {option.ToString().ToUpperInvariant()};";
         }
@@ -95,7 +95,7 @@ namespace Weasel.Postgresql
 
         public static Task ResetSchema(this NpgsqlConnection conn, string schemaName)
         {
-            return conn.RunSql(DropStatementFor(schemaName, CascadeOption.Cascade), SchemaMigration.CreateSchemaStatementFor(schemaName));
+            return conn.RunSql(DropStatementFor(schemaName, CascadeAction.Cascade), SchemaMigration.CreateSchemaStatementFor(schemaName));
         }
 
         public static async Task<bool> FunctionExists(this NpgsqlConnection conn, DbObjectName functionIdentifier)
@@ -168,6 +168,19 @@ namespace Weasel.Postgresql
         {
             return new DbObjectName(await reader.GetFieldValueAsync<string>(0), await reader.GetFieldValueAsync<string>(1));
         }
-        
+
+        /// <summary>
+        /// Write the creation SQL for this ISchemaObject
+        /// </summary>
+        /// <param name="object"></param>
+        /// <param name="rules"></param>
+        /// <returns></returns>
+        public static string ToCreateSql(this ISchemaObject @object, DdlRules rules)
+        {
+            var writer = new StringWriter();
+            @object.WriteCreateStatement(rules, writer);
+
+            return writer.ToString();
+        }
     }
 }
