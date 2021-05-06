@@ -1,12 +1,39 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.1;net5.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+
+        <Description>Npgsql Helpers and Postgresql Schema Migration Tool, spin off of Marten</Description>
+
+        <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
+        <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
+        <GenerateAssemblyProductAttribute>true</GenerateAssemblyProductAttribute>
+        <GenerateAssemblyCopyrightAttribute>false</GenerateAssemblyCopyrightAttribute>
+        <GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
+        <GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
+        <GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
       <PackageReference Include="Baseline" Version="3.1.0" />
       <PackageReference Include="Npgsql" Version="5.0.4" />
+    </ItemGroup>
+
+    <!--SourceLink specific settings-->
+    <PropertyGroup>
+        <EnableSourceLink Condition=" '$(OS)' != 'Windows_NT' AND '$(MSBuildRuntimeType)' != 'Core' ">false</EnableSourceLink>
+        <EnableSourceControlManagerQueries>$(EnableSourceLink)</EnableSourceControlManagerQueries>
+    </PropertyGroup>
+    <PropertyGroup Condition=" '$(OS)' == 'Windows_NT' ">
+        <RepositoryUrl>https://github.com/JasperFx/weasel.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
     </ItemGroup>
 
 </Project>
