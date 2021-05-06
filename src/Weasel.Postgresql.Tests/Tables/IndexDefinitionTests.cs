@@ -145,7 +145,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.FillFactor = 70;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor = 70);");
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor='70');");
         }
         
         [Fact]

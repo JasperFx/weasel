@@ -138,7 +138,7 @@ namespace Weasel.Postgresql.Tables
 
             if (FillFactor.HasValue)
             {
-                builder.Append($" WITH (fillfactor = {FillFactor})");
+                builder.Append($" WITH (fillfactor='{FillFactor}')");
             }
 
             builder.Append(";");
