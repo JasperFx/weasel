@@ -439,6 +439,22 @@ namespace Weasel.Postgresql.Tests.Tables
             var delta = await table2.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
+
+        [Fact]
+        public async Task no_change_with_jsonb_path_ops()
+        {
+            var table2 = new Table("deltas.people");
+            table2.AddColumn<int>("id").AsPrimaryKey();
+            table2.AddColumn("first_name", "character varying");
+            table2.AddColumn("last_name", "character varying");
+            table2.AddColumn("user_name", "character varying");
+            table2.AddColumn("data", "jsonb").AddIndex(i => i.ToGinWithJsonbPathOps());
+            
+            await CreateSchemaObjectInDatabase(table2);
+
+            var delta = await table2.FindDelta(theConnection);
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
+        }
         
 
     }

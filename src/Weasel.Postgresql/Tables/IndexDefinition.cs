@@ -7,6 +7,7 @@ namespace Weasel.Postgresql.Tables
 {
     public class IndexDefinition : IIndexDefinition
     {
+        private const string JsonbPathOps = "jsonb_path_ops";
         private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
         
         private string _indexName;
@@ -159,6 +160,11 @@ namespace Weasel.Postgresql.Tables
                     return $"({columns})";
                 }
 
+                if (Expression.Contains(JsonbPathOps))
+                {
+                    return Expression.Replace("?", columns);
+                }
+                
                 return Expression.Replace("?", $"({columns})");
             }
             
@@ -168,5 +174,13 @@ namespace Weasel.Postgresql.Tables
             return $"({Expression} {ordering})";
         }
 
+        /// <summary>
+        /// Makes this index use the Gin method with the jsonb_path_ops operator
+        /// </summary>
+        public void ToGinWithJsonbPathOps()
+        {
+            Method = IndexMethod.gin;
+            _expression = $"(? {JsonbPathOps})";
+        }
     }
 }
