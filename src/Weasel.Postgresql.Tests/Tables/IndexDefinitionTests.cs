@@ -135,6 +135,18 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1);");
         }
+
+        [Fact]
+        public void with_a_non_default_fill_factor()
+        {
+            theIndex.TableSpace = "green";
+            theIndex.Method = IndexMethod.gin;
+            theIndex.Predicate = "foo > 1";
+            theIndex.FillFactor = 70;
+            
+            theIndex.ToDDL(parent)
+                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor = 70);");
+        }
         
         [Fact]
         public void generate_ddl_for_descending_sort_order()

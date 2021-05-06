@@ -136,11 +136,21 @@ namespace Weasel.Postgresql.Tables
                 builder.Append($"({Predicate})");
             }
 
+            if (FillFactor.HasValue)
+            {
+                builder.Append($" WITH (fillfactor = {FillFactor})");
+            }
+
             builder.Append(";");
 
 
             return builder.ToString();
         }
+        
+        /// <summary>
+        /// Set a non-default fill factor on this index
+        /// </summary>
+        public int? FillFactor { get; set; }
 
         private string correctedExpression()
         {
