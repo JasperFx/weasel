@@ -219,10 +219,11 @@ namespace Weasel.Postgresql
             return command;
         }
 
-        public static NpgsqlCommand CreateCommand(this NpgsqlConnection conn, string command)
+        public static NpgsqlCommand CreateCommand(this NpgsqlConnection conn, string command, NpgsqlTransaction tx = null)
         {
             var cmd = conn.CreateCommand();
             cmd.CommandText = command;
+            cmd.Transaction = tx;
 
             return cmd;
         }

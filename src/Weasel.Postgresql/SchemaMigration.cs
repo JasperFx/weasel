@@ -95,25 +95,42 @@ namespace Weasel.Postgresql
         /// </summary>
         public string RollbackSql => _rollbacks.Value;
 
-        public Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate)
+        public async Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate, Action<string> logSql = null, Action<NpgsqlCommand, Exception> onFailure = null)
         {
-            if (autoCreate == AutoCreate.None) return Task.CompletedTask;
-            if (Difference == SchemaPatchDifference.None) return Task.CompletedTask;
-            if (!_deltas.Any()) return Task.CompletedTask;
+            if (autoCreate == AutoCreate.None) return;
+            if (Difference == SchemaPatchDifference.None) return;
+            if (!_deltas.Any()) return;
 
             var writer = new StringWriter();
 
             foreach (var schema in _schemas)
             {
-                writer.WriteLine(CreateSchemaStatementFor(schema));
+                await writer.WriteLineAsync(CreateSchemaStatementFor(schema));
             }
             
             
             
             WriteAllUpdates(writer, rules, autoCreate);
-            
-            return conn.CreateCommand(writer.ToString())
-                .ExecuteNonQueryAsync();
+
+            var cmd = conn.CreateCommand(writer.ToString());
+            logSql?.Invoke(cmd.CommandText);
+
+            try
+            {
+                await cmd
+                    .ExecuteNonQueryAsync();
+            }
+            catch (Exception e)
+            {
+                if (onFailure != null)
+                {
+                    onFailure(cmd, e);
+                }
+                else
+                {
+                    throw;
+                }
+            }
         }
 
         public void WriteAllUpdates(TextWriter writer, DdlRules rules, AutoCreate autoCreate)
