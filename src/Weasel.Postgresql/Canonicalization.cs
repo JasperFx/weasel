@@ -1,5 +1,6 @@
 using System;
 using System.Text.RegularExpressions;
+using Baseline;
 
 namespace Weasel.Postgresql
 {
@@ -32,7 +33,8 @@ namespace Weasel.Postgresql
                 .Replace("int[]", "integer[]")
                 .Replace("numeric", "decimal").TrimEnd(';').TrimEnd();
 
-            if (replaced.Contains("PLV8", StringComparison.OrdinalIgnoreCase))
+            
+            if (replaced.ContainsIgnoreCase("PLV8"))
             {
                 replaced = replaced
                     .Replace("LANGUAGE plv8 IMMUTABLE STRICT AS $function$", "AS $$");

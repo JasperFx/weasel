@@ -20,11 +20,7 @@ namespace Weasel.Postgresql.Tables
     {
         protected bool Equals(ForeignKey other)
         {
-            return ColumnNames.SequenceEqual(other.ColumnNames) 
-                   && LinkedNames.SequenceEqual(other.LinkedNames) 
-                   && Equals(LinkedTable, other.LinkedTable) 
-                   && OnDelete == other.OnDelete 
-                   && OnUpdate == other.OnUpdate;
+            return Name == other.Name && ColumnNames.SequenceEqual(other.ColumnNames) && LinkedNames.SequenceEqual(other.LinkedNames) && Equals(LinkedTable, other.LinkedTable) && OnDelete == other.OnDelete && OnUpdate == other.OnUpdate;
         }
 
         public override bool Equals(object obj)
@@ -49,8 +45,18 @@ namespace Weasel.Postgresql.Tables
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(ColumnNames, LinkedNames, LinkedTable, (int) OnDelete, (int) OnUpdate);
+            unchecked
+            {
+                var hashCode = (Name != null ? Name.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (ColumnNames != null ? ColumnNames.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (LinkedNames != null ? LinkedNames.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (LinkedTable != null ? LinkedTable.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (int) OnDelete;
+                hashCode = (hashCode * 397) ^ (int) OnUpdate;
+                return hashCode;
+            }
         }
+
 
         public ForeignKey(string name)
         {

@@ -16,8 +16,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Baseline" Version="3.1.0" />
-      <PackageReference Include="Npgsql" Version="5.0.4" />
+      <PackageReference Include="Baseline" Version="3.1.1" />
+      <PackageReference Include="Npgsql" Version="[5.0.4)" />
     </ItemGroup>
 
     <!--SourceLink specific settings-->
