@@ -75,10 +75,37 @@ WHERE
 	tbl.relname = :{nameParam}
 GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
+select
+    col.column_name,
+    partition_strategy
+from
+    (select
+         partrelid,
+         partnatts,
+         case partstrat
+             when 'l' then 'list'
+             when 'r' then 'range' end as partition_strategy,
+         unnest(partattrs) column_index
+     from
+         pg_partitioned_table) pt
+        join
+    pg_class par
+    on
+            par.oid = pt.partrelid
+        join
+    information_schema.columns col
+    on
+                col.table_schema = par.relnamespace::regnamespace::text
+            and col.table_name = par.relname
+            and ordinal_position = pt.column_index
+where
+    col.table_schema = :{schemaParam} and table_name = :{nameParam}
+order by column_index;
+
 ");
         }
 
-                public async Task<Table> FetchExisting(NpgsqlConnection conn)
+        public async Task<Table> FetchExisting(NpgsqlConnection conn)
         {
             var builder = new CommandBuilder();
 
@@ -102,12 +129,34 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
             {
                 existing.ColumnFor(pkColumn).IsPrimaryKey = true;
             }
+
+            await readPartitions(reader, existing);
             
             return !existing.Columns.Any() 
                 ? null 
                 : existing;
         }
-        
+
+        private async Task readPartitions(DbDataReader reader, Table existing)
+        {
+            await reader.NextResultAsync();
+
+            while (await reader.ReadAsync())
+            {
+                var strategy = await reader.GetFieldValueAsync<string>(1);
+                var columnOrExpression = await reader.GetFieldValueAsync<string>(0);
+
+                existing.PartitionExpressions.Add(columnOrExpression);
+
+                switch (strategy)
+                {
+                    case "range":
+                        existing.PartitionStrategy = PartitionStrategy.Range;
+                        break;
+                }
+            }
+        }
+
         private static async Task readColumns(DbDataReader reader, Table existing)
         {
             while (await reader.ReadAsync())

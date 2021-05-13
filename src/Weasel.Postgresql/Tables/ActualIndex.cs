@@ -1,6 +1,5 @@
 namespace Weasel.Postgresql.Tables
 {
-    // TODO -- just put this in IndexDefinition? Or make an extension method?
     public class ActualIndex : IIndexDefinition
     {
         public static bool Matches(IIndexDefinition expected, IIndexDefinition actual, Table parent)

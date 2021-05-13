@@ -9,6 +9,22 @@ using Npgsql;
 
 namespace Weasel.Postgresql.Tables
 {
+    public enum PartitionStrategy
+    {
+        /// <summary>
+        /// No partitioning
+        /// </summary>
+        None,
+        
+        /// <summary>
+        /// Postgresql PARTITION BY RANGE semantics
+        /// </summary>
+        Range,
+        
+        
+        //List
+    }
+    
     public partial class Table : ISchemaObject
     {
         private readonly List<TableColumn> _columns = new List<TableColumn>();
@@ -19,6 +35,14 @@ namespace Weasel.Postgresql.Tables
         public IList<IIndexDefinition> Indexes { get; } = new List<IIndexDefinition>();
 
         public IReadOnlyList<string> PrimaryKeyColumns => _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
+
+        public IList<string> PartitionExpressions { get; } = new List<string>();
+
+        
+        /// <summary>
+        /// PARTITION strategy for this table
+        /// </summary>
+        public PartitionStrategy PartitionStrategy { get; set; } = PartitionStrategy.None;
 
         /// <summary>
         /// Generate the CREATE TABLE SQL expression with default
@@ -85,11 +109,20 @@ namespace Weasel.Postgresql.Tables
 
                 writer.WriteLine(lines.Last());
             }
+
+            switch (PartitionStrategy)
+            {
+                case PartitionStrategy.None:
+                    writer.WriteLine(");");
+                    break;
+                
+                case PartitionStrategy.Range:
+                    writer.WriteLine($") PARTITION BY RANGE ({PartitionExpressions.Join(", ")});");
+                    break;
+            }
+
+
             
-
-
-
-            writer.WriteLine(");");
 
             // TODO -- support OriginWriter
             //writer.WriteLine(OriginWriter.OriginStatement("TABLE", Identifier.QualifiedName));
@@ -208,7 +241,7 @@ namespace Weasel.Postgresql.Tables
         {
             var cmd = conn
                 .CreateCommand(
-                    "SELECT * FROM pg_stat_user_tables WHERE relname = :table AND schemaname = :schema;")
+                    "SELECT * FROM information_schema.tables WHERE table_name = :table AND table_schema = :schema;")
                 .With("table", Identifier.Name)
                 .With("schema", Identifier.Schema);
 
@@ -335,6 +368,16 @@ namespace Weasel.Postgresql.Tables
 
                 return this;
             }
+
+            public ColumnExpression PartitionByRange()
+            {
+                _parent.PartitionStrategy = PartitionStrategy.Range;
+                _parent.PartitionExpressions.Add(Column.Name);
+
+                Column.IsPrimaryKey = true;
+
+                return this;
+            }
         }
 
         public void RemoveColumn(string columnName)
@@ -352,5 +395,20 @@ namespace Weasel.Postgresql.Tables
         {
             return Indexes.Any(x => x.Name == indexName);
         }
+
+        public void PartitionByRange(params string[] columnOrExpressions)
+        {
+            PartitionStrategy = PartitionStrategy.Range;
+            PartitionExpressions.Clear();
+            PartitionExpressions.AddRange(columnOrExpressions);
+        }
+
+        public void ClearPartitions()
+        {
+            PartitionStrategy = PartitionStrategy.None;
+            PartitionExpressions.Clear();
+        }
     }
+
+
 }

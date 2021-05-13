@@ -1,0 +1,686 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AnalysisUIOptions">
+    <option name="SCOPE_TYPE" value="3" />
+  </component>
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Upgraded Baseline, slid back to netstandard2.0">
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/CommandParameter.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/ComparisonFilter.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/CompoundWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/CustomizableWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/IReversibleWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/ISqlFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/IWhereFragmentHolder.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/NotWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/WhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/WhereInSubQuery.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IPartition.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitSEFilterConfiguration">
+    <file-type-list>
+      <filtered-out-file-type name="LOCAL_BRANCH" />
+      <filtered-out-file-type name="REMOTE_BRANCH" />
+      <filtered-out-file-type name="TAG" />
+      <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
+    </file-type-list>
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/377B61B6-13EA-444F-826F-377D9474FFCA/e4/640008f2/TestInvoker`1.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/2F0A6030-4031-403E-B852-856F9416C0D4/1a/5f22832d/GenericEnumerableExtensions.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/DD8CCA27-D744-4105-8957-73F671A06BEE/30/ShouldAssertException.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/2A925EDF-E558-4632-978E-98FD8509CDF4/09/7d021acc/CollectionAttribute.cs" root0="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="IdeDocumentHistory">
+    <changedPaths>
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IIndexDefinition.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/reading_existing_table_from_database.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/creating_tables_in_database.cs" />
+      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/66a91dcc-dafb-400d-bd13-a158cc0d1f6d/console.sql" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/applying_table_patches.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableColumnTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaPatchDifference.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableDeltaTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/IDDLRunner.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaPatch.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionBody.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionBodyTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaManager.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/DdlRules.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/OldFunction.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.Deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/DdlRulesTester.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaPatchTester.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Sequence.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SequenceTester.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableColumn.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/rolling_back_table_deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/ISchemaObject.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionDelta.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaMigrationTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/create_and_teardown_schemas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CascadeOption.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Canonicalization.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
+      <option value="$PROJECT_DIR$/.github/workflows/publish_nuget.yml" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
+      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/372ea8ee-de98-4e27-a1bd-68857f2bf27d/console.sql" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning_by_range.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IPartition.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" />
+    </changedPaths>
+  </component>
+  <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="autoscrollFromSource" value="true" />
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="DatabaseDriversLRU" value="postgresql" />
+    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.34971997" />
+    <property name="DebuggerViewTab_PTCS_LastProportionKey" value="0.0" />
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
+    <property name="nodejs_npm_path_reset_for_default_project" value="true" />
+    <property name="settings.editor.selected.configurable" value="reference.settings.ide.settings.notifications" />
+    <property name="vue.rearranger.settings.migration" value="true" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="" />
+      <created>1618152065595</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1618152065595</updated>
+      <workItem from="1618152076371" duration="14111000" />
+      <workItem from="1618341058263" duration="6632000" />
+      <workItem from="1618514661701" duration="12576000" />
+      <workItem from="1618681710683" duration="32132000" />
+      <workItem from="1619036215377" duration="10954000" />
+      <workItem from="1619177194313" duration="3668000" />
+      <workItem from="1619441509268" duration="31096000" />
+      <workItem from="1619639867186" duration="5765000" />
+      <workItem from="1619695656959" duration="19345000" />
+      <workItem from="1620063804745" duration="2365000" />
+      <workItem from="1620068340824" duration="103000" />
+      <workItem from="1620138484214" duration="1884000" />
+      <workItem from="1620227825041" duration="174000" />
+      <workItem from="1620324353857" duration="527000" />
+      <workItem from="1620334778251" duration="139000" />
+      <workItem from="1620335216934" duration="390000" />
+      <workItem from="1620335796712" duration="1332000" />
+      <workItem from="1620395571629" duration="6826000" />
+      <workItem from="1620673128507" duration="1447000" />
+    </task>
+    <task id="LOCAL-00012" summary="Single field primary key mechanics">
+      <created>1618344994859</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1618344994859</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Very basic table mechanics to write out DDL">
+      <created>1618346045941</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1618346045941</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Very basic create and drop table to the database">
+      <created>1618346842361</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1618346842361</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Writing out very basic indexes">
+      <created>1618517084267</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1618517084267</updated>
+    </task>
+    <task id="LOCAL-00016" summary="Writing out very basic indexes">
+      <created>1618517130304</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1618517130304</updated>
+    </task>
+    <task id="LOCAL-00017" summary="Writing out very basic indexes">
+      <created>1618517628722</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1618517628722</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Reorganizing /Tables code files">
+      <created>1618518389817</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1618518389817</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Can add single column foreign keys to a table">
+      <created>1618599934533</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1618599934533</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Corrected the index naming convention w/ ToIndexName() extension method">
+      <created>1618681353983</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1618681353983</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Can add indexes to table columns through the fluent interface">
+      <created>1618681933603</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1618681933603</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Can build indexes in the table creation">
+      <created>1618683643374</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1618683643374</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Can read columns out of an existing table">
+      <created>1618684721724</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1618684721724</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Can fetch index definitions from the database for existing tables">
+      <created>1618687954484</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1618687954484</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Can write and fetch primary keys on tables">
+      <created>1618793581101</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1618793581101</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Imported stubbed out TableDelta">
+      <created>1618836847596</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1618836847597</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Adding SERIAL option to table column model">
+      <created>1618837844389</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1618837844389</updated>
+    </task>
+    <task id="LOCAL-00028" summary="New &quot;concise&quot; formatting rule for Table SQL generation">
+      <created>1618839153037</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1618839153037</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Better support for default values on table columns">
+      <created>1618845350398</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1618845350398</updated>
+    </task>
+    <task id="LOCAL-00030" summary="Can compare indexes from expected to actual table">
+      <created>1618940615207</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1618940615207</updated>
+    </task>
+    <task id="LOCAL-00031" summary="Can compare indexes from expected to actual table">
+      <created>1618941161955</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1618941161955</updated>
+    </task>
+    <task id="LOCAL-00032" summary="ForeignKey parsing definition from the server">
+      <created>1618943130987</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1618943130987</updated>
+    </task>
+    <task id="LOCAL-00033" summary="Can detect deltas of foreign keys">
+      <created>1618952254660</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1618952254660</updated>
+    </task>
+    <task id="LOCAL-00034" summary="Moved TableDelta.Matches to HasChanges(), ISchemaObject.CreatePatch() is async">
+      <created>1619096447079</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1619096447079</updated>
+    </task>
+    <task id="LOCAL-00035" summary="Failing tests for TableDelta application, TableColumn.CanAdd()">
+      <created>1619107088061</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1619107088062</updated>
+    </task>
+    <task id="LOCAL-00036" summary="TableColumn.AddColumnSql() method">
+      <created>1619107746497</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1619107746498</updated>
+    </task>
+    <task id="LOCAL-00037" summary="TableDelta can calculate its difference level">
+      <created>1619182255891</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1619182255892</updated>
+    </task>
+    <task id="LOCAL-00038" summary="TableDelta can calculate its difference level">
+      <created>1619183319061</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1619183319061</updated>
+    </task>
+    <task id="LOCAL-00039" summary="Updates to .gitignore">
+      <created>1619183487084</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1619183487084</updated>
+    </task>
+    <task id="LOCAL-00040" summary="WIP: introduced the new ISchemaObjectDelta model">
+      <created>1619446782316</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1619446782317</updated>
+    </task>
+    <task id="LOCAL-00041" summary="Roughed in what will be the new SchemaMigration to replace SchemaPatch">
+      <created>1619532809699</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1619532809699</updated>
+    </task>
+    <task id="LOCAL-00042" summary="Moving the ISchemaObjectDelta to use the new SchemaMigration model">
+      <created>1619533504814</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1619533504814</updated>
+    </task>
+    <task id="LOCAL-00043" summary="SchemaMigration.AssertPatchingIsValid()">
+      <created>1619541196870</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1619541196870</updated>
+    </task>
+    <task id="LOCAL-00044" summary="SchemaMigration methods to write out the apply changes">
+      <created>1619543453698</created>
+      <option name="number" value="00044" />
+      <option name="presentableId" value="LOCAL-00044" />
+      <option name="project" value="LOCAL" />
+      <updated>1619543453698</updated>
+    </task>
+    <task id="LOCAL-00045" summary="Fetching FunctionDelta">
+      <created>1619642811833</created>
+      <option name="number" value="00045" />
+      <option name="presentableId" value="LOCAL-00045" />
+      <option name="project" value="LOCAL" />
+      <updated>1619642811833</updated>
+    </task>
+    <task id="LOCAL-00046" summary="Basic FunctionDelta application">
+      <created>1619643893038</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1619643893038</updated>
+    </task>
+    <task id="LOCAL-00047" summary="New FunctionExists() helper function">
+      <created>1619646584793</created>
+      <option name="number" value="00047" />
+      <option name="presentableId" value="LOCAL-00047" />
+      <option name="project" value="LOCAL" />
+      <updated>1619646584793</updated>
+    </task>
+    <task id="LOCAL-00048" summary="Function.IsRemoved delta behavior. Closes GH-19">
+      <created>1619647277413</created>
+      <option name="number" value="00048" />
+      <option name="presentableId" value="LOCAL-00048" />
+      <option name="project" value="LOCAL" />
+      <updated>1619647277413</updated>
+    </task>
+    <task id="LOCAL-00049" summary="WIP: spiking around with the shape of the new DdlRules and SchemaMigration">
+      <created>1619701829421</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1619701829421</updated>
+    </task>
+    <task id="LOCAL-00050" summary="Introducing a new base class for schema object deltas">
+      <created>1619705769966</created>
+      <option name="number" value="00050" />
+      <option name="presentableId" value="LOCAL-00050" />
+      <option name="project" value="LOCAL" />
+      <updated>1619705769967</updated>
+    </task>
+    <task id="LOCAL-00051" summary="Eliminated old SchemaPatch">
+      <created>1619710644278</created>
+      <option name="number" value="00051" />
+      <option name="presentableId" value="LOCAL-00051" />
+      <option name="project" value="LOCAL" />
+      <updated>1619710644278</updated>
+    </task>
+    <task id="LOCAL-00052" summary="Table rollbacks!">
+      <created>1619731504269</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1619731504269</updated>
+    </task>
+    <task id="LOCAL-00053" summary="FunctionDelta rollback mechanics">
+      <created>1619732952197</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1619732952197</updated>
+    </task>
+    <task id="LOCAL-00054" summary="Fixes for fetching function names and empty table delta">
+      <created>1620063858981</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1620063858981</updated>
+    </task>
+    <task id="LOCAL-00055" summary="Test for fetching a non-existent table and that the delta for such is Create">
+      <created>1620064306045</created>
+      <option name="number" value="00055" />
+      <option name="presentableId" value="LOCAL-00055" />
+      <option name="project" value="LOCAL" />
+      <updated>1620064306045</updated>
+    </task>
+    <task id="LOCAL-00056" summary="Auto-creates schemas when applying migrations">
+      <created>1620068005697</created>
+      <option name="number" value="00056" />
+      <option name="presentableId" value="LOCAL-00056" />
+      <option name="project" value="LOCAL" />
+      <updated>1620068005697</updated>
+    </task>
+    <task id="LOCAL-00057" summary="Improved expression matching in IndexDefinition.">
+      <created>1620140312636</created>
+      <option name="number" value="00057" />
+      <option name="presentableId" value="LOCAL-00057" />
+      <option name="project" value="LOCAL" />
+      <updated>1620140312636</updated>
+    </task>
+    <task id="LOCAL-00058" summary="Added support for FillFactor on index definition">
+      <created>1620324833075</created>
+      <option name="number" value="00058" />
+      <option name="presentableId" value="LOCAL-00058" />
+      <option name="project" value="LOCAL" />
+      <updated>1620324833075</updated>
+    </task>
+    <task id="LOCAL-00059" summary="Getting ready for publishing to Nuget">
+      <created>1620334794219</created>
+      <option name="number" value="00059" />
+      <option name="presentableId" value="LOCAL-00059" />
+      <option name="project" value="LOCAL" />
+      <updated>1620334794219</updated>
+    </task>
+    <task id="LOCAL-00060" summary="Upgraded Baseline, slid back to netstandard2.0">
+      <created>1620335595625</created>
+      <option name="number" value="00060" />
+      <option name="presentableId" value="LOCAL-00060" />
+      <option name="project" value="LOCAL" />
+      <updated>1620335595626</updated>
+    </task>
+    <option name="localTasksCounter" value="61" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="UnityProjectConfiguration" hasMinimizedUI="false" />
+  <component name="UnityUnitTestConfiguration" currentTestLauncher="NUnit" />
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
+    <MESSAGE value="Failing tests for TableDelta application, TableColumn.CanAdd()" />
+    <MESSAGE value="TableColumn.AddColumnSql() method" />
+    <MESSAGE value="TableDelta can calculate its difference level" />
+    <MESSAGE value="Updates to .gitignore" />
+    <MESSAGE value="WIP: introduced the new ISchemaObjectDelta model" />
+    <MESSAGE value="Roughed in what will be the new SchemaMigration to replace SchemaPatch" />
+    <MESSAGE value="Moving the ISchemaObjectDelta to use the new SchemaMigration model" />
+    <MESSAGE value="SchemaMigration.AssertPatchingIsValid()" />
+    <MESSAGE value="SchemaMigration methods to write out the apply changes" />
+    <MESSAGE value="Fetching FunctionDelta" />
+    <MESSAGE value="Basic FunctionDelta application" />
+    <MESSAGE value="New FunctionExists() helper function" />
+    <MESSAGE value="Function.IsRemoved delta behavior. Closes GH-19" />
+    <MESSAGE value="WIP: spiking around with the shape of the new DdlRules and SchemaMigration" />
+    <MESSAGE value="Introducing a new base class for schema object deltas" />
+    <MESSAGE value="Eliminated old SchemaPatch" />
+    <MESSAGE value="Table rollbacks!" />
+    <MESSAGE value="FunctionDelta rollback mechanics" />
+    <MESSAGE value="Fixes for fetching function names and empty table delta" />
+    <MESSAGE value="Test for fetching a non-existent table and that the delta for such is Create" />
+    <MESSAGE value="Auto-creates schemas when applying migrations" />
+    <MESSAGE value="Improved expression matching in IndexDefinition." />
+    <MESSAGE value="Added support for FillFactor on index definition" />
+    <MESSAGE value="Getting ready for publishing to Nuget" />
+    <MESSAGE value="Upgraded Baseline, slid back to netstandard2.0" />
+    <option name="LAST_COMMIT_MESSAGE" value="Upgraded Baseline, slid back to netstandard2.0" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/IntegrationContext.cs</url>
+          <line>51</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/IntegrationContext.cs" initialLine="40" containingFunctionPresentation="method 'CreateSchemaObjectInDatabase'">
+            <startOffsets>
+              <option value="1543" />
+            </startOffsets>
+            <endOffsets>
+              <option value="1614" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/reading_existing_table_from_database.cs</url>
+          <line>118</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/reading_existing_table_from_database.cs" initialLine="74" containingFunctionPresentation="method 'read_indexes_and_foreign_keys'">
+            <startOffsets>
+              <option value="3773" />
+            </startOffsets>
+            <endOffsets>
+              <option value="3808" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs</url>
+          <line>18</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" initialLine="26" containingFunctionPresentation="method 'ApplyChanges'">
+            <startOffsets>
+              <option value="590" />
+            </startOffsets>
+            <endOffsets>
+              <option value="605" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="7" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs</url>
+          <line>279</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" initialLine="264" containingFunctionPresentation="method 'detect_all_new_foreign_key'">
+            <startOffsets>
+              <option value="9582" />
+            </startOffsets>
+            <endOffsets>
+              <option value="9631" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="8" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaMigrationTests.cs</url>
+          <line>101</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaMigrationTests.cs" initialLine="76" containingFunctionPresentation="method 'writing_out_updates_when_schema_object_is_invalid'">
+            <startOffsets>
+              <option value="5449" />
+            </startOffsets>
+            <endOffsets>
+              <option value="5506" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="10" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs</url>
+          <line>188</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" initialLine="170" containingFunctionPresentation="method 'RollbackAll'">
+            <startOffsets>
+              <option value="6483" />
+            </startOffsets>
+            <endOffsets>
+              <option value="6585" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="13" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionDelta.cs</url>
+          <line>35</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionDelta.cs" initialLine="35" containingFunctionPresentation="method 'WriteRollback'">
+            <startOffsets>
+              <option value="1052" />
+            </startOffsets>
+            <endOffsets>
+              <option value="1075" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="16" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs</url>
+          <line>165</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" initialLine="163" containingFunctionPresentation="method 'DropStatements'">
+            <startOffsets>
+              <option value="4932" />
+            </startOffsets>
+            <endOffsets>
+              <option value="4971" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="17" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs</url>
+          <line>212</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" initialLine="204" containingFunctionPresentation="method 'matching_index_ddl'">
+            <startOffsets>
+              <option value="6721" />
+            </startOffsets>
+            <endOffsets>
+              <option value="6761" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="19" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs</url>
+          <line>16</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" initialLine="16" containingFunctionPresentation="method 'compare'">
+            <startOffsets>
+              <option value="377" />
+            </startOffsets>
+            <endOffsets>
+              <option value="396" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="20" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>

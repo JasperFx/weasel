@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ContentModelStore">
+    <e p="$USER_HOME$/.nuget/packages/microsoft.net.test.sdk/16.7.1/build/netcoreapp2.1" t="Include">
+      <e p="Microsoft.NET.Test.Sdk.Program.cs" t="Include" />
+    </e>
+    <e p="$USER_HOME$/.nuget/packages/xunit.runner.visualstudio/2.4.3/build/netcoreapp2.1/xunit.runner.reporters.netcoreapp10.dll" t="Include" />
+    <e p="$USER_HOME$/.nuget/packages/xunit.runner.visualstudio/2.4.3/build/netcoreapp2.1/xunit.runner.utility.netcoreapp10.dll" t="Include" />
+    <e p="$USER_HOME$/.nuget/packages/xunit.runner.visualstudio/2.4.3/build/netcoreapp2.1/xunit.runner.visualstudio.dotnetcore.testadapter.dll" t="Include" />
+    <e p="$PROJECT_DIR$" t="IncludeFlat">
+      <e p="Docs" t="Include" />
+      <e p="packages" t="ExcludeRecursive" />
+      <e p="README.md" t="Include" />
+      <e p="src/Weasel.Core" t="IncludeRecursive">
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="net5.0" t="Include">
+              <e p="Weasel.Core.AssemblyInfo.cs" t="Include" />
+            </e>
+            <e p="netstandard2.1" t="Include">
+              <e p="Weasel.Core.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+        <e p="Weasel.Core.csproj" t="IncludeRecursive" />
+      </e>
+      <e p="src/Weasel.Postgresql" t="IncludeRecursive">
+        <e p="AssemblyInfo.cs" t="Include" />
+        <e p="AutoCreate.cs" t="Include" />
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="Canonicalization.cs" t="Include" />
+        <e p="CascadeOption.cs" t="Include" />
+        <e p="CommandBuilder.cs" t="Include" />
+        <e p="CommandExtensions.cs" t="Include" />
+        <e p="ConnectionExtensions.cs" t="Include" />
+        <e p="CreationStyle.cs" t="Include" />
+        <e p="DbObjectName.cs" t="Include" />
+        <e p="DdlFormatting.cs" t="Include" />
+        <e p="DdlRules.cs" t="Include" />
+        <e p="EnumStorage.cs" t="Include" />
+        <e p="Functions" t="Include">
+          <e p="Function.cs" t="Include" />
+          <e p="FunctionBody.cs" t="Include" />
+          <e p="FunctionDelta.cs" t="Include" />
+          <e p="OldFunction.cs" t="Include" />
+        </e>
+        <e p="ISchemaObject.cs" t="Include" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="net5.0" t="Include">
+              <e p="Weasel.Postgresql.AssemblyInfo.cs" t="Include" />
+            </e>
+            <e p="netstandard2.0" t="Include">
+              <e p="Weasel.Postgresql.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+        <e p="SchemaMigration.cs" t="Include" />
+        <e p="SchemaMigrationException.cs" t="Include" />
+        <e p="SchemaObjectsExtensions.cs" t="Include" />
+        <e p="SchemaPatchDifference.cs" t="Include" />
+        <e p="SecurityRights.cs" t="Include" />
+        <e p="Sequence.cs" t="Include" />
+        <e p="SqlGeneration" t="Include">
+          <e p="CommandParameter.cs" t="Include" />
+          <e p="ComparisonFilter.cs" t="Include" />
+          <e p="CompoundWhereFragment.cs" t="Include" />
+          <e p="CustomizableWhereFragment.cs" t="Include" />
+          <e p="EnumIsNotOneOfWhereFragment.cs" t="Include" />
+          <e p="EnumIsOneOfWhereFragment.cs" t="Include" />
+          <e p="IReversibleWhereFragment.cs" t="Include" />
+          <e p="ISqlFragment.cs" t="Include" />
+          <e p="IWhereFragmentHolder.cs" t="Include" />
+          <e p="NotWhereFragment.cs" t="Include" />
+          <e p="SqlFragmentExtensions.cs" t="Include" />
+          <e p="WhereFragment.cs" t="Include" />
+          <e p="WhereInArrayFilter.cs" t="Include" />
+          <e p="WhereInSubQuery.cs" t="Include" />
+        </e>
+        <e p="Tables" t="Include">
+          <e p="ActualIndex.cs" t="Include" />
+          <e p="Change.cs" t="Include" />
+          <e p="ForeignKey.cs" t="Include" />
+          <e p="IIndexDefinition.cs" t="Include" />
+          <e p="IndexDefinition.cs" t="Include" />
+          <e p="IndexMethod.cs" t="Include" />
+          <e p="IPartition.cs" t="Include" />
+          <e p="ItemDelta.cs" t="Include" />
+          <e p="PrimaryKey.cs" t="Include" />
+          <e p="SortOrder.cs" t="Include" />
+          <e p="StringWriterExtensions.cs" t="Include" />
+          <e p="Table.cs" t="Include" />
+          <e p="Table.Deltas.cs" t="Include" />
+          <e p="Table.FetchExisting.cs" t="Include" />
+          <e p="TableColumn.cs" t="Include" />
+          <e p="TableDelta.cs" t="Include" />
+        </e>
+        <e p="TypeMappings.cs" t="Include" />
+        <e p="Weasel.Postgresql.csproj" t="IncludeRecursive" />
+      </e>
+      <e p="src/Weasel.Postgresql.Tests" t="IncludeRecursive">
+        <e p="bin" t="ExcludeRecursive" />
+        <e p="CommandBuilderTests.cs" t="Include" />
+        <e p="CommandExtensionsTests.cs" t="Include" />
+        <e p="ConnectionSource.cs" t="Include" />
+        <e p="create_and_teardown_schemas.cs" t="Include" />
+        <e p="DbObjectNameTests.cs" t="Include" />
+        <e p="DdlRulesTester.cs" t="Include" />
+        <e p="Functions" t="Include">
+          <e p="FunctionBodyTests.cs" t="Include" />
+          <e p="FunctionTests.cs" t="Include" />
+        </e>
+        <e p="IntegrationContext.cs" t="Include" />
+        <e p="obj" t="ExcludeRecursive">
+          <e p="Debug" t="Include">
+            <e p="net5.0" t="Include">
+              <e p="Weasel.Postgresql.Tests.AssemblyInfo.cs" t="Include" />
+            </e>
+          </e>
+        </e>
+        <e p="SchemaMigrationTests.cs" t="Include" />
+        <e p="SequenceTester.cs" t="Include" />
+        <e p="Tables" t="Include">
+          <e p="creating_tables_in_database.cs" t="Include" />
+          <e p="detecting_table_deltas.cs" t="Include" />
+          <e p="ForeignKeyTests.cs" t="Include" />
+          <e p="IndexDefinitionTests.cs" t="Include" />
+          <e p="reading_existing_table_from_database.cs" t="Include" />
+          <e p="rolling_back_table_deltas.cs" t="Include" />
+          <e p="table_partitioning.cs" t="Include" />
+          <e p="TableColumnTests.cs" t="Include" />
+          <e p="TableDeltaTests.cs" t="Include" />
+          <e p="TableTests.cs" t="Include" />
+          <e p="using_default_values_in_tables.cs" t="Include" />
+        </e>
+        <e p="TypeMappingsTests.cs" t="Include" />
+        <e p="Weasel.Postgresql.Tests.csproj" t="IncludeRecursive" />
+      </e>
+      <e p="Weasel.sln" t="IncludeFlat" />
+    </e>
+    <e p="$APPLICATION_CONFIG_DIR$/consoles/db" t="IncludeRecursive" />
+    <e p="$APPLICATION_CONFIG_DIR$/extensions" t="IncludeRecursive" />
+    <e p="$APPLICATION_CONFIG_DIR$/scratches" t="IncludeRecursive" />
+    <e p="$USER_HOME$/Library/Caches/JetBrains/Rider2020.3/extResources" t="IncludeRecursive" />
+    <e p="$USER_HOME$/Library/Caches/JetBrains/Rider2020.3/resharper-host/local/Transient/Rider/v203/SolutionCaches/_Weasel.416431059.00" t="ExcludeRecursive" />
+  </component>
+</project>

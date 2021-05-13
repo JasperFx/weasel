@@ -41,7 +41,7 @@ namespace Weasel.Postgresql.Tables
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Update;
             }
-            
+
             return determinePatchDifference();
         }
 
@@ -181,9 +181,6 @@ namespace Weasel.Postgresql.Tables
                 writer.WriteLine(column.DropColumnSql(Expected));
             }
 
-
-
-
             foreach (var foreignKey in ForeignKeys.Extras)
             {
                 foreignKey.WriteAddStatement(Expected, writer);
@@ -229,8 +226,20 @@ namespace Weasel.Postgresql.Tables
 
         private SchemaPatchDifference determinePatchDifference()
         {
+            if (Actual.PartitionStrategy != Expected.PartitionStrategy)
+            {
+                return SchemaPatchDifference.Invalid;
+            }
+
+            if (!Actual.PartitionExpressions.SequenceEqual(Expected.PartitionExpressions))
+            {
+                return SchemaPatchDifference.Invalid;
+            }
+
+            
             if (!HasChanges()) return SchemaPatchDifference.None;
             
+
             // If there are any columns that are different and at least one cannot
             // automatically generate an `ALTER TABLE` statement, the patch is invalid
             if (Columns.Different.Any(x => !x.Expected.CanAlter(x.Actual)))
