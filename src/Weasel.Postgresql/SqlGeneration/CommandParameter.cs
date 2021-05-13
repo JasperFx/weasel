@@ -4,7 +4,6 @@ using NpgsqlTypes;
 
 namespace Weasel.Postgresql.SqlGeneration
 {
-    // TODO -- move to Weasel
     public class CommandParameter : ISqlFragment
     {
         public CommandParameter()
@@ -22,7 +21,7 @@ namespace Weasel.Postgresql.SqlGeneration
             Value = value;
             if (value != null)
             {
-                DbType = TypeMappings.TryGetDbType(value.GetType());
+                DbType = TypeMappings.TryGetDbType(value.GetType()).Value;
             }
         }
 
@@ -33,7 +32,7 @@ namespace Weasel.Postgresql.SqlGeneration
         }
 
         public object Value { get; }
-        public NpgsqlDbType? DbType { get; }
+        public NpgsqlDbType DbType { get; }
 
         public NpgsqlParameter AddParameter(CommandBuilder builder)
         {
@@ -42,9 +41,7 @@ namespace Weasel.Postgresql.SqlGeneration
 
         public void Apply(CommandBuilder builder)
         {
-            var parameter = AddParameter(builder);
-            builder.Append(":");
-            builder.Append(parameter.ParameterName);
+            builder.AppendParameter(Value, DbType);
         }
 
         public bool Contains(string sqlText)

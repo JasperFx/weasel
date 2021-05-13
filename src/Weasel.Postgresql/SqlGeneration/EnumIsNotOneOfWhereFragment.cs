@@ -43,12 +43,10 @@ namespace Weasel.Postgresql.SqlGeneration
 
         public void Apply(CommandBuilder builder)
         {
-            var param = builder.AddParameter(_values, _dbType);
-
             builder.Append("NOT(");
             builder.Append(_locator);
-            builder.Append(" = ANY(:");
-            builder.Append(param.ParameterName);
+            builder.Append(" = ANY(");
+            builder.AppendParameter(_values, _dbType);
             builder.Append(")");
             builder.Append(")");
         }

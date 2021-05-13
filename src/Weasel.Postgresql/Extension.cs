@@ -1,0 +1,50 @@
+using System.Collections.Generic;
+using System.Data.Common;
+using System.IO;
+using System.Threading.Tasks;
+
+namespace Weasel.Postgresql
+{
+    /// <summary>
+    /// Used to register Postgresql extensions
+    /// </summary>
+    public class Extension : ISchemaObject
+    {
+        public string ExtensionName { get; }
+
+        public Extension(string extensionName)
+        {
+            ExtensionName = extensionName.Trim().ToLower();
+        }
+
+        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        {
+            writer.WriteLine($"CREATE EXTENSION IF NOT EXISTS {ExtensionName};");
+        }
+
+        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        {
+            writer.WriteLine($"DROP EXTENSION IF EXISTS {ExtensionName};");
+        }
+
+        public DbObjectName Identifier => new DbObjectName("public", ExtensionName);
+        public void ConfigureQueryCommand(CommandBuilder builder)
+        {
+            builder.Append("select extname from pg_extension where extname = ");
+            builder.AppendParameter(ExtensionName);
+            builder.Append(";");
+        }
+
+        public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+        {
+            var exists = await reader.ReadAsync();
+
+            return new SchemaObjectDelta(this, exists ? SchemaPatchDifference.None : SchemaPatchDifference.Create);
+        }
+
+        public IEnumerable<DbObjectName> AllNames()
+        {
+            yield return Identifier;
+        }
+    }
+}

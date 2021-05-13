@@ -39,6 +39,7 @@
         <e p="DdlFormatting.cs" t="Include" />
         <e p="DdlRules.cs" t="Include" />
         <e p="EnumStorage.cs" t="Include" />
+        <e p="Extension.cs" t="Include" />
         <e p="Functions" t="Include">
           <e p="Function.cs" t="Include" />
           <e p="FunctionBody.cs" t="Include" />
@@ -121,6 +122,9 @@
         </e>
         <e p="SchemaMigrationTests.cs" t="Include" />
         <e p="SequenceTester.cs" t="Include" />
+        <e p="SqlGeneration" t="Include">
+          <e p="CommandParameterTests.cs" t="Include" />
+        </e>
         <e p="Tables" t="Include">
           <e p="creating_tables_in_database.cs" t="Include" />
           <e p="detecting_table_deltas.cs" t="Include" />

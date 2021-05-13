@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Npgsql;
 using NpgsqlTypes;
+using Weasel.Postgresql.SqlGeneration;
 
 #nullable enable
 
@@ -37,22 +38,74 @@ namespace Weasel.Postgresql
         {
         }
 
-        public static NpgsqlCommand BuildCommand(Action<CommandBuilder> configure)
-        {
-            var cmd = new NpgsqlCommand();
-            using (var builder = new CommandBuilder(cmd))
-            {
-                configure(builder);
-
-                cmd.CommandText = builder.ToString();
-            }
-
-            return cmd;
-        }
-
         public void Append(string text)
         {
             _sql.Append(text);
+        }
+        
+        /// <summary>
+        /// Append a parameter with the supplied value to the underlying command
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        public void AppendParameter(object value)
+        {
+            var dbType = TypeMappings.ToDbType(value.GetType());
+            AppendParameter(value, dbType);
+        }
+        
+        /// <summary>
+        /// Append a parameter with the supplied value to the underlying command
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        public void AppendParameter(int value)
+        {
+            AppendParameter(value, NpgsqlDbType.Integer);
+        }
+        
+        /// <summary>
+        /// Append a parameter with the supplied value to the underlying command
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        public void AppendParameter(Guid value)
+        {
+            AppendParameter(value, NpgsqlDbType.Uuid);
+        }
+
+        /// <summary>
+        /// Append a parameter with the supplied value to the underlying command
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        public void AppendParameter(object value, NpgsqlDbType dbType)
+        {
+            var parameter = AddParameter(value, dbType);
+            Append(":");
+            Append(parameter.ParameterName);
+        }
+        
+        /// <summary>
+        /// Append a parameter with the supplied value to the underlying command parameter
+        /// collection and adds the parameter usage to the SQL
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        public void AppendParameter(string value)
+        {
+            AppendParameter(value, NpgsqlDbType.Varchar);
+        }
+        
+        /// <summary>
+        /// Append a parameter with the supplied value to the underlying command parameter
+        /// collection and adds the parameter usage to the SQL
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        public void AppendParameter(string[] values)
+        {
+            AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
         }
 
         public void Append(object o)
@@ -65,16 +118,18 @@ namespace Weasel.Postgresql
             return _sql.ToString();
         }
 
-        public void Clear()
-        {
-            _sql.Clear();
-        }
-
         public void AddParameters(object parameters)
         {
             _command.AddParameters(parameters);
         }
 
+        /// <summary>
+        /// Adds a parameter to the underlying command, but does NOT add the
+        /// parameter usage to the command text
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
         public NpgsqlParameter AddParameter(object value, NpgsqlDbType? dbType = null)
         {
             return _command.AddParameter(value, dbType);
@@ -140,6 +195,11 @@ namespace Weasel.Postgresql
             cmd.Transaction = tx;
 
             return cmd.ExecuteNonQueryAsync(cancellation);
+        }
+
+        public void AppendJsonBParameter(string json)
+        {
+            AppendParameter(json, NpgsqlDbType.Jsonb);
         }
     }
 }
