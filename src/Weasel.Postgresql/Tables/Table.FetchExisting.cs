@@ -75,6 +75,11 @@ WHERE
 	tbl.relname = :{nameParam}
 GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
+");
+
+            if (PartitionStrategy != PartitionStrategy.None)
+            {
+                builder.Append($@"
 select
     col.column_name,
     partition_strategy
@@ -101,8 +106,8 @@ from
 where
     col.table_schema = :{schemaParam} and table_name = :{nameParam}
 order by column_index;
-
 ");
+            }
         }
 
         public async Task<Table> FetchExisting(NpgsqlConnection conn)
@@ -130,7 +135,10 @@ order by column_index;
                 existing.ColumnFor(pkColumn).IsPrimaryKey = true;
             }
 
-            await readPartitions(reader, existing);
+            if (PartitionStrategy != PartitionStrategy.None)
+            {
+                await readPartitions(reader, existing);
+            }
             
             return !existing.Columns.Any() 
                 ? null 

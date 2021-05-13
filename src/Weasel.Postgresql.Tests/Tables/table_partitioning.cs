@@ -88,25 +88,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
         }
         
-        [Fact]
-        public async Task detect_difference_when_old_partition_is_dropped()
-        {
-            await ResetSchema();
-            
-            var table = new Table("partitions.people");
-            table.AddColumn<int>("id").AsPrimaryKey().PartitionByRange();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
-            
-            await CreateSchemaObjectInDatabase(table);
 
-            table.ClearPartitions();
-            
-            var delta = await table.FindDelta(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
-
-
-        }
         
         
         [Fact]

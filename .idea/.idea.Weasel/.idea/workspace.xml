@@ -8,15 +8,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Upgraded Baseline, slid back to netstandard2.0">
-      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SqlGeneration/CommandParameterTests.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/contentModel.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/contentModel.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/CommandParameter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/CommandParameter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/EnumIsNotOneOfWhereFragment.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/EnumIsNotOneOfWhereFragment.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/EnumIsOneOfWhereFragment.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SqlGeneration/EnumIsOneOfWhereFragment.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -82,17 +76,17 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Canonicalization.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
       <option value="$PROJECT_DIR$/.github/workflows/publish_nuget.yml" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning_by_range.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IPartition.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/372ea8ee-de98-4e27-a1bd-68857f2bf27d/console.sql" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -142,7 +136,8 @@
       <workItem from="1620335216934" duration="390000" />
       <workItem from="1620335796712" duration="1332000" />
       <workItem from="1620395571629" duration="6826000" />
-      <workItem from="1620673128507" duration="2757000" />
+      <workItem from="1620673128507" duration="2943000" />
+      <workItem from="1620924634370" duration="313000" />
     </task>
     <task id="LOCAL-00012" summary="Single field primary key mechanics">
       <created>1618344994859</created>
