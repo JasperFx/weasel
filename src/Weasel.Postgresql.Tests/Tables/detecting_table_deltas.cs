@@ -254,8 +254,26 @@ namespace Weasel.Postgresql.Tests.Tables
             yield return ("Simple gin", t => t.ModifyColumn("data").AddIndex(i => i.Method = IndexMethod.gin));
             yield return ("Simple gist", t => t.AddColumn("data2", "tsvector").AddIndex(i => i.Method = IndexMethod.gist));
             yield return ("Simple hash", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.hash));
+
+            yield return ("Simple jsonb property", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"(data ->> 'Name')"}));
+            yield return ("Simple jsonb property + unique", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Columns = new[] {"(data ->> 'Name')"};
+                i.IsUnique = true;
+            }));
             
-            
+            yield return ("Jsonb property with function", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"lower(data ->> 'Name')"}));
+            yield return ("Jsonb property with function + unique", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Columns = new[] {"lower(data ->> 'Name')"};
+                i.IsUnique = true;
+            }));
+            yield return ("Jsonb property with function as expression", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Expression = "(lower(?))";
+                i.Columns = new[] {"(data ->> 'Name')"};
+                i.IsUnique = true;
+            }));
         }
 
 

@@ -16,6 +16,8 @@ namespace Weasel.Postgresql.Tables
             return index.ToDDL(parent)
                     .Replace("INDEX CONCURRENTLY", "INDEX")
                     .Replace("::text", "")
+                    .Replace("(", "")
+                    .Replace(")", "")
                 ;
         }
         
