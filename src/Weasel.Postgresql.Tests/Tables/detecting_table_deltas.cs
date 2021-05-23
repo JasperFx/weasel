@@ -372,9 +372,41 @@ namespace Weasel.Postgresql.Tests.Tables
             
             await AssertNoDeltasAfterPatching(table);
         }
-        
-                
-                
+
+
+        [Fact]
+        public async Task match_foreign_key_with_inherited_foreign_key_class()
+        {
+            var table = new Table("deltas.foreign_key_test");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("name");
+            table.AddColumn<int?>("parent_id");
+
+            // Marten uses custom class for foreign keys which is inherited from ForeignKey
+            table.ForeignKeys.Add(new ForeignKeyTest("foreign_key_test_parent_id_fkey")
+            {
+                LinkedTable = table.Identifier,
+                ColumnNames = new[] {"parent_id"},
+                LinkedNames = new[] {"id"}
+            });
+
+            await CreateSchemaObjectInDatabase(table);
+
+            var delta = await table.FindDelta(theConnection);
+            delta.HasChanges().ShouldBeFalse();
+            delta.ForeignKeys.Matched.Single().Name.ShouldBe("foreign_key_test_parent_id_fkey");
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
+            await AssertNoDeltasAfterPatching(table);
+        }
+
+        private class ForeignKeyTest : ForeignKey
+        {
+            public ForeignKeyTest(string name) : base(name)
+            {
+            }
+        }
+
+
         [Fact]
         public async Task different_foreign_key()
         {

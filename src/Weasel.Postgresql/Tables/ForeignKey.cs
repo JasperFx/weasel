@@ -35,7 +35,7 @@ namespace Weasel.Postgresql.Tables
                 return true;
             }
 
-            if (obj.GetType() != this.GetType())
+            if (!obj.GetType().CanBeCastTo<ForeignKey>())
             {
                 return false;
             }
