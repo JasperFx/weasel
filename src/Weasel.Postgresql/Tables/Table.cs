@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -349,7 +350,7 @@ namespace Weasel.Postgresql.Tables
             
             public ColumnExpression DefaultValue(double value)
             {
-                return DefaultValueByExpression(value.ToString());
+                return DefaultValueByExpression(value.ToString(CultureInfo.InvariantCulture));
             }
 
             public ColumnExpression DefaultValueFromSequence(Sequence sequence)
