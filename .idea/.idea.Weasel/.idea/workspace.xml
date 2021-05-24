@@ -8,23 +8,9 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/StringTokenizer.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/contentModel.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources/372ea8ee-de98-4e27-a1bd-68857f2bf27d.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources/372ea8ee-de98-4e27-a1bd-68857f2bf27d/storage_v2/_src_/database/marten_testing.0B_5vQ/schema/public.abK9xQ.zip" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/modules.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IIndexDefinition.cs" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -94,10 +80,10 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/StringTokenizer.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
     </changedPaths>
   </component>
@@ -155,7 +141,8 @@
       <workItem from="1620673128507" duration="2943000" />
       <workItem from="1620924634370" duration="313000" />
       <workItem from="1621793160796" duration="12435000" />
-      <workItem from="1621859266313" duration="2444000" />
+      <workItem from="1621859266313" duration="3647000" />
+      <workItem from="1621868715501" duration="934000" />
     </task>
     <task id="LOCAL-00012" summary="Single field primary key mechanics">
       <created>1618344994859</created>
@@ -593,13 +580,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs</url>
-          <line>301</line>
+          <line>313</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" initialLine="264" containingFunctionPresentation="method 'detect_all_new_foreign_key'">
             <startOffsets>
-              <option value="10577" />
+              <option value="10967" />
             </startOffsets>
             <endOffsets>
-              <option value="10626" />
+              <option value="11016" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="8" />
@@ -671,13 +658,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs</url>
-          <line>226</line>
+          <line>229</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" initialLine="226" containingFunctionPresentation="method 'Parse'">
             <startOffsets>
-              <option value="6596" />
+              <option value="6706" />
             </startOffsets>
             <endOffsets>
-              <option value="6654" />
+              <option value="6764" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="37" />

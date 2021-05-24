@@ -147,7 +147,10 @@ namespace Weasel.Postgresql.Tables
                 ordering = " DESC";
             }
 
-            var expression = Columns.Join(", ");
+            var expression = Columns.Select(x =>
+            {
+                return _reserved_words.Contains(x) ? $"\"{x}\"" : x;
+            }).Join(", ");
             if (Mask.IsNotEmpty())
             {
                 expression = Mask.Replace("?", expression);
@@ -313,6 +316,7 @@ namespace Weasel.Postgresql.Tables
         public static string CanonicizeDdl(IndexDefinition index, Table parent)
         {
             return index.ToDDL(parent)
+                    .Replace("\"\"", "\"")
                     .Replace("  ", " ")
                     .Replace("(", "")
                     .Replace(")", "")

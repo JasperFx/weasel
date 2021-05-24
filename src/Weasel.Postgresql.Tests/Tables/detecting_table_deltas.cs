@@ -89,6 +89,18 @@ namespace Weasel.Postgresql.Tests.Tables
             
             await AssertNoDeltasAfterPatching();
         }
+
+        [Fact]
+        public async Task using_reserved_keywords_for_columns()
+        {
+            await CreateSchemaObjectInDatabase(theTable);
+            
+            theTable.AddColumn<string>("trim").AddIndex();
+            theTable.AddColumn<string>("lower");
+            theTable.AddColumn<string>("upper");
+            
+            await AssertNoDeltasAfterPatching();
+        }
         
         [Fact]
         public async Task extra_column()
