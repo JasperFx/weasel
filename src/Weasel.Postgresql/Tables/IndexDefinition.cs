@@ -1,17 +1,18 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Baseline;
 
 namespace Weasel.Postgresql.Tables
 {
-    public class IndexDefinition : IIndexDefinition
+    public class IndexDefinition : INamed
     {
         private const string JsonbPathOps = "jsonb_path_ops";
         private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
         
         private string _indexName;
-        private string _expression;
 
         public IndexDefinition(string indexName)
         {
@@ -55,27 +56,11 @@ namespace Weasel.Postgresql.Tables
 
         public virtual string[] Columns { get; set; }
 
-        public string Expression
-        {
-            get => _expression;
-            set
-            {
-                if (value.IsNotEmpty())
-                {
-                    if (!value.StartsWith("("))
-                    {
-                        value = "(" + value + ")";
-                    }
-
-                    _expression = value;
-                }
-                else
-                {
-                    _expression = value;
-                }
-                
-            }
-        }
+        /// <summary>
+        /// Pattern for surrounding the columns. Use a `?` character
+        /// for the location of the columns, like "? jsonb_path_ops"
+        /// </summary>
+        public string Mask { get; set; }
 
         /// <summary>
         /// Set the Index expression against the supplied columns
@@ -130,9 +115,6 @@ namespace Weasel.Postgresql.Tables
             if (Predicate.IsNotEmpty())
             {
                 builder.Append(" WHERE ");
-                
-                
-                
                 builder.Append($"({Predicate})");
             }
 
@@ -154,34 +136,29 @@ namespace Weasel.Postgresql.Tables
 
         private string correctedExpression()
         {
+            if (Columns == null || !Columns.Any())
+            {
+                throw new InvalidOperationException("IndexDefinition requires at least one field");
+            }
+            
             var ordering = "";
             if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
             {
                 ordering = " DESC";
             }
-            
-            if (Columns != null && Columns.Any())
-            {
-                var columns = Columns
-                    .Select(x => _reserved_words.Contains(x) ? $"\"{x}\"" : x)
-                    .Select(x => $"{x}{ordering}").Join(", ");
-                if (Expression.IsEmpty())
-                {
-                    return $"({columns})";
-                }
 
-                if (Expression.Contains(JsonbPathOps))
-                {
-                    return Expression.Replace("?", columns);
-                }
-                
-                return Expression.Replace("?", $"({columns})");
+            var expression = Columns.Join(", ");
+            if (Mask.IsNotEmpty())
+            {
+                expression = Mask.Replace("?", expression);
             }
             
-            if (Expression.IsEmpty())
-                throw new InvalidOperationException($"Either {nameof(Expression)} or {nameof(Columns)} must be specified");
+            if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
+            {
+                expression += " DESC";
+            }
 
-            return $"({Expression} {ordering})";
+            return $"({expression})";
         }
 
         /// <summary>
@@ -190,7 +167,160 @@ namespace Weasel.Postgresql.Tables
         public void ToGinWithJsonbPathOps()
         {
             Method = IndexMethod.gin;
-            _expression = $"(? {JsonbPathOps})";
+            Mask = $"? {JsonbPathOps}";
+        }
+
+        public static IndexDefinition Parse(string definition)
+        {
+            var tokens = new Queue<string>(StringTokenizer.Tokenize(definition.TrimEnd(';')));
+
+            IndexDefinition index = null;
+
+            bool isUnique = false;
+            string expression = "";
+
+            while (tokens.Any())
+            {
+                var current = tokens.Dequeue();
+                switch (current.ToUpper())
+                {
+                    case "CREATE":
+                    case "CONCURRENTLY":
+                        continue;
+                    
+                    case "INDEX":
+                        var name = tokens.Dequeue();
+                        index = new IndexDefinition(name){Mask = String.Empty, IsUnique = isUnique};
+                        break;
+                    
+                    case "ON":
+                        // Skip the table name
+                        tokens.Dequeue();
+                        break;
+                    
+                    case "UNIQUE":
+                        isUnique = true;
+                        break;
+                    
+                    case "USING":
+                        var methodName = tokens.Dequeue();
+                        if (Enum.TryParse<IndexMethod>(methodName, out var method))
+                        {
+                            index.Method = method;
+                        }
+
+                        expression = tokens.Dequeue();
+                        expression = removeSortOrderFromExpression(expression, out var order);
+                        
+                        index.SortOrder = order;
+                        
+                        break;
+                    
+                    
+                    
+                    case "WHERE":
+                        var predicate = tokens.Dequeue();
+                        index.Predicate = predicate;
+                        break;
+                    
+                    case "WITH":
+                        var factor = tokens.Dequeue().TrimStart('(').TrimEnd(')');
+                        var parts = factor.Split('=');
+
+                        if (parts[0].Trim().EqualsIgnoreCase("fillfactor"))
+                        {
+                            index.FillFactor = int.Parse(parts[1].TrimStart('\'').TrimEnd('\''));
+                        }
+                        else
+                        {
+                            throw new NotSupportedException(
+                                $"Weasel does not yet support the '{parts[0]}' storage parameter");
+                        }
+
+                        break;
+                    
+                    default:
+                        throw new NotImplementedException("NOT YET DEALING WITH " + current);
+                }
+            }
+
+            expression = expression.Trim().Replace("::text", "");
+            while (expression.StartsWith("(") && expression.EndsWith(")"))
+            {
+                expression = expression.Substring(1, expression.Length - 2);
+            }
+
+            index.Columns = new string[] {expression}; // This might be problematic
+
+            return index;
+        }
+
+        private static string removeSortOrderFromExpression(string expression, out SortOrder order)
+        {
+            if (expression.EndsWith("DESC)"))
+            {
+                order = SortOrder.Desc;
+                return expression.Substring(0, expression.Length - 6) + ")";
+            }
+            else if (expression.EndsWith("ASC)"))
+            {
+                order = SortOrder.Asc;
+                return  expression.Substring(0, expression.Length - 5) + ")";
+            }
+
+            order = SortOrder.Asc;
+            return expression.Trim();
+        }
+        
+        public bool Matches(IndexDefinition actual, Table parent)
+        {
+            var expectedExpression = correctedExpression();
+            
+            
+            if (actual.Mask == expectedExpression)
+            {
+                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
+            }
+            
+            var expectedSql = CanonicizeDdl(this, parent);
+
+            var actualSql = CanonicizeDdl(actual, parent);
+
+            return expectedSql == actualSql;
+        }
+
+        public void AssertMatches(IndexDefinition actual, Table parent)
+        {
+            var expectedExpression = correctedExpression();
+            
+            
+            if (actual.Mask == expectedExpression)
+            {
+                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
+            }
+            
+            var expectedSql = CanonicizeDdl(this, parent);
+
+            var actualSql = CanonicizeDdl(actual, parent);
+
+            if (expectedSql != actualSql)
+            {
+                throw new Exception(
+                    $"Index did not match, expected{Environment.NewLine}{expectedSql}{Environment.NewLine}but got:{Environment.NewLine}{actualSql}");
+            }
+        }
+
+        public static string CanonicizeDdl(IndexDefinition index, Table parent)
+        {
+            return index.ToDDL(parent)
+                    .Replace("  ", " ")
+                    .Replace("(", "")
+                    .Replace(")", "")
+                    .Replace("INDEX CONCURRENTLY", "INDEX")
+                    .Replace("::text", "")
+                    .Replace(" ->> ", "->>")
+                    .Replace("->", "->").TrimEnd(new[] {';'})
+                ;
         }
     }
 }

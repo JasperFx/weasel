@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -32,7 +33,7 @@ namespace Weasel.Postgresql.Tables
         public IReadOnlyList<TableColumn> Columns => _columns;
 
         public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
-        public IList<IIndexDefinition> Indexes { get; } = new List<IIndexDefinition>();
+        public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
 
         public IReadOnlyList<string> PrimaryKeyColumns => _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
 
@@ -174,7 +175,7 @@ namespace Weasel.Postgresql.Tables
             return Columns.Any(x => x.Name == columnName);
         }
 
-        public IIndexDefinition IndexFor(string indexName)
+        public IndexDefinition IndexFor(string indexName)
         {
             return Indexes.FirstOrDefault(x => x.Name == indexName);
         }
@@ -349,7 +350,7 @@ namespace Weasel.Postgresql.Tables
             
             public ColumnExpression DefaultValue(double value)
             {
-                return DefaultValueByExpression(value.ToString());
+                return DefaultValueByExpression(value.ToString(CultureInfo.InvariantCulture));
             }
 
             public ColumnExpression DefaultValueFromSequence(Sequence sequence)

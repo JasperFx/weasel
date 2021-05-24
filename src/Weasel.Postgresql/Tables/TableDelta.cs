@@ -20,8 +20,8 @@ namespace Weasel.Postgresql.Tables
             }
             
             Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
-            Indexes = new ItemDelta<IIndexDefinition>(expected.Indexes, actual.Indexes,
-                (e, a) => ActualIndex.Matches(e, a, expected));
+            Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, actual.Indexes,
+                (e, a) => e.Matches(a, Expected));
 
             ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
             
@@ -266,7 +266,7 @@ namespace Weasel.Postgresql.Tables
         }
         
         internal ItemDelta<TableColumn> Columns { get; private set; }
-        internal ItemDelta<IIndexDefinition> Indexes { get; private set; }
+        internal ItemDelta<IndexDefinition> Indexes { get; private set; }
         
         internal ItemDelta<ForeignKey> ForeignKeys { get; private set; }
 

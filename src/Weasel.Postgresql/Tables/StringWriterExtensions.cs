@@ -27,7 +27,7 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        public static void WriteDropIndex(this TextWriter writer, Table table, IIndexDefinition index)
+        public static void WriteDropIndex(this TextWriter writer, Table table, IndexDefinition index)
         {
             writer.WriteLine($"drop index concurrently if exists {table.Identifier.Schema}.{index.Name};");
         }

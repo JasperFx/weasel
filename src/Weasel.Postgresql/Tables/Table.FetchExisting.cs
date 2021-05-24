@@ -219,9 +219,7 @@ order by column_index;
 
                 if ((Identifier.Schema == schemaName && Identifier.Name == tableName) || Identifier.QualifiedName == tableName)
                 {
-                    
-                    var index = new ActualIndex(Identifier, await reader.GetFieldValueAsync<string>(3),
-                        ddl);
+                    var index = IndexDefinition.Parse(ddl);
 
                     existing.Indexes.Add(index);
                 }

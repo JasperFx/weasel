@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Shouldly;
 using Weasel.Postgresql.Tables;
 using Xunit;
@@ -158,7 +159,30 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
 
+        public static IEnumerable<object[]> Indexes()
+        {
+            yield return new[]{new IndexDefinition("idx_1").AgainstColumns("name")};
+            yield return new[]{new IndexDefinition("idx_1").AgainstColumns("name", "age")};
+            yield return new[]{new IndexDefinition("idx_1")
+            {
+                IsUnique = true
+            }.AgainstColumns("name", "age")};
+            
+            yield return new[]{new IndexDefinition("idx_1"){SortOrder = SortOrder.Desc}.AgainstColumns("name")};
+        }
 
+        [Theory]
+        [MemberData(nameof(Indexes))]
+        public void IndexParsing(IndexDefinition expected)
+        {
+            var table = new Table("people");
+            var ddl = expected.ToDDL(table);
+
+            var actual = IndexDefinition.Parse(ddl);
+            
+            expected.AssertMatches(actual, table);
+
+        }
 
         
     }

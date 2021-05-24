@@ -7,10 +7,25 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Upgraded Baseline, slid back to netstandard2.0">
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/StringTokenizer.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/contentModel.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources/372ea8ee-de98-4e27-a1bd-68857f2bf27d.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources/372ea8ee-de98-4e27-a1bd-68857f2bf27d/storage_v2/_src_/database/marten_testing.0B_5vQ/schema/public.abK9xQ.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/modules.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IIndexDefinition.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,16 +44,10 @@
     </file-type-list>
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/377B61B6-13EA-444F-826F-377D9474FFCA/e4/640008f2/TestInvoker`1.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/2F0A6030-4031-403E-B852-856F9416C0D4/1a/5f22832d/GenericEnumerableExtensions.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/DD8CCA27-D744-4105-8957-73F671A06BEE/30/ShouldAssertException.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/2A925EDF-E558-4632-978E-98FD8509CDF4/09/7d021acc/CollectionAttribute.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/377B61B6-13EA-444F-826F-377D9474FFCA/85/8598b8be/TestInvoker`1.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/reading_existing_table_from_database.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/creating_tables_in_database.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/66a91dcc-dafb-400d-bd13-a158cc0d1f6d/console.sql" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/applying_table_patches.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableColumnTests.cs" />
@@ -60,7 +69,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SequenceTester.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableColumn.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/rolling_back_table_deltas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/ISchemaObject.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionDelta.cs" />
@@ -70,23 +78,27 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CascadeOption.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Canonicalization.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
       <option value="$PROJECT_DIR$/.github/workflows/publish_nuget.yml" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning_by_range.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IPartition.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/372ea8ee-de98-4e27-a1bd-68857f2bf27d/console.sql" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IIndexDefinition.cs" />
+      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/a920d4e1-95e4-4f30-8b6d-ca25da674100/console.sql" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/StringTokenizer.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -100,11 +112,15 @@
   </component>
   <component name="PropertiesComponent">
     <property name="DatabaseDriversLRU" value="postgresql" />
-    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.34971997" />
+    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.34975636" />
     <property name="DebuggerViewTab_PTCS_LastProportionKey" value="0.0" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="node.js.detected.package.eslint" value="true" />
+    <property name="node.js.detected.package.tslint" value="true" />
+    <property name="node.js.selected.package.eslint" value="(autodetect)" />
+    <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
     <property name="settings.editor.selected.configurable" value="reference.settings.ide.settings.notifications" />
@@ -138,6 +154,8 @@
       <workItem from="1620395571629" duration="6826000" />
       <workItem from="1620673128507" duration="2943000" />
       <workItem from="1620924634370" duration="313000" />
+      <workItem from="1621793160796" duration="12435000" />
+      <workItem from="1621859266313" duration="2444000" />
     </task>
     <task id="LOCAL-00012" summary="Single field primary key mechanics">
       <created>1618344994859</created>
@@ -575,13 +593,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs</url>
-          <line>279</line>
+          <line>301</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" initialLine="264" containingFunctionPresentation="method 'detect_all_new_foreign_key'">
             <startOffsets>
-              <option value="9582" />
+              <option value="10577" />
             </startOffsets>
             <endOffsets>
-              <option value="9631" />
+              <option value="10626" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="8" />
@@ -639,30 +657,30 @@
           <option name="timeStamp" value="17" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs</url>
-          <line>212</line>
-          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" initialLine="204" containingFunctionPresentation="method 'matching_index_ddl'">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs</url>
+          <line>180</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" initialLine="180" containingFunctionPresentation="method 'IndexParsing'">
             <startOffsets>
-              <option value="6721" />
+              <option value="5444" />
             </startOffsets>
             <endOffsets>
-              <option value="6761" />
+              <option value="5484" />
             </endOffsets>
           </properties>
-          <option name="timeStamp" value="19" />
+          <option name="timeStamp" value="32" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs</url>
-          <line>16</line>
-          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" initialLine="16" containingFunctionPresentation="method 'compare'">
+          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs</url>
+          <line>226</line>
+          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" initialLine="226" containingFunctionPresentation="method 'Parse'">
             <startOffsets>
-              <option value="377" />
+              <option value="6596" />
             </startOffsets>
             <endOffsets>
-              <option value="396" />
+              <option value="6654" />
             </endOffsets>
           </properties>
-          <option name="timeStamp" value="20" />
+          <option name="timeStamp" value="37" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

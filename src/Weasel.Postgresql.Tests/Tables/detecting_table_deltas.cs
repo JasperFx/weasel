@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
+using Castle.Components.DictionaryAdapter;
 using Shouldly;
 using Weasel.Postgresql.Tables;
 using Xunit;
@@ -204,9 +205,11 @@ namespace Weasel.Postgresql.Tests.Tables
             
             // The index DDL should match what the database thinks it is in order to match
 
-            var actualSql = ActualIndex.CanonicizeDdl(existing.Indexes.Single(), theTable);
-            var expectedSql = ActualIndex.CanonicizeDdl(theTable.Indexes.Single(), theTable);
-            actualSql.ShouldBe(expectedSql);
+
+            var expected = existing.Indexes.Single();
+            var actual = theTable.Indexes.Single();
+            
+            expected.AssertMatches(actual, theTable);
 
             // And no deltas
             var delta = await theTable.FindDelta(theConnection);
@@ -226,10 +229,10 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             yield return ("Simple btree", t => t.ModifyColumn("user_name").AddIndex());
             yield return ("Simple btree with non-zero fill factor", t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
-            yield return ("Simple btree with expression", t => t.ModifyColumn("user_name").AddIndex(i => i.Expression = "(lower(?))"));
+            yield return ("Simple btree with expression", t => t.ModifyColumn("user_name").AddIndex(i => i.Mask = "(lower(?))"));
             yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
-                i.Expression = "(lower(?))";
+                i.Mask = "(lower(?))";
                 i.Columns = new[] {"user_name"};
                 i.Predicate = "id > 5";
             }));
@@ -256,6 +259,25 @@ namespace Weasel.Postgresql.Tests.Tables
             yield return ("Simple hash", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.hash));
             
             
+            yield return ("Simple jsonb property", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"(data ->> 'Name')"}));
+            yield return ("Simple jsonb property + unique", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Columns = new[] {"(data ->> 'Name')"};
+                i.IsUnique = true;
+            }));
+
+            yield return ("Jsonb property with function", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"lower(data ->> 'Name')"}));
+            yield return ("Jsonb property with function + unique", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Columns = new[] {"lower(data ->> 'Name')"};
+                i.IsUnique = true;
+            }));
+            yield return ("Jsonb property with function as expression", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Mask = "lower(?)";
+                i.Columns = new[] {"(data ->> 'Name')"};
+                i.IsUnique = true;
+            }));
         }
 
 
@@ -355,7 +377,38 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching(table);
         }
         
-                
+
+        [Fact]
+        public async Task match_foreign_key_with_inherited_foreign_key_class()
+        {
+            var table = new Table("deltas.foreign_key_test");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("name");
+            table.AddColumn<int?>("parent_id");
+
+            // Marten uses custom class for foreign keys which is inherited from ForeignKey
+            table.ForeignKeys.Add(new ForeignKeyTest("foreign_key_test_parent_id_fkey")
+            {
+                LinkedTable = table.Identifier,
+                ColumnNames = new[] {"parent_id"},
+                LinkedNames = new[] {"id"}
+            });
+
+            await CreateSchemaObjectInDatabase(table);
+
+            var delta = await table.FindDelta(theConnection);
+            delta.HasChanges().ShouldBeFalse();
+            delta.ForeignKeys.Matched.Single().Name.ShouldBe("foreign_key_test_parent_id_fkey");
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
+            await AssertNoDeltasAfterPatching(table);
+        }
+
+        private class ForeignKeyTest : ForeignKey
+        {
+            public ForeignKeyTest(string name) : base(name)
+            {
+            }
+        } 
                 
         [Fact]
         public async Task different_foreign_key()
@@ -455,6 +508,26 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = await table2.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
+        }
+
+        [Fact]
+        public async Task patching_and_detecting_deltas_with_computed_indexes()
+        {
+            // CREATE INDEX idx_blobs_data ON deltas.blobs USING btree (data ->> 'Name');
+            // CREATE INDEX mt_doc_testdocument_idx_name ON bugs.mt_doc_testdocument USING btree ( (data ->> 'Name'));
+
+            var table = new Table("deltas.blobs");
+            table.AddColumn<string>("key").AsPrimaryKey();
+            table.AddColumn("data", "jsonb");
+
+            await CreateSchemaObjectInDatabase(table);
+
+            table.Indexes.Add(new IndexDefinition("idx_blobs_data_name")
+            {
+                Columns = new []{"(data ->> 'Name')"}
+            });
+
+            await AssertNoDeltasAfterPatching(table);
         }
         
 
