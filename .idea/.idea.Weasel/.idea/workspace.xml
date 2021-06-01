@@ -7,15 +7,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
-    </list>
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -143,14 +135,7 @@
       <workItem from="1621793160796" duration="12435000" />
       <workItem from="1621859266313" duration="3647000" />
       <workItem from="1621868715501" duration="934000" />
-      <workItem from="1622557824620" duration="831000" />
-    </task>
-    <task id="LOCAL-00012" summary="Single field primary key mechanics">
-      <created>1618344994859</created>
-      <option name="number" value="00012" />
-      <option name="presentableId" value="LOCAL-00012" />
-      <option name="project" value="LOCAL" />
-      <updated>1618344994859</updated>
+      <workItem from="1622557824620" duration="1439000" />
     </task>
     <task id="LOCAL-00013" summary="Very basic table mechanics to write out DDL">
       <created>1618346045941</created>
@@ -488,7 +473,14 @@
       <option name="project" value="LOCAL" />
       <updated>1620335595626</updated>
     </task>
-    <option name="localTasksCounter" value="61" />
+    <task id="LOCAL-00061" summary="Using the old flavor of SchemaGenerator to get around concurrency issues">
+      <created>1622558857734</created>
+      <option name="number" value="00061" />
+      <option name="presentableId" value="LOCAL-00061" />
+      <option name="project" value="LOCAL" />
+      <updated>1622558857735</updated>
+    </task>
+    <option name="localTasksCounter" value="62" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -510,7 +502,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Failing tests for TableDelta application, TableColumn.CanAdd()" />
     <MESSAGE value="TableColumn.AddColumnSql() method" />
     <MESSAGE value="TableDelta can calculate its difference level" />
     <MESSAGE value="Updates to .gitignore" />
@@ -535,7 +526,8 @@
     <MESSAGE value="Added support for FillFactor on index definition" />
     <MESSAGE value="Getting ready for publishing to Nuget" />
     <MESSAGE value="Upgraded Baseline, slid back to netstandard2.0" />
-    <option name="LAST_COMMIT_MESSAGE" value="Upgraded Baseline, slid back to netstandard2.0" />
+    <MESSAGE value="Using the old flavor of SchemaGenerator to get around concurrency issues" />
+    <option name="LAST_COMMIT_MESSAGE" value="Using the old flavor of SchemaGenerator to get around concurrency issues" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

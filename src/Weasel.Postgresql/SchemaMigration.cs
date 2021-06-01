@@ -103,8 +103,11 @@ namespace Weasel.Postgresql
             if (!_deltas.Any()) return;
 
             var writer = new StringWriter();
-            
-            SchemaGenerator.WriteSql(_schemas, writer);
+
+            if (_schemas.Any())
+            {
+                SchemaGenerator.WriteSql(_schemas, writer);
+            }
             
             
             WriteAllUpdates(writer, rules, autoCreate);
