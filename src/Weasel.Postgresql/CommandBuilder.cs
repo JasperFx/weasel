@@ -170,7 +170,7 @@ namespace Weasel.Postgresql
             return parameters;
         }
 
-        public Task<NpgsqlDataReader> ExecuteReaderAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction tx = null)
+        public Task<NpgsqlDataReader> ExecuteReaderAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
         {
             var cmd = Compile();
             cmd.Connection = conn;
@@ -179,7 +179,7 @@ namespace Weasel.Postgresql
             return cmd.ExecuteReaderAsync(cancellation);
         }
 
-        public Task<IReadOnlyList<T>> FetchList<T>(NpgsqlConnection conn, Func<DbDataReader, Task<T>> transform, CancellationToken cancellation = default, NpgsqlTransaction tx = null)
+        public Task<IReadOnlyList<T>> FetchList<T>(NpgsqlConnection conn, Func<DbDataReader, Task<T>> transform, CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
         {
             var cmd = Compile();
             cmd.Connection = conn;
@@ -188,7 +188,7 @@ namespace Weasel.Postgresql
             return cmd.FetchList(transform, cancellation: cancellation);
         }
 
-        public Task<int> ExecuteNonQueryAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction tx = null)
+        public Task<int> ExecuteNonQueryAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
         {
             var cmd = Compile();
             cmd.Connection = conn;

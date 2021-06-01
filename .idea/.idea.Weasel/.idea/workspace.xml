@@ -8,9 +8,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -29,19 +32,14 @@
       <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
     </file-type-list>
   </component>
-  <component name="HighlightingSettingsPerFile">
-    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/377B61B6-13EA-444F-826F-377D9474FFCA/85/8598b8be/TestInvoker`1.cs" root0="SKIP_HIGHLIGHTING" />
-  </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/66a91dcc-dafb-400d-bd13-a158cc0d1f6d/console.sql" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/applying_table_patches.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableColumnTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaPatchDifference.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableDeltaTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/IDDLRunner.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaPatch.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionBody.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionBodyTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
@@ -61,7 +59,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaMigrationTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/create_and_teardown_schemas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CascadeOption.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Canonicalization.cs" />
@@ -69,7 +66,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning_by_range.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IPartition.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/372ea8ee-de98-4e27-a1bd-68857f2bf27d/console.sql" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IIndexDefinition.cs" />
@@ -81,10 +77,14 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/StringTokenizer.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -143,6 +143,7 @@
       <workItem from="1621793160796" duration="12435000" />
       <workItem from="1621859266313" duration="3647000" />
       <workItem from="1621868715501" duration="934000" />
+      <workItem from="1622557824620" duration="831000" />
     </task>
     <task id="LOCAL-00012" summary="Single field primary key mechanics">
       <created>1618344994859</created>
@@ -606,13 +607,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs</url>
-          <line>188</line>
+          <line>185</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" initialLine="170" containingFunctionPresentation="method 'RollbackAll'">
             <startOffsets>
-              <option value="6483" />
+              <option value="6407" />
             </startOffsets>
             <endOffsets>
-              <option value="6585" />
+              <option value="6509" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="13" />

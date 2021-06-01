@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Baseline;
+#nullable enable
 
 namespace Weasel.Postgresql.Tables
 {
