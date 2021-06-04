@@ -19,6 +19,7 @@ namespace Weasel.Postgresql
             return function.FetchExisting(conn);
         } 
         
+
         internal static string ToIndexName(this DbObjectName name, string prefix, params string[] columnNames)
         {
             return $"{prefix}_{name.Name}_{columnNames.Join("_")}";

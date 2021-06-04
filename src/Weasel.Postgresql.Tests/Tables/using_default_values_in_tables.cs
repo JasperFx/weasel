@@ -61,7 +61,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var states = new Table("defaults.states");
             states.AddColumn<int>("id").AsPrimaryKey().Serial();
             states.AddColumn<string>("name").NotNull();
-            states.AddColumn<long>("number").NotNull().DefaultValue(5);
+            states.AddColumn<long>("number").NotNull().DefaultValue(5L);
 
             await CreateSchemaObjectInDatabase(states);
 
@@ -93,6 +93,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             abbr.ShouldBe(5.5);
         }
+        
 
         [Fact]
         public async Task default_sequence_value()

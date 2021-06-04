@@ -40,6 +40,16 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
+        public void has_column()
+        {
+            var table = new Table("mytable");
+            table.AddColumn("col1", "varchar");
+            
+            table.HasColumn("col1").ShouldBeTrue();
+            table.HasColumn("doesnotexist").ShouldBeFalse();
+        }
+
+        [Fact]
         public void add_column_directly_sets_the_parent()
         {
             var table = new Table("mytable");
@@ -146,6 +156,24 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<string>("first_name");
             table.AddColumn<string>("last_name");
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+            var fk = table.ForeignKeys.Single();
+            
+            fk.Name.ShouldBe("fkey_people_state_id");
+        }
+        
+        
+        [Fact]
+        public void add_foreign_key_to__external_table_by_name_with_fluent_interface()
+        {
+            var states = new Table("states");
+            states.AddColumn<int>("id").AsPrimaryKey();
+
+            var table = new Table("people");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("first_name");
+            table.AddColumn<string>("last_name");
+            table.AddColumn<int>("state_id").ForeignKeyTo("states", "id");
 
             var fk = table.ForeignKeys.Single();
             

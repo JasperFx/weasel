@@ -265,7 +265,7 @@ namespace Weasel.Postgresql.Tables
 
             public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName, string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
-                return ForeignKeyTo(new DbObjectName(referencedTableName), referencedColumnName, fkName, onDelete, onUpdate);
+                return ForeignKeyTo(DbObjectName.Parse(referencedTableName), referencedColumnName, fkName, onDelete, onUpdate);
             }
             
             public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName, string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)

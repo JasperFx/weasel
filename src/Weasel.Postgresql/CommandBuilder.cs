@@ -108,11 +108,6 @@ namespace Weasel.Postgresql
             AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
         }
 
-        public void Append(object o)
-        {
-            _sql.Append(o);
-        }
-
         public override string ToString()
         {
             return _sql.ToString();

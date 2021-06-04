@@ -17,7 +17,7 @@ namespace Weasel.Postgresql
         private Lazy<string> _updates;
         private Lazy<string> _rollbacks;
 
-        public static async Task<SchemaMigration> Determine(NpgsqlConnection conn, ISchemaObject[] schemaObjects)
+        public static async Task<SchemaMigration> Determine(NpgsqlConnection conn, params ISchemaObject[] schemaObjects)
         {
             var deltas = new List<ISchemaObjectDelta>();
             

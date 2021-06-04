@@ -169,23 +169,31 @@ order by column_index;
         {
             while (await reader.ReadAsync())
             {
-                var column = new TableColumn(await reader.GetFieldValueAsync<string>(0), await reader.GetFieldValueAsync<string>(1));
-
-                if (column.Type.Equals("user-defined"))
-                {
-                    column.Type = await reader.GetFieldValueAsync<string>(3);
-                }
-
-                if (!await reader.IsDBNullAsync(2))
-                {
-                    var length = await reader.GetFieldValueAsync<int>(2);
-                    column.Type = $"{column.Type}({length})";
-                }
+                var column = await readColumn(reader);
 
                 existing._columns.Add(column);
             }
         }
-        
+
+        private static async Task<TableColumn> readColumn(DbDataReader reader)
+        {
+            var column = new TableColumn(await reader.GetFieldValueAsync<string>(0),
+                await reader.GetFieldValueAsync<string>(1));
+
+            if (column.Type.Equals("user-defined"))
+            {
+                column.Type = await reader.GetFieldValueAsync<string>(3);
+            }
+
+            if (!await reader.IsDBNullAsync(2))
+            {
+                var length = await reader.GetFieldValueAsync<int>(2);
+                column.Type = $"{column.Type}({length})";
+            }
+
+            return column;
+        }
+
         private async Task readConstraints(DbDataReader reader, Table existing)
         {
             await reader.NextResultAsync();
