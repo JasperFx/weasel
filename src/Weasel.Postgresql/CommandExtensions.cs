@@ -86,26 +86,16 @@ namespace Weasel.Postgresql
             return parameter;
         }
 
-        public static void AddParameters(this NpgsqlCommand command, object parameters)
-        {
-            if (parameters == null)
-                return;
 
-            var parameterDictionary = parameters.GetType().GetProperties().ToDictionary(x => x.Name, x => x.GetValue(parameters, null));
-
-            foreach (var item in parameterDictionary)
-            {
-                var parameter = command.CreateParameter();
-                parameter.ParameterName = item.Key;
-                parameter.Value = item.Value ?? DBNull.Value;
-
-                command.Parameters.Add(parameter);
-            }
-        }
-
-
-             // TODO -- add strong typed overloads?
-        public static NpgsqlParameter AddNamedParameter(this NpgsqlCommand command, string name, object value)
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public static NpgsqlParameter AddNamedParameter(this NpgsqlCommand command, string name, object value, NpgsqlDbType? dbType = null)
         {
             var existing = command.Parameters.FirstOrDefault(x => x.ParameterName == name);
             if (existing != null) return existing;
@@ -113,10 +103,25 @@ namespace Weasel.Postgresql
             var parameter = command.CreateParameter();
             parameter.ParameterName = name;
             parameter.Value = value ?? DBNull.Value;
+
+
+            if (dbType.HasValue)
+            {
+                parameter.NpgsqlDbType = dbType.Value;
+            }
+            else if (value != null)
+            {
+                dbType = TypeMappings.TryGetDbType(value.GetType());
+                parameter.NpgsqlDbType = dbType.Value;
+            }
+            
+            parameter.Value = value ?? DBNull.Value;
             command.Parameters.Add(parameter);
 
             return parameter;
         }
+        
+
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, Guid value)
         {

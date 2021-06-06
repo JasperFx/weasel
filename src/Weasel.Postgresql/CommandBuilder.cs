@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -115,7 +116,15 @@ namespace Weasel.Postgresql
 
         public void AddParameters(object parameters)
         {
-            _command.AddParameters(parameters);
+            if (parameters == null)
+                return;
+
+            var properties = parameters.GetType().GetProperties();
+            foreach (var property in properties)
+            {
+                var value = property.GetValue(parameters);
+                _command.AddNamedParameter(property.Name, value);
+            }
         }
 
         /// <summary>
@@ -135,9 +144,82 @@ namespace Weasel.Postgresql
             return _command.AddParameter(json, NpgsqlDbType.Jsonb);
         }
 
-        public NpgsqlParameter AddNamedParameter(string name, object value)
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public NpgsqlParameter AddNamedParameter(string name, object value, NpgsqlDbType? dbType = null)
         {
-            return _command.AddNamedParameter(name, value);
+            return _command.AddNamedParameter(name, value, dbType);
+        }
+        
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public NpgsqlParameter AddNamedParameter(string name, string value)
+        {
+            return AddNamedParameter(name, value, NpgsqlDbType.Varchar);
+        }
+        
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public NpgsqlParameter AddNamedParameter(string name, bool value)
+        {
+            return AddNamedParameter(name, value, NpgsqlDbType.Boolean);
+        }
+        
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public NpgsqlParameter AddNamedParameter(string name, int value)
+        {
+            return AddNamedParameter(name, value, NpgsqlDbType.Integer);
+        }
+        
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public NpgsqlParameter AddNamedParameter(string name, double value)
+        {
+            return AddNamedParameter(name, value, NpgsqlDbType.Double);
+        }
+        
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public NpgsqlParameter AddNamedParameter(string name, long value)
+        {
+            return AddNamedParameter(name, value, NpgsqlDbType.Bigint);
         }
 
         public void UseParameter(NpgsqlParameter parameter)
