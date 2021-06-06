@@ -24,7 +24,7 @@ namespace Weasel.Postgresql
 
         public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
-            writer.WriteLine($"DROP EXTENSION IF EXISTS {ExtensionName};");
+            writer.WriteLine($"DROP EXTENSION IF EXISTS {ExtensionName} CASCADE;");
         }
 
         public DbObjectName Identifier => new DbObjectName("public", ExtensionName);

@@ -8,17 +8,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ExtensionTests.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/using_default_values_in_tables.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/using_default_values_in_tables.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/PrimaryKey.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -37,6 +30,7 @@
     </file-type-list>
   </component>
   <component name="HighlightingSettingsPerFile">
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/8981B85E-11AF-4759-AFEE-278036F5AF10/46/6077e03b/StringExtensions.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" root0="FORCE_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
@@ -46,7 +40,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaPatch.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionBody.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionBodyTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaManager.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/DdlRules.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/OldFunction.cs" />
@@ -69,7 +62,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning_by_range.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IPartition.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/372ea8ee-de98-4e27-a1bd-68857f2bf27d/console.sql" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IIndexDefinition.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/a920d4e1-95e4-4f30-8b6d-ca25da674100/console.sql" />
@@ -91,6 +83,8 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ExtensionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
     </changedPaths>
   </component>
@@ -151,6 +145,7 @@
       <workItem from="1621859266313" duration="3647000" />
       <workItem from="1621868715501" duration="934000" />
       <workItem from="1622557824620" duration="1439000" />
+      <workItem from="1623002317325" duration="1868000" />
     </task>
     <task id="LOCAL-00013" summary="Very basic table mechanics to write out DDL">
       <created>1618346045941</created>
@@ -733,10 +728,10 @@
           <line>18</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" initialLine="26" containingFunctionPresentation="method 'ApplyChanges'">
             <startOffsets>
-              <option value="591" />
+              <option value="592" />
             </startOffsets>
             <endOffsets>
-              <option value="606" />
+              <option value="607" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="7" />
@@ -772,10 +767,10 @@
           <line>185</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" initialLine="170" containingFunctionPresentation="method 'RollbackAll'">
             <startOffsets>
-              <option value="6414" />
+              <option value="6397" />
             </startOffsets>
             <endOffsets>
-              <option value="6516" />
+              <option value="6499" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="13" />
