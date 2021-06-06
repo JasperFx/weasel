@@ -1,24 +1,22 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Npgsql;
 using NpgsqlTypes;
-using Weasel.Postgresql.SqlGeneration;
 
 #nullable enable
 
 namespace Weasel.Postgresql
 {
-    public class CommandBuilder: IDisposable
+    public class CommandBuilder
     {
         private readonly NpgsqlCommand _command;
 
         // TEMP -- will shift this to being pooled later
-        private readonly StringBuilder _sql = new StringBuilder();
+        private readonly StringBuilder _sql = new();
 
         public CommandBuilder() : this(new NpgsqlCommand())
         {
@@ -35,17 +33,13 @@ namespace Weasel.Postgresql
             return _command;
         }
 
-        public void Dispose()
-        {
-        }
-
         public void Append(string text)
         {
             _sql.Append(text);
         }
-        
+
         /// <summary>
-        /// Append a parameter with the supplied value to the underlying command
+        ///     Append a parameter with the supplied value to the underlying command
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -54,9 +48,9 @@ namespace Weasel.Postgresql
             var dbType = TypeMappings.ToDbType(value.GetType());
             AppendParameter(value, dbType);
         }
-        
+
         /// <summary>
-        /// Append a parameter with the supplied value to the underlying command
+        ///     Append a parameter with the supplied value to the underlying command
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -64,9 +58,9 @@ namespace Weasel.Postgresql
         {
             AppendParameter(value, NpgsqlDbType.Integer);
         }
-        
+
         /// <summary>
-        /// Append a parameter with the supplied value to the underlying command
+        ///     Append a parameter with the supplied value to the underlying command
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -76,7 +70,7 @@ namespace Weasel.Postgresql
         }
 
         /// <summary>
-        /// Append a parameter with the supplied value to the underlying command
+        ///     Append a parameter with the supplied value to the underlying command
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -86,10 +80,10 @@ namespace Weasel.Postgresql
             Append(":");
             Append(parameter.ParameterName);
         }
-        
+
         /// <summary>
-        /// Append a parameter with the supplied value to the underlying command parameter
-        /// collection and adds the parameter usage to the SQL
+        ///     Append a parameter with the supplied value to the underlying command parameter
+        ///     collection and adds the parameter usage to the SQL
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -97,10 +91,10 @@ namespace Weasel.Postgresql
         {
             AppendParameter(value, NpgsqlDbType.Varchar);
         }
-        
+
         /// <summary>
-        /// Append a parameter with the supplied value to the underlying command parameter
-        /// collection and adds the parameter usage to the SQL
+        ///     Append a parameter with the supplied value to the underlying command parameter
+        ///     collection and adds the parameter usage to the SQL
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -117,7 +111,9 @@ namespace Weasel.Postgresql
         public void AddParameters(object parameters)
         {
             if (parameters == null)
+            {
                 return;
+            }
 
             var properties = parameters.GetType().GetProperties();
             foreach (var property in properties)
@@ -128,8 +124,8 @@ namespace Weasel.Postgresql
         }
 
         /// <summary>
-        /// Adds a parameter to the underlying command, but does NOT add the
-        /// parameter usage to the command text
+        ///     Adds a parameter to the underlying command, but does NOT add the
+        ///     parameter usage to the command text
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -145,7 +141,7 @@ namespace Weasel.Postgresql
         }
 
         /// <summary>
-        /// Finds or adds a new parameter with the specified name and returns the parameter
+        ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
         /// <param name="command"></param>
         /// <param name="name"></param>
@@ -156,9 +152,9 @@ namespace Weasel.Postgresql
         {
             return _command.AddNamedParameter(name, value, dbType);
         }
-        
+
         /// <summary>
-        /// Finds or adds a new parameter with the specified name and returns the parameter
+        ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
         /// <param name="command"></param>
         /// <param name="name"></param>
@@ -169,9 +165,9 @@ namespace Weasel.Postgresql
         {
             return AddNamedParameter(name, value, NpgsqlDbType.Varchar);
         }
-        
+
         /// <summary>
-        /// Finds or adds a new parameter with the specified name and returns the parameter
+        ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
         /// <param name="command"></param>
         /// <param name="name"></param>
@@ -182,9 +178,9 @@ namespace Weasel.Postgresql
         {
             return AddNamedParameter(name, value, NpgsqlDbType.Boolean);
         }
-        
+
         /// <summary>
-        /// Finds or adds a new parameter with the specified name and returns the parameter
+        ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
         /// <param name="command"></param>
         /// <param name="name"></param>
@@ -195,9 +191,9 @@ namespace Weasel.Postgresql
         {
             return AddNamedParameter(name, value, NpgsqlDbType.Integer);
         }
-        
+
         /// <summary>
-        /// Finds or adds a new parameter with the specified name and returns the parameter
+        ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
         /// <param name="command"></param>
         /// <param name="name"></param>
@@ -208,9 +204,9 @@ namespace Weasel.Postgresql
         {
             return AddNamedParameter(name, value, NpgsqlDbType.Double);
         }
-        
+
         /// <summary>
-        /// Finds or adds a new parameter with the specified name and returns the parameter
+        ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
         /// <param name="command"></param>
         /// <param name="name"></param>
@@ -247,7 +243,8 @@ namespace Weasel.Postgresql
             return parameters;
         }
 
-        public Task<NpgsqlDataReader> ExecuteReaderAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
+        public Task<NpgsqlDataReader> ExecuteReaderAsync(NpgsqlConnection conn,
+            CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
         {
             var cmd = Compile();
             cmd.Connection = conn;
@@ -256,16 +253,18 @@ namespace Weasel.Postgresql
             return cmd.ExecuteReaderAsync(cancellation);
         }
 
-        public Task<IReadOnlyList<T>> FetchList<T>(NpgsqlConnection conn, Func<DbDataReader, Task<T>> transform, CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
+        public Task<IReadOnlyList<T>> FetchList<T>(NpgsqlConnection conn, Func<DbDataReader, Task<T>> transform,
+            CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
         {
             var cmd = Compile();
             cmd.Connection = conn;
             cmd.Transaction = tx;
 
-            return cmd.FetchList(transform, cancellation: cancellation);
+            return cmd.FetchList(transform, cancellation);
         }
 
-        public Task<int> ExecuteNonQueryAsync(NpgsqlConnection conn, CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
+        public Task<int> ExecuteNonQueryAsync(NpgsqlConnection conn, CancellationToken cancellation = default,
+            NpgsqlTransaction? tx = null)
         {
             var cmd = Compile();
             cmd.Connection = conn;
