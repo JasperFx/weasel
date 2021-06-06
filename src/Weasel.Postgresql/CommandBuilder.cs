@@ -37,20 +37,10 @@ namespace Weasel.Postgresql
         {
             _sql.Append(text);
         }
-
+        
         /// <summary>
-        ///     Append a parameter with the supplied value to the underlying command
-        /// </summary>
-        /// <param name="value"></param>
-        /// <param name="dbType"></param>
-        public void AppendParameter(object value)
-        {
-            var dbType = TypeMappings.ToDbType(value.GetType());
-            AppendParameter(value, dbType);
-        }
-
-        /// <summary>
-        ///     Append a parameter with the supplied value to the underlying command
+        ///  Append a parameter with the supplied value to the underlying command
+        /// parameter collection *and* the command text
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -60,7 +50,8 @@ namespace Weasel.Postgresql
         }
 
         /// <summary>
-        ///     Append a parameter with the supplied value to the underlying command
+        /// Append a parameter with the supplied value to the underlying command
+        /// parameter collection *and* the command text
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
@@ -71,10 +62,11 @@ namespace Weasel.Postgresql
 
         /// <summary>
         ///     Append a parameter with the supplied value to the underlying command
+        /// parameter collection *and* the command text
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
-        public void AppendParameter(object value, NpgsqlDbType dbType)
+        public void AppendParameter(object value, NpgsqlDbType? dbType = null)
         {
             var parameter = AddParameter(value, dbType);
             Append(":");
@@ -108,6 +100,12 @@ namespace Weasel.Postgresql
             return _sql.ToString();
         }
 
+        /// <summary>
+        /// For each public property of the parameters object, adds a new parameter
+        /// to the command with the name of the property and the current value of the property
+        /// on the parameters object. Does *not* affect the command text
+        /// </summary>
+        /// <param name="parameters"></param>
         public void AddParameters(object parameters)
         {
             if (parameters == null)
@@ -133,11 +131,6 @@ namespace Weasel.Postgresql
         public NpgsqlParameter AddParameter(object value, NpgsqlDbType? dbType = null)
         {
             return _command.AddParameter(value, dbType);
-        }
-
-        public NpgsqlParameter AddJsonParameter(string json)
-        {
-            return _command.AddParameter(json, NpgsqlDbType.Jsonb);
         }
 
         /// <summary>
@@ -218,13 +211,6 @@ namespace Weasel.Postgresql
             return AddNamedParameter(name, value, NpgsqlDbType.Bigint);
         }
 
-        public void UseParameter(NpgsqlParameter parameter)
-        {
-            var sql = _sql.ToString();
-            _sql.Clear();
-            _sql.Append(sql.UseParameter(parameter));
-        }
-
         public NpgsqlParameter[] AppendWithParameters(string text)
         {
             var split = text.Split('?');
@@ -273,9 +259,5 @@ namespace Weasel.Postgresql
             return cmd.ExecuteNonQueryAsync(cancellation);
         }
 
-        public void AppendJsonBParameter(string json)
-        {
-            AppendParameter(json, NpgsqlDbType.Jsonb);
-        }
     }
 }

@@ -143,19 +143,6 @@ namespace Weasel.Postgresql
             return type;
         }
 
-        public static bool CanAutoConvertType(string fromType, string toType)
-        {
-            toType = toType.ToLower();
-
-            return fromType.ToLower() switch
-            {
-                "int" => new[] {"bigint"}.Contains(toType),
-                "int[]" => new[] {"bigint[]"}.Contains(toType),
-                _ => false
-            };
-        }
-
-
 
         /// <summary>
         /// Some portion of implementation adapted from Npgsql GlobalTypeMapper.ToNpgsqlDbType(Type type)

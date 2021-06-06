@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Shouldly;
 using Weasel.Postgresql.Tables;
@@ -43,6 +44,61 @@ namespace Weasel.Postgresql.Tests
             (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
             (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
             (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
+        }
+        
+        [Fact]
+        public async Task fetch_list()
+        {
+            var table = new Table("integration.thing");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("tag");
+
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(table);
+
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
+                .With("id", 1)
+                .With("tag", "one")
+                .ExecuteNonQueryAsync();
+            
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
+                .With("id", 2)
+                .With("tag", "two")
+                .ExecuteNonQueryAsync();
+            
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
+                .With("id", 3)
+                .With("tag", "three")
+                .ExecuteNonQueryAsync();
+                
+
+            var builder = new CommandBuilder();
+            builder.Append("select id, tag from integration.thing order by id");
+
+            var things = await builder.FetchList(theConnection, async r =>
+            {
+                var thing = new Thing
+                {
+                    id = await r.GetFieldValueAsync<int>(0), 
+                    tag = await r.GetFieldValueAsync<string>(1)
+                };
+
+                return thing;
+
+            });
+
+            things.ElementAt(0).tag.ShouldBe("one");
+            things.ElementAt(0).id.ShouldBe(1);
+            things.ElementAt(1).tag.ShouldBe("two");
+            things.ElementAt(2).tag.ShouldBe("three");
+            things.Count.ShouldBe(3);
+        }
+
+        public class Thing
+        {
+            public int id { get; set; }
+            public string tag { get; set; }
         }
         
         [Fact]

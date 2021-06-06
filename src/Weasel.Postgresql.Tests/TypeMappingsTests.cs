@@ -97,5 +97,26 @@ namespace Weasel.Postgresql.Tests
             var textarrayAsArray = new TableColumn("comments", "text[]");
             charactervaryingAsArray.ShouldBe(new TableColumn("comments", "array"));
         }
+
+        [Theory]
+        [InlineData("character varying", "varchar")]
+        [InlineData("varchar", "varchar")]
+        [InlineData("boolean", "boolean")]
+        [InlineData("bool", "boolean")]
+        [InlineData("integer", "int")]
+        [InlineData("serial", "int")]
+        [InlineData("integer[]", "int[]")]
+        [InlineData("decimal", "decimal")]
+        [InlineData("numeric", "decimal")]
+        [InlineData("timestamp without time zone", "timestamp")]
+        [InlineData("timestamp with time zone", "timestamptz")]
+        [InlineData("array", "array")]
+        [InlineData("character varying[]", "array")]
+        [InlineData("varchar[]", "array")]
+        [InlineData("text[]", "array")]
+        public void convert_synonyms(string type, string synonym)
+        {
+            TypeMappings.ConvertSynonyms(type).ShouldBe(synonym);
+        }
     }
 }
