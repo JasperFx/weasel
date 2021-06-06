@@ -95,7 +95,7 @@ namespace Weasel.Postgresql
 
         public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
         {
-            throw new NotImplementedException();
+            throw new NotSupportedException();
         }
     }
     

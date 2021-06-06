@@ -62,12 +62,6 @@ namespace Weasel.Postgresql
             }, cancellation);
         }
 
-        public static string UseParameter(this string text, NpgsqlParameter parameter)
-        {
-            return text.ReplaceFirst("?", ":" + parameter.ParameterName);
-        }
-
-
         public static NpgsqlParameter AddParameter(this NpgsqlCommand command, object value, NpgsqlDbType? dbType = null)
         {
             var name = "p" + command.Parameters.Count;
@@ -196,13 +190,6 @@ namespace Weasel.Postgresql
             return command;
         }
 
-        public static NpgsqlCommand WithJsonParameter(this NpgsqlCommand command, string name, string json)
-        {
-            command.Parameters.Add(name, NpgsqlDbType.Jsonb).Value = json;
-
-            return command;
-        }
-
         public static NpgsqlCommand Sql(this NpgsqlCommand cmd, string sql)
         {
             cmd.CommandText = sql;
@@ -213,14 +200,9 @@ namespace Weasel.Postgresql
         public static NpgsqlCommand Returns(this NpgsqlCommand command, string name, NpgsqlDbType type)
         {
             var parameter = command.AddParameter(name);
+            parameter.ParameterName = name;
             parameter.NpgsqlDbType = type;
             parameter.Direction = ParameterDirection.ReturnValue;
-            return command;
-        }
-
-        public static NpgsqlCommand WithText(this NpgsqlCommand command, string sql)
-        {
-            command.CommandText = sql;
             return command;
         }
 
@@ -248,5 +230,12 @@ namespace Weasel.Postgresql
         }
 
 
+        public static NpgsqlCommand CallsSproc(this NpgsqlCommand cmd, string functionName)
+        {
+            cmd.CommandText = functionName;
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            return cmd;
+        }
     }
 }
