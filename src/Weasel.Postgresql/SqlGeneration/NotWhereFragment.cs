@@ -15,7 +15,7 @@ namespace Weasel.Postgresql.SqlGeneration
         {
             builder.Append("NOT(");
             Inner.Apply(builder);
-            builder.Append(")");
+            builder.Append(')');
         }
 
         public bool Contains(string sqlText)

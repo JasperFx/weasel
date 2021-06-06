@@ -37,6 +37,11 @@ namespace Weasel.Postgresql
         {
             _sql.Append(text);
         }
+
+        public void Append(char character)
+        {
+            _sql.Append(character);
+        }
         
         /// <summary>
         ///  Append a parameter with the supplied value to the underlying command

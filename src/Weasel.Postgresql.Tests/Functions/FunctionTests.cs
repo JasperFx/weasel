@@ -136,7 +136,27 @@ $$ LANGUAGE plpgsql;
 
             await theConnection.FunctionExists(function.Identifier);
         }
+        
+        
 
+        [Fact]
+        public async Task existing_functions_extension_method()
+        {
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(theHiloTable);
+            
+            var function = Function.ForSql(theFunctionBody);
+
+            await CreateSchemaObjectInDatabase(function);
+
+            var functions = await theConnection.ExistingFunctions();
+            
+            functions.ShouldContain(function.Identifier);
+
+            var existing = await theConnection.FindExistingFunction(function.Identifier);
+            existing.ShouldNotBeNull();
+        }
 
         [Fact]
         public async Task can_fetch_the_existing()

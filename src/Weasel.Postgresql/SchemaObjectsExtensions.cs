@@ -131,7 +131,8 @@ namespace Weasel.Postgresql
                     builder.AddNamedParameter("schemas", schemas);
                 }
             }
-            else if (schemas != null)
+            
+            if (schemas != null)
             {
                 builder.Append(" WHERE schemaname = ANY(:schemas)");
                 builder.AddNamedParameter("schemas", schemas);
