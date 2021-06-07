@@ -126,10 +126,10 @@ namespace Weasel.Postgresql.Tables
         }
 
         public string Name { get; set; }
-        public string[] ColumnNames { get; set; }
-        public string[] LinkedNames { get; set; } 
-        
-        public DbObjectName LinkedTable { get; set; }
+        public string[] ColumnNames { get; set; } = null!;
+        public string[] LinkedNames { get; set; } = null!;
+
+        public DbObjectName LinkedTable { get; set; } = null!;
 
         public CascadeAction OnDelete { get; set; } = CascadeAction.NoAction;
         public CascadeAction OnUpdate { get; set; } = CascadeAction.NoAction;

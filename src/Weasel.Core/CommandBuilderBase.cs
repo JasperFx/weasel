@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+#nullable enable
 
 namespace Weasel.Core
 {
@@ -16,17 +17,17 @@ namespace Weasel.Core
         where TDataReader : DbDataReader
         where TParameterType : struct
     {
-        protected readonly IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> _mappings;
-        protected readonly char _parameterPrefix;
-        protected readonly TCommand _command;
+        private readonly IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> _provider;
+        private readonly char _parameterPrefix;
+        private readonly TCommand _command;
         
         // TEMP -- will shift this to being pooled later
-        protected readonly StringBuilder _sql = new();
+        private readonly StringBuilder _sql = new();
 
 
-        protected CommandBuilderBase(IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> mappings, char parameterPrefix, TCommand command)
+        protected CommandBuilderBase(IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> provider, char parameterPrefix, TCommand command)
         {
-            _mappings = mappings;
+            _provider = provider;
             _parameterPrefix = parameterPrefix;
             _command = command;
         }
@@ -102,10 +103,10 @@ namespace Weasel.Core
 
             if (dbType.HasValue)
             {
-                _mappings.SetParameterType(parameter, dbType.Value);
+                _provider.SetParameterType(parameter, dbType.Value);
             }
             
-            _mappings.AddParameter(_command, parameter);
+            _provider.AddParameter(_command, parameter);
 
             return parameter;
         }
@@ -130,12 +131,11 @@ namespace Weasel.Core
 
             if (dbType.HasValue)
             {
-                _mappings.SetParameterType(parameter, dbType.Value);
+                _provider.SetParameterType(parameter, dbType.Value);
             }
             else if (value != null)
             {
-                dbType = _mappings.TryGetDbType(value.GetType());
-                _mappings.SetParameterType(parameter, dbType.Value);
+                _provider.SetParameterType(parameter, _provider.ToParameterType(value.GetType()));
             }
             
             parameter.Value = value ?? DBNull.Value;
@@ -154,7 +154,7 @@ namespace Weasel.Core
         /// <returns></returns>
         public TParameter AddNamedParameter(string name, string value)
         {
-            return AddNamedParameter(name, value, _mappings.StringParameterType);
+            return AddNamedParameter(name, value, _provider.StringParameterType);
         }
 
         /// <summary>
@@ -167,7 +167,7 @@ namespace Weasel.Core
         /// <returns></returns>
         public TParameter AddNamedParameter(string name, bool value)
         {
-            return AddNamedParameter(name, value, _mappings.BoolParameterType);
+            return AddNamedParameter(name, value, _provider.BoolParameterType);
         }
         
         /// <summary>
@@ -180,7 +180,7 @@ namespace Weasel.Core
         /// <returns></returns>
         public TParameter AddNamedParameter(string name, int value)
         {
-            return AddNamedParameter(name, value, _mappings.IntegerParameterType);
+            return AddNamedParameter(name, value, _provider.IntegerParameterType);
         }
 
         /// <summary>
@@ -193,7 +193,7 @@ namespace Weasel.Core
         /// <returns></returns>
         public TParameter AddNamedParameter(string name, double value)
         {
-            return AddNamedParameter(name, value, _mappings.DoubleParameterType);
+            return AddNamedParameter(name, value, _provider.DoubleParameterType);
         }
 
         /// <summary>
@@ -206,7 +206,7 @@ namespace Weasel.Core
         /// <returns></returns>
         public TParameter AddNamedParameter(string name, long value)
         {
-            return AddNamedParameter(name, value, _mappings.LongParameterType);
+            return AddNamedParameter(name, value, _provider.LongParameterType);
         }
 
         public override string ToString()
@@ -235,7 +235,7 @@ namespace Weasel.Core
         /// <param name="dbType"></param>
         public void AppendParameter(int value)
         {
-            AppendParameter(value, _mappings.IntegerParameterType);
+            AppendParameter(value, _provider.IntegerParameterType);
         }
         
         /// <summary>
@@ -246,7 +246,7 @@ namespace Weasel.Core
         /// <param name="dbType"></param>
         public void AppendParameter(Guid value)
         {
-            AppendParameter(value, _mappings.GuidParameterType);
+            AppendParameter(value, _provider.GuidParameterType);
         }
         
         /// <summary>
@@ -257,7 +257,7 @@ namespace Weasel.Core
         /// <param name="dbType"></param>
         public void AppendParameter(string value)
         {
-            AppendParameter(value, _mappings.StringParameterType);
+            AppendParameter(value, _provider.StringParameterType);
         }
 
         /// <summary>
@@ -277,7 +277,7 @@ namespace Weasel.Core
             foreach (var property in properties)
             {
                 var value = property.GetValue(parameters);
-                AddNamedParameter(property.Name, value);
+                AddNamedParameter(property.Name, value ?? DBNull.Value, _provider.ToParameterType(property.PropertyType));
             }
         }
         
@@ -290,7 +290,7 @@ namespace Weasel.Core
             for (var i = 0; i < parameters.Length; i++)
             {
                 // Just need a placeholder parameter type and value
-                var parameter = AddParameter(DBNull.Value, _mappings.StringParameterType);
+                var parameter = AddParameter(DBNull.Value, _provider.StringParameterType);
                 parameters[i] = parameter;
                 _sql.Append(_parameterPrefix);
                 _sql.Append(parameter.ParameterName);

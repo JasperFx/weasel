@@ -140,12 +140,6 @@ namespace Weasel.Postgresql.Tables
             {
                 throw new InvalidOperationException("IndexDefinition requires at least one field");
             }
-            
-            var ordering = "";
-            if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
-            {
-                ordering = " DESC";
-            }
 
             var expression = Columns.Select(x =>
             {

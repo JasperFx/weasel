@@ -97,12 +97,5 @@ namespace Weasel.Postgresql
         }
 
 
-        public static NpgsqlCommand CallsSproc(this NpgsqlCommand cmd, string functionName)
-        {
-            cmd.CommandText = functionName;
-            cmd.CommandType = CommandType.StoredProcedure;
-
-            return cmd;
-        }
     }
 }

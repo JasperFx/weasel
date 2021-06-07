@@ -2,6 +2,7 @@ using System;
 using System.Data.Common;
 using System.Linq;
 using Baseline.ImTools;
+#nullable enable
 
 namespace Weasel.Core
 {
@@ -148,8 +149,7 @@ namespace Weasel.Core
             }
             else if (value != null)
             {
-                dbType = TryGetDbType(value.GetType());
-                SetParameterType(parameter, dbType.Value);
+                SetParameterType(parameter, ToParameterType(value.GetType()));
             }
             
             parameter.Value = value ?? DBNull.Value;

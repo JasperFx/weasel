@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,6 +17,15 @@ namespace Weasel.Core
         public static T Sql<T>(this T cmd, string sql) where T : DbCommand
         {
             cmd.CommandText = sql;
+            return cmd;
+        }
+        
+        
+        public static T CallsSproc<T>(this T cmd, string functionName) where T : DbCommand
+        {
+            cmd.CommandText = functionName;
+            cmd.CommandType = CommandType.StoredProcedure;
+
             return cmd;
         }
 
