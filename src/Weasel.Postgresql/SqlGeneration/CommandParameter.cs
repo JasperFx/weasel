@@ -13,7 +13,7 @@ namespace Weasel.Postgresql.SqlGeneration
         public CommandParameter(ConstantExpression expression)
         {
             Value = expression.Value;
-            DbType = PostgresqlProvider.Instance.ToDbType(expression.Type == typeof(object) ? expression.Value.GetType() : expression.Type);
+            DbType = PostgresqlProvider.Instance.ToParameterType(expression.Type == typeof(object) ? expression.Value.GetType() : expression.Type);
         }
 
         public CommandParameter(object value)

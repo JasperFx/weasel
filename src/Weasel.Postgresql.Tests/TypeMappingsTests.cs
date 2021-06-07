@@ -15,8 +15,8 @@ namespace Weasel.Postgresql.Tests
         [Fact]
         public void execute_to_db_type_as_int()
         {
-            PostgresqlProvider.Instance.ToDbType(typeof(int)).ShouldBe(NpgsqlDbType.Integer);
-            PostgresqlProvider.Instance.ToDbType(typeof(int?)).ShouldBe(NpgsqlDbType.Integer);
+            PostgresqlProvider.Instance.ToParameterType(typeof(int)).ShouldBe(NpgsqlDbType.Integer);
+            PostgresqlProvider.Instance.ToParameterType(typeof(int?)).ShouldBe(NpgsqlDbType.Integer);
         }
 
         [Fact]
@@ -30,8 +30,8 @@ namespace Weasel.Postgresql.Tests
                 TypeHandlerFactory = new TextHandlerFactory()
             }.Build());
 
-            PostgresqlProvider.Instance.ToDbType(typeof(MappedTarget)).ShouldBe(NpgsqlDbType.Varchar);
-            ShouldThrowExtensions.ShouldThrow<Exception>(() => PostgresqlProvider.Instance.ToDbType(typeof(UnmappedTarget)));
+            PostgresqlProvider.Instance.ToParameterType(typeof(MappedTarget)).ShouldBe(NpgsqlDbType.Varchar);
+            ShouldThrowExtensions.ShouldThrow<Exception>(() => PostgresqlProvider.Instance.ToParameterType(typeof(UnmappedTarget)));
         }
 
 

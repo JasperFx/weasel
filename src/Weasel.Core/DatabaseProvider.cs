@@ -13,11 +13,20 @@ namespace Weasel.Core
         where TParameterType : struct
     {
         TParameterType? TryGetDbType(Type? type);
-        TParameterType ToDbType(Type type);
+        TParameterType ToParameterType(Type type);
         Type[] ResolveTypes(TParameterType parameterType);
         string GetDatabaseType(Type memberType, EnumStorage enumStyle);
+
+
+        void AddParameter(TCommand command, TParameter parameter);
+        void SetParameterType(TParameter parameter, TParameterType dbType);
         
-        
+        TParameterType StringParameterType { get; }
+        TParameterType IntegerParameterType { get; }
+        TParameterType LongParameterType { get; }
+        TParameterType GuidParameterType { get; }
+        TParameterType BoolParameterType { get; }
+        TParameterType DoubleParameterType { get; }
     }
 
     public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
@@ -33,6 +42,16 @@ namespace Weasel.Core
         protected readonly Ref<ImHashMap<Type, TParameterType?>> ParameterTypeMemo = Ref.Of(ImHashMap<Type, TParameterType?>.Empty);
         protected readonly Ref<ImHashMap<TParameterType, Type[]>> TypeMemo = Ref.Of(ImHashMap<TParameterType, Type[]>.Empty);
 
+        protected DatabaseProvider()
+        {
+            StringParameterType = ToParameterType(typeof(string));
+            IntegerParameterType = ToParameterType(typeof(int));
+            LongParameterType = ToParameterType(typeof(long));
+            GuidParameterType = ToParameterType(typeof(Guid));
+            BoolParameterType = ToParameterType(typeof(bool));
+            DoubleParameterType = ToParameterType(typeof(double));
+        }
+
         protected abstract bool determineNpgsqlDbType(Type type, out TParameterType dbType);
         
         public TParameterType? TryGetDbType(Type? type)
@@ -43,7 +62,7 @@ namespace Weasel.Core
             return dbType;
         }
         
-        public TParameterType ToDbType(Type type)
+        public TParameterType ToParameterType(Type type)
         {
             if (determineNpgsqlDbType(type, out var dbType))
                 return dbType;
@@ -74,9 +93,16 @@ namespace Weasel.Core
         public abstract string GetDatabaseType(Type memberType, EnumStorage enumStyle);
 
 
-        protected abstract void addParameter(TCommand command, TParameter parameter);
+        public abstract void AddParameter(TCommand command, TParameter parameter);
 
-        protected abstract void setParameterType(TParameter parameter, TParameterType dbType);
+        public abstract void SetParameterType(TParameter parameter, TParameterType dbType);
 
+
+        public TParameterType StringParameterType { get; }
+        public TParameterType IntegerParameterType { get; }
+        public TParameterType LongParameterType { get; }
+        public TParameterType GuidParameterType { get; }
+        public TParameterType BoolParameterType { get; }
+        public TParameterType DoubleParameterType { get; }
     }
 }

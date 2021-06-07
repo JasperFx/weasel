@@ -143,7 +143,7 @@ namespace Weasel.Postgresql
 
             if (type.IsNullable())
             {
-                dbType = ToDbType(type.GetInnerTypeFromNullable());
+                dbType = ToParameterType(type.GetInnerTypeFromNullable());
                 return true;
             }
 
@@ -162,7 +162,7 @@ namespace Weasel.Postgresql
                 }
 
                 {
-                    dbType = NpgsqlDbType.Array | ToDbType(type.GetElementType());
+                    dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType());
                     return true;
                 }
             }
@@ -173,13 +173,13 @@ namespace Weasel.Postgresql
                 x.GetTypeInfo().IsGenericType && x.GetGenericTypeDefinition() == typeof(IList<>));
             if (ilist != null)
             {
-                dbType = NpgsqlDbType.Array | ToDbType(ilist.GetGenericArguments()[0]);
+                dbType = NpgsqlDbType.Array | ToParameterType(ilist.GetGenericArguments()[0]);
                 return true;
             }
 
             if (typeInfo.IsGenericType && type.GetGenericTypeDefinition() == typeof(NpgsqlRange<>))
             {
-                dbType = NpgsqlDbType.Range | ToDbType(type.GetGenericArguments()[0]);
+                dbType = NpgsqlDbType.Range | ToParameterType(type.GetGenericArguments()[0]);
                 return true;
             }
 
@@ -219,12 +219,12 @@ namespace Weasel.Postgresql
             return ResolveDatabaseType(memberType) ?? "jsonb";
         }
 
-        protected override void addParameter(NpgsqlCommand command, NpgsqlParameter parameter)
+        public override void AddParameter(NpgsqlCommand command, NpgsqlParameter parameter)
         {
             command.Parameters.Add(parameter);
         }
 
-        protected override void setParameterType(NpgsqlParameter parameter, NpgsqlDbType dbType)
+        public override void SetParameterType(NpgsqlParameter parameter, NpgsqlDbType dbType)
         {
             parameter.NpgsqlDbType = dbType;
         }
