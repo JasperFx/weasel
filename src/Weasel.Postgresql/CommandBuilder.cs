@@ -1,49 +1,26 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Npgsql;
 using NpgsqlTypes;
+using Weasel.Core;
 
 #nullable enable
 
 namespace Weasel.Postgresql
 {
-    public class CommandBuilder
+    public class CommandBuilder : CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction, NpgsqlDbType, NpgsqlDataReader>
     {
-        private readonly NpgsqlCommand _command;
-        private readonly char _parameterPrefix = ':';
-
-        // TEMP -- will shift this to being pooled later
-        private readonly StringBuilder _sql = new();
-
         public CommandBuilder() : this(new NpgsqlCommand())
         {
         }
 
-        public CommandBuilder(NpgsqlCommand command)
+        public CommandBuilder(NpgsqlCommand command) : base(PostgresqlProvider.Instance, ':', command)
         {
-            _command = command;
         }
 
-        public NpgsqlCommand Compile()
-        {
-            _command.CommandText = _sql.ToString();
-            return _command;
-        }
-
-        public void Append(string text)
-        {
-            _sql.Append(text);
-        }
-
-        public void Append(char character)
-        {
-            _sql.Append(character);
-        }
-        
         /// <summary>
         ///  Append a parameter with the supplied value to the underlying command
         /// parameter collection *and* the command text
@@ -227,7 +204,7 @@ namespace Weasel.Postgresql
             {
                 var parameter = _command.AddParameter(DBNull.Value);
                 parameters[i] = parameter;
-                _sql.Append(':');
+                _sql.Append(_parameterPrefix);
                 _sql.Append(parameter.ParameterName);
                 _sql.Append(split[i + 1]);
             }
@@ -235,35 +212,10 @@ namespace Weasel.Postgresql
             return parameters;
         }
 
-        public Task<NpgsqlDataReader> ExecuteReaderAsync(NpgsqlConnection conn,
-            CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
-        {
-            var cmd = Compile();
-            cmd.Connection = conn;
-            cmd.Transaction = tx;
 
-            return cmd.ExecuteReaderAsync(cancellation);
-        }
 
-        public Task<IReadOnlyList<T>> FetchList<T>(NpgsqlConnection conn, Func<DbDataReader, Task<T>> transform,
-            CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
-        {
-            var cmd = Compile();
-            cmd.Connection = conn;
-            cmd.Transaction = tx;
 
-            return cmd.FetchList(transform, cancellation);
-        }
 
-        public Task<int> ExecuteNonQueryAsync(NpgsqlConnection conn, CancellationToken cancellation = default,
-            NpgsqlTransaction? tx = null)
-        {
-            var cmd = Compile();
-            cmd.Connection = conn;
-            cmd.Transaction = tx;
-
-            return cmd.ExecuteNonQueryAsync(cancellation);
-        }
 
     }
 }

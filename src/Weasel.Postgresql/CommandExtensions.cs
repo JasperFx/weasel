@@ -105,7 +105,7 @@ namespace Weasel.Postgresql
             }
             else if (value != null)
             {
-                dbType = TypeMappings.Instance.TryGetDbType(value.GetType());
+                dbType = PostgresqlProvider.Instance.TryGetDbType(value.GetType());
                 parameter.NpgsqlDbType = dbType.Value;
             }
             

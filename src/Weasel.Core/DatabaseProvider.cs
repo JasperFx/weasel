@@ -1,9 +1,33 @@
 using System;
+using System.Data.Common;
 using Baseline.ImTools;
 
 namespace Weasel.Core
 {
-    public abstract class TypeMappingsBase<TParameterType> where TParameterType : struct
+    public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+        where TCommand : DbCommand, new()
+        where TParameter : DbParameter
+        where TConnection : DbConnection
+        where TTransaction : DbTransaction
+        where TDataReader : DbDataReader
+        where TParameterType : struct
+    {
+        TParameterType? TryGetDbType(Type? type);
+        TParameterType ToDbType(Type type);
+        Type[] ResolveTypes(TParameterType parameterType);
+        string GetDatabaseType(Type memberType, EnumStorage enumStyle);
+        
+        
+    }
+
+    public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+        : IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+        where TCommand : DbCommand, new()
+        where TParameter : DbParameter
+        where TConnection : DbConnection
+        where TTransaction : DbTransaction
+        where TDataReader : DbDataReader
+        where TParameterType : struct  
     {
         protected readonly Ref<ImHashMap<Type, string>> DatabaseTypeMemo = Ref.Of(ImHashMap<Type, string>.Empty);
         protected readonly Ref<ImHashMap<Type, TParameterType?>> ParameterTypeMemo = Ref.Of(ImHashMap<Type, TParameterType?>.Empty);
@@ -48,5 +72,11 @@ namespace Weasel.Core
         }
 
         public abstract string GetDatabaseType(Type memberType, EnumStorage enumStyle);
+
+
+        protected abstract void addParameter(TCommand command, TParameter parameter);
+
+        protected abstract void setParameterType(TParameter parameter, TParameterType dbType);
+
     }
 }

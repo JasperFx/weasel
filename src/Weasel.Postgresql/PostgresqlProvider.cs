@@ -12,15 +12,15 @@ using Weasel.Core;
 #nullable enable
 namespace Weasel.Postgresql
 {
-    public class TypeMappings : TypeMappingsBase<NpgsqlDbType>
+    public class PostgresqlProvider : DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction, NpgsqlDbType, NpgsqlDataReader>
     {
-        public static readonly TypeMappings Instance = new TypeMappings();
+        public static readonly PostgresqlProvider Instance = new PostgresqlProvider();
         
         public List<Type> ContainmentOperatorTypes { get; } = new List<Type>();
         public List<Type> TimespanTypes { get; } = new List<Type>();
         public List<Type> TimespanZTypes { get; } = new List<Type>();
 
-        private TypeMappings()
+        private PostgresqlProvider()
         {
             // Initialize PgTypeMemo with Types which are not available in Npgsql mappings
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(long), "bigint"));
@@ -217,6 +217,16 @@ namespace Weasel.Postgresql
             }
 
             return ResolveDatabaseType(memberType) ?? "jsonb";
+        }
+
+        protected override void addParameter(NpgsqlCommand command, NpgsqlParameter parameter)
+        {
+            command.Parameters.Add(parameter);
+        }
+
+        protected override void setParameterType(NpgsqlParameter parameter, NpgsqlDbType dbType)
+        {
+            parameter.NpgsqlDbType = dbType;
         }
 
         public bool HasTypeMapping(Type memberType)
