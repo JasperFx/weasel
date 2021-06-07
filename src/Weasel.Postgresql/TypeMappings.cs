@@ -11,17 +11,19 @@ using NpgsqlTypes;
 #nullable enable
 namespace Weasel.Postgresql
 {
-    public static class TypeMappings
+    public class TypeMappings
     {
-        private static readonly Ref<ImHashMap<Type, string>> PgTypeMemo;
-        private static readonly Ref<ImHashMap<Type, NpgsqlDbType?>> NpgsqlDbTypeMemo;
-        private static readonly Ref<ImHashMap<NpgsqlDbType, Type[]>> TypeMemo;
+        public static readonly TypeMappings Instance = new TypeMappings();
+        
+        private readonly Ref<ImHashMap<Type, string>> PgTypeMemo;
+        private readonly Ref<ImHashMap<Type, NpgsqlDbType?>> NpgsqlDbTypeMemo;
+        private readonly Ref<ImHashMap<NpgsqlDbType, Type[]>> TypeMemo;
 
-        public static List<Type> ContainmentOperatorTypes { get; } = new List<Type>();
-        public static List<Type> TimespanTypes { get; } = new List<Type>();
-        public static List<Type> TimespanZTypes { get; } = new List<Type>();
+        public List<Type> ContainmentOperatorTypes { get; } = new List<Type>();
+        public List<Type> TimespanTypes { get; } = new List<Type>();
+        public List<Type> TimespanZTypes { get; } = new List<Type>();
 
-        static TypeMappings()
+        private TypeMappings()
         {
             // Initialize PgTypeMemo with Types which are not available in Npgsql mappings
             PgTypeMemo = Ref.Of(ImHashMap<Type, string>.Empty);
@@ -47,7 +49,7 @@ namespace Weasel.Postgresql
             RegisterMapping(typeof(uint), "oid", NpgsqlDbType.Oid);
         }
 
-        public static void RegisterMapping(Type type, string pgType, NpgsqlDbType? npgsqlDbType)
+        public void RegisterMapping(Type type, string pgType, NpgsqlDbType? npgsqlDbType)
         {
             PgTypeMemo.Swap(d => d.AddOrUpdate(type, pgType));
             NpgsqlDbTypeMemo.Swap(d => d.AddOrUpdate(type, npgsqlDbType));
@@ -56,7 +58,7 @@ namespace Weasel.Postgresql
         // Lazily retrieve the CLR type to NpgsqlDbType and PgTypeName mapping from exposed INpgsqlTypeMapper.Mappings.
         // This is lazily calculated instead of precached because it allows consuming code to register
         // custom npgsql mappings prior to execution.
-        private static string? ResolvePgType(Type type)
+        private string? ResolvePgType(Type type)
         {
             if (PgTypeMemo.Value.TryFind(type, out var value))
                 return value;
@@ -68,7 +70,7 @@ namespace Weasel.Postgresql
             return value;
         }
 
-        private static NpgsqlDbType? ResolveNpgsqlDbType(Type type)
+        private NpgsqlDbType? ResolveNpgsqlDbType(Type type)
         {
             if (NpgsqlDbTypeMemo.Value.TryFind(type, out var value))
                 return value;
@@ -80,7 +82,7 @@ namespace Weasel.Postgresql
             return value;
         }
 
-        public static Type[] ResolveTypes(NpgsqlDbType npgsqlDbType)
+        public Type[] ResolveTypes(NpgsqlDbType npgsqlDbType)
         {
             if (TypeMemo.Value.TryFind(npgsqlDbType, out var values))
                 return values;
@@ -92,19 +94,19 @@ namespace Weasel.Postgresql
             return values!;
         }
 
-        private static NpgsqlTypeMapping? GetTypeMapping(Type type)
+        private NpgsqlTypeMapping? GetTypeMapping(Type type)
             => NpgsqlConnection
                 .GlobalTypeMapper
                 .Mappings
                 .FirstOrDefault(mapping => mapping.ClrTypes.Contains(type));
 
-        private static NpgsqlTypeMapping? GetTypeMapping(NpgsqlDbType type)
+        private NpgsqlTypeMapping? GetTypeMapping(NpgsqlDbType type)
             => NpgsqlConnection
                 .GlobalTypeMapper
                 .Mappings
                 .FirstOrDefault(mapping => mapping.NpgsqlDbType == type);
 
-        public static string ConvertSynonyms(string type)
+        public string ConvertSynonyms(string type)
         {
             switch (type.ToLower())
             {
@@ -149,7 +151,7 @@ namespace Weasel.Postgresql
         /// https://github.com/npgsql/npgsql/blob/dev/src/Npgsql/TypeMapping/GlobalTypeMapper.cs
         /// Possibly this method can be trimmed down when Npgsql eventually exposes ToNpgsqlDbType
         /// </summary>
-        public static NpgsqlDbType ToDbType(Type type)
+        public NpgsqlDbType ToDbType(Type type)
         {
             if (determineNpgsqlDbType(type, out var dbType))
                 return dbType;
@@ -157,7 +159,7 @@ namespace Weasel.Postgresql
             throw new NotSupportedException("Can't infer NpgsqlDbType for type " + type);
         }
 
-        public static NpgsqlDbType? TryGetDbType(Type? type)
+        public NpgsqlDbType? TryGetDbType(Type? type)
         {
             if (type == null || !determineNpgsqlDbType(type, out var dbType))
                 return null;
@@ -165,7 +167,7 @@ namespace Weasel.Postgresql
             return dbType;
         }
 
-        private static bool determineNpgsqlDbType(Type type, out NpgsqlDbType dbType)
+        private bool determineNpgsqlDbType(Type type, out NpgsqlDbType dbType)
         {
             var npgsqlDbType = ResolveNpgsqlDbType(type);
             if (npgsqlDbType != null)
@@ -228,7 +230,7 @@ namespace Weasel.Postgresql
             return false;
         }
 
-        public static string GetPgType(Type memberType, EnumStorage enumStyle)
+        public string GetPgType(Type memberType, EnumStorage enumStyle)
         {
             if (memberType.IsEnum)
             {
@@ -254,7 +256,7 @@ namespace Weasel.Postgresql
             return ResolvePgType(memberType) ?? "jsonb";
         }
 
-        public static bool HasTypeMapping(Type memberType)
+        public bool HasTypeMapping(Type memberType)
         {
             if (memberType.IsNullable())
             {
@@ -265,7 +267,7 @@ namespace Weasel.Postgresql
             return ResolvePgType(memberType) != null || memberType.IsEnum;
         }
 
-        private static Type GetNullableType(Type type)
+        private Type GetNullableType(Type type)
         {
             type = Nullable.GetUnderlyingType(type) ?? type;
             if (type.IsValueType)
@@ -274,7 +276,7 @@ namespace Weasel.Postgresql
                 return type;
         }
 
-        public static void AddTimespanTypes(NpgsqlDbType npgsqlDbType, params Type[] types)
+        public void AddTimespanTypes(NpgsqlDbType npgsqlDbType, params Type[] types)
         {
             var timespanTypesList = (npgsqlDbType == NpgsqlDbType.Timestamp) ? TimespanTypes : TimespanZTypes;
             var typesWithNullables = types.Union(types.Select(t => GetNullableType(t))).Where(t => !timespanTypesList.Contains(t)).ToList();

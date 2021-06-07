@@ -57,7 +57,7 @@ namespace Weasel.Postgresql.Tables
         protected bool Equals(TableColumn other)
         {
             return string.Equals(Name, other.Name) &&
-                   string.Equals(TypeMappings.ConvertSynonyms(RawType()), TypeMappings.ConvertSynonyms(other.RawType()));
+                   string.Equals(TypeMappings.Instance.ConvertSynonyms(RawType()), TypeMappings.Instance.ConvertSynonyms(other.RawType()));
         }
 
         public override bool Equals(object obj)

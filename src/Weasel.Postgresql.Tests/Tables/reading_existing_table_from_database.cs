@@ -39,8 +39,8 @@ namespace Weasel.Postgresql.Tests.Tables
                 var existingType = existing.Columns[i].Type;
                 var tableType = table.Columns[i].Type;
                 
-                TypeMappings.ConvertSynonyms(existingType)
-                    .ShouldBe(TypeMappings.ConvertSynonyms(tableType));
+                TypeMappings.Instance.ConvertSynonyms(existingType)
+                    .ShouldBe(TypeMappings.Instance.ConvertSynonyms(tableType));
 
             }
         }

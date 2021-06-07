@@ -105,7 +105,7 @@ namespace Weasel.Postgresql
             }
             else if (value != null)
             {
-                dbType = TypeMappings.TryGetDbType(value.GetType());
+                dbType = TypeMappings.Instance.TryGetDbType(value.GetType());
                 parameter.NpgsqlDbType = dbType.Value;
             }
             
@@ -208,11 +208,10 @@ namespace Weasel.Postgresql
 
         public static NpgsqlCommand CreateCommand(this NpgsqlConnection conn, string command, NpgsqlTransaction tx = null)
         {
-            var cmd = conn.CreateCommand();
-            cmd.CommandText = command;
-            cmd.Transaction = tx;
-
-            return cmd;
+            return new NpgsqlCommand(command, conn)
+            {
+                Transaction = tx
+            };
         }
         
         

@@ -14,8 +14,8 @@ namespace Weasel.Postgresql.Tests
         [Fact]
         public void execute_to_db_type_as_int()
         {
-            TypeMappings.ToDbType(typeof(int)).ShouldBe(NpgsqlDbType.Integer);
-            TypeMappings.ToDbType(typeof(int?)).ShouldBe(NpgsqlDbType.Integer);
+            TypeMappings.Instance.ToDbType(typeof(int)).ShouldBe(NpgsqlDbType.Integer);
+            TypeMappings.Instance.ToDbType(typeof(int?)).ShouldBe(NpgsqlDbType.Integer);
         }
 
         [Fact]
@@ -29,16 +29,16 @@ namespace Weasel.Postgresql.Tests
                 TypeHandlerFactory = new TextHandlerFactory()
             }.Build());
 
-            TypeMappings.ToDbType(typeof(MappedTarget)).ShouldBe(NpgsqlDbType.Varchar);
-            ShouldThrowExtensions.ShouldThrow<Exception>(() => TypeMappings.ToDbType(typeof(UnmappedTarget)));
+            TypeMappings.Instance.ToDbType(typeof(MappedTarget)).ShouldBe(NpgsqlDbType.Varchar);
+            ShouldThrowExtensions.ShouldThrow<Exception>(() => TypeMappings.Instance.ToDbType(typeof(UnmappedTarget)));
         }
 
 
         [Fact]
         public void execute_get_pg_type_default_mappings_resolve()
         {
-            TypeMappings.GetPgType(typeof(long), EnumStorage.AsString).ShouldBe("bigint");
-            TypeMappings.GetPgType(typeof(DateTime), EnumStorage.AsString).ShouldBe("timestamp without time zone");
+            TypeMappings.Instance.GetPgType(typeof(long), EnumStorage.AsString).ShouldBe("bigint");
+            TypeMappings.Instance.GetPgType(typeof(DateTime), EnumStorage.AsString).ShouldBe("timestamp without time zone");
         }
 
         [Fact]
@@ -46,8 +46,8 @@ namespace Weasel.Postgresql.Tests
         {
             NpgsqlConnection.GlobalTypeMapper.MapComposite<MappedTarget>("varchar");
 
-            TypeMappings.GetPgType(typeof(MappedTarget), EnumStorage.AsString).ShouldBe("varchar");
-            TypeMappings.GetPgType(typeof(UnmappedTarget), EnumStorage.AsString).ShouldBe("jsonb");
+            TypeMappings.Instance.GetPgType(typeof(MappedTarget), EnumStorage.AsString).ShouldBe("varchar");
+            TypeMappings.Instance.GetPgType(typeof(UnmappedTarget), EnumStorage.AsString).ShouldBe("jsonb");
         }
 
         [Fact]
@@ -55,8 +55,8 @@ namespace Weasel.Postgresql.Tests
         {
             NpgsqlConnection.GlobalTypeMapper.MapComposite<MappedTarget>("varchar");
 
-            TypeMappings.HasTypeMapping(typeof(MappedTarget)).ShouldBeTrue();
-            TypeMappings.HasTypeMapping(typeof(UnmappedTarget)).ShouldBeFalse();
+            TypeMappings.Instance.HasTypeMapping(typeof(MappedTarget)).ShouldBeTrue();
+            TypeMappings.Instance.HasTypeMapping(typeof(UnmappedTarget)).ShouldBeFalse();
         }
 
         public class MappedTarget { }
@@ -116,7 +116,7 @@ namespace Weasel.Postgresql.Tests
         [InlineData("text[]", "array")]
         public void convert_synonyms(string type, string synonym)
         {
-            TypeMappings.ConvertSynonyms(type).ShouldBe(synonym);
+            TypeMappings.Instance.ConvertSynonyms(type).ShouldBe(synonym);
         }
     }
 }
