@@ -37,8 +37,8 @@ namespace Weasel.Postgresql.Tests
         [Fact]
         public void execute_get_pg_type_default_mappings_resolve()
         {
-            TypeMappings.Instance.GetPgType(typeof(long), EnumStorage.AsString).ShouldBe("bigint");
-            TypeMappings.Instance.GetPgType(typeof(DateTime), EnumStorage.AsString).ShouldBe("timestamp without time zone");
+            TypeMappings.Instance.GetDatabaseType(typeof(long), EnumStorage.AsString).ShouldBe("bigint");
+            TypeMappings.Instance.GetDatabaseType(typeof(DateTime), EnumStorage.AsString).ShouldBe("timestamp without time zone");
         }
 
         [Fact]
@@ -46,8 +46,8 @@ namespace Weasel.Postgresql.Tests
         {
             NpgsqlConnection.GlobalTypeMapper.MapComposite<MappedTarget>("varchar");
 
-            TypeMappings.Instance.GetPgType(typeof(MappedTarget), EnumStorage.AsString).ShouldBe("varchar");
-            TypeMappings.Instance.GetPgType(typeof(UnmappedTarget), EnumStorage.AsString).ShouldBe("jsonb");
+            TypeMappings.Instance.GetDatabaseType(typeof(MappedTarget), EnumStorage.AsString).ShouldBe("varchar");
+            TypeMappings.Instance.GetDatabaseType(typeof(UnmappedTarget), EnumStorage.AsString).ShouldBe("jsonb");
         }
 
         [Fact]

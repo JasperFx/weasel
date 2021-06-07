@@ -234,7 +234,7 @@ namespace Weasel.Postgresql.Tables
                     "Database column types cannot be automatically derived for enums. Explicitly specify as varchar or integer");
             }
 
-            var type = TypeMappings.Instance.GetPgType(typeof(T), EnumStorage.AsInteger);
+            var type = TypeMappings.Instance.GetDatabaseType(typeof(T), EnumStorage.AsInteger);
             return AddColumn(columnName, type);
         }
 

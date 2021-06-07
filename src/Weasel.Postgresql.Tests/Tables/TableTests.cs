@@ -88,7 +88,7 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<int>("number");
             var column = table.Columns.Single();
             column
-                .Type.ShouldBe(TypeMappings.Instance.GetPgType(typeof(int), EnumStorage.AsInteger));
+                .Type.ShouldBe(TypeMappings.Instance.GetDatabaseType(typeof(int), EnumStorage.AsInteger));
             
             table.Columns.ShouldContain(column);
         }
