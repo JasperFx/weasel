@@ -1,6 +1,7 @@
 using System;
 using Baseline;
 using NpgsqlTypes;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.SqlGeneration
 {

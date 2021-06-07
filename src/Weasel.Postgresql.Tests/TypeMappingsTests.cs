@@ -4,6 +4,7 @@ using Npgsql.TypeHandlers;
 using Npgsql.TypeMapping;
 using NpgsqlTypes;
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 

@@ -193,7 +193,7 @@ namespace Weasel.Postgresql
             return false;
         }
 
-        public string GetDatabaseType(Type memberType, EnumStorage enumStyle)
+        public override string GetDatabaseType(Type memberType, EnumStorage enumStyle)
         {
             if (memberType.IsEnum)
             {

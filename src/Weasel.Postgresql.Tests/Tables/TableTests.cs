@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Baseline;
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 using Xunit.Abstractions;

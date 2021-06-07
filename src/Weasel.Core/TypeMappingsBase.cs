@@ -46,6 +46,7 @@ namespace Weasel.Core
 
             return values!;
         }
-        
+
+        public abstract string GetDatabaseType(Type memberType, EnumStorage enumStyle);
     }
 }

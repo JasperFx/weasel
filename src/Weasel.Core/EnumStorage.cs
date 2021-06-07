@@ -1,4 +1,4 @@
-namespace Weasel.Postgresql
+namespace Weasel.Core
 {
     /// <summary>
     /// Governs how .Net Enum types are persisted

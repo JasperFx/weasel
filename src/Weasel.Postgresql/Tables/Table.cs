@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables
 {
