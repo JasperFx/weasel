@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,6 +15,7 @@ namespace Weasel.Postgresql
     public class CommandBuilder
     {
         private readonly NpgsqlCommand _command;
+        private readonly char _parameterPrefix = ':';
 
         // TEMP -- will shift this to being pooled later
         private readonly StringBuilder _sql = new();
@@ -74,7 +76,7 @@ namespace Weasel.Postgresql
         public void AppendParameter(object value, NpgsqlDbType? dbType = null)
         {
             var parameter = AddParameter(value, dbType);
-            Append(":");
+            Append(_parameterPrefix);
             Append(parameter.ParameterName);
         }
 
