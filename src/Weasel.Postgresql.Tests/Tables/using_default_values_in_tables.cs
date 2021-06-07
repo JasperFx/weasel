@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 using Xunit.Sdk;

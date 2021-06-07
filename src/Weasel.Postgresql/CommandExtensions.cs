@@ -13,54 +13,10 @@ namespace Weasel.Postgresql
 {
     public static class CommandExtensions
     {
-        public static Task<int> RunSql(this NpgsqlConnection conn, params string[] sqls)
-        {
-            var sql = sqls.Join(";");
-            return conn.CreateCommand(sql).ExecuteNonQueryAsync();
-        }
 
-        public static async Task<IReadOnlyList<T>> FetchList<T>(this NpgsqlCommand cmd, Func<DbDataReader, Task<T>> transform, CancellationToken cancellation = default)
-        {
-            var list = new List<T>();
 
-            await using var reader = await cmd.ExecuteReaderAsync(cancellation);
-            while (await reader.ReadAsync(cancellation))
-            {
-                list.Add(await transform(reader));
-            }
 
-            return list;
-        }
-        
-        public static async Task<T> FetchOne<T>(this NpgsqlCommand cmd, CancellationToken cancellation = default)
-        {
-            using var reader = await cmd.ExecuteReaderAsync(cancellation);
-            if (await reader.ReadAsync(cancellation))
-            {
-                if (await reader.IsDBNullAsync(0, cancellation))
-                {
-                    return default;
-                }
 
-                var result = await reader.GetFieldValueAsync<T>(0, cancellation);
-                return result;
-            }
-
-            return default;
-        }
-        
-        public static Task<IReadOnlyList<T>> FetchList<T>(this NpgsqlCommand cmd, CancellationToken cancellation = default)
-        {
-            return cmd.FetchList(async reader =>
-            {
-                if (await reader.IsDBNullAsync(0, cancellation))
-                {
-                    return default;
-                }
-
-                return await reader.GetFieldValueAsync<T>(0, cancellation);
-            }, cancellation);
-        }
 
         public static NpgsqlParameter AddParameter(this NpgsqlCommand command, object value, NpgsqlDbType? dbType = null)
         {
