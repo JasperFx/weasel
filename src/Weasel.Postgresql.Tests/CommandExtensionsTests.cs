@@ -4,6 +4,7 @@ using System.Linq;
 using Npgsql;
 using NpgsqlTypes;
 using Shouldly;
+using Weasel.Core;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests

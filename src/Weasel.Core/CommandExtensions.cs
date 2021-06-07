@@ -7,8 +7,19 @@ using Baseline;
 
 namespace Weasel.Core
 {
+    
+    
+    
     public static class CommandExtensions
     {
+        
+        public static T Sql<T>(this T cmd, string sql) where T : DbCommand
+        {
+            cmd.CommandText = sql;
+            return cmd;
+        }
+
+        
         public static Task<int> RunSql(this DbConnection conn, params string[] sqls)
         {
             var sql = sqls.Join(";");

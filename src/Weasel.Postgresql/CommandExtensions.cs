@@ -13,27 +13,9 @@ namespace Weasel.Postgresql
 {
     public static class CommandExtensions
     {
-
-
-
-
-
         public static NpgsqlParameter AddParameter(this NpgsqlCommand command, object value, NpgsqlDbType? dbType = null)
         {
-            var name = "p" + command.Parameters.Count;
-
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value ?? DBNull.Value;
-
-            if (dbType.HasValue)
-            {
-                parameter.NpgsqlDbType = dbType.Value;
-            }
-
-            command.Parameters.Add(parameter);
-
-            return parameter;
+            return PostgresqlProvider.Instance.AddParameter(command, value, dbType);
         }
 
 
@@ -47,109 +29,39 @@ namespace Weasel.Postgresql
         /// <returns></returns>
         public static NpgsqlParameter AddNamedParameter(this NpgsqlCommand command, string name, object value, NpgsqlDbType? dbType = null)
         {
-            var existing = command.Parameters.FirstOrDefault(x => x.ParameterName == name);
-            if (existing != null) return existing;
-
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value ?? DBNull.Value;
-
-
-            if (dbType.HasValue)
-            {
-                parameter.NpgsqlDbType = dbType.Value;
-            }
-            else if (value != null)
-            {
-                dbType = PostgresqlProvider.Instance.TryGetDbType(value.GetType());
-                parameter.NpgsqlDbType = dbType.Value;
-            }
-            
-            parameter.Value = value ?? DBNull.Value;
-            command.Parameters.Add(parameter);
-
-            return parameter;
+            return PostgresqlProvider.Instance.AddNamedParameter(command, name, value, dbType);
         }
         
 
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, Guid value)
         {
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.NpgsqlDbType = NpgsqlDbType.Uuid;
-            parameter.Value = value;
-
-            command.Parameters.Add(parameter);
-
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value);
             return command;
         }
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, string value)
         {
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.NpgsqlDbType = NpgsqlDbType.Varchar;
-
-            if (value == null)
-            {
-                parameter.Value = DBNull.Value;
-            }
-            else
-            {
-                parameter.Value = value;
-            }
-
-            command.Parameters.Add(parameter);
-
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value);
             return command;
         }
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value)
         {
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value ?? DBNull.Value;
-            command.Parameters.Add(parameter);
-
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value);
             return command;
         }
         
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, string[] value)
         {
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-
-            if (value == null)
-            {
-                parameter.Value = DBNull.Value;
-            }
-            else
-            {
-                parameter.Value = value;
-            }
-            
-            parameter.NpgsqlDbType = NpgsqlDbType.Varchar | NpgsqlDbType.Array;
-            command.Parameters.Add(parameter);
-
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Varchar);
             return command;
         }
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value, NpgsqlDbType dbType)
         {
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.Value = value ?? DBNull.Value;
-            parameter.NpgsqlDbType = dbType;
-            command.Parameters.Add(parameter);
-
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, dbType);
             return command;
-        }
-
-        public static NpgsqlCommand Sql(this NpgsqlCommand cmd, string sql)
-        {
-            cmd.CommandText = sql;
-            return cmd;
         }
 
 

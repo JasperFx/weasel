@@ -1,5 +1,6 @@
 using System;
 using System.Data.Common;
+using System.Linq;
 using Baseline.ImTools;
 
 namespace Weasel.Core
@@ -104,5 +105,93 @@ namespace Weasel.Core
         public TParameterType GuidParameterType { get; }
         public TParameterType BoolParameterType { get; }
         public TParameterType DoubleParameterType { get; }
+        
+        public TParameter AddParameter(TCommand command, object value, TParameterType? dbType = null)
+        {
+            var name = "p" + command.Parameters.Count;
+
+            var parameter = (TParameter)command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value ?? DBNull.Value;
+
+            if (dbType.HasValue)
+            {
+                SetParameterType(parameter, dbType.Value);
+            }
+
+            command.Parameters.Add(parameter);
+
+            return parameter;
+        }
+        
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public TParameter AddNamedParameter(TCommand command, string name, object value, TParameterType? dbType = null)
+        {
+            var existing = command.Parameters.OfType<TParameter>().FirstOrDefault(x => x.ParameterName == name);
+            if (existing != null) return existing;
+
+            var parameter = (TParameter)command.CreateParameter();
+            parameter.ParameterName = name;
+            parameter.Value = value ?? DBNull.Value;
+
+
+            if (dbType.HasValue)
+            {
+                SetParameterType(parameter, dbType.Value);
+            }
+            else if (value != null)
+            {
+                dbType = TryGetDbType(value.GetType());
+                SetParameterType(parameter, dbType.Value);
+            }
+            
+            parameter.Value = value ?? DBNull.Value;
+            command.Parameters.Add(parameter);
+
+            return parameter;
+        }
+
+        public TParameter AddNamedParameter(TCommand command, string name, string value)
+        {
+            return AddNamedParameter(command, name, value, StringParameterType);
+        }
+        
+        public TParameter AddNamedParameter(TCommand command, string name, int value)
+        {
+            return AddNamedParameter(command, name, value, IntegerParameterType);
+        }
+        
+        public TParameter AddNamedParameter(TCommand command, string name, long value)
+        {
+            return AddNamedParameter(command, name, value, LongParameterType);
+        }
+        
+        public TParameter AddNamedParameter(TCommand command, string name, double value)
+        {
+            return AddNamedParameter(command, name, value, DoubleParameterType);
+        }
+        
+        public TParameter AddNamedParameter(TCommand command, string name, Guid value)
+        {
+            return AddNamedParameter(command, name, value, GuidParameterType);
+        }
+        
+        public TParameter AddNamedParameter(TCommand command, string name, bool value)
+        {
+            return AddNamedParameter(command, name, value, BoolParameterType);
+        }
+        
+        
+        
+        
+        
+
     }
 }
