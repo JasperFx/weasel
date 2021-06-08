@@ -130,7 +130,7 @@ namespace Weasel.Postgresql
 
 
 
-        protected override bool determineNpgsqlDbType(Type type, out NpgsqlDbType dbType)
+        protected override bool determineParameterType(Type type, out NpgsqlDbType dbType)
         {
             var npgsqlDbType = ResolveNpgsqlDbType(type);
             if (npgsqlDbType != null)

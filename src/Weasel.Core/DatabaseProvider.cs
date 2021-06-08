@@ -54,11 +54,17 @@ namespace Weasel.Core
             DoubleParameterType = ToParameterType(typeof(double));
         }
 
-        protected abstract bool determineNpgsqlDbType(Type type, out TParameterType dbType);
+        protected abstract bool determineParameterType(Type type, out TParameterType dbType);
+
+        protected void store<T>(TParameterType parameterType, string databaseType)
+        {
+            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(T), databaseType));
+            ParameterTypeMemo.Swap(d => d.AddOrUpdate(typeof(T), parameterType));
+        }
         
         public TParameterType? TryGetDbType(Type? type)
         {
-            if (type == null || !determineNpgsqlDbType(type, out var dbType))
+            if (type == null || !determineParameterType(type, out var dbType))
                 return null;
 
             return dbType;
@@ -66,7 +72,7 @@ namespace Weasel.Core
         
         public TParameterType ToParameterType(Type type)
         {
-            if (determineNpgsqlDbType(type, out var dbType))
+            if (determineParameterType(type, out var dbType))
                 return dbType;
 
             throw new NotSupportedException($"Can't infer {typeof(TParameterType).Name} for type " + type);

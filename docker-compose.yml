@@ -9,4 +9,12 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: marten_testing
       NAMEDATALEN: 100
+  sqlserver:
+    image: "microsoft/mssql-server-linux"
+    ports:
+      - "1433:1433"
+    environment:
+      - "ACCEPT_EULA=Y"
+      - "SA_PASSWORD=P@55w0rd"
+      - "MSSQL_PID=Developer"
 

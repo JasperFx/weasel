@@ -8,10 +8,89 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderIntegrationTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ConnectionSource.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/DbObjectNameTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/DdlRulesTester.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ExtensionTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionBodyTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SchemaMigrationTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SchemaObjectExtensionsTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SequenceTester.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlServerProviderTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableDeltaTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/creating_tables_in_database.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/reading_existing_table_from_database.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/rolling_back_table_deltas.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/table_partitioning.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/create_and_teardown_schemas.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/AssemblyInfo.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/AutoCreate.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Canonicalization.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CascadeOption.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CreationStyle.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/DbObjectName.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/DdlFormatting.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/DdlRules.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Extension.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionBody.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionDelta.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/ISchemaObject.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaGenerator.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigrationException.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaPatchDifference.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SecurityRights.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CommandParameter.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/ComparisonFilter.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CompoundWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CustomizableWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/IReversibleWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/ISqlFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/IWhereFragmentHolder.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/NotWhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/SqlFragmentExtensions.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/WhereFragment.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/WhereInArrayFilter.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/WhereInSubQuery.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/StringTokenizer.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Change.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/IPartition.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/IndexDefinition.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/IndexMethod.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ItemDelta.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/SortOrder.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/StringWriterExtensions.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.Deltas.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableColumn.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableDelta.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Weasel.sln" beforeDir="false" afterPath="$PROJECT_DIR$/Weasel.sln" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/TypeMappingsTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/PostgresqlProviderTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -30,62 +109,62 @@
     </file-type-list>
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/8981B85E-11AF-4759-AFEE-278036F5AF10/46/6077e03b/StringExtensions.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/DecompilerCache/decompiler/2A925EDF-E558-4632-978E-98FD8509CDF4/90/d246e8c6/MemberDataAttribute.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableDeltaTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/IDDLRunner.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaPatch.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionBody.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionBodyTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaManager.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/DdlRules.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/OldFunction.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.Deltas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/DdlRulesTester.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaPatchTester.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Sequence.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SequenceTester.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableColumn.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/rolling_back_table_deltas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/ISchemaObject.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionDelta.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaMigrationTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/create_and_teardown_schemas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CascadeOption.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Canonicalization.cs" />
-      <option value="$PROJECT_DIR$/.github/workflows/publish_nuget.yml" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning_by_range.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IPartition.cs" />
-      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/372ea8ee-de98-4e27-a1bd-68857f2bf27d/console.sql" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/table_partitioning.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IIndexDefinition.cs" />
-      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/a920d4e1-95e4-4f30-8b6d-ca25da674100/console.sql" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ActualIndex.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/StringWriterExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/TableDelta.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/StringTokenizer.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/IndexDefinitionTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/using_default_values_in_tables.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ExtensionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/using_default_values_in_tables.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandExtensionsTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Class1.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/PostgresqlProviderTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/AssemblyInfo.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/PostgresqlProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.Deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CommandParameter.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/EnumIsNotOneOfWhereFragment.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/EnumIsOneOfWhereFragment.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/SqlFragmentExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/PostgresqlProviderTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SchemaObjectExtensionsTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlServerProviderTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ConnectionSource.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -110,7 +189,7 @@
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
-    <property name="settings.editor.selected.configurable" value="reference.settings.ide.settings.notifications" />
+    <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
     <property name="vue.rearranger.settings.migration" value="true" />
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
@@ -146,27 +225,8 @@
       <workItem from="1621868715501" duration="934000" />
       <workItem from="1622557824620" duration="1439000" />
       <workItem from="1623002317325" duration="1868000" />
-    </task>
-    <task id="LOCAL-00013" summary="Very basic table mechanics to write out DDL">
-      <created>1618346045941</created>
-      <option name="number" value="00013" />
-      <option name="presentableId" value="LOCAL-00013" />
-      <option name="project" value="LOCAL" />
-      <updated>1618346045941</updated>
-    </task>
-    <task id="LOCAL-00014" summary="Very basic create and drop table to the database">
-      <created>1618346842361</created>
-      <option name="number" value="00014" />
-      <option name="presentableId" value="LOCAL-00014" />
-      <option name="project" value="LOCAL" />
-      <updated>1618346842361</updated>
-    </task>
-    <task id="LOCAL-00015" summary="Writing out very basic indexes">
-      <created>1618517084267</created>
-      <option name="number" value="00015" />
-      <option name="presentableId" value="LOCAL-00015" />
-      <option name="project" value="LOCAL" />
-      <updated>1618517084267</updated>
+      <workItem from="1623160056971" duration="4485000" />
+      <workItem from="1623181139550" duration="758000" />
     </task>
     <task id="LOCAL-00016" summary="Writing out very basic indexes">
       <created>1618517130304</created>
@@ -490,7 +550,28 @@
       <option name="project" value="LOCAL" />
       <updated>1622558857735</updated>
     </task>
-    <option name="localTasksCounter" value="62" />
+    <task id="LOCAL-00062" summary="Moved some of CommandExtensions back to the Core version based on DbCommand">
+      <created>1623096203904</created>
+      <option name="number" value="00062" />
+      <option name="presentableId" value="LOCAL-00062" />
+      <option name="project" value="LOCAL" />
+      <updated>1623096203904</updated>
+    </task>
+    <task id="LOCAL-00063" summary="Moving more functionality into the default DatabaseProvider">
+      <created>1623098735997</created>
+      <option name="number" value="00063" />
+      <option name="presentableId" value="LOCAL-00063" />
+      <option name="project" value="LOCAL" />
+      <updated>1623098735997</updated>
+    </task>
+    <task id="LOCAL-00064" summary="Went on a warnings hunt in the Postgresql code">
+      <created>1623099473011</created>
+      <option name="number" value="00064" />
+      <option name="presentableId" value="LOCAL-00064" />
+      <option name="project" value="LOCAL" />
+      <updated>1623099473011</updated>
+    </task>
+    <option name="localTasksCounter" value="65" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -500,152 +581,119 @@
     <option name="coveragePercentColumnWidth" value="150" />
     <option name="sortOrder" value="DESCENDING" />
     <option name="sortedColumn" value="1" />
-    <option name="symbolColumnWidth" value="342" />
+    <option name="symbolColumnWidth" value="637" />
     <coverage-tree-state>
       <expand>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Marten.Schema 100% 0/15" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Marten.Schema 100% 0/15" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="SchemaGenerator 100% 0/15" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Extension 96% 1/24" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Tables 85% 166/1081" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Extension 100% 0/24" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Tables 85% 166/1081" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Table 93% 25/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Tables 85% 161/1083" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-        </path>
-        <path>
-          <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Tables 85% 161/1083" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Table 93% 24/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-        </path>
-        <path>
-          <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Tables 85% 161/1083" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Table 93% 24/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Tables 85% 166/1081" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Table 93% 25/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
           <item name="HasColumn(string) 100% 0/4" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Tables 85% 161/1083" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Table 93% 24/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Tables 85% 166/1081" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Table 93% 25/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
           <item name="ColumnExpression 100% 0/68" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Tables 85% 161/1083" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Table 93% 24/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Tables 85% 166/1081" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Table 93% 25/360" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
           <item name="readColumn(DbDataReader) 46% 7/13" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Tables 85% 161/1083" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="IndexDefinition 86% 27/189" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Tables 85% 166/1081" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="IndexDefinition 85% 27/184" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Tables 85% 161/1083" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Tables 85% 166/1081" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
           <item name="ColumnCheck 0% 7/7" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="CommandBuilder 52% 47/98" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="CommandBuilder 56% 4/9" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
         <path>
           <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="CommandExtensions 36% 103/160" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-        </path>
-        <path>
-          <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="CommandExtensions 36% 103/160" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="FetchList&lt;T&gt;(NpgsqlCommand,CancellationToken) 78% 2/9" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-        </path>
-        <path>
-          <item name="rootNode" type="c53c71d1:RiderDotCoverCoverageTreeModel$RootNode" />
-          <item name="Total 48% 3593/6959" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 33% 3585/5348" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="(0.7.3.0, net5.0) 66% 911/2674" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="Weasel.Postgresql 66% 911/2659" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="CommandExtensions 36% 103/160" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
-          <item name="FetchOne&lt;T&gt;(NpgsqlCommand,CancellationToken) 73% 3/11" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Total 44% 3793/6798" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 32% 3245/4764" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="(0.7.3.0, net5.0) 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="Weasel.Postgresql 64% 863/2382" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
+          <item name="CommandExtensions 16% 38/45" type="8b8fad3a:RiderDotCoverCoverageTreeNode" />
         </path>
       </expand>
       <select />
@@ -667,9 +715,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="TableColumn.AddColumnSql() method" />
-    <MESSAGE value="TableDelta can calculate its difference level" />
-    <MESSAGE value="Updates to .gitignore" />
     <MESSAGE value="WIP: introduced the new ISchemaObjectDelta model" />
     <MESSAGE value="Roughed in what will be the new SchemaMigration to replace SchemaPatch" />
     <MESSAGE value="Moving the ISchemaObjectDelta to use the new SchemaMigration model" />
@@ -692,7 +737,10 @@
     <MESSAGE value="Getting ready for publishing to Nuget" />
     <MESSAGE value="Upgraded Baseline, slid back to netstandard2.0" />
     <MESSAGE value="Using the old flavor of SchemaGenerator to get around concurrency issues" />
-    <option name="LAST_COMMIT_MESSAGE" value="Using the old flavor of SchemaGenerator to get around concurrency issues" />
+    <MESSAGE value="Moved some of CommandExtensions back to the Core version based on DbCommand" />
+    <MESSAGE value="Moving more functionality into the default DatabaseProvider" />
+    <MESSAGE value="Went on a warnings hunt in the Postgresql code" />
+    <option name="LAST_COMMIT_MESSAGE" value="Went on a warnings hunt in the Postgresql code" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -709,32 +757,6 @@
             </endOffsets>
           </properties>
           <option name="timeStamp" value="1" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/reading_existing_table_from_database.cs</url>
-          <line>118</line>
-          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/reading_existing_table_from_database.cs" initialLine="74" containingFunctionPresentation="method 'read_indexes_and_foreign_keys'">
-            <startOffsets>
-              <option value="3773" />
-            </startOffsets>
-            <endOffsets>
-              <option value="3808" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="3" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs</url>
-          <line>18</line>
-          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" initialLine="26" containingFunctionPresentation="method 'ApplyChanges'">
-            <startOffsets>
-              <option value="592" />
-            </startOffsets>
-            <endOffsets>
-              <option value="607" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="7" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/detecting_table_deltas.cs</url>
@@ -761,19 +783,6 @@
             </endOffsets>
           </properties>
           <option name="timeStamp" value="10" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs</url>
-          <line>185</line>
-          <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" initialLine="170" containingFunctionPresentation="method 'RollbackAll'">
-            <startOffsets>
-              <option value="6397" />
-            </startOffsets>
-            <endOffsets>
-              <option value="6499" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="13" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionDelta.cs</url>
@@ -816,16 +825,42 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs</url>
-          <line>229</line>
+          <line>223</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" initialLine="226" containingFunctionPresentation="method 'Parse'">
             <startOffsets>
-              <option value="6706" />
+              <option value="6523" />
             </startOffsets>
             <endOffsets>
-              <option value="6764" />
+              <option value="6581" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="37" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/creating_tables_in_database.cs</url>
+          <line>17</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\creating_tables_in_database.cs" initialLine="17" containingFunctionPresentation="method 'create_table_in_the_database'">
+            <startOffsets>
+              <option value="409" />
+            </startOffsets>
+            <endOffsets>
+              <option value="441" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="38" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs</url>
+          <line>16</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\IntegrationContext.cs" initialLine="16" containingFunctionPresentation="constructor 'IntegrationContext'">
+            <startOffsets>
+              <option value="463" />
+            </startOffsets>
+            <endOffsets>
+              <option value="514" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="39" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

@@ -10,7 +10,7 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests
 {
-    public class TypeMappingsTests
+    public class PostgresqlProviderTests
     {
         [Fact]
         public void execute_to_db_type_as_int()
