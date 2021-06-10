@@ -230,11 +230,10 @@ namespace Weasel.SqlServer.Tests.Tables
 
         public static IEnumerable<object[]> IndexTestData()
         {
-            yield break;
-            // foreach (var (description, action) in IndexConfigs())
-            // {
-            //     yield return new object[] {description, action};
-            // }
+            foreach (var (description, action) in IndexConfigs())
+            {
+                yield return new object[] {description, action};
+            }
         }
 
         private static IEnumerable<(string, Action<Table>)> IndexConfigs()

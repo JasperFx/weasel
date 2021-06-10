@@ -22,6 +22,11 @@ namespace Weasel.Postgresql
 
         private PostgresqlProvider()
         {
+
+        }
+
+        protected override void storeMappings()
+        {
             // Initialize PgTypeMemo with Types which are not available in Npgsql mappings
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(long), "bigint"));
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(Guid), "uuid"));

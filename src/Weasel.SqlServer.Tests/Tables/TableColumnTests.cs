@@ -93,14 +93,13 @@ namespace Weasel.SqlServer.Tests.Tables
 
         public static IEnumerable<object[]> TableColumnsCanAdd()
         {
-            yield break;
-            // var table = new Table("people");
-            //
-            // yield return new object[] {table.AddColumn<string>("name1").Column, true};
-            // yield return new object[] {table.AddColumn<string>("name2").AllowNulls().Column, true};
-            // yield return new object[] {table.AddColumn<string>("name3").NotNull().Column, false};
-            // yield return new object[] {table.AddColumn<string>("name4").DefaultValueByString("foo").Column, true};
-            // yield return new object[] {table.AddColumn<string>("name5").NotNull().DefaultValueByString("foo").Column, true};
+            var table = new Table("people");
+            
+            yield return new object[] {table.AddColumn<string>("name1").Column, true};
+            yield return new object[] {table.AddColumn<string>("name2").AllowNulls().Column, true};
+            yield return new object[] {table.AddColumn<string>("name3").NotNull().Column, false};
+            yield return new object[] {table.AddColumn<string>("name4").DefaultValueByString("foo").Column, true};
+            yield return new object[] {table.AddColumn<string>("name5").NotNull().DefaultValueByString("foo").Column, true};
         }
     
 

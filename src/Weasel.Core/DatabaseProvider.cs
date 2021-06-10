@@ -46,6 +46,7 @@ namespace Weasel.Core
 
         protected DatabaseProvider()
         {
+            storeMappings();
             StringParameterType = ToParameterType(typeof(string));
             IntegerParameterType = ToParameterType(typeof(int));
             LongParameterType = ToParameterType(typeof(long));
@@ -53,6 +54,8 @@ namespace Weasel.Core
             BoolParameterType = ToParameterType(typeof(bool));
             DoubleParameterType = ToParameterType(typeof(double));
         }
+
+        protected abstract void storeMappings();
 
         protected abstract bool determineParameterType(Type type, out TParameterType dbType);
 

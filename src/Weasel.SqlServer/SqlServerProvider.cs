@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Reflection;
@@ -17,6 +18,12 @@ namespace Weasel.SqlServer
 
         private SqlServerProvider()
         {
+
+        }
+
+        protected override void storeMappings()
+        {
+            store<string>(SqlDbType.VarChar, "varchar");
             store<bool>(System.Data.SqlDbType.Bit, "bit");
             store<long>(System.Data.SqlDbType.BigInt, "bigint");
             store<byte[]>(System.Data.SqlDbType.Binary, "binary");
@@ -28,10 +35,6 @@ namespace Weasel.SqlServer
             store<TimeSpan>(System.Data.SqlDbType.Time, "time");
         }
 
-        public List<Type> ContainmentOperatorTypes { get; } = new();
-        public List<Type> TimespanTypes { get; } = new();
-        public List<Type> TimespanZTypes { get; } = new();
-
 
         // Lazily retrieve the CLR type to SqlDbType and PgTypeName mapping from exposed ISqlTypeMapper.Mappings.
         // This is lazily calculated instead of precached because it allows consuming code to register
@@ -42,15 +45,14 @@ namespace Weasel.SqlServer
             {
                 return value;
             }
-
-            if (determineParameterType(type, out var dbType))
+            
+            if (type.IsNullable() && DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out string databaseType))
             {
-                ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, dbType));
+                DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
+                return databaseType;
             }
 
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, value));
-
-            return value;
+            throw new NotSupportedException($"Weasel.SqlServer does not (yet) support database type mapping to {type.GetFullName()}");
         }
 
         private System.Data.SqlDbType? ResolveSqlDbType(Type type)
@@ -58,11 +60,6 @@ namespace Weasel.SqlServer
             if (ParameterTypeMemo.Value.TryFind(type, out var value))
             {
                 return value;
-            }
-
-            if (determineParameterType(type, out var dbType))
-            {
-                ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, dbType));
             }
 
             return System.Data.SqlDbType.Variant;
@@ -170,27 +167,7 @@ namespace Weasel.SqlServer
             parameter.SqlDbType = dbType;
         }
 
-        public bool HasTypeMapping(Type memberType)
-        {
-            if (memberType.IsNullable())
-            {
-                return HasTypeMapping(memberType.GetInnerTypeFromNullable());
-            }
 
-            // more complicated later
-            return ResolveDatabaseType(memberType) != null || memberType.IsEnum;
-        }
-
-        private Type GetNullableType(Type type)
-        {
-            type = Nullable.GetUnderlyingType(type) ?? type;
-            if (type.IsValueType)
-            {
-                return typeof(Nullable<>).MakeGenericType(type);
-            }
-
-            return type;
-        }
 
     }
 }

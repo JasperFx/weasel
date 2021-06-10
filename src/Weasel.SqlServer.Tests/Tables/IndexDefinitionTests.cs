@@ -161,15 +161,14 @@ namespace Weasel.SqlServer.Tests.Tables
 
         public static IEnumerable<object[]> Indexes()
         {
-            yield break;
-            // yield return new[]{new IndexDefinition("idx_1").AgainstColumns("name")};
-            // yield return new[]{new IndexDefinition("idx_1").AgainstColumns("name", "age")};
-            // yield return new[]{new IndexDefinition("idx_1")
-            // {
-            //     IsUnique = true
-            // }.AgainstColumns("name", "age")};
-            //
-            // yield return new[]{new IndexDefinition("idx_1"){SortOrder = SortOrder.Desc}.AgainstColumns("name")};
+            yield return new[]{new IndexDefinition("idx_1").AgainstColumns("name")};
+            yield return new[]{new IndexDefinition("idx_1").AgainstColumns("name", "age")};
+            yield return new[]{new IndexDefinition("idx_1")
+            {
+                IsUnique = true
+            }.AgainstColumns("name", "age")};
+            
+            yield return new[]{new IndexDefinition("idx_1"){SortOrder = SortOrder.Desc}.AgainstColumns("name")};
         }
 
         [Theory]
