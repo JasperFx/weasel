@@ -37,7 +37,7 @@ namespace Weasel.SqlServer.Tables
             Identifier = name ?? throw new ArgumentNullException(nameof(name));
         }
 
-        public Table(string tableName) : this(DbObjectName.Parse(tableName))
+        public Table(string tableName) : this(DbObjectName.Parse(SqlServerProvider.Instance, tableName))
         {
         }
 
@@ -291,7 +291,7 @@ namespace Weasel.SqlServer.Tables
                 string fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
                 CascadeAction onUpdate = CascadeAction.NoAction)
             {
-                return ForeignKeyTo(DbObjectName.Parse(referencedTableName), referencedColumnName, fkName, onDelete,
+                return ForeignKeyTo(DbObjectName.Parse(SqlServerProvider.Instance, referencedTableName), referencedColumnName, fkName, onDelete,
                     onUpdate);
             }
 

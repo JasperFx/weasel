@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
 using Shouldly;
+using Weasel.Core;
 using Weasel.SqlServer.Functions;
 using Weasel.SqlServer.Tables;
 using Xunit;
@@ -104,7 +105,7 @@ $$ LANGUAGE plpgsql;
         [Fact]
         public void can_derive_the_drop_statement_from_the_body()
         {
-            var function = new Function(DbObjectName.Parse("functions.mt_get_next_hi"), theFunctionBody);
+            var function = new Function(DbObjectName.Parse(SqlServerProvider.Instance, "functions.mt_get_next_hi"), theFunctionBody);
             function.DropStatements().Single().ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
         }
 

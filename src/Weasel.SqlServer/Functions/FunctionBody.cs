@@ -1,5 +1,6 @@
 using System.IO;
 using Baseline;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Functions
 {

@@ -1,5 +1,6 @@
 using System.Linq;
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -13,7 +14,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var table = new Table("people");
             var fk = new ForeignKey("fk_state")
             {
-                LinkedTable = new DbObjectName("states"),
+                LinkedTable = new DbObjectName("public","states"),
                 ColumnNames = new []{"state_id"},
                 LinkedNames = new []{"id"}
             };
@@ -33,7 +34,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var table = new Table("people");
             var fk = new ForeignKey("fk_state")
             {
-                LinkedTable = new DbObjectName("states"),
+                LinkedTable = new DbObjectName("public","states"),
                 ColumnNames = new []{"state_id"},
                 LinkedNames = new []{"id"},
                 OnDelete = CascadeAction.Restrict
@@ -52,7 +53,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var table = new Table("people");
             var fk = new ForeignKey("fk_state")
             {
-                LinkedTable = new DbObjectName("states"),
+                LinkedTable = new DbObjectName("public","states"),
                 ColumnNames = new []{"state_id"},
                 LinkedNames = new []{"id"},
                 OnUpdate = CascadeAction.Cascade
@@ -71,7 +72,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var table = new Table("people");
             var fk = new ForeignKey("fk_state")
             {
-                LinkedTable = new DbObjectName("states"),
+                LinkedTable = new DbObjectName("public","states"),
                 ColumnNames = new []{"state_id", "tenant_id"},
                 LinkedNames = new []{"id", "tenant_id"}
             };
@@ -125,7 +126,7 @@ namespace Weasel.Postgresql.Tests.Tables
             
             fk.ColumnNames.Single().ShouldBe("state_id");
             fk.LinkedNames.Single().ShouldBe("id");
-            fk.LinkedTable.ShouldBe(new DbObjectName("states"));
+            fk.LinkedTable.ShouldBe(new DbObjectName("public","states"));
         }
         
         [Fact]
@@ -140,7 +141,7 @@ namespace Weasel.Postgresql.Tests.Tables
             
             fk.ColumnNames.ShouldBe(new string[]{"state_id", "tenant_id"});
             fk.LinkedNames.ShouldBe(new string[]{"id", "tenant_id"});
-            fk.LinkedTable.ShouldBe(new DbObjectName("states"));
+            fk.LinkedTable.ShouldBe(new DbObjectName("public","states"));
         }
     }
 }

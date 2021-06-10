@@ -7,14 +7,42 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Improved the SQL Server type resolution">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Weasel.sln" beforeDir="false" afterPath="$PROJECT_DIR$/Weasel.sln" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandExtensionsTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandExtensionsTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/DbObjectNameTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Weasel.Core.Tests/DbObjectNameTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionBodyTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionBodyTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SequenceTester.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SequenceTester.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/DbObjectName.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/DbObjectName.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionBody.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/FunctionBody.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/ISchemaObject.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/ISchemaObject.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Sequence.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Sequence.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/DbObjectNameTests.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionBodyTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionBodyTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SequenceTester.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SequenceTester.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/DbObjectName.cs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Extension.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Extension.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionBody.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionBody.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/ISchemaObject.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/ISchemaObject.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -43,38 +71,15 @@
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigrationException.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.FetchExisting.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/TableTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaMigration.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ExtensionTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Extension.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandBuilder.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/using_default_values_in_tables.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandExtensionsTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/IndexDefinition.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Class1.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/PostgresqlProviderTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/AssemblyInfo.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/PostgresqlProvider.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.Deltas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CommandParameter.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/EnumIsNotOneOfWhereFragment.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/EnumIsOneOfWhereFragment.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/SqlFragmentExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" />
@@ -83,17 +88,40 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SchemaObjectExtensionsTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlServerProviderTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ConnectionSource.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/DbObjectName.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Sequence.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/ForeignKey.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Tables/Table.cs" />
+      <option value="$PROJECT_DIR$/Weasel.Core.Tests/UnitTest1.cs" />
+      <option value="$PROJECT_DIR$/Weasel.Core.Tests/Weasel.Core.Tests.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/DbObjectName.cs" />
+      <option value="$PROJECT_DIR$/Weasel.Core.Tests/DbObjectNameTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandExtensionsTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionBody.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/ISchemaObject.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Extension.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SequenceTester.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionBodyTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -156,14 +184,7 @@
       <workItem from="1623002317325" duration="1868000" />
       <workItem from="1623160056971" duration="4485000" />
       <workItem from="1623181139550" duration="925000" />
-      <workItem from="1623344268696" duration="4131000" />
-    </task>
-    <task id="LOCAL-00018" summary="Reorganizing /Tables code files">
-      <created>1618518389817</created>
-      <option name="number" value="00018" />
-      <option name="presentableId" value="LOCAL-00018" />
-      <option name="project" value="LOCAL" />
-      <updated>1618518389817</updated>
+      <workItem from="1623344268696" duration="6260000" />
     </task>
     <task id="LOCAL-00019" summary="Can add single column foreign keys to a table">
       <created>1618599934533</created>
@@ -501,7 +522,14 @@
       <option name="project" value="LOCAL" />
       <updated>1623181951726</updated>
     </task>
-    <option name="localTasksCounter" value="67" />
+    <task id="LOCAL-00067" summary="Improved the SQL Server type resolution">
+      <created>1623354037796</created>
+      <option name="number" value="00067" />
+      <option name="presentableId" value="LOCAL-00067" />
+      <option name="project" value="LOCAL" />
+      <updated>1623354037797</updated>
+    </task>
+    <option name="localTasksCounter" value="68" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -645,7 +673,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Roughed in what will be the new SchemaMigration to replace SchemaPatch" />
     <MESSAGE value="Moving the ISchemaObjectDelta to use the new SchemaMigration model" />
     <MESSAGE value="SchemaMigration.AssertPatchingIsValid()" />
     <MESSAGE value="SchemaMigration methods to write out the apply changes" />
@@ -670,7 +697,8 @@
     <MESSAGE value="Moving more functionality into the default DatabaseProvider" />
     <MESSAGE value="Went on a warnings hunt in the Postgresql code" />
     <MESSAGE value="Copied initial Weasel.SqlServer code -- DOES NOT YET WORK" />
-    <option name="LAST_COMMIT_MESSAGE" value="Copied initial Weasel.SqlServer code -- DOES NOT YET WORK" />
+    <MESSAGE value="Improved the SQL Server type resolution" />
+    <option name="LAST_COMMIT_MESSAGE" value="Improved the SQL Server type resolution" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -729,13 +757,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs</url>
-          <line>165</line>
+          <line>166</line>
           <properties documentPath="$PROJECT_DIR$/src/Weasel.Postgresql/Functions/Function.cs" initialLine="163" containingFunctionPresentation="method 'DropStatements'">
             <startOffsets>
-              <option value="4932" />
+              <option value="4980" />
             </startOffsets>
             <endOffsets>
-              <option value="4971" />
+              <option value="5019" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="17" />
@@ -781,39 +809,39 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs</url>
-          <line>49</line>
+          <line>56</line>
           <properties documentPath="C:\code\weasel\src\Weasel.Core\DatabaseProvider.cs" initialLine="48" containingFunctionPresentation="constructor 'DatabaseProvider'">
             <startOffsets>
-              <option value="2133" />
+              <option value="2415" />
             </startOffsets>
             <endOffsets>
-              <option value="2187" />
+              <option value="2469" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="43" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs</url>
-          <line>135</line>
+          <line>132</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\SqlServerProvider.cs" initialLine="143" containingFunctionPresentation="method 'GetDatabaseType'">
             <startOffsets>
-              <option value="4155" />
+              <option value="4091" />
             </startOffsets>
             <endOffsets>
-              <option value="4177" />
+              <option value="4113" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="44" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs</url>
-          <line>97</line>
+          <line>94</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\SqlServerProvider.cs" initialLine="105" containingFunctionPresentation="method 'determineParameterType'">
             <startOffsets>
-              <option value="3131" />
+              <option value="3067" />
             </startOffsets>
             <endOffsets>
-              <option value="3170" />
+              <option value="3106" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="45" />

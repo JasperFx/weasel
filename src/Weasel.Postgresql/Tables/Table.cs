@@ -202,7 +202,7 @@ namespace Weasel.Postgresql.Tables
             Identifier = name ?? throw new ArgumentNullException(nameof(name));
         }
 
-        public Table(string tableName) : this(DbObjectName.Parse(tableName))
+        public Table(string tableName) : this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
         {
             
         }
@@ -266,7 +266,7 @@ namespace Weasel.Postgresql.Tables
 
             public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName, string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
-                return ForeignKeyTo(DbObjectName.Parse(referencedTableName), referencedColumnName, fkName, onDelete, onUpdate);
+                return ForeignKeyTo(DbObjectName.Parse(PostgresqlProvider.Instance, referencedTableName), referencedColumnName, fkName, onDelete, onUpdate);
             }
             
             public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName, string fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)

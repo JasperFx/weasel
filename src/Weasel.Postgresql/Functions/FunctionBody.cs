@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Baseline;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Functions
 {

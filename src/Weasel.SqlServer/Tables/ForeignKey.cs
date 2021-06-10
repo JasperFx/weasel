@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Baseline;
+using Weasel.Core;
 
 #nullable enable
 
@@ -94,7 +95,7 @@ namespace Weasel.SqlServer.Tables
             var tableStart = definition.IndexOf(references) + references.Length;
 
             var tableName = definition.Substring(tableStart, open2 - tableStart).Trim();
-            LinkedTable = DbObjectName.Parse(tableName);
+            LinkedTable = DbObjectName.Parse(SqlServerProvider.Instance, tableName);
 
             if (definition.ContainsIgnoreCase("ON DELETE CASCADE"))
             {

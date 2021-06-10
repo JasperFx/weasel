@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
 using System.Threading.Tasks;
+using Weasel.Core;
 
 namespace Weasel.Postgresql
 {

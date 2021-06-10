@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
+using Weasel.Core;
 
 namespace Weasel.SqlServer
 {
@@ -12,7 +13,7 @@ namespace Weasel.SqlServer
 
         public Sequence(string identifier)
         {
-            Identifier = DbObjectName.Parse(identifier);
+            Identifier = DbObjectName.Parse(SqlServerProvider.Instance, identifier);
         }
 
         public Sequence(DbObjectName identifier)

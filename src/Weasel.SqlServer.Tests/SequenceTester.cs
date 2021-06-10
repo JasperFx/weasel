@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks;
 using Shouldly;
+using Weasel.Core;
 using Xunit;
 
 namespace Weasel.SqlServer.Tests

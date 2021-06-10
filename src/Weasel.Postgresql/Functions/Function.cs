@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Functions
 {
@@ -48,7 +49,7 @@ namespace Weasel.Postgresql.Functions
         {
             var signature = ParseSignature(functionSql);
             var open = signature.IndexOf('(');
-            return DbObjectName.Parse(signature.Substring(0, open));
+            return DbObjectName.Parse(PostgresqlProvider.Instance, signature.Substring(0, open));
         }
 
 
@@ -191,7 +192,7 @@ AND    n.nspname = :{schemaParam};
 
         public static Function ForRemoval(string identifier)
         {
-            return ForRemoval(DbObjectName.Parse(identifier));
+            return ForRemoval(DbObjectName.Parse(PostgresqlProvider.Instance, identifier));
         }
         
         public static Function ForRemoval(DbObjectName identifier)

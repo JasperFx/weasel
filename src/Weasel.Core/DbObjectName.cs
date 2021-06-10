@@ -1,22 +1,12 @@
 using System;
 
-namespace Weasel.Postgresql
+namespace Weasel.Core
 {
     public class DbObjectName
     {
-        public string OwnerName => Schema == DefaultDatabaseSchemaName ? Name : QualifiedName;
-
         public string Schema { get; }
         public string Name { get; }
         public string QualifiedName { get; }
-
-        /// <summary>
-        /// Create a DbObjectName with Schema = "public"
-        /// </summary>
-        /// <param name="name"></param>
-        public DbObjectName(string name) : this("public", name)
-        {
-        }
 
         public DbObjectName(string schema, string name)
         {
@@ -30,9 +20,9 @@ namespace Weasel.Postgresql
             return new DbObjectName(Schema, Name + "_temp");
         }
 
-        public static DbObjectName Parse(string qualifiedName)
+        public static DbObjectName Parse(IDatabaseProvider provider, string qualifiedName)
         {
-            var parts = ParseQualifiedName(qualifiedName);
+            var parts = ParseQualifiedName(provider, qualifiedName);
             return new DbObjectName(parts[0], parts[1]);
         }
 
@@ -65,12 +55,12 @@ namespace Weasel.Postgresql
             }
         }
 
-        protected static string[] ParseQualifiedName(string qualifiedName)
+        protected static string[] ParseQualifiedName(IDatabaseProvider provider, string qualifiedName)
         {
             var parts = qualifiedName.Split('.');
             if (parts.Length == 1)
             {
-                return new string[] { DefaultDatabaseSchemaName, qualifiedName };
+                return new string[] { provider.DefaultDatabaseSchemaName, qualifiedName };
             }
 
             if (parts.Length != 2)
@@ -80,10 +70,5 @@ namespace Weasel.Postgresql
             }
             return parts;
         }
-
-        /// <summary>
-        ///     The default database schema used 'public'.
-        /// </summary>
-        public const string DefaultDatabaseSchemaName = "public";
     }
 }

@@ -20,7 +20,7 @@ namespace Weasel.Postgresql
         public List<Type> TimespanTypes { get; } = new List<Type>();
         public List<Type> TimespanZTypes { get; } = new List<Type>();
 
-        private PostgresqlProvider()
+        private PostgresqlProvider() : base("public")
         {
 
         }

@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Functions
 {
@@ -114,7 +115,7 @@ AND    n.nspname = :{schemaParam};
         {
             var signature = ParseSignature(functionSql);
             var open = signature.IndexOf('(');
-            return DbObjectName.Parse(signature.Substring(0, open));
+            return DbObjectName.Parse(SqlServerProvider.Instance, signature.Substring(0, open));
         }
 
         public async Task<Function> FetchExisting(SqlConnection conn)
@@ -195,7 +196,7 @@ AND    n.nspname = :{schemaParam};
 
         public static Function ForRemoval(string identifier)
         {
-            return ForRemoval(DbObjectName.Parse(identifier));
+            return ForRemoval(DbObjectName.Parse(SqlServerProvider.Instance, identifier));
         }
 
         public static Function ForRemoval(DbObjectName identifier)

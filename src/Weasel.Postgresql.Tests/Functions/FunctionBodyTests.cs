@@ -1,4 +1,5 @@
 ﻿using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Functions;
 using Xunit;
 

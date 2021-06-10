@@ -6,7 +6,12 @@ using Baseline.ImTools;
 
 namespace Weasel.Core
 {
-    public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+    public interface IDatabaseProvider
+    {
+        string DefaultDatabaseSchemaName { get; }
+    }
+    
+    public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> : IDatabaseProvider
         where TCommand : DbCommand, new()
         where TParameter : DbParameter
         where TConnection : DbConnection
@@ -40,12 +45,14 @@ namespace Weasel.Core
         where TDataReader : DbDataReader
         where TParameterType : struct  
     {
+        public string DefaultDatabaseSchemaName { get; }
         protected readonly Ref<ImHashMap<Type, string>> DatabaseTypeMemo = Ref.Of(ImHashMap<Type, string>.Empty);
         protected readonly Ref<ImHashMap<Type, TParameterType?>> ParameterTypeMemo = Ref.Of(ImHashMap<Type, TParameterType?>.Empty);
         protected readonly Ref<ImHashMap<TParameterType, Type[]>> TypeMemo = Ref.Of(ImHashMap<TParameterType, Type[]>.Empty);
 
-        protected DatabaseProvider()
+        protected DatabaseProvider(string defaultDatabaseSchemaName)
         {
+            DefaultDatabaseSchemaName = defaultDatabaseSchemaName;
             storeMappings();
             StringParameterType = ToParameterType(typeof(string));
             IntegerParameterType = ToParameterType(typeof(int));

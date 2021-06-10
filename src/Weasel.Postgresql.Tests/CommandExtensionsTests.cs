@@ -51,7 +51,7 @@ namespace Weasel.Postgresql.Tests
         public void CallsSproc_extension_method()
         {
             var command = new NpgsqlCommand();
-            command.CallsSproc(DbObjectName.Parse("foo.func")).ShouldBeSameAs(command);
+            command.CallsSproc(new DbObjectName("foo", "func")).ShouldBeSameAs(command);
             command.CommandType.ShouldBe(CommandType.StoredProcedure);
             command.CommandText.ShouldBe("foo.func");
         }

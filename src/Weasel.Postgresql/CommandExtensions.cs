@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
 using NpgsqlTypes;
+using Weasel.Core;
 
 namespace Weasel.Postgresql
 {
