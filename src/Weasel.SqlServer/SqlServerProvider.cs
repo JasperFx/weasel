@@ -27,7 +27,7 @@ namespace Weasel.SqlServer
             store<DateTime>(System.Data.SqlDbType.Date, "datetime");
             store<DateTimeOffset>(System.Data.SqlDbType.DateTimeOffset, "datetimeoffset");
             store<decimal>(System.Data.SqlDbType.Decimal, "decimal");
-            store<double>(System.Data.SqlDbType.Float, "double");
+            store<double>(System.Data.SqlDbType.Float, "float");
             store<int>(System.Data.SqlDbType.Int, "int");
             store<TimeSpan>(System.Data.SqlDbType.Time, "time");
         }

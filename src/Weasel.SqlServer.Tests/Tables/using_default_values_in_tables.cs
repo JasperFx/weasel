@@ -19,7 +19,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await ResetSchema();
             
             var states = new Table("defaults.states");
-            states.AddColumn<int>("id").AsPrimaryKey().Serial();
+            states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
             states.AddColumn<string>("name").NotNull();
             states.AddColumn<string>("abbr").NotNull().DefaultValueByString("XX");
 
@@ -28,7 +28,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.CreateCommand("insert into defaults.states (name) values ('Texas')")
                 .ExecuteNonQueryAsync();
 
-            var abbr = await theConnection.CreateCommand("select abbr from defaults.states limit 1").FetchOne<string>();
+            var abbr = await theConnection.CreateCommand("select abbr from defaults.states").FetchOne<string>();
 
             abbr.ShouldBe("XX");
         }
@@ -39,7 +39,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await ResetSchema();
             
             var states = new Table("defaults.states");
-            states.AddColumn<int>("id").AsPrimaryKey().Serial();
+            states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
             states.AddColumn<string>("name").NotNull();
             states.AddColumn<int>("number").NotNull().DefaultValue(5);
 
@@ -48,7 +48,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.CreateCommand("insert into defaults.states (name) values ('Texas')")
                 .ExecuteNonQueryAsync();
 
-            var abbr = await theConnection.CreateCommand("select number from defaults.states limit 1").FetchOne<int>();
+            var abbr = await theConnection.CreateCommand("select number from defaults.states").FetchOne<int>();
 
             abbr.ShouldBe(5);
         }
@@ -59,7 +59,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await ResetSchema();
             
             var states = new Table("defaults.states");
-            states.AddColumn<int>("id").AsPrimaryKey().Serial();
+            states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
             states.AddColumn<string>("name").NotNull();
             states.AddColumn<long>("number").NotNull().DefaultValue(5L);
 
@@ -68,7 +68,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.CreateCommand("insert into defaults.states (name) values ('Texas')")
                 .ExecuteNonQueryAsync();
 
-            var abbr = await theConnection.CreateCommand("select number from defaults.states limit 1").FetchOne<long>();
+            var abbr = await theConnection.CreateCommand("select number from defaults.states").FetchOne<long>();
 
             abbr.ShouldBe(5);
         }
@@ -79,7 +79,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await ResetSchema();
             
             var states = new Table("defaults.states");
-            states.AddColumn<int>("id").AsPrimaryKey().Serial();
+            states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
             states.AddColumn<string>("name").NotNull();
             states.AddColumn<double>("number").NotNull().DefaultValue(5.5);
 
@@ -88,7 +88,8 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.CreateCommand("insert into defaults.states (name) values ('Texas')")
                 .ExecuteNonQueryAsync();
 
-            var abbr = await theConnection.CreateCommand("select number from defaults.states limit 1")
+            
+            var abbr = await theConnection.CreateCommand("select top 1 number from defaults.states")
                 .FetchOne<double>();
 
             abbr.ShouldBe(5.5);
@@ -104,16 +105,23 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(sequence);
             
             var states = new Table("defaults.states");
-            states.AddColumn<int>("id").AsPrimaryKey().Serial();
+            states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
             states.AddColumn<string>("name").NotNull();
-            states.AddColumn<int>("number").NotNull().DefaultValueFromSequence(sequence);
+            states.AddColumn<long>("number").NotNull().DefaultValueFromSequence(sequence);
 
             await CreateSchemaObjectInDatabase(states);
             
             await theConnection.CreateCommand("insert into defaults.states (name) values ('Texas')")
                 .ExecuteNonQueryAsync();
+            
 
-            var abbr = await theConnection.CreateCommand("select number from defaults.states limit 1").FetchOne<int>();
+            await theConnection.CreateCommand("insert into defaults.states (name) values ('Missouri')")
+                .ExecuteNonQueryAsync();
+            
+            await theConnection.CreateCommand("insert into defaults.states (name) values ('Arkansas')")
+                .ExecuteNonQueryAsync();
+
+            var abbr = await theConnection.CreateCommand("select top 1 number from defaults.states").FetchOne<long>();
 
             abbr.ShouldBe(1);
         }

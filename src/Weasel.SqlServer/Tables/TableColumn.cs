@@ -42,6 +42,7 @@ namespace Weasel.SqlServer.Tables
         public bool IsPrimaryKey { get; internal set; }
 
         public string Name { get; }
+        public bool IsAutoNumber { get; set; }
 
         public string RawType()
         {
@@ -51,6 +52,10 @@ namespace Weasel.SqlServer.Tables
         public string Declaration()
         {
             var declaration = !IsPrimaryKey && AllowNulls ? "NULL" : "NOT NULL";
+            if (IsAutoNumber)
+            {
+                declaration += " IDENTITY";
+            }
             if (DefaultExpression.IsNotEmpty())
             {
                 declaration += " DEFAULT " + DefaultExpression;

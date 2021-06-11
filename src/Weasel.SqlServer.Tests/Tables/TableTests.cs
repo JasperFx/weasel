@@ -269,7 +269,7 @@ namespace Weasel.SqlServer.Tests.Tables
         public void add_serial_as_default_value()
         {
             var states = new Table("states");
-            states.AddColumn<int>("id").AsPrimaryKey().Serial();
+            states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
 
 
             var sql = states.ToBasicCreateTableSql();

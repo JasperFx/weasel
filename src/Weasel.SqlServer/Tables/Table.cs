@@ -357,9 +357,9 @@ namespace Weasel.SqlServer.Tables
                 return this;
             }
 
-            public ColumnExpression Serial()
+            public ColumnExpression AutoNumber()
             {
-                Column.Type = "SERIAL";
+                Column.IsAutoNumber = true;
                 return this;
             }
 
@@ -390,7 +390,7 @@ namespace Weasel.SqlServer.Tables
 
             public ColumnExpression DefaultValueFromSequence(DbObjectName sequenceName)
             {
-                return DefaultValueByExpression($"nextval('{sequenceName}')");
+                return DefaultValueByExpression($"next value for {sequenceName.QualifiedName}");
             }
 
             public ColumnExpression DefaultValueByExpression(string expression)
