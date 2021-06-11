@@ -17,13 +17,25 @@ namespace Weasel.SqlServer.Tables
 
     public class ForeignKey : INamed
     {
+        private string[] _columnNames = null!;
+        private string[] _linkedNames = null!;
+
         public ForeignKey(string name)
         {
             Name = name;
         }
 
-        public string[] ColumnNames { get; set; } = null!;
-        public string[] LinkedNames { get; set; } = null!;
+        public string[] ColumnNames
+        {
+            get => _columnNames;
+            set => _columnNames = value.OrderBy(x => x).ToArray();
+        }
+
+        public string[] LinkedNames
+        {
+            get => _linkedNames;
+            set => _linkedNames = value.OrderBy(x => x).ToArray();
+        }
 
         public DbObjectName LinkedTable { get; set; } = null!;
 
@@ -101,10 +113,6 @@ namespace Weasel.SqlServer.Tables
             {
                 OnDelete = CascadeAction.Cascade;
             }
-            else if (definition.ContainsIgnoreCase("ON DELETE RESTRICT"))
-            {
-                OnDelete = CascadeAction.Restrict;
-            }
             else if (definition.ContainsIgnoreCase("ON DELETE SET NULL"))
             {
                 OnDelete = CascadeAction.SetNull;
@@ -117,10 +125,6 @@ namespace Weasel.SqlServer.Tables
             if (definition.ContainsIgnoreCase("ON UPDATE CASCADE"))
             {
                 OnUpdate = CascadeAction.Cascade;
-            }
-            else if (definition.ContainsIgnoreCase("ON UPDATE RESTRICT"))
-            {
-                OnUpdate = CascadeAction.Restrict;
             }
             else if (definition.ContainsIgnoreCase("ON UPDATE SET NULL"))
             {
@@ -144,7 +148,7 @@ namespace Weasel.SqlServer.Tables
         {
             writer.WriteLine($"ALTER TABLE {parent.Identifier}");
             writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
-            writer.Write($"REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
+            writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
             writer.WriteCascadeAction("ON DELETE", OnDelete);
             writer.WriteCascadeAction("ON UPDATE", OnUpdate);
             writer.Write(";");
@@ -155,5 +159,27 @@ namespace Weasel.SqlServer.Tables
         {
             writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
         }
+
+        public void LinkColumns(string columnName, string referencedName)
+        {
+            if (ColumnNames == null)
+            {
+                ColumnNames = new string[] {columnName};
+                LinkedNames = new string[] {referencedName};
+            }
+            else
+            {
+                ColumnNames = ColumnNames.Append(columnName).ToArray();
+                LinkedNames = LinkedNames.Append(referencedName).ToArray();
+            }
+        }
+
+        public void ReadReferentialActions(string onDelete, string onUpdate)
+        {
+            OnDelete = SqlServerProvider.ReadAction(onDelete);
+            OnUpdate = SqlServerProvider.ReadAction(onUpdate);
+        }
+        
+        
     }
 }

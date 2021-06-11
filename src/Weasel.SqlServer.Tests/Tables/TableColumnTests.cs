@@ -118,7 +118,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var column = table.AddColumn<string>("name1").NotNull().Column;
             
             column.AddColumnSql(table)
-                .ShouldBe("alter table public.people add column name1 varchar NOT NULL;");
+                .ShouldBe("alter table dbo.people add column name1 varchar(100) NOT NULL;");
         }
 
 

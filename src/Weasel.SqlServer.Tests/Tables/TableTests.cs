@@ -20,10 +20,10 @@ namespace Weasel.SqlServer.Tests.Tables
         }
 
         [Fact]
-        public void build_table_by_name_only_puts_it_in_public()
+        public void build_table_by_name_only_puts_it_in_dbo()
         {
             var table = new Table("mytable");
-            table.Identifier.Schema.ShouldBe("public");
+            table.Identifier.Schema.ShouldBe("dbo");
             table.Identifier.Name.ShouldBe("mytable");
         }
 
@@ -116,8 +116,8 @@ namespace Weasel.SqlServer.Tests.Tables
             
             var lines = ddl.ReadLines().ToArray();
             
-            lines.ShouldContain("DROP TABLE IF EXISTS public.people CASCADE;");
-            lines.ShouldContain("CREATE TABLE public.people (");
+            lines.ShouldContain("DROP TABLE IF EXISTS dbo.people;");
+            lines.ShouldContain("CREATE TABLE dbo.people (");
 
         }
 
@@ -143,7 +143,7 @@ namespace Weasel.SqlServer.Tests.Tables
             
             var lines = ddl.ReadLines().ToArray();
             
-            lines.ShouldContain("CREATE TABLE IF NOT EXISTS public.people (");
+            lines.ShouldContain("CREATE TABLE IF NOT EXISTS dbo.people (");
         }
 
         [Fact]

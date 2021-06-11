@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Shouldly;
 using Weasel.SqlServer.Tables;
@@ -18,9 +19,9 @@ namespace Weasel.SqlServer.Tests
 
             await ResetSchema();
 
-            await theConnection.CreateCommand($"drop schema if exists one cascade").ExecuteNonQueryAsync();
-            await theConnection.CreateCommand($"drop schema if exists two cascade").ExecuteNonQueryAsync();
-            await theConnection.CreateCommand($"drop schema if exists three cascade").ExecuteNonQueryAsync();
+            await theConnection.CreateCommand($"drop schema if exists one").ExecuteNonQueryAsync();
+            await theConnection.CreateCommand($"drop schema if exists two").ExecuteNonQueryAsync();
+            await theConnection.CreateCommand($"drop schema if exists three").ExecuteNonQueryAsync();
 
             var schemaNames = await theConnection.ActiveSchemaNames();
             
@@ -61,7 +62,7 @@ namespace Weasel.SqlServer.Tests
             tables.ShouldContain(table3.Identifier);
             tables.ShouldContain(table4.Identifier);
             
-            (await theConnection.ExistingTables(schemas:new string[]{"extensions"})).Count.ShouldBe(4);
+            (await theConnection.ExistingTables()).Count(x => x.Schema == "extensions").ShouldBe(4);
         }
     }
 }

@@ -4,7 +4,6 @@ namespace Weasel.SqlServer
     {
         SetNull,
         SetDefault,
-        Restrict,
         NoAction,
         Cascade
     }

@@ -164,7 +164,23 @@ namespace Weasel.SqlServer
             parameter.SqlDbType = dbType;
         }
 
+        public static CascadeAction ReadAction(string description)
+        {
+            switch (description.ToUpper().Trim())
+            {
+                case "CASCADE":
+                    return CascadeAction.Cascade;
+                case "NO_ACTION":
+                    return CascadeAction.NoAction;
+                case "SET_NULL":
+                    return CascadeAction.SetNull;
+                case "SET_DEFAULT":
+                    return CascadeAction.SetDefault;
+                
+            }
 
+            return CascadeAction.NoAction;
+        }
 
     }
 }

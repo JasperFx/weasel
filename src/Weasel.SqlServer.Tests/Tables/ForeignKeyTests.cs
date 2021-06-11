@@ -37,13 +37,13 @@ namespace Weasel.SqlServer.Tests.Tables
                 LinkedTable = new DbObjectName("dbo","states"),
                 ColumnNames = new []{"state_id"},
                 LinkedNames = new []{"id"},
-                OnDelete = CascadeAction.Restrict
+                OnDelete = CascadeAction.Cascade
             };
             
             
 
             var ddl = fk.ToDDL(table);
-            ddl.ShouldContain("ON DELETE RESTRICT");
+            ddl.ShouldContain("ON DELETE CASCADE");
             ddl.ShouldNotContain("ON UPDATE");
         }
         
@@ -93,13 +93,10 @@ namespace Weasel.SqlServer.Tests.Tables
             CascadeAction.Cascade)]
         [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE CASCADE",
             CascadeAction.Cascade, CascadeAction.Cascade)]
-        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE RESTRICT",
-            CascadeAction.Cascade, CascadeAction.Restrict)]
         [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE SET NULL",
             CascadeAction.Cascade, CascadeAction.SetNull)]
         [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE CASCADE ON UPDATE SET DEFAULT",
             CascadeAction.Cascade, CascadeAction.SetDefault)]
-        [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE RESTRICT", CascadeAction.Restrict, CascadeAction.NoAction)]
         [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE SET DEFAULT", CascadeAction.SetDefault, CascadeAction.NoAction)]
         [InlineData("FOREIGN KEY (state_id) REFERENCES states(id) ON DELETE SET NULL", CascadeAction.SetNull, CascadeAction.NoAction)]
         public void read_on_delete_and_on_update(string definition, CascadeAction onDelete, CascadeAction onUpdate)

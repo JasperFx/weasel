@@ -120,25 +120,23 @@ namespace Weasel.SqlServer.Tests.Tables
         [Fact]
         public async Task read_fk()
         {
-            await theConnection.OpenAsync();
-
-            await theConnection.ResetSchema("tables");
+            await ResetSchema();
             
             
-            var states = new Table("states");
+            var states = new Table("tables.states");
             states.AddColumn<int>("id").AsPrimaryKey();
             
             await CreateSchemaObjectInDatabase(states);
 
             
-            var table = new Table("people");
+            var table = new Table("tables.people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AddIndex();
             table.AddColumn<string>("last_name").AddIndex(i =>
             {
             });
             
-            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id", onDelete:CascadeAction.Cascade, onUpdate:CascadeAction.Restrict);
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id", onDelete:CascadeAction.Cascade, onUpdate:CascadeAction.SetNull);
 
             await CreateSchemaObjectInDatabase(table);
 
@@ -154,7 +152,7 @@ namespace Weasel.SqlServer.Tests.Tables
             fk.LinkedTable.Name.ShouldBe("states");
             
             fk.OnDelete.ShouldBe(CascadeAction.Cascade);
-            fk.OnUpdate.ShouldBe(CascadeAction.Restrict);
+            fk.OnUpdate.ShouldBe(CascadeAction.SetNull);
         }
         
         [Fact]
@@ -188,7 +186,7 @@ namespace Weasel.SqlServer.Tests.Tables
                 ColumnNames = new []{"state_id", "tenant_id"},
                 LinkedNames = new []{"id", "tenant_id"},
                 OnDelete = CascadeAction.Cascade,
-                OnUpdate = CascadeAction.Restrict
+                OnUpdate = CascadeAction.SetNull
             });
 
             await CreateSchemaObjectInDatabase(table);

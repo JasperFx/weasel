@@ -13,9 +13,6 @@ namespace Weasel.SqlServer.Tables
                 case CascadeAction.Cascade:
                     writer.WriteLine($"{prefix} CASCADE");
                     break;
-                case CascadeAction.Restrict:
-                    writer.WriteLine($"{prefix} RESTRICT");
-                    break;
                 case CascadeAction.NoAction:
                     return;
                 case CascadeAction.SetDefault:

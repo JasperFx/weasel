@@ -62,8 +62,16 @@ namespace Weasel.SqlServer
 
             try
             {
+                var sql = $@"
+IF NOT EXISTS ( SELECT  *
+                FROM    sys.schemas
+                WHERE   name = N'{schemaName}' )
+    EXEC('CREATE SCHEMA [{schemaName}]');
+
+";
+                
                 await conn
-                    .CreateCommand(SchemaMigration.CreateSchemaStatementFor(schemaName))
+                    .CreateCommand(sql)
                     .ExecuteNonQueryAsync(cancellation);
             }
             finally
@@ -97,7 +105,7 @@ from
       inner join sys.tables on sys.foreign_keys.parent_object_id = sys.tables.object_id
       inner join sys.schemas on sys.tables.schema_id = sys.schemas.schema_id
 where
-  sys.schemas.name = 'tables';
+  sys.schemas.name = '{schemaName}';
 
 ").FetchList<string>(async r =>
             {
@@ -107,25 +115,10 @@ where
                 return $"alter table {schemaName}.{tableName} drop constraint {constraintName};";
             });
 
-            var tables = await conn.CreateCommand($@"
-   select
-       sys.tables.name as table_name
-   from
-       sys.tables inner join sys.schemas on sys.tables.schema_id = sys.schemas.schema_id
-   where
-       sys.schemas.name = '{schemaName}';
-").FetchList<string>();
+            var tables = await conn.CreateCommand($"select table_name from information_schema.tables where table_schema = '{schemaName}'").FetchList<string>();
             
             var sequences = await conn
-                .CreateCommand($@"
-   select
-       sys.sequences.name
-   from
-       sys.sequences inner join sys.schemas on sys.sequences.schema_id = sys.schemas.schema_id
-   where
-       sys.schemas.name = '{schemaName}';
-
-")
+                .CreateCommand($"select sequence_name from information_schema.sequences where sequence_schema = '{schemaName}'")
                 .FetchList<string>();
 
             var drops = new List<string>();
@@ -134,27 +127,6 @@ where
             drops.AddRange(tables.Select(name => $"drop table {schemaName}.{name};"));
             drops.AddRange(sequences.Select(name => $"drop sequence {schemaName}.{name};"));
                     
-                    
-                //     <string>(async r =>
-                // {
-                //     var name = await r.GetFieldValueAsync<string>(0);
-                //     var type = await r.GetFieldValueAsync<string>(1);
-                //     switch (type.Trim())
-                //     {
-                //         case "P":
-                //             return ;
-                //         case "V":
-                //             return $"drop view {schemaName}.{name};";
-                //         case "F":
-                //             return $"drop constraint {schemaName}.{name};";
-                //         case "SO":
-                //             return $"drop sequence {schemaName}.{name};";
-                //         case "U":
-                //             return $"drop table {schemaName}.{name};";
-                //         default:
-                //             throw new NotSupportedException($"Don't understand type '{type}' for object named '{name}'");
-                //     }
-                // });
 
             foreach (var drop in drops)
             {
@@ -308,28 +280,16 @@ GO
         }
 
         public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(this SqlConnection conn,
-            string namePattern = null, string[] schemas = null)
+            string namePattern = null)
         {
             var builder = new CommandBuilder();
-            builder.Append("SELECT schemaname, relname FROM pg_stat_user_tables");
+            builder.Append("SELECT table_schema, table_name FROM information_schema.tables");
 
 
             if (namePattern.IsNotEmpty())
             {
-                builder.Append(" WHERE relname like :table");
+                builder.Append(" WHERE table_name like @table");
                 builder.AddNamedParameter("table", namePattern);
-
-                if (schemas != null)
-                {
-                    builder.Append(" and schemaname = ANY(:schemas)");
-                    builder.AddNamedParameter("schemas", schemas);
-                }
-            }
-
-            if (schemas != null)
-            {
-                builder.Append(" WHERE schemaname = ANY(:schemas)");
-                builder.AddNamedParameter("schemas", schemas);
             }
 
             builder.Append(";");

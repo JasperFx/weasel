@@ -410,5 +410,17 @@ namespace Weasel.SqlServer.Tables
                 return this;
             }
         }
+
+        public ForeignKey FindOrCreateForeignKey(string fkName)
+        {
+            var fk = ForeignKeys.FirstOrDefault(x => x.Name == fkName);
+            if (fk == null)
+            {
+                fk = new ForeignKey(fkName);
+                ForeignKeys.Add(fk);
+            }
+
+            return fk;
+        }
     }
 }
