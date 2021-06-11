@@ -7,15 +7,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Can fetch existing table state for Sql Server">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableColumn.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableColumn.cs" afterDir="false" />
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Fixes for Table usage with defautl values and sequences">
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,7 +77,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CascadeOption.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/StringWriterExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/reading_existing_table_from_database.cs" />
@@ -95,9 +87,10 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableColumn.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" />
-      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/df56cb2a-3d3c-4805-ac08-5e9837810745/console.sql" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" />
+      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/df56cb2a-3d3c-4805-ac08-5e9837810745/console.sql" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -161,14 +154,7 @@
       <workItem from="1623002317325" duration="1868000" />
       <workItem from="1623160056971" duration="4485000" />
       <workItem from="1623181139550" duration="925000" />
-      <workItem from="1623344268696" duration="27314000" />
-    </task>
-    <task id="LOCAL-00026" summary="Imported stubbed out TableDelta">
-      <created>1618836847596</created>
-      <option name="number" value="00026" />
-      <option name="presentableId" value="LOCAL-00026" />
-      <option name="project" value="LOCAL" />
-      <updated>1618836847597</updated>
+      <workItem from="1623344268696" duration="27639000" />
     </task>
     <task id="LOCAL-00027" summary="Adding SERIAL option to table column model">
       <created>1618837844389</created>
@@ -506,7 +492,14 @@
       <option name="project" value="LOCAL" />
       <updated>1623436208037</updated>
     </task>
-    <option name="localTasksCounter" value="75" />
+    <task id="LOCAL-00075" summary="Fixes for Table usage with defautl values and sequences">
+      <created>1623437512577</created>
+      <option name="number" value="00075" />
+      <option name="presentableId" value="LOCAL-00075" />
+      <option name="project" value="LOCAL" />
+      <updated>1623437512577</updated>
+    </task>
+    <option name="localTasksCounter" value="76" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -651,7 +644,6 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Function.IsRemoved delta behavior. Closes GH-19" />
     <MESSAGE value="WIP: spiking around with the shape of the new DdlRules and SchemaMigration" />
     <MESSAGE value="Introducing a new base class for schema object deltas" />
     <MESSAGE value="Eliminated old SchemaPatch" />
@@ -676,7 +668,8 @@
     <MESSAGE value="Sql Server sequences are working" />
     <MESSAGE value="Can fetch existing foreign keys in Sql Server" />
     <MESSAGE value="Can fetch existing table state for Sql Server" />
-    <option name="LAST_COMMIT_MESSAGE" value="Can fetch existing table state for Sql Server" />
+    <MESSAGE value="Fixes for Table usage with defautl values and sequences" />
+    <option name="LAST_COMMIT_MESSAGE" value="Fixes for Table usage with defautl values and sequences" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -790,10 +783,10 @@
           <line>60</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\Sequence.cs" initialLine="58" containingFunctionPresentation="method 'ConfigureQueryCommand'">
             <startOffsets>
-              <option value="1858" />
+              <option value="1814" />
             </startOffsets>
             <endOffsets>
-              <option value="2065" />
+              <option value="2021" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="46" />

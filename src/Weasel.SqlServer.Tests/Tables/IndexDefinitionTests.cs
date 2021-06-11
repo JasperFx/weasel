@@ -32,7 +32,7 @@ namespace Weasel.SqlServer.Tests.Tables
         public void write_basic_index()
         {
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1);");
+                .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1);");
         }
         
         [Fact]
@@ -41,7 +41,7 @@ namespace Weasel.SqlServer.Tests.Tables
             theIndex.IsUnique = true;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE UNIQUE INDEX idx_1 ON public.people USING btree (column1);");
+                .ShouldBe("CREATE UNIQUE INDEX idx_1 ON dbo.people (column1);");
         }
 
         [Fact]
@@ -50,7 +50,7 @@ namespace Weasel.SqlServer.Tests.Tables
             theIndex.SortOrder = SortOrder.Desc;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1 DESC);");
+                .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1 DESC);");
         }
         
 
@@ -60,7 +60,7 @@ namespace Weasel.SqlServer.Tests.Tables
             theIndex.Predicate = "foo > 1";
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people WHERE (foo > 1);");
+                .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1) WHERE (foo > 1);");
         }
 
         [Fact]
@@ -70,7 +70,7 @@ namespace Weasel.SqlServer.Tests.Tables
             theIndex.FillFactor = 70;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) WHERE (foo > 1) WITH (fillfactor='70');");
+                .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1) WHERE (foo > 1) WITH (fillfactor='70');");
         }
         
         [Fact]
@@ -79,7 +79,7 @@ namespace Weasel.SqlServer.Tests.Tables
             theIndex.SortOrder = SortOrder.Desc;
 
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1 DESC);");
+                .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1 DESC);");
         }
 
 

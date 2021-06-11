@@ -23,9 +23,9 @@ namespace Weasel.SqlServer.Tests.Tables
             ddl.ShouldNotContain("ON DELETE");
             ddl.ShouldNotContain("ON UPDATE");
 
-            ddl.ShouldContain("ALTER TABLE public.people");
+            ddl.ShouldContain("ALTER TABLE dbo.people");
             ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
-            ddl.ShouldContain("REFERENCES public.states(id)");
+            ddl.ShouldContain("REFERENCES dbo.states(id)");
         }
         
         [Fact]
@@ -80,9 +80,9 @@ namespace Weasel.SqlServer.Tests.Tables
             var ddl = fk.ToDDL(table);
 
 
-            ddl.ShouldContain("ALTER TABLE public.people");
+            ddl.ShouldContain("ALTER TABLE dbo.people");
             ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id, tenant_id)");
-            ddl.ShouldContain("REFERENCES public.states(id, tenant_id)");
+            ddl.ShouldContain("REFERENCES dbo.states(id, tenant_id)");
         }
 
         [Theory]

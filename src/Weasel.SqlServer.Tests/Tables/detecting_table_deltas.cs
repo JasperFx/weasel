@@ -13,17 +13,7 @@ namespace Weasel.SqlServer.Tests.Tables
     public class detecting_table_deltas : IntegrationContext
     {
         private Table theTable;
-        
-        /*
-         * TODO
-         * 1. Column constraints, to find deltas
-         * 5. Table constraints?
-         * 6. Partitions?
-         *
-         *
-         * 
-         */
-        
+
         public detecting_table_deltas() : base("deltas")
         {
             theTable = new Table("deltas.people");
@@ -31,7 +21,7 @@ namespace Weasel.SqlServer.Tests.Tables
             theTable.AddColumn<string>("first_name");
             theTable.AddColumn<string>("last_name");
             theTable.AddColumn<string>("user_name");
-            theTable.AddColumn("data", "jsonb");
+            theTable.AddColumn("data", "text");
             
             
             ResetSchema().GetAwaiter().GetResult();

@@ -274,7 +274,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             var sql = states.ToBasicCreateTableSql();
             
-            sql.ShouldContain("id SERIAL");
+            sql.ShouldContain("id int NOT NULL IDENTITY");
         }
 
     }
