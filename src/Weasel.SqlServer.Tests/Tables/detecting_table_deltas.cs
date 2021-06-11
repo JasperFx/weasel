@@ -239,10 +239,8 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             yield return ("Simple btree", t => t.ModifyColumn("user_name").AddIndex());
             yield return ("Simple btree with non-zero fill factor", t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
-            yield return ("Simple btree with expression", t => t.ModifyColumn("user_name").AddIndex(i => i.Mask = "(lower(?))"));
             yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
-                i.Mask = "(lower(?))";
                 i.Columns = new[] {"user_name"};
                 i.Predicate = "id > 5";
             }));

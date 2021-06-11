@@ -6,6 +6,7 @@ using Baseline;
 
 namespace Weasel.SqlServer.Tables
 {
+
     public class IndexDefinition : INamed
     {
         private const string JsonbPathOps = "jsonb_path_ops";
@@ -26,13 +27,17 @@ namespace Weasel.SqlServer.Tables
 
         public bool IsUnique { get; set; }
 
-        public virtual string[] Columns { get; set; }
+        private readonly IList<string> _columns = new List<string>();
 
-        /// <summary>
-        ///     Pattern for surrounding the columns. Use a `?` character
-        ///     for the location of the columns, like "? jsonb_path_ops"
-        /// </summary>
-        public string Mask { get; set; }
+        public string[] Columns
+        {
+            get => _columns.ToArray();
+            set
+            {
+                _columns.Clear();
+                _columns.AddRange(value);
+            }
+        }
 
         /// <summary>
         ///     The constraint expression for a partial index.
@@ -59,6 +64,8 @@ namespace Weasel.SqlServer.Tables
             set => _indexName = value;
         }
 
+        public bool IsClustered { get; set; }
+
         protected virtual string deriveIndexName()
         {
             throw new NotSupportedException();
@@ -71,7 +78,8 @@ namespace Weasel.SqlServer.Tables
         /// <returns></returns>
         public IndexDefinition AgainstColumns(params string[] columns)
         {
-            Columns = columns;
+            _columns.Clear();
+            _columns.AddRange(columns);
             return this;
         }
 
@@ -116,16 +124,12 @@ namespace Weasel.SqlServer.Tables
 
         private string correctedExpression()
         {
-            if (Columns == null || !Columns.Any())
+            if (!Columns.Any())
             {
                 throw new InvalidOperationException("IndexDefinition requires at least one field");
             }
 
-            var expression = Columns.Select(x => { return _reserved_words.Contains(x) ? $"\"{x}\"" : x; }).Join(", ");
-            if (Mask.IsNotEmpty())
-            {
-                expression = Mask.Replace("?", expression);
-            }
+            var expression = Columns.Join(", ");
 
             if (SortOrder != SortOrder.Asc)
             {
@@ -134,112 +138,10 @@ namespace Weasel.SqlServer.Tables
 
             return $"({expression})";
         }
-        
-        public static IndexDefinition Parse(string definition)
-        {
-            var tokens = new Queue<string>(StringTokenizer.Tokenize(definition.TrimEnd(';')));
-
-            IndexDefinition index = null;
-
-            var isUnique = false;
-            var expression = "";
-
-            while (tokens.Any())
-            {
-                var current = tokens.Dequeue();
-                switch (current.ToUpper())
-                {
-                    case "CREATE":
-                    case "CONCURRENTLY":
-                        continue;
-
-                    case "INDEX":
-                        var name = tokens.Dequeue();
-                        index = new IndexDefinition(name) {Mask = string.Empty, IsUnique = isUnique};
-                        break;
-
-                    case "ON":
-                        // Skip the table name
-                        tokens.Dequeue();
-                        break;
-
-                    case "UNIQUE":
-                        isUnique = true;
-                        break;
-
-                    case "USING":
-                        expression = tokens.Dequeue();
-                        expression = removeSortOrderFromExpression(expression, out var order);
-
-                        index.SortOrder = order;
-
-                        break;
-
-
-                    case "WHERE":
-                        var predicate = tokens.Dequeue();
-                        index.Predicate = predicate;
-                        break;
-
-                    case "WITH":
-                        var factor = tokens.Dequeue().TrimStart('(').TrimEnd(')');
-                        var parts = factor.Split('=');
-
-                        if (parts[0].Trim().EqualsIgnoreCase("fillfactor"))
-                        {
-                            index.FillFactor = int.Parse(parts[1].TrimStart('\'').TrimEnd('\''));
-                        }
-                        else
-                        {
-                            throw new NotSupportedException(
-                                $"Weasel does not yet support the '{parts[0]}' storage parameter");
-                        }
-
-                        break;
-
-                    default:
-                        throw new NotImplementedException("NOT YET DEALING WITH " + current);
-                }
-            }
-
-            expression = expression.Trim().Replace("::text", "");
-            while (expression.StartsWith("(") && expression.EndsWith(")"))
-            {
-                expression = expression.Substring(1, expression.Length - 2);
-            }
-
-            index.Columns = new[] {expression}; // This might be problematic
-
-            return index;
-        }
-
-        private static string removeSortOrderFromExpression(string expression, out SortOrder order)
-        {
-            if (expression.EndsWith("DESC)"))
-            {
-                order = SortOrder.Desc;
-                return expression.Substring(0, expression.Length - 6) + ")";
-            }
-
-            if (expression.EndsWith("ASC)"))
-            {
-                order = SortOrder.Asc;
-                return expression.Substring(0, expression.Length - 5) + ")";
-            }
-
-            order = SortOrder.Asc;
-            return expression.Trim();
-        }
 
         public bool Matches(IndexDefinition actual, Table parent)
         {
             var expectedExpression = correctedExpression();
-
-
-            if (actual.Mask == expectedExpression)
-            {
-                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
-            }
 
             var expectedSql = CanonicizeDdl(this, parent);
 
@@ -251,12 +153,6 @@ namespace Weasel.SqlServer.Tables
         public void AssertMatches(IndexDefinition actual, Table parent)
         {
             var expectedExpression = correctedExpression();
-
-
-            if (actual.Mask == expectedExpression)
-            {
-                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
-            }
 
             var expectedSql = CanonicizeDdl(this, parent);
 
@@ -281,6 +177,11 @@ namespace Weasel.SqlServer.Tables
                     .Replace(" ->> ", "->>")
                     .Replace("->", "->").TrimEnd(new[] {';'})
                 ;
+        }
+
+        public void AddColumn(string columnName)
+        {
+            _columns.Add(columnName);
         }
     }
 }

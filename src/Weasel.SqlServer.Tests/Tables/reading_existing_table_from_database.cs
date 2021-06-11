@@ -94,13 +94,13 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.ResetSchema("tables");
             
             
-            var states = new Table("states");
+            var states = new Table("tables.states");
             states.AddColumn<int>("id").AsPrimaryKey();
             
             await CreateSchemaObjectInDatabase(states);
 
             
-            var table = new Table("people");
+            var table = new Table("tables.people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AddIndex();
             table.AddColumn<string>("last_name").AddIndex(i =>

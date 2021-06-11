@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -47,7 +48,48 @@ where
        inner join sys.columns cfk on fk.referenced_object_id = cfk.object_id and fk.referenced_column_id = cfk.column_id
    where
         s.name = @{schemaParam} and
-        t.name = @{nameParam}
+        t.name = @{nameParam};
+
+
+
+
+select 
+    i.index_id,
+    i.name, 
+    i.type_desc as type,
+    i.is_unique_constraint,
+    i.fill_factor,
+    i.has_filter,
+    i.filter_definition
+from 
+    sys.indexes i
+    inner join sys.tables t on t.object_id = i.object_id
+    inner join sys.schemas s on s.schema_id = t.schema_id
+where
+    t.name = @{nameParam} and
+    s.name = @{schemaParam} and
+    i.is_primary_key = 0
+
+
+select 
+    ic.index_id,
+    c.name,
+    ic.is_descending_key
+       
+from
+    sys.index_columns ic 
+    inner join sys.tables t on t.object_id = ic.object_id
+    inner join sys.schemas s on s.schema_id = t.schema_id
+    inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
+where
+        t.name = @{schemaParam} and
+        s.name = @{nameParam}
+order by 
+    ic.index_id,
+    ic.index_column_id
+
+
+
 ");
 
 
@@ -75,15 +117,7 @@ where
             
             await readForeignKeys(reader, existing);
             
-            // await readIndexes(reader, existing);
-            // await readConstraints(reader, existing);
-            //
-            // 
-            //
-            // if (PartitionStrategy != PartitionStrategy.None)
-            // {
-            //     await readPartitions(reader, existing);
-            // }
+            await readIndexes(reader, existing);
 
             return !existing.Columns.Any()
                 ? null
@@ -165,31 +199,56 @@ where
         private async Task readIndexes(DbDataReader reader, Table existing)
         {
             await reader.NextResultAsync();
+            var indexes = new Dictionary<int, IndexDefinition>();
+            
             while (await reader.ReadAsync())
             {
-                if (await reader.IsDBNullAsync(2))
+                var id = await reader.GetFieldValueAsync<int>(0);
+                var name = await reader.GetFieldValueAsync<string>(1);
+                var typeDesc = await reader.GetFieldValueAsync<string>(2);
+
+
+                var index = new IndexDefinition(name)
                 {
-                    continue;
+                    IsClustered = typeDesc == "CLUSTERED", 
+                    IsUnique = await reader.GetFieldValueAsync<bool>(3)
+                };
+
+                if (!(await reader.IsDBNullAsync(4)))
+                {
+                    index.FillFactor =  await reader.GetFieldValueAsync<byte>(4);
                 }
 
-                var isPrimary = await reader.GetFieldValueAsync<bool>(6);
-                if (isPrimary)
+                if (!(await reader.IsDBNullAsync(6)) &&  await reader.GetFieldValueAsync<bool>(6))
                 {
-                    continue;
+                    index.Predicate = await reader.GetFieldValueAsync<string>(6);
                 }
+                
+                indexes.Add(id, index);
+                
+                existing.Indexes.Add(index);
 
-                var schemaName = await reader.GetFieldValueAsync<string>(1);
-                var tableName = await reader.GetFieldValueAsync<string>(2);
-                var ddl = await reader.GetFieldValueAsync<string>(4);
+            }
 
+            await reader.NextResultAsync();
 
-                if (Identifier.Schema == schemaName && Identifier.Name == tableName ||
-                    Identifier.QualifiedName == tableName)
+            while (await reader.ReadAsync())
+            {
+                var id = await reader.GetFieldValueAsync<int>(0);
+                if (indexes.TryGetValue(id, out var index))
                 {
-                    var index = IndexDefinition.Parse(ddl);
+                    var name = await reader.GetFieldValueAsync<string>(1);
+                    index.AddColumn(name);
+                    
+                    var isDesc = await reader.GetFieldValueAsync<bool>(2);
 
-                    existing.Indexes.Add(index);
+                    if (isDesc)
+                    {
+                        index.SortOrder = SortOrder.Desc;
+                    }
                 }
+                
+
             }
         }
 
