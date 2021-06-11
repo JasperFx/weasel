@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
@@ -33,6 +34,13 @@ namespace Weasel.SqlServer.Tests.Tables
             await table.ApplyChanges(theConnection);
 
             var delta = await table.FindDelta(theConnection);
+
+            if (delta.HasChanges())
+            {
+                var writer = new StringWriter();
+                delta.WriteUpdate(new DdlRules(), writer);
+                throw new Exception("Found these differences:\n\n" + writer.ToString());
+            }
             
             delta.HasChanges().ShouldBeFalse();
         }
@@ -206,8 +214,8 @@ namespace Weasel.SqlServer.Tests.Tables
             // The index DDL should match what the database thinks it is in order to match
 
 
-            var expected = existing.Indexes.Single();
-            var actual = theTable.Indexes.Single();
+            var actual = existing.Indexes.Single();
+            var expected = theTable.Indexes.Single();
             
             expected.AssertMatches(actual, theTable);
 
@@ -232,7 +240,7 @@ namespace Weasel.SqlServer.Tests.Tables
             yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
                 i.Columns = new[] {"user_name"};
-                i.Predicate = "id > 5";
+                i.Predicate = "[id]>5";
             }));
             
             

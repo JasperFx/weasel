@@ -15,26 +15,17 @@ $$;
 
         public static void WriteSql(IEnumerable<string> schemaNames, TextWriter writer)
         {
-            writer.Write(BeginScript);
+            //writer.Write(BeginScript);
 
             foreach (var schemaName in schemaNames) WriteSql(schemaName, writer);
 
-            writer.WriteLine(EndScript);
+            //writer.WriteLine(EndScript);
             writer.WriteLine();
         }
 
         private static void WriteSql(string databaseSchemaName, TextWriter writer)
         {
-            writer.WriteLine($@"
-    IF NOT EXISTS(
-        SELECT schema_name
-          FROM information_schema.schemata
-          WHERE schema_name = '{databaseSchemaName}'
-      )
-    THEN
-      EXECUTE 'CREATE SCHEMA {databaseSchemaName}';
-    END IF;
-");
+            writer.WriteLine(SchemaMigration.CreateSchemaStatementFor(databaseSchemaName));
         }
     }
 }

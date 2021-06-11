@@ -132,7 +132,7 @@ namespace Weasel.SqlServer.Tables
 
         public virtual string AddColumnSql(Table parent)
         {
-            return $"alter table {parent.Identifier} add column {ToDeclaration()};";
+            return $"alter table {parent.Identifier} add {ToDeclaration()};";
         }
 
 

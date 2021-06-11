@@ -248,7 +248,13 @@ namespace Weasel.SqlServer
 
         public static string CreateSchemaStatementFor(string schemaName)
         {
-            return $"create schema {schemaName};";
+            return $@"
+IF NOT EXISTS ( SELECT  *
+                FROM    sys.schemas
+                WHERE   name = N'{schemaName}' )
+    EXEC('CREATE SCHEMA [{schemaName}]');
+
+";
         }
     }
 }

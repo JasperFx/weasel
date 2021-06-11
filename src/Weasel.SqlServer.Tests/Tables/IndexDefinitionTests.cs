@@ -70,7 +70,7 @@ namespace Weasel.SqlServer.Tests.Tables
             theIndex.FillFactor = 70;
             
             theIndex.ToDDL(parent)
-                .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1) WHERE (foo > 1) WITH (fillfactor='70');");
+                .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1) WHERE (foo > 1) WITH (fillfactor=70);");
         }
         
         [Fact]

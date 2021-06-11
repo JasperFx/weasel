@@ -111,9 +111,9 @@ namespace Weasel.SqlServer.Tables
                 builder.Append($"({Predicate})");
             }
 
-            if (FillFactor.HasValue)
+            if (FillFactor.HasValue && FillFactor > 0)
             {
-                builder.Append($" WITH (fillfactor='{FillFactor}')");
+                builder.Append($" WITH (fillfactor={FillFactor})");
             }
 
             builder.Append(";");

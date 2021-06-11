@@ -57,7 +57,7 @@ select
     i.index_id,
     i.name, 
     i.type_desc as type,
-    i.is_unique_constraint,
+    i.is_unique,
     i.fill_factor,
     i.has_filter,
     i.filter_definition
@@ -82,8 +82,8 @@ from
     inner join sys.schemas s on s.schema_id = t.schema_id
     inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
 where
-        t.name = @{schemaParam} and
-        s.name = @{nameParam}
+        t.name = @{nameParam} and
+        s.name = @{schemaParam}
 order by 
     ic.index_id,
     ic.index_column_id
@@ -146,25 +146,6 @@ order by
             }
         }
 
-        private async Task readPartitions(DbDataReader reader, Table existing)
-        {
-            await reader.NextResultAsync();
-
-            while (await reader.ReadAsync())
-            {
-                var strategy = await reader.GetFieldValueAsync<string>(1);
-                var columnOrExpression = await reader.GetFieldValueAsync<string>(0);
-
-                existing.PartitionExpressions.Add(columnOrExpression);
-
-                switch (strategy)
-                {
-                    case "range":
-                        existing.PartitionStrategy = PartitionStrategy.Range;
-                        break;
-                }
-            }
-        }
 
         private static async Task readColumns(DbDataReader reader, Table existing)
         {
@@ -219,7 +200,7 @@ order by
                     index.FillFactor =  await reader.GetFieldValueAsync<byte>(4);
                 }
 
-                if (!(await reader.IsDBNullAsync(6)) &&  await reader.GetFieldValueAsync<bool>(6))
+                if (!(await reader.IsDBNullAsync(6)) &&  await reader.GetFieldValueAsync<bool>(5))
                 {
                     index.Predicate = await reader.GetFieldValueAsync<string>(6);
                 }
