@@ -39,7 +39,7 @@ namespace Weasel.SqlServer
         public void WriteCreateStatement(DdlRules rules, TextWriter writer)
         {
             writer.WriteLine(
-                $"CREATE SEQUENCE {Identifier}{(_startWith.HasValue ? $" START {_startWith.Value}" : string.Empty)};");
+                $"CREATE SEQUENCE {Identifier}{(_startWith.HasValue ? $" START WITH {_startWith.Value}" : string.Empty)};");
 
             if (Owner != null)
             {

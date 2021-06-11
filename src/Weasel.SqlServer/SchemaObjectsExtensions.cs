@@ -77,7 +77,7 @@ namespace Weasel.SqlServer
 
         public static Task<IReadOnlyList<string>> ActiveSchemaNames(this SqlConnection conn)
         {
-            return conn.CreateCommand("select nspname from pg_catalog.pg_namespace order by nspname")
+            return conn.CreateCommand("select name from sys.schemas order by name")
                 .FetchList<string>();
         }
 
@@ -85,7 +85,7 @@ namespace Weasel.SqlServer
         public static async Task DropSchema(this SqlConnection conn, string schemaName)
         {
             var procedures = await conn
-                .CreateCommand("SELECT distinct [name] FROM sysobjects WHERE [type] = 'P' AND category = 0 ORDER BY [name]")
+                .CreateCommand($"select routine_name from information_schema.routines where routine_schema = '{schemaName}';")
                 .FetchList<string>();
 
             var constraints = await conn.CreateCommand($@"
@@ -115,11 +115,24 @@ where
    where
        sys.schemas.name = '{schemaName}';
 ").FetchList<string>();
+            
+            var sequences = await conn
+                .CreateCommand($@"
+   select
+       sys.sequences.name
+   from
+       sys.sequences inner join sys.schemas on sys.sequences.schema_id = sys.schemas.schema_id
+   where
+       sys.schemas.name = '{schemaName}';
+
+")
+                .FetchList<string>();
 
             var drops = new List<string>();
             drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
             drops.AddRange(constraints);
             drops.AddRange(tables.Select(name => $"drop table {schemaName}.{name};"));
+            drops.AddRange(sequences.Select(name => $"drop sequence {schemaName}.{name};"));
                     
                     
                 //     <string>(async r =>
