@@ -105,8 +105,6 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<string>("first_name").AddIndex();
             table.AddColumn<string>("last_name").AddIndex(i =>
             {
-                i.IsConcurrent = true;
-                i.Method = IndexMethod.hash;
             });
             
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
@@ -138,8 +136,6 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<string>("first_name").AddIndex();
             table.AddColumn<string>("last_name").AddIndex(i =>
             {
-                i.IsConcurrent = true;
-                i.Method = IndexMethod.hash;
             });
             
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id", onDelete:CascadeAction.Cascade, onUpdate:CascadeAction.Restrict);
@@ -181,8 +177,6 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<string>("first_name").AddIndex();
             table.AddColumn<string>("last_name").AddIndex(i =>
             {
-                i.IsConcurrent = true;
-                i.Method = IndexMethod.hash;
             });
 
             table.AddColumn<string>("tenant_id");

@@ -167,8 +167,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(theTable);
 
             var indexDefinition = theTable.Indexes.Single().As<IndexDefinition>();
-            indexDefinition
-                .Method = IndexMethod.hash;
+            indexDefinition.SortOrder = SortOrder.Desc;
             indexDefinition.IsUnique = false;
 
             var delta = await theTable.FindDelta(theConnection);
@@ -252,43 +251,17 @@ namespace Weasel.SqlServer.Tests.Tables
             
             yield return ("Simple btree + desc", t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
             yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true));
-            yield return ("btree + concurrent", t => t.ModifyColumn("user_name").AddIndex(i =>
+            yield return ("btree", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
-                i.IsConcurrent = true;
 
             }));
             
-            yield return ("btree + concurrent + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
+            yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
                 i.IsUnique = true;
-                i.IsConcurrent = true;
             }));
             
-            yield return ("Simple brin", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.brin));
-            yield return ("Simple gin", t => t.ModifyColumn("data").AddIndex(i => i.Method = IndexMethod.gin));
-            yield return ("Simple gist", t => t.AddColumn("data2", "tsvector").AddIndex(i => i.Method = IndexMethod.gist));
-            yield return ("Simple hash", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.hash));
-            
-            
-            yield return ("Simple jsonb property", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"(data ->> 'Name')"}));
-            yield return ("Simple jsonb property + unique", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Columns = new[] {"(data ->> 'Name')"};
-                i.IsUnique = true;
-            }));
 
-            yield return ("Jsonb property with function", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"lower(data ->> 'Name')"}));
-            yield return ("Jsonb property with function + unique", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Columns = new[] {"lower(data ->> 'Name')"};
-                i.IsUnique = true;
-            }));
-            yield return ("Jsonb property with function as expression", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Mask = "lower(?)";
-                i.Columns = new[] {"(data ->> 'Name')"};
-                i.IsUnique = true;
-            }));
         }
 
 
@@ -500,22 +473,6 @@ namespace Weasel.SqlServer.Tests.Tables
             table2.AddColumn("data", "jsonb");
 
             await CreateSchemaObjectInDatabase(theTable);
-
-            var delta = await table2.FindDelta(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
-
-        [Fact]
-        public async Task no_change_with_jsonb_path_ops()
-        {
-            var table2 = new Table("deltas.people");
-            table2.AddColumn<int>("id").AsPrimaryKey();
-            table2.AddColumn("first_name", "character varying");
-            table2.AddColumn("last_name", "character varying");
-            table2.AddColumn("user_name", "character varying");
-            table2.AddColumn("data", "jsonb").AddIndex(i => i.ToGinWithJsonbPathOps());
-            
-            await CreateSchemaObjectInDatabase(table2);
 
             var delta = await table2.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);

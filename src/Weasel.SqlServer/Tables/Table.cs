@@ -69,7 +69,7 @@ namespace Weasel.SqlServer.Tables
         {
             if (rules.TableCreation == CreationStyle.DropThenCreate)
             {
-                writer.WriteLine("DROP TABLE IF EXISTS {0} CASCADE;", Identifier);
+                writer.WriteLine("DROP TABLE IF EXISTS {0};", Identifier);
                 writer.WriteLine("CREATE TABLE {0} (", Identifier);
             }
             else
@@ -148,7 +148,7 @@ namespace Weasel.SqlServer.Tables
 
         public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
-            writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
+            writer.WriteLine($"DROP TABLE IF EXISTS {Identifier};");
         }
 
         public DbObjectName Identifier { get; }
@@ -235,7 +235,7 @@ namespace Weasel.SqlServer.Tables
         {
             var cmd = conn
                 .CreateCommand(
-                    "SELECT * FROM information_schema.tables WHERE table_name = :table AND table_schema = :schema;")
+                    "SELECT * FROM information_schema.tables WHERE table_name = @table AND table_schema = @schema;")
                 .With("table", Identifier.Name)
                 .With("schema", Identifier.Schema);
 

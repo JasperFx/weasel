@@ -22,13 +22,9 @@ namespace Weasel.SqlServer.Tables
         {
         }
 
-        public IndexMethod Method { get; set; } = IndexMethod.btree;
-
         public SortOrder SortOrder { get; set; } = SortOrder.Asc;
 
         public bool IsUnique { get; set; }
-
-        public bool IsConcurrent { get; set; }
 
         public virtual string[] Columns { get; set; }
 
@@ -37,11 +33,6 @@ namespace Weasel.SqlServer.Tables
         ///     for the location of the columns, like "? jsonb_path_ops"
         /// </summary>
         public string Mask { get; set; }
-
-        /// <summary>
-        ///     The tablespace in which to create the index. If not specified, default_tablespace is consulted,
-        /// </summary>
-        public string TableSpace { get; set; }
 
         /// <summary>
         ///     The constraint expression for a partial index.
@@ -97,26 +88,14 @@ namespace Weasel.SqlServer.Tables
 
             builder.Append("INDEX ");
 
-            if (IsConcurrent)
-            {
-                builder.Append("CONCURRENTLY ");
-            }
-
             builder.Append(Name);
 
 
             builder.Append(" ON ");
             builder.Append(parent.Identifier);
-            builder.Append(" USING ");
-            builder.Append(Method);
+
             builder.Append(" ");
             builder.Append(correctedExpression());
-
-            if (TableSpace.IsNotEmpty())
-            {
-                builder.Append(" TABLESPACE ");
-                builder.Append(TableSpace);
-            }
 
             if (Predicate.IsNotEmpty())
             {
@@ -148,23 +127,14 @@ namespace Weasel.SqlServer.Tables
                 expression = Mask.Replace("?", expression);
             }
 
-            if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
+            if (SortOrder != SortOrder.Asc)
             {
                 expression += " DESC";
             }
 
             return $"({expression})";
         }
-
-        /// <summary>
-        ///     Makes this index use the Gin method with the jsonb_path_ops operator
-        /// </summary>
-        public void ToGinWithJsonbPathOps()
-        {
-            Method = IndexMethod.gin;
-            Mask = $"? {JsonbPathOps}";
-        }
-
+        
         public static IndexDefinition Parse(string definition)
         {
             var tokens = new Queue<string>(StringTokenizer.Tokenize(definition.TrimEnd(';')));
@@ -198,12 +168,6 @@ namespace Weasel.SqlServer.Tables
                         break;
 
                     case "USING":
-                        var methodName = tokens.Dequeue();
-                        if (Enum.TryParse<IndexMethod>(methodName, out var method))
-                        {
-                            index.Method = method;
-                        }
-
                         expression = tokens.Dequeue();
                         expression = removeSortOrderFromExpression(expression, out var order);
 

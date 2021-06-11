@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Baseline;
@@ -80,14 +82,192 @@ namespace Weasel.SqlServer
         }
 
 
-        public static Task DropSchema(this SqlConnection conn, string schemaName)
+        public static async Task DropSchema(this SqlConnection conn, string schemaName)
         {
-            return conn.CreateCommand(DropStatementFor(schemaName)).ExecuteNonQueryAsync();
+            var procedures = await conn
+                .CreateCommand("SELECT distinct [name] FROM sysobjects WHERE [type] = 'P' AND category = 0 ORDER BY [name]")
+                .FetchList<string>();
+
+            var constraints = await conn.CreateCommand($@"
+select 
+  sys.tables.name as table_name,
+  sys.foreign_keys.name as constraint_name
+from
+  sys.foreign_keys 
+      inner join sys.tables on sys.foreign_keys.parent_object_id = sys.tables.object_id
+      inner join sys.schemas on sys.tables.schema_id = sys.schemas.schema_id
+where
+  sys.schemas.name = 'tables';
+
+").FetchList<string>(async r =>
+            {
+                var tableName = await r.GetFieldValueAsync<string>(0);
+                var constraintName = await r.GetFieldValueAsync<string>(1);
+
+                return $"alter table {schemaName}.{tableName} drop constraint {constraintName};";
+            });
+
+            var tables = await conn.CreateCommand($@"
+   select
+       sys.tables.name as table_name
+   from
+       sys.tables inner join sys.schemas on sys.tables.schema_id = sys.schemas.schema_id
+   where
+       sys.schemas.name = '{schemaName}';
+").FetchList<string>();
+
+            var drops = new List<string>();
+            drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
+            drops.AddRange(constraints);
+            drops.AddRange(tables.Select(name => $"drop table {schemaName}.{name};"));
+                    
+                    
+                //     <string>(async r =>
+                // {
+                //     var name = await r.GetFieldValueAsync<string>(0);
+                //     var type = await r.GetFieldValueAsync<string>(1);
+                //     switch (type.Trim())
+                //     {
+                //         case "P":
+                //             return ;
+                //         case "V":
+                //             return $"drop view {schemaName}.{name};";
+                //         case "F":
+                //             return $"drop constraint {schemaName}.{name};";
+                //         case "SO":
+                //             return $"drop sequence {schemaName}.{name};";
+                //         case "U":
+                //             return $"drop table {schemaName}.{name};";
+                //         default:
+                //             throw new NotSupportedException($"Don't understand type '{type}' for object named '{name}'");
+                //     }
+                // });
+
+            foreach (var drop in drops)
+            {
+                await conn.CreateCommand(drop).ExecuteNonQueryAsync();
+            } 
+            
+            if (!schemaName.EqualsIgnoreCase(SqlServerProvider.Instance.DefaultDatabaseSchemaName))
+            {
+                var sql = $"drop schema if exists {schemaName};";
+                await conn.CreateCommand(sql).ExecuteNonQueryAsync();
+            }
+
         }
 
         public static string DropStatementFor(string schemaName)
         {
-            return $"drop schema if exists {schemaName};";
+            var sql = $@"
+/* Drop all non-system stored procs */
+DECLARE @name VARCHAR(128)
+DECLARE @SQL VARCHAR(254)
+
+SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] = 'P' AND category = 0 ORDER BY [name])
+
+WHILE @name is not null
+BEGIN
+    SELECT @SQL = 'DROP PROCEDURE [{schemaName}].[' + RTRIM(@name) +']'
+    EXEC (@SQL)
+    PRINT 'Dropped Procedure: ' + @name
+    SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] = 'P' AND category = 0 AND [name] > @name ORDER BY [name])
+END
+GO
+
+/* Drop all views */
+DECLARE @name VARCHAR(128)
+DECLARE @SQL VARCHAR(254)
+
+SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] = 'V' AND category = 0 ORDER BY [name])
+
+WHILE @name IS NOT NULL
+BEGIN
+    SELECT @SQL = 'DROP VIEW [{schemaName}].[' + RTRIM(@name) +']'
+    EXEC (@SQL)
+    PRINT 'Dropped View: ' + @name
+    SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] = 'V' AND category = 0 AND [name] > @name ORDER BY [name])
+END
+GO
+
+/* Drop all functions */
+DECLARE @name VARCHAR(128)
+DECLARE @SQL VARCHAR(254)
+
+SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] IN (N'FN', N'IF', N'TF', N'FS', N'FT') AND category = 0 ORDER BY [name])
+
+WHILE @name IS NOT NULL
+BEGIN
+    SELECT @SQL = 'DROP FUNCTION [{schemaName}].[' + RTRIM(@name) +']'
+    EXEC (@SQL)
+    PRINT 'Dropped Function: ' + @name
+    SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] IN (N'FN', N'IF', N'TF', N'FS', N'FT') AND category = 0 AND [name] > @name ORDER BY [name])
+END
+GO
+
+/* Drop all Foreign Key constraints */
+DECLARE @name VARCHAR(128)
+DECLARE @constraint VARCHAR(254)
+DECLARE @SQL VARCHAR(254)
+
+SELECT @name = (SELECT TOP 1 TABLE_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'FOREIGN KEY' ORDER BY TABLE_NAME)
+
+WHILE @name is not null
+BEGIN
+    SELECT @constraint = (SELECT TOP 1 CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'FOREIGN KEY' AND TABLE_NAME = @name ORDER BY CONSTRAINT_NAME)
+    WHILE @constraint IS NOT NULL
+    BEGIN
+        SELECT @SQL = 'ALTER TABLE [{schemaName}].[' + RTRIM(@name) +'] DROP CONSTRAINT [' + RTRIM(@constraint) +']'
+        EXEC (@SQL)
+        PRINT 'Dropped FK Constraint: ' + @constraint + ' on ' + @name
+        SELECT @constraint = (SELECT TOP 1 CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'FOREIGN KEY' AND CONSTRAINT_NAME <> @constraint AND TABLE_NAME = @name ORDER BY CONSTRAINT_NAME)
+    END
+SELECT @name = (SELECT TOP 1 TABLE_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'FOREIGN KEY' ORDER BY TABLE_NAME)
+END
+GO
+
+/* Drop all Primary Key constraints */
+DECLARE @name VARCHAR(128)
+DECLARE @constraint VARCHAR(254)
+DECLARE @SQL VARCHAR(254)
+
+SELECT @name = (SELECT TOP 1 TABLE_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'PRIMARY KEY' ORDER BY TABLE_NAME)
+
+WHILE @name IS NOT NULL
+BEGIN
+    SELECT @constraint = (SELECT TOP 1 CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'PRIMARY KEY' AND TABLE_NAME = @name ORDER BY CONSTRAINT_NAME)
+    WHILE @constraint is not null
+    BEGIN
+        SELECT @SQL = 'ALTER TABLE [{schemaName}].[' + RTRIM(@name) +'] DROP CONSTRAINT [' + RTRIM(@constraint)+']'
+        EXEC (@SQL)
+        PRINT 'Dropped PK Constraint: ' + @constraint + ' on ' + @name
+        SELECT @constraint = (SELECT TOP 1 CONSTRAINT_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'PRIMARY KEY' AND CONSTRAINT_NAME <> @constraint AND TABLE_NAME = @name ORDER BY CONSTRAINT_NAME)
+    END
+SELECT @name = (SELECT TOP 1 TABLE_NAME FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE constraint_catalog=DB_NAME() AND CONSTRAINT_TYPE = 'PRIMARY KEY' ORDER BY TABLE_NAME)
+END
+GO
+
+/* Drop all tables */
+DECLARE @name VARCHAR(128)
+DECLARE @SQL VARCHAR(254)
+
+SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] = 'U' AND category = 0 ORDER BY [name])
+
+WHILE @name IS NOT NULL
+BEGIN
+    SELECT @SQL = 'DROP TABLE [{schemaName}].[' + RTRIM(@name) +']'
+    EXEC (@SQL)
+    PRINT 'Dropped Table: ' + @name
+    SELECT @name = (SELECT TOP 1 [name] FROM sysobjects WHERE [type] = 'U' AND category = 0 AND [name] > @name ORDER BY [name])
+END
+GO
+";
+
+            if (!schemaName.EqualsIgnoreCase(SqlServerProvider.Instance.DefaultDatabaseSchemaName))
+            {
+                sql += $"{Environment.NewLine}drop schema if exists {schemaName};{Environment.NewLine}GO;";
+            }
+
+            return sql;
         }
 
         public static Task CreateSchema(this SqlConnection conn, string schemaName)
@@ -97,7 +277,7 @@ namespace Weasel.SqlServer
 
         public static async Task ResetSchema(this SqlConnection conn, string schemaName)
         {
-            await conn.RunSql(DropStatementFor(schemaName));
+            await conn.DropSchema(schemaName);
             await conn.RunSql(SchemaMigration.CreateSchemaStatementFor(schemaName));
         }
 

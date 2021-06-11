@@ -20,7 +20,7 @@ namespace Weasel.SqlServer
 
         protected override void storeMappings()
         {
-            store<string>(SqlDbType.VarChar, "varchar");
+            store<string>(SqlDbType.VarChar, "varchar(100)");
             store<bool>(System.Data.SqlDbType.Bit, "bit");
             store<long>(System.Data.SqlDbType.BigInt, "bigint");
             store<byte[]>(System.Data.SqlDbType.Binary, "binary");

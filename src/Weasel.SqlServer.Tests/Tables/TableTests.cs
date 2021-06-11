@@ -208,13 +208,12 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name");
             table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+            table.AddColumn<int>("state_id").AddIndex();
 
             var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
             
             index.Name.ShouldBe("idx_people_state_id");
             index.Columns.Single().ShouldBe("state_id");
-            index.Method.ShouldBe(IndexMethod.hash);
         }
 
         [Fact]
@@ -224,7 +223,7 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name");
             table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+            table.AddColumn<int>("state_id").AddIndex();
 
             table.PrimaryKeyName.ShouldBe("pkey_people_id");
         }
@@ -236,7 +235,7 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AsPrimaryKey();
             table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+            table.AddColumn<int>("state_id").AddIndex();
 
             table.PrimaryKeyName.ShouldBe("pkey_people_id_first_name");
         }
@@ -248,7 +247,7 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AsPrimaryKey();
             table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
+            table.AddColumn<int>("state_id").AddIndex();
 
             table.PrimaryKeyName = "pk_people";
             table.PrimaryKeyName.ShouldBe("pk_people");

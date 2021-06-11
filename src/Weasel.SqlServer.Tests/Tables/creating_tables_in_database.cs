@@ -117,7 +117,7 @@ namespace Weasel.SqlServer.Tests.Tables
             
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name").NotNull().AddIndex(x => x.IsConcurrent = true);
+            table.AddColumn<string>("first_name").NotNull().AddIndex();
             table.AddColumn<string>("last_name").NotNull().AddIndex();
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
@@ -145,7 +145,6 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AddIndex(x =>
             {
-                x.IsConcurrent = true;
                 x.IsUnique = true;
                 x.SortOrder = SortOrder.Desc;
                 x.Predicate = "id > 3";
