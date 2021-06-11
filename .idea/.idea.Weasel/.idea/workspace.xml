@@ -7,9 +7,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Weeded some Postgresql-isms out of the Sql Server support. Can build Sql Server tables now">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" afterDir="false" />
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Improvements to dropping a SQL schema">
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -89,9 +87,9 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/reading_existing_table_from_database.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/df56cb2a-3d3c-4805-ac08-5e9837810745/console.sql" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -154,14 +152,7 @@
       <workItem from="1623002317325" duration="1868000" />
       <workItem from="1623160056971" duration="4485000" />
       <workItem from="1623181139550" duration="925000" />
-      <workItem from="1623344268696" duration="14140000" />
-    </task>
-    <task id="LOCAL-00022" summary="Can build indexes in the table creation">
-      <created>1618683643374</created>
-      <option name="number" value="00022" />
-      <option name="presentableId" value="LOCAL-00022" />
-      <option name="project" value="LOCAL" />
-      <updated>1618683643374</updated>
+      <workItem from="1623344268696" duration="14651000" />
     </task>
     <task id="LOCAL-00023" summary="Can read columns out of an existing table">
       <created>1618684721724</created>
@@ -499,7 +490,14 @@
       <option name="project" value="LOCAL" />
       <updated>1623420892595</updated>
     </task>
-    <option name="localTasksCounter" value="71" />
+    <task id="LOCAL-00071" summary="Improvements to dropping a SQL schema">
+      <created>1623422005378</created>
+      <option name="number" value="00071" />
+      <option name="presentableId" value="LOCAL-00071" />
+      <option name="project" value="LOCAL" />
+      <updated>1623422005378</updated>
+    </task>
+    <option name="localTasksCounter" value="72" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -643,7 +641,6 @@
   </component>
   <component name="VcsManagerConfiguration">
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="SchemaMigration methods to write out the apply changes" />
     <MESSAGE value="Fetching FunctionDelta" />
     <MESSAGE value="Basic FunctionDelta application" />
     <MESSAGE value="New FunctionExists() helper function" />
@@ -668,7 +665,8 @@
     <MESSAGE value="Improved the SQL Server type resolution" />
     <MESSAGE value="Pulled DbObjectName into Core" />
     <MESSAGE value="Weeded some Postgresql-isms out of the Sql Server support. Can build Sql Server tables now" />
-    <option name="LAST_COMMIT_MESSAGE" value="Weeded some Postgresql-isms out of the Sql Server support. Can build Sql Server tables now" />
+    <MESSAGE value="Improvements to dropping a SQL schema" />
+    <option name="LAST_COMMIT_MESSAGE" value="Improvements to dropping a SQL schema" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -815,6 +813,19 @@
             </endOffsets>
           </properties>
           <option name="timeStamp" value="45" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs</url>
+          <line>58</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\Sequence.cs" initialLine="58" containingFunctionPresentation="method 'ConfigureQueryCommand'">
+            <startOffsets>
+              <option value="1778" />
+            </startOffsets>
+            <endOffsets>
+              <option value="1984" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="46" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

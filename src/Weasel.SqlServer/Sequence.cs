@@ -56,8 +56,8 @@ namespace Weasel.SqlServer
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
-            builder.Append(
-                $"select count(*) from information_schema.sequences where sequence_schema = :{schemaParam} and sequence_name = :{nameParam};");
+            builder.Append($"select count(*) from sys.sequences inner join sys.schemas on sys.sequences.schema_id = sys.schemas.schema_id where sys.schemas.name = @{schemaParam} and sys.sequences.name = @{nameParam};");
+
         }
 
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
