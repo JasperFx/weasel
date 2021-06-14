@@ -34,13 +34,13 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       sqlserver:
-        image: "microsoft/mssql-server-linux"
+        image: microsoft/mssql-server-linux
         ports:
-          - "1433:1433"
-        environment:
-          - "ACCEPT_EULA=Y"
-          - "SA_PASSWORD=P@55w0rd"
-          - "MSSQL_PID=Developer"
+          - 1433:1433
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: P@55w0rd
+          MSSQL_PID: Developer
 
     steps:
     - uses: actions/checkout@v2
