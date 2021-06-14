@@ -26,7 +26,7 @@ namespace Weasel.SqlServer.Tests
             await CreateSchemaObjectInDatabase(table);
 
             var builder = new CommandBuilder();
-            builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
+            builder.Append("insert into integration.thing (id, tag, age) values (@id, @tag, @age)");
             builder.AddParameters(new
             {
                 id = 3,
@@ -57,17 +57,17 @@ namespace Weasel.SqlServer.Tests
 
             await CreateSchemaObjectInDatabase(table);
 
-            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
                 .With("id", 1)
                 .With("tag", "one")
                 .ExecuteNonQueryAsync();
             
-            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
                 .With("id", 2)
                 .With("tag", "two")
                 .ExecuteNonQueryAsync();
             
-            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
                 .With("id", 3)
                 .With("tag", "three")
                 .ExecuteNonQueryAsync();
@@ -117,7 +117,7 @@ namespace Weasel.SqlServer.Tests
             await CreateSchemaObjectInDatabase(table);
 
             var builder = new CommandBuilder();
-            builder.Append("insert into integration.thing (id, tag, age, rate, sequence, is_done) values (:id, :tag, :age, :rate, :sequence, :done)");
+            builder.Append("insert into integration.thing (id, tag, age, rate, sequence, is_done) values (@id, @tag, @age, @rate, @sequence, @done)");
             builder.AddNamedParameter("id", 3);
             builder.AddNamedParameter("tag", "toodles");
             builder.AddNamedParameter("age", 5);

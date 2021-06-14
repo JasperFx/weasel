@@ -18,13 +18,6 @@ namespace Weasel.SqlServer.Tests
         }
 
 
-        [Fact]
-        public void execute_get_pg_type_default_mappings_resolve()
-        {
-            SqlServerProvider.Instance.GetDatabaseType(typeof(long), EnumStorage.AsString).ShouldBe("bigint");
-            SqlServerProvider.Instance.GetDatabaseType(typeof(DateTime), EnumStorage.AsString).ShouldBe("timestamp without time zone");
-        }
-
 
 
 
@@ -51,41 +44,6 @@ namespace Weasel.SqlServer.Tests
             inputString.ReplaceMultiSpace(" ").ShouldBe(expectedString);
         }
 
-        [Fact]
-        public void table_columns_should_match_raw_types()
-        {
-            var serialAsInt = new TableColumn("id", "serial");
-            serialAsInt.ShouldBe(new TableColumn("id", "int"));
 
-            var varchararrAsArray = new TableColumn("comments", "varchar[]");
-            varchararrAsArray.ShouldBe(new TableColumn("comments", "array"));
-
-            var charactervaryingAsArray = new TableColumn("comments", "character varying[]");
-            charactervaryingAsArray.ShouldBe(new TableColumn("comments", "array"));
-
-            var textarrayAsArray = new TableColumn("comments", "text[]");
-            charactervaryingAsArray.ShouldBe(new TableColumn("comments", "array"));
-        }
-
-        [Theory]
-        [InlineData("character varying", "varchar")]
-        [InlineData("varchar", "varchar")]
-        [InlineData("boolean", "boolean")]
-        [InlineData("bool", "boolean")]
-        [InlineData("integer", "int")]
-        [InlineData("serial", "int")]
-        [InlineData("integer[]", "int[]")]
-        [InlineData("decimal", "decimal")]
-        [InlineData("numeric", "decimal")]
-        [InlineData("timestamp without time zone", "timestamp")]
-        [InlineData("timestamp with time zone", "timestamptz")]
-        [InlineData("array", "array")]
-        [InlineData("character varying[]", "array")]
-        [InlineData("varchar[]", "array")]
-        [InlineData("text[]", "array")]
-        public void convert_synonyms(string type, string synonym)
-        {
-            SqlServerProvider.Instance.ConvertSynonyms(type).ShouldBe(synonym);
-        }
     }
 }

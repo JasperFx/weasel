@@ -15,7 +15,7 @@ namespace Weasel.SqlServer.Tests.SqlGeneration
             var parameter = new CommandParameter(Expression.Constant("hello"));
 
             parameter.Value.ShouldBe("hello");
-            parameter.DbType.ShouldBe(SqlDbType.Text);
+            parameter.DbType.ShouldBe(SqlDbType.VarChar);
         }
 
         [Fact]

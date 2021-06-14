@@ -19,7 +19,7 @@ namespace Weasel.SqlServer.Tests
             param.Value.ShouldBe("a");
             param.ParameterName.ShouldBe("p0");
 
-            param.SqlDbType.ShouldBe(SqlDbType.Text);
+            param.SqlDbType.ShouldBe(SqlDbType.NVarChar);
 
             command.Parameters.OfType<SqlParameter>().ShouldContain(param);
         }

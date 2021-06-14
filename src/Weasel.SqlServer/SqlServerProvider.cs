@@ -58,6 +58,12 @@ namespace Weasel.SqlServer
             {
                 return value;
             }
+            
+            if (type.IsNullable() && ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var parameterType))
+            {
+                ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
+                return parameterType;
+            }
 
             return System.Data.SqlDbType.Variant;
         }
