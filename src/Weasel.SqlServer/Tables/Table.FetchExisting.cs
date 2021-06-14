@@ -21,13 +21,14 @@ from information_schema.columns where table_schema = @{schemaParam} and table_na
 order by ordinal_position;
 
 select 
-    cols.column_name
+    COLUMN_NAME, 
+    CONSTRAINT_NAME 
 from 
-    information_schema.KEY_COLUMN_USAGE cols inner join information_schema.TABLE_CONSTRAINTS cons on cols.table_schema = cons.table_schema and cols.table_name = cons.table_name
-where
-   cons.CONSTRAINT_TYPE = 'PRIMARY KEY' and
-   cols.table_schema = @{schemaParam} and 
-   cols.table_name = @{nameParam};
+    INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE 
+where 
+    TABLE_SCHEMA = @{schemaParam} and 
+    TABLE_NAME = @{nameParam} and 
+    CONSTRAINT_NAME in (select constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where TABLE_CONSTRAINTS.TABLE_NAME = @{nameParam} and TABLE_CONSTRAINTS.TABLE_SCHEMA = @{schemaParam} and CONSTRAINT_TYPE = 'PRIMARY KEY')
 
    select 
           parent.name as constraint_name,
@@ -68,7 +69,7 @@ from
 where
     t.name = @{nameParam} and
     s.name = @{schemaParam} and
-    i.is_primary_key = 0
+    i.is_primary_key = 0;
 
 
 select 
@@ -86,7 +87,7 @@ where
         s.name = @{schemaParam}
 order by 
     ic.index_id,
-    ic.index_column_id
+    ic.index_column_id;
 
 
 
@@ -111,8 +112,9 @@ order by
 
             await readColumns(reader, existing);
 
-            var pks = await readPrimaryKeys(reader);
+            var (pks, primaryKeyName) = await readPrimaryKeys(reader);
             foreach (var pkColumn in pks) existing.ColumnFor(pkColumn).IsPrimaryKey = true;
+            existing.PrimaryKeyName = primaryKeyName;
 
             
             await readForeignKeys(reader, existing);
@@ -179,12 +181,21 @@ order by
 
         private async Task readIndexes(DbDataReader reader, Table existing)
         {
-            await reader.NextResultAsync();
+            var hasResults = await reader.NextResultAsync();
             var indexes = new Dictionary<int, IndexDefinition>();
             
-            while (await reader.ReadAsync())
+            while (hasResults && await reader.ReadAsync())
             {
                 var id = await reader.GetFieldValueAsync<int>(0);
+                
+                // This is an odd Sql Server centric quirk I think, this is really detecting
+                // no indexes
+                if (await reader.IsDBNullAsync(1))
+                {
+                    hasResults = false;
+                    break;
+                }
+                
                 var name = await reader.GetFieldValueAsync<string>(1);
                 var typeDesc = await reader.GetFieldValueAsync<string>(2);
 
@@ -213,7 +224,7 @@ order by
 
             await reader.NextResultAsync();
 
-            while (await reader.ReadAsync())
+            while (hasResults && await reader.ReadAsync())
             {
                 var id = await reader.GetFieldValueAsync<int>(0);
                 if (indexes.TryGetValue(id, out var index))
@@ -233,16 +244,18 @@ order by
             }
         }
 
-        private static async Task<List<string>> readPrimaryKeys(DbDataReader reader)
+        private static async Task<(List<string>, string)> readPrimaryKeys(DbDataReader reader)
         {
+            string pkName = null;
             var pks = new List<string>();
             await reader.NextResultAsync();
             while (await reader.ReadAsync())
             {
                 pks.Add(await reader.GetFieldValueAsync<string>(0));
+                pkName = await reader.GetFieldValueAsync<string>(1);
             }
 
-            return pks;
+            return (pks, pkName);
         }
     }
 }

@@ -19,14 +19,14 @@ namespace Weasel.SqlServer.Tests.Tables
             initial.AddColumn<string>("first_name");
             initial.AddColumn<string>("last_name");
             initial.AddColumn<string>("user_name");
-            initial.AddColumn("data", "jsonb");
+            initial.AddColumn("data", "text");
             
             configured = new Table("rollbacks.people");
             configured.AddColumn<int>("id").AsPrimaryKey();
             configured.AddColumn<string>("first_name");
             configured.AddColumn<string>("last_name");
             configured.AddColumn<string>("user_name");
-            configured.AddColumn("data", "jsonb");
+            configured.AddColumn("data", "text");
         }
 
         private async Task AssertRollbackIsSuccessful(params Table[] otherTables)
@@ -109,7 +109,7 @@ namespace Weasel.SqlServer.Tests.Tables
         [Fact]
         public async Task changed_primary_key()
         {
-            configured.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValueByString("foo");
+            configured.AddColumn<string>("tenant_id");
             
             await AssertRollbackIsSuccessful();
         }

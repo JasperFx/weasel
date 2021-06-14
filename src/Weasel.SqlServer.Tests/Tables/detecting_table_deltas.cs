@@ -458,42 +458,6 @@ namespace Weasel.SqlServer.Tests.Tables
             await AssertNoDeltasAfterPatching(theTable);
         }
         
-        [Fact]
-        public async Task equivalency_with_the_postgres_synonym_issue()
-        {
-            var table2 = new Table("deltas.people");
-            table2.AddColumn<int>("id").AsPrimaryKey();
-            table2.AddColumn("first_name", "character varying");
-            table2.AddColumn("last_name", "character varying");
-            table2.AddColumn("user_name", "character varying");
-            table2.AddColumn("data", "jsonb");
-
-            await CreateSchemaObjectInDatabase(theTable);
-
-            var delta = await table2.FindDelta(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
-
-        [Fact]
-        public async Task patching_and_detecting_deltas_with_computed_indexes()
-        {
-            // CREATE INDEX idx_blobs_data ON deltas.blobs USING btree (data ->> 'Name');
-            // CREATE INDEX mt_doc_testdocument_idx_name ON bugs.mt_doc_testdocument USING btree ( (data ->> 'Name'));
-
-            var table = new Table("deltas.blobs");
-            table.AddColumn<string>("key").AsPrimaryKey();
-            table.AddColumn("data", "jsonb");
-
-            await CreateSchemaObjectInDatabase(table);
-
-            table.Indexes.Add(new IndexDefinition("idx_blobs_data_name")
-            {
-                Columns = new []{"(data ->> 'Name')"}
-            });
-
-            await AssertNoDeltasAfterPatching(table);
-        }
-        
 
     }
 }

@@ -7,16 +7,14 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Fixed more Sql Server tests">
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaGenerator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaGenerator.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/IndexDefinition.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/IndexDefinition.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/rolling_back_table_deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/rolling_back_table_deltas.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/StringWriterExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/StringWriterExtensions.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableColumn.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableColumn.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,7 +47,6 @@
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/PostgresqlProviderTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" />
@@ -80,9 +77,7 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/creating_tables_in_database.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SchemaObjectExtensionsTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CascadeOption.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/StringWriterExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/reading_existing_table_from_database.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
@@ -91,15 +86,18 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" />
-      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/df56cb2a-3d3c-4805-ac08-5e9837810745/console.sql" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/IndexDefinition.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaGenerator.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableColumn.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableColumnTests.cs" />
+      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/df56cb2a-3d3c-4805-ac08-5e9837810745/console.sql" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/StringWriterExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/rolling_back_table_deltas.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -114,7 +112,6 @@
   <component name="PropertiesComponent">
     <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="DatabaseDriversLRU" value="postgresql&#10;sqlserver" />
-    <property name="DebuggerViewTab_PTCS_FirstProportionKey" value="0.34983897" />
     <property name="DebuggerViewTab_PTCS_LastProportionKey" value="0.0" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
@@ -163,7 +160,7 @@
       <workItem from="1623002317325" duration="1868000" />
       <workItem from="1623160056971" duration="4485000" />
       <workItem from="1623181139550" duration="925000" />
-      <workItem from="1623344268696" duration="31355000" />
+      <workItem from="1623344268696" duration="36816000" />
     </task>
     <task id="LOCAL-00028" summary="New &quot;concise&quot; formatting rule for Table SQL generation">
       <created>1618839153037</created>
@@ -801,19 +798,6 @@
           <option name="timeStamp" value="46" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs</url>
-          <line>131</line>
-          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\Tables\Table.FetchExisting.cs" initialLine="94" containingFunctionPresentation="method 'readForeignKeys'">
-            <startOffsets>
-              <option value="3926" />
-            </startOffsets>
-            <endOffsets>
-              <option value="3982" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="48" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs</url>
           <line>75</line>
           <properties documentPath="C:\code\weasel\src\Weasel.Core\CommandExtensions.cs" initialLine="75" containingFunctionPresentation="method 'FetchOne'">
@@ -840,6 +824,32 @@
           <option name="timeStamp" value="50" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs</url>
+          <line>290</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\detecting_table_deltas.cs" initialLine="290" containingFunctionPresentation="method 'detect_all_new_foreign_key'">
+            <startOffsets>
+              <option value="9519" />
+            </startOffsets>
+            <endOffsets>
+              <option value="9560" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="54" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/detecting_table_deltas.cs</url>
+          <line>452</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\detecting_table_deltas.cs" initialLine="452" containingFunctionPresentation="method 'detect_new_primary_key_change'">
+            <startOffsets>
+              <option value="14989" />
+            </startOffsets>
+            <endOffsets>
+              <option value="15038" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="56" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs</url>
           <line>125</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\SchemaMigration.cs" initialLine="125" containingFunctionPresentation="method 'ApplyAll'">
@@ -850,7 +860,7 @@
               <option value="3764" />
             </endOffsets>
           </properties>
-          <option name="timeStamp" value="53" />
+          <option name="timeStamp" value="59" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

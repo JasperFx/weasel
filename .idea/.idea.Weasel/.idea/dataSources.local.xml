@@ -11,8 +11,23 @@
       <user-name>sa</user-name>
       <schema-mapping>
         <introspection-scope>
-          <node kind="database" qname="@">
-            <node kind="schema" qname="@" />
+          <node negative="1">
+            <node kind="database" qname="@">
+              <node kind="schema" qname="@" />
+            </node>
+            <node kind="database" qname="master">
+              <node kind="schema">
+                <name qname="defaults" />
+                <name qname="deltas" />
+                <name qname="extensions" />
+                <name qname="functions" />
+                <name qname="integration" />
+                <name qname="partitions" />
+                <name qname="rollbacks" />
+                <name qname="sequences" />
+                <name qname="tables" />
+              </node>
+            </node>
           </node>
         </introspection-scope>
       </schema-mapping>
