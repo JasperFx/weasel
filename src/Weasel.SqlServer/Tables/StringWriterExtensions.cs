@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using Weasel.SqlServer.Functions;
 
 namespace Weasel.SqlServer.Tables
 {
@@ -29,25 +28,5 @@ namespace Weasel.SqlServer.Tables
             writer.WriteLine($"drop index {index.Name} on {table.Identifier};");
         }
 
-        public static void WriteDropFunction(this TextWriter writer, Function function)
-        {
-            foreach (var drop in function.DropStatements())
-            {
-                var sql = drop;
-                if (!sql.EndsWith("cascade", StringComparison.OrdinalIgnoreCase))
-                {
-                    sql = sql.TrimEnd(';') + " cascade;";
-                }
-
-                writer.WriteLine(sql);
-            }
-        }
-
-        public static void WriteReplaceFunction(this TextWriter writer, DdlRules rules, Function oldFunction,
-            Function newFunction)
-        {
-            writer.WriteDropFunction(oldFunction);
-            newFunction.WriteCreateStatement(rules, writer);
-        }
     }
 }

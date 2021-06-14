@@ -19,9 +19,10 @@ namespace Weasel.SqlServer.Tests
 
             await ResetSchema();
 
-            await theConnection.CreateCommand($"drop schema if exists one").ExecuteNonQueryAsync();
-            await theConnection.CreateCommand($"drop schema if exists two").ExecuteNonQueryAsync();
-            await theConnection.CreateCommand($"drop schema if exists three").ExecuteNonQueryAsync();
+            await theConnection.DropSchema("one");
+            await theConnection.DropSchema("two");
+            await theConnection.DropSchema("three");
+
 
             var schemaNames = await theConnection.ActiveSchemaNames();
             

@@ -9,17 +9,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Baseline;
 using Weasel.Core;
-using Weasel.SqlServer.Functions;
 
 namespace Weasel.SqlServer
 {
     public static class SchemaObjectsExtensions
     {
-        public static Task<Function> FindExistingFunction(this SqlConnection conn, DbObjectName functionName)
-        {
-            var function = new Function(functionName, null);
-            return function.FetchExisting(conn);
-        }
 
 
         internal static string ToIndexName(this DbObjectName name, string prefix, params string[] columnNames)
@@ -96,18 +90,7 @@ IF NOT EXISTS ( SELECT  *
                 .CreateCommand($"select routine_name from information_schema.routines where routine_schema = '{schemaName}';")
                 .FetchList<string>();
 
-            var constraints = await conn.CreateCommand($@"
-select 
-  sys.tables.name as table_name,
-  sys.foreign_keys.name as constraint_name
-from
-  sys.foreign_keys 
-      inner join sys.tables on sys.foreign_keys.parent_object_id = sys.tables.object_id
-      inner join sys.schemas on sys.tables.schema_id = sys.schemas.schema_id
-where
-  sys.schemas.name = '{schemaName}';
-
-").FetchList<string>(async r =>
+            var constraints = await conn.CreateCommand($"select table_name, constraint_name from information_schema.table_constraints where table_schema = '{schemaName}' order by constraint_type").FetchList<string>(async r =>
             {
                 var tableName = await r.GetFieldValueAsync<string>(0);
                 var constraintName = await r.GetFieldValueAsync<string>(1);
@@ -120,6 +103,7 @@ where
             var sequences = await conn
                 .CreateCommand($"select sequence_name from information_schema.sequences where sequence_schema = '{schemaName}'")
                 .FetchList<string>();
+
 
             var drops = new List<string>();
             drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
