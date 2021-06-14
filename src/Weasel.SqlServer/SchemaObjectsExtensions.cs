@@ -72,7 +72,11 @@ IF NOT EXISTS ( SELECT  *
             {
                 if (shouldClose)
                 {
+#if NET50
                     await conn.CloseAsync();
+                    #else
+                    conn.Close();
+#endif
                 }
             }
         }

@@ -17,8 +17,18 @@ jobs:
       run: dotnet restore
     - name: Build
       run: dotnet build --configuration Release --no-restore
-    - name: Publish Weasel
+    - name: Publish Weasel.Core
+      uses: brandedoutcast/publish-nuget@v2.5.2
+      with:
+          PROJECT_FILE_PATH: src/Weasel.Core/Weasel.Core.csproj
+          NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+    - name: Publish Weasel.Postgresql
       uses: brandedoutcast/publish-nuget@v2.5.2
       with:
           PROJECT_FILE_PATH: src/Weasel.Postgresql/Weasel.Postgresql.csproj
+          NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+    - name: Publish Weasel.SqlServer
+      uses: brandedoutcast/publish-nuget@v2.5.2
+      with:
+          PROJECT_FILE_PATH: src/Weasel.SqlServer/Weasel.SqlServer.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}

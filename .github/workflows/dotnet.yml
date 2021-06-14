@@ -33,16 +33,18 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      sqlserver:
+        image: "microsoft/mssql-server-linux"
+        ports:
+          - "1433:1433"
+        environment:
+          - "ACCEPT_EULA=Y"
+          - "SA_PASSWORD=P@55w0rd"
+          - "MSSQL_PID=Developer"
 
     steps:
     - uses: actions/checkout@v2
     
-    - name: Check and install plv8 extension
-      run: |
-        PG_CONTAINER_NAME=$(docker ps --filter expose=5432/tcp --format {{.Names}})
-        docker exec $PG_CONTAINER_NAME psql -U ${{ env.pg_user }} -d ${{ env.pg_db }} -c "CREATE EXTENSION IF NOT EXISTS plv8;"
-        docker exec $PG_CONTAINER_NAME psql -U ${{env.pg_user}} -d ${{ env.pg_db }} -c "DO 'plv8.elog(NOTICE, plv8.version);' LANGUAGE plv8;"
-      shell: bash
 
     - name: Optimize database for running tests faster
       run: |
