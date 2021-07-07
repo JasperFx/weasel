@@ -64,5 +64,63 @@ namespace Weasel.Postgresql.Tests
             
             (await theConnection.ExistingTables(schemas:new string[]{"extensions"})).Count.ShouldBe(4);
         }
+        
+        [Fact]
+        public async Task existing_tables_with_schemas()
+        {
+            await ResetSchema();
+
+            var table1 = new Table("extensions.table1");
+            table1.AddColumn<int>("id");
+            var table2 = new Table("extensions.table2");
+            table2.AddColumn<int>("id");
+            var table3 = new Table("extensions.table3");
+            table3.AddColumn<int>("id");
+            var table4 = new Table("extensions.table4");
+            table4.AddColumn<int>("id");
+
+            await CreateSchemaObjectInDatabase(table1);
+            await CreateSchemaObjectInDatabase(table2);
+            await CreateSchemaObjectInDatabase(table3);
+            await CreateSchemaObjectInDatabase(table4);
+
+            var tables = await theConnection.ExistingTables(schemas:new string[]{"extensions"});
+            
+            tables.ShouldContain(table1.Identifier);
+            tables.ShouldContain(table2.Identifier);
+            tables.ShouldContain(table3.Identifier);
+            tables.ShouldContain(table4.Identifier);
+            
+            (await theConnection.ExistingTables(schemas:new string[]{"extensions"})).Count.ShouldBe(4);
+        }
+        
+                
+        [Fact]
+        public async Task existing_tables_with_schemas_and_name_pattern()
+        {
+            await ResetSchema();
+
+            var table1 = new Table("extensions.mt_table1");
+            table1.AddColumn<int>("id");
+            var table2 = new Table("extensions.table2");
+            table2.AddColumn<int>("id");
+            var table3 = new Table("extensions.mt_table3");
+            table3.AddColumn<int>("id");
+            var table4 = new Table("extensions.table4");
+            table4.AddColumn<int>("id");
+
+            await CreateSchemaObjectInDatabase(table1);
+            await CreateSchemaObjectInDatabase(table2);
+            await CreateSchemaObjectInDatabase(table3);
+            await CreateSchemaObjectInDatabase(table4);
+
+            var tables = await theConnection.ExistingTables("mt_%",schemas:new string[]{"extensions"});
+            
+            tables.ShouldContain(table1.Identifier);
+            tables.ShouldContain(table3.Identifier);
+            
+            tables.Count.ShouldBe(2);
+            
+        }
     }
 }

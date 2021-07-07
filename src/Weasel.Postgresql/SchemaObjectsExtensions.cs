@@ -120,6 +120,7 @@ namespace Weasel.Postgresql
             var builder = new CommandBuilder();
             builder.Append("SELECT schemaname, relname FROM pg_stat_user_tables");
 
+            bool hasWhere = false;
 
             if (namePattern.IsNotEmpty())
             {
@@ -132,8 +133,7 @@ namespace Weasel.Postgresql
                     builder.AddNamedParameter("schemas", schemas);
                 }
             }
-            
-            if (schemas != null)
+            else if (schemas != null)
             {
                 builder.Append(" WHERE schemaname = ANY(:schemas)");
                 builder.AddNamedParameter("schemas", schemas);

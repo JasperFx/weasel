@@ -41,6 +41,11 @@ namespace Weasel.Core
         {
             _sql.Append(character);
         }
+
+        public void Append(object value)
+        {
+            _sql.Append(value);
+        }
         
         public TCommand Compile()
         {

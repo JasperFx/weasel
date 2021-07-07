@@ -8,22 +8,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/Weasel.Core/DbCommandBuilder.cs" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/command_extensions_integrated_test.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/dataSources.local.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docker-compose.yml" beforeDir="false" afterPath="$PROJECT_DIR$/docker-compose.yml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandBuilderIntegrationTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandBuilderIntegrationTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ConnectionSource.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ConnectionSource.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/IntegrationContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/IntegrationContext.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderIntegrationTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderIntegrationTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ConnectionSource.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ConnectionSource.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -47,8 +38,6 @@
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/Weasel.Core.Tests/DbObjectNameTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Functions/FunctionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandExtensionsTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionBody.cs" />
@@ -85,19 +74,21 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SchemaObjectExtensionsTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ConnectionSource.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderIntegrationTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandBuilderIntegrationTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ConnectionSource.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/command_extensions_integrated_test.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/DbCommandBuilder.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -163,14 +154,8 @@
       <workItem from="1623181139550" duration="925000" />
       <workItem from="1623344268696" duration="40034000" />
       <workItem from="1623788382354" duration="11000" />
-      <workItem from="1625670507822" duration="8467000" />
-    </task>
-    <task id="LOCAL-00032" summary="ForeignKey parsing definition from the server">
-      <created>1618943130987</created>
-      <option name="number" value="00032" />
-      <option name="presentableId" value="LOCAL-00032" />
-      <option name="project" value="LOCAL" />
-      <updated>1618943130987</updated>
+      <workItem from="1625670507822" duration="10151000" />
+      <workItem from="1625697663278" duration="302000" />
     </task>
     <task id="LOCAL-00033" summary="Can detect deltas of foreign keys">
       <created>1618952254660</created>
@@ -508,7 +493,14 @@
       <option name="project" value="LOCAL" />
       <updated>1623685476201</updated>
     </task>
-    <option name="localTasksCounter" value="81" />
+    <task id="LOCAL-00081" summary="New generic DbCommandBuilder">
+      <created>1625682314022</created>
+      <option name="number" value="00081" />
+      <option name="presentableId" value="LOCAL-00081" />
+      <option name="project" value="LOCAL" />
+      <updated>1625682314022</updated>
+    </task>
+    <option name="localTasksCounter" value="82" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -653,7 +645,6 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Fixes for fetching function names and empty table delta" />
     <MESSAGE value="Test for fetching a non-existent table and that the delta for such is Create" />
     <MESSAGE value="Auto-creates schemas when applying migrations" />
     <MESSAGE value="Improved expression matching in IndexDefinition." />
@@ -678,7 +669,8 @@
     <MESSAGE value="All Sql Server tests passing except for the functions" />
     <MESSAGE value="All Sql Server tests are passing" />
     <MESSAGE value="Adding SqlServer and Core configuration to CI and nuget publishing" />
-    <option name="LAST_COMMIT_MESSAGE" value="Adding SqlServer and Core configuration to CI and nuget publishing" />
+    <MESSAGE value="New generic DbCommandBuilder" />
+    <option name="LAST_COMMIT_MESSAGE" value="New generic DbCommandBuilder" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
