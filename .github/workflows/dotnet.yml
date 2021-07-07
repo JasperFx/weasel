@@ -34,7 +34,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       sqlserver:
-        image: microsoft/mssql-server-linux
+        image: mcr.microsoft.com/mssql/server:2019-latest
         ports:
           - 1433:1433
         env:
