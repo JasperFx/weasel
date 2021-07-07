@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Shouldly;
+using Weasel.Core;
 using Weasel.SqlServer.Tables;
 using Xunit;
 
@@ -26,6 +27,39 @@ namespace Weasel.SqlServer.Tests
             await CreateSchemaObjectInDatabase(table);
 
             var builder = new CommandBuilder();
+            builder.Append("insert into integration.thing (id, tag, age) values (@id, @tag, @age)");
+            builder.AddParameters(new
+            {
+                id = 3,
+                tag = "Toodles",
+                age = 5
+            });
+
+            await builder.ExecuteNonQueryAsync(theConnection);
+
+            using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+                .ExecuteReaderAsync();
+
+            await reader.ReadAsync();
+            
+            (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
+            (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+            (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
+        }
+        
+        [Fact]
+        public async Task use_parameters_to_query_by_anonymous_type_generic_db_builder()
+        {
+            var table = new Table("integration.thing");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("tag");
+            table.AddColumn<int>("age");
+
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(table);
+
+            var builder = new DbCommandBuilder(theConnection);
             builder.Append("insert into integration.thing (id, tag, age) values (@id, @tag, @age)");
             builder.AddParameters(new
             {
@@ -74,6 +108,55 @@ namespace Weasel.SqlServer.Tests
                 
 
             var builder = new CommandBuilder();
+            builder.Append("select id, tag from integration.thing order by id");
+
+            var things = await builder.FetchList(theConnection, async r =>
+            {
+                var thing = new Thing
+                {
+                    id = await r.GetFieldValueAsync<int>(0), 
+                    tag = await r.GetFieldValueAsync<string>(1)
+                };
+
+                return thing;
+
+            });
+
+            things.ElementAt(0).tag.ShouldBe("one");
+            things.ElementAt(0).id.ShouldBe(1);
+            things.ElementAt(1).tag.ShouldBe("two");
+            things.ElementAt(2).tag.ShouldBe("three");
+            things.Count.ShouldBe(3);
+        }
+        
+        [Fact]
+        public async Task fetch_list_with_generic_db_command_builder()
+        {
+            var table = new Table("integration.thing");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("tag");
+
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(table);
+
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
+                .With("id", 1)
+                .With("tag", "one")
+                .ExecuteNonQueryAsync();
+            
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
+                .With("id", 2)
+                .With("tag", "two")
+                .ExecuteNonQueryAsync();
+            
+            await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
+                .With("id", 3)
+                .With("tag", "three")
+                .ExecuteNonQueryAsync();
+                
+
+            var builder = new DbCommandBuilder(theConnection);
             builder.Append("select id, tag from integration.thing order by id");
 
             var things = await builder.FetchList(theConnection, async r =>

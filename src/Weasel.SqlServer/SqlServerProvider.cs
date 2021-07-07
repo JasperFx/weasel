@@ -154,10 +154,10 @@ namespace Weasel.SqlServer
             if (memberType.IsConstructedGenericType)
             {
                 var templateType = memberType.GetGenericTypeDefinition();
-                return ResolveDatabaseType(templateType) ?? "jsonb";
+                return ResolveDatabaseType(templateType) ?? "json";
             }
 
-            return ResolveDatabaseType(memberType) ?? "jsonb";
+            return ResolveDatabaseType(memberType) ?? "json";
         }
 
         public override void AddParameter(SqlCommand command, SqlParameter parameter)

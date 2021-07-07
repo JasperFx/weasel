@@ -10,7 +10,7 @@ services:
       POSTGRES_DB: marten_testing
       NAMEDATALEN: 100
   sqlserver:
-    image: "microsoft/mssql-server-linux"
+    image: "mcr.microsoft.com/mssql/server:2019-latest"
     ports:
       - "1433:1433"
     environment:

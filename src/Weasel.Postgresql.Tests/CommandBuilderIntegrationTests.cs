@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -26,6 +27,39 @@ namespace Weasel.Postgresql.Tests
             await CreateSchemaObjectInDatabase(table);
 
             var builder = new CommandBuilder();
+            builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
+            builder.AddParameters(new
+            {
+                id = 3,
+                tag = "Toodles",
+                age = 5
+            });
+
+            await builder.ExecuteNonQueryAsync(theConnection);
+
+            using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+                .ExecuteReaderAsync();
+
+            await reader.ReadAsync();
+            
+            (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
+            (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+            (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
+        }
+        
+        [Fact]
+        public async Task use_parameters_to_query_by_anonymous_type_by_generic_command_builder()
+        {
+            var table = new Table("integration.thing");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<string>("tag");
+            table.AddColumn<int>("age");
+
+            await ResetSchema();
+
+            await CreateSchemaObjectInDatabase(table);
+
+            var builder = new DbCommandBuilder(theConnection);
             builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
             builder.AddParameters(new
             {

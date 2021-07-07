@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="dataSourceStorageLocal" created-in="RD-211.7142.19">
-    <data-source name="Microsoft SQL Server - @localhost" uuid="df56cb2a-3d3c-4805-ac08-5e9837810745">
-      <database-info product="Microsoft SQL Server" version="14.00.3048" jdbc-version="4.2" driver-name="Microsoft JDBC Driver 9.2 for SQL Server" driver-version="9.2.0.0" dbms="MSSQL" exact-version="14.0.3048" exact-driver-version="9.2">
+  <component name="dataSourceStorageLocal" created-in="RD-211.7442.29">
+    <data-source name="Weasel" uuid="bf04a746-fdb6-4903-a1c3-3dcd801dd566">
+      <database-info product="Microsoft SQL Server" version="15.00.4138" jdbc-version="4.2" driver-name="Microsoft JDBC Driver 9.2 for SQL Server" driver-version="9.2.0.0" dbms="MSSQL" exact-version="15.0.4138" exact-driver-version="9.2">
         <extra-name-characters>$#@</extra-name-characters>
         <identifier-quote-string>&quot;</identifier-quote-string>
       </database-info>
@@ -11,23 +11,8 @@
       <user-name>sa</user-name>
       <schema-mapping>
         <introspection-scope>
-          <node negative="1">
-            <node kind="database" qname="@">
-              <node kind="schema" qname="@" />
-            </node>
-            <node kind="database" qname="master">
-              <node kind="schema">
-                <name qname="defaults" />
-                <name qname="deltas" />
-                <name qname="extensions" />
-                <name qname="functions" />
-                <name qname="integration" />
-                <name qname="partitions" />
-                <name qname="rollbacks" />
-                <name qname="sequences" />
-                <name qname="tables" />
-              </node>
-            </node>
+          <node kind="database" qname="@">
+            <node kind="schema" qname="@" />
           </node>
         </introspection-scope>
       </schema-mapping>

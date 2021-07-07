@@ -1,7 +1,7 @@
 using System;
 using Baseline;
 
-namespace Marten.Testing.Harness
+namespace Weasel.Postgresql.Tests
 {
     public class ConnectionSource 
     {

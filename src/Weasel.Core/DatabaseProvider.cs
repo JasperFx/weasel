@@ -12,7 +12,7 @@ namespace Weasel.Core
     }
     
     public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> : IDatabaseProvider
-        where TCommand : DbCommand, new()
+        where TCommand : DbCommand
         where TParameter : DbParameter
         where TConnection : DbConnection
         where TTransaction : DbTransaction
@@ -38,7 +38,7 @@ namespace Weasel.Core
 
     public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
         : IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
-        where TCommand : DbCommand, new()
+        where TCommand : DbCommand
         where TParameter : DbParameter
         where TConnection : DbConnection
         where TTransaction : DbTransaction

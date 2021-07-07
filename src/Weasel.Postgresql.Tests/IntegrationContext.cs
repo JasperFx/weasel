@@ -3,7 +3,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Baseline;
-using Marten.Testing.Harness;
 using Npgsql;
 using Xunit;
 

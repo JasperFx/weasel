@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace Weasel.Core
 {
     public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
-        where TCommand : DbCommand, new()
+        where TCommand : DbCommand
         where TParameter : DbParameter
         where TConnection : DbConnection
         where TTransaction : DbTransaction

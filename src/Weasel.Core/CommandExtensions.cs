@@ -8,12 +8,18 @@ using Baseline;
 
 namespace Weasel.Core
 {
-    
-    
-    
+
+
+
     public static class CommandExtensions
     {
         
+        public static DbCommandBuilder ToCommandBuilder(this DbConnection connection)
+        {
+            return new DbCommandBuilder(connection);
+        }
+
+
         public static T Sql<T>(this T cmd, string sql) where T : DbCommand
         {
             cmd.CommandText = sql;
@@ -21,9 +27,9 @@ namespace Weasel.Core
         }
         
         
-        public static T CallsSproc<T>(this T cmd, string functionName) where T : DbCommand
+        public static T CallsSproc<T>(this T cmd, string storedProcedureName) where T : DbCommand
         {
-            cmd.CommandText = functionName;
+            cmd.CommandText = storedProcedureName;
             cmd.CommandType = CommandType.StoredProcedure;
 
             return cmd;
@@ -86,6 +92,33 @@ namespace Weasel.Core
             }
 
             return default;
+        }
+        
+        /// <summary>
+        /// Open the attached connection, execute the command, and close the connection
+        /// in one call. This assumes that the connection is not already open
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="cancellation"></param>
+        public static async Task ExecuteOnce(this DbCommand command, CancellationToken cancellation = default)
+        {
+            if (cancellation.IsCancellationRequested) return;
+
+            if (command.Connection is not {State: ConnectionState.Closed})
+                throw new InvalidOperationException(
+                    "The command must have an attached, but not yet open connection to use this extension method");
+
+            var conn = command.Connection;
+            try
+            {
+                await conn.OpenAsync(cancellation);
+
+                await command.ExecuteNonQueryAsync(cancellation);
+            }
+            finally
+            {
+                conn.Close();
+            }
         }
 
     }
