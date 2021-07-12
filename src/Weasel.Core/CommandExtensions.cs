@@ -14,19 +14,37 @@ namespace Weasel.Core
     public static class CommandExtensions
     {
         
+        /// <summary>
+        /// Create a CommandBuilder around the DbConnection
+        /// </summary>
+        /// <param name="connection"></param>
+        /// <returns></returns>
         public static DbCommandBuilder ToCommandBuilder(this DbConnection connection)
         {
             return new DbCommandBuilder(connection);
         }
 
-
+        /// <summary>
+        /// Set the CommandText on this DbCommand in a Fluent Interface style
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="sql"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public static T Sql<T>(this T cmd, string sql) where T : DbCommand
         {
             cmd.CommandText = sql;
             return cmd;
         }
         
-        
+        /// <summary>
+        /// Set the command text of the command object to a stored procedure name and
+        /// change the command type to StoredProcedure in a fluent interface style
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="storedProcedureName"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public static T CallsSproc<T>(this T cmd, string storedProcedureName) where T : DbCommand
         {
             cmd.CommandText = storedProcedureName;
@@ -34,14 +52,43 @@ namespace Weasel.Core
 
             return cmd;
         }
-
         
+        /// <summary>
+        /// Set the command text of the command object to a stored procedure name and
+        /// change the command type to StoredProcedure in a fluent interface style
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="storedProcedureName"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
+        public static T CallsSproc<T>(this T cmd, DbObjectName storedProcedureName) where T : DbCommand
+        {
+            cmd.CommandText = storedProcedureName.QualifiedName;
+            cmd.CommandType = CommandType.StoredProcedure;
+
+            return cmd;
+        }
+
+        /// <summary>
+        /// Execute all of the SQL statements against the supplied DbConnection. This assumes
+        /// that the connection is already open
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="sqls"></param>
+        /// <returns></returns>
         public static Task<int> RunSql(this DbConnection conn, params string[] sqls)
         {
             var sql = sqls.Join(";");
             return conn.CreateCommand(sql).ExecuteNonQueryAsync();
         }
 
+        /// <summary>
+        /// Create a new DbCommand attached to the connection with the supplied
+        /// CommandText
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="sql"></param>
+        /// <returns></returns>
         public static DbCommand CreateCommand(this DbConnection conn, string sql)
         {
             var command = conn.CreateCommand();
@@ -49,6 +96,15 @@ namespace Weasel.Core
             return command;
         }
         
+        /// <summary>
+        /// Execute the supplied command as a data reader and convert each row to an object
+        /// of type T with the supplied transform function
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="transform"></param>
+        /// <param name="cancellation"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public static async Task<IReadOnlyList<T>> FetchList<T>(this DbCommand cmd, Func<DbDataReader, Task<T>> transform, CancellationToken cancellation = default)
         {
             var list = new List<T>();
@@ -62,6 +118,13 @@ namespace Weasel.Core
             return list;
         }
         
+        /// <summary>
+        /// Execute the command return a list of the values in the first column 
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="cancellation"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public static Task<IReadOnlyList<T>> FetchList<T>(this DbCommand cmd, CancellationToken cancellation = default)
         {
             return cmd.FetchList(async reader =>
@@ -76,7 +139,14 @@ namespace Weasel.Core
         }
         
         
-        
+        /// <summary>
+        /// Execute the command and return the value in the first column and row as type
+        /// T. If there is no data returned, this function will return default(T)
+        /// </summary>
+        /// <param name="cmd"></param>
+        /// <param name="cancellation"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public static async Task<T> FetchOne<T>(this DbCommand cmd, CancellationToken cancellation = default)
         {
             using var reader = await cmd.ExecuteReaderAsync(cancellation);
@@ -121,7 +191,13 @@ namespace Weasel.Core
             }
         }
         
-        
+        /// <summary>
+        /// Add a single parameter to a DbCommand with the supplied value and optional DbType
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
         public static DbParameter AddParameter(this DbCommand command, object value, DbType? dbType = null)
         {
             var name = "arg" + command.Parameters.Count;
@@ -137,6 +213,14 @@ namespace Weasel.Core
             return parameter;
         }
 
+        /// <summary>
+        /// Find or add a single DbParameter with the supplied name. Will set the parameter value and DbType
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
         public static DbParameter AddNamedParameter(this DbCommand command, string name, object value,
             DbType? type = null)
         {
@@ -151,9 +235,9 @@ namespace Weasel.Core
             return parameter;
         }
 
-        public static DbCommand With(this DbCommand command, string name, object value)
+        public static T With<T>(this T command, string name, object value) where T : DbCommand
         {
-            var parameter = command.CreateParameter();
+            var parameter =  command.CreateParameter();
             parameter.ParameterName = name;
             parameter.Value = value ?? DBNull.Value;
             command.Parameters.Add(parameter);
@@ -161,7 +245,7 @@ namespace Weasel.Core
             return command;
         }
 
-        public static DbCommand With(this DbCommand command, string name, object value, DbType dbType)
+        public static T With<T>(this T command, string name, object value, DbType dbType) where T : DbCommand
         {
             var parameter = command.CreateParameter();
             parameter.ParameterName = name;
@@ -172,27 +256,38 @@ namespace Weasel.Core
             return command;
         }
 
-        public static DbCommand With(this DbCommand command, string name, string value)
+        public static T With<T>(this T command, string name, string value) where T : DbCommand
         {
             return command.With(name, value, DbType.String);
         }
 
-        public static DbCommand With(this DbCommand command, string name, int value)
+        public static T With<T>(this T command, string name, int value) where T : DbCommand
         {
             return command.With(name, value, DbType.Int32);
         }
+        
+        public static T With<T>(this T command, string name, long value) where T : DbCommand
+        {
+            return command.With(name, value, DbType.Int64);
+        }
 
-        public static DbCommand With(this DbCommand command, string name, Guid value)
+
+        public static T With<T>(this T command, string name, Guid value) where T : DbCommand
         {
             return command.With(name, value, DbType.Guid);
         }
+        
+        public static T With<T>(this T command, string name, bool value) where T : DbCommand
+        {
+            return command.With(name, value, DbType.Boolean);
+        }
 
-        public static DbCommand With(this DbCommand command, string name, byte[] value)
+        public static T With<T>(this T command, string name, byte[] value) where T : DbCommand
         {
             return command.With(name, value, DbType.Binary);
         }
 
-        public static DbCommand With(this DbCommand command, string name, DateTimeOffset? value)
+        public static T With<T>(this T command, string name, DateTimeOffset? value) where T : DbCommand
         {
             return command.With(name, value, DbType.DateTimeOffset);
         }

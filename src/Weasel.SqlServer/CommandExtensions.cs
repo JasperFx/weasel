@@ -27,32 +27,6 @@ namespace Weasel.SqlServer
             return SqlServerProvider.Instance.AddNamedParameter(command, name, value, dbType);
         }
 
-
-        public static SqlCommand With(this SqlCommand command, string name, Guid value)
-        {
-            SqlServerProvider.Instance.AddNamedParameter(command, name, value);
-            return command;
-        }
-
-        public static SqlCommand With(this SqlCommand command, string name, string value)
-        {
-            SqlServerProvider.Instance.AddNamedParameter(command, name, value);
-            return command;
-        }
-
-        public static SqlCommand With(this SqlCommand command, string name, object value)
-        {
-            SqlServerProvider.Instance.AddNamedParameter(command, name, value);
-            return command;
-        }
-
-        public static SqlCommand With(this SqlCommand command, string name, object value, SqlDbType dbType)
-        {
-            SqlServerProvider.Instance.AddNamedParameter(command, name, value, dbType);
-            return command;
-        }
-
-
         public static SqlCommand Returns(this SqlCommand command, string name, SqlDbType type)
         {
             var parameter = command.AddParameter(name);
@@ -71,22 +45,5 @@ namespace Weasel.SqlServer
         }
 
 
-        public static SqlCommand CallsSproc(this SqlCommand cmd, DbObjectName function)
-        {
-            if (cmd == null)
-            {
-                throw new ArgumentNullException(nameof(cmd));
-            }
-
-            if (function == null)
-            {
-                throw new ArgumentNullException(nameof(function));
-            }
-
-            cmd.CommandText = function.QualifiedName;
-            cmd.CommandType = CommandType.StoredProcedure;
-
-            return cmd;
-        }
     }
 }

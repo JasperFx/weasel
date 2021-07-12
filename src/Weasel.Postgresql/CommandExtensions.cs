@@ -35,33 +35,9 @@ namespace Weasel.Postgresql
         
 
 
-        public static NpgsqlCommand With(this NpgsqlCommand command, string name, Guid value)
-        {
-            PostgresqlProvider.Instance.AddNamedParameter(command, name, value);
-            return command;
-        }
-
-        public static NpgsqlCommand With(this NpgsqlCommand command, string name, string value)
-        {
-            PostgresqlProvider.Instance.AddNamedParameter(command, name, value);
-            return command;
-        }
-
-        public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value)
-        {
-            PostgresqlProvider.Instance.AddNamedParameter(command, name, value);
-            return command;
-        }
-        
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, string[] value)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Varchar);
-            return command;
-        }
-
-        public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value, NpgsqlDbType dbType)
-        {
-            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, dbType);
             return command;
         }
 
@@ -82,21 +58,6 @@ namespace Weasel.Postgresql
                 Transaction = tx
             };
         }
-        
-        
-        public static NpgsqlCommand CallsSproc(this NpgsqlCommand cmd, DbObjectName function)
-        {
-            if (cmd == null)
-                throw new ArgumentNullException(nameof(cmd));
-            if (function == null)
-                throw new ArgumentNullException(nameof(function));
-
-            cmd.CommandText = function.QualifiedName;
-            cmd.CommandType = CommandType.StoredProcedure;
-
-            return cmd;
-        }
-
 
     }
 }

@@ -9,13 +9,9 @@
   <component name="ChangeListManager">
     <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,11 +34,9 @@
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandExtensionsTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionBody.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/ISchemaObject.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Extension.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SequenceTester.cs" />
@@ -82,13 +76,15 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/ConnectionSource.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/command_extensions_integrated_test.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/DbCommandBuilder.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -155,7 +151,9 @@
       <workItem from="1623344268696" duration="40034000" />
       <workItem from="1623788382354" duration="11000" />
       <workItem from="1625670507822" duration="10151000" />
-      <workItem from="1625697663278" duration="302000" />
+      <workItem from="1625697663278" duration="1053000" />
+      <workItem from="1625775922480" duration="891000" />
+      <workItem from="1626105086329" duration="997000" />
     </task>
     <task id="LOCAL-00033" summary="Can detect deltas of foreign keys">
       <created>1618952254660</created>
@@ -781,13 +779,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs</url>
-          <line>81</line>
+          <line>135</line>
           <properties documentPath="C:\code\weasel\src\Weasel.Core\CommandExtensions.cs" initialLine="75" containingFunctionPresentation="method 'FetchOne'">
             <startOffsets>
-              <option value="2357" />
+              <option value="4809" />
             </startOffsets>
             <endOffsets>
-              <option value="2419" />
+              <option value="4871" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="49" />
