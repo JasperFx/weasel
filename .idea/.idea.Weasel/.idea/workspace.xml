@@ -7,7 +7,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="" />
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -77,9 +79,9 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -149,6 +151,7 @@
       <workItem from="1625697663278" duration="1053000" />
       <workItem from="1625775922480" duration="891000" />
       <workItem from="1626105086329" duration="1246000" />
+      <workItem from="1626137880657" duration="915000" />
     </task>
     <task id="LOCAL-00034" summary="Moved TableDelta.Matches to HasChanges(), ISchemaObject.CreatePatch() is async">
       <created>1619096447079</created>

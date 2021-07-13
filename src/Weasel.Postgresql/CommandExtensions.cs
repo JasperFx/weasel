@@ -40,6 +40,12 @@ namespace Weasel.Postgresql
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Varchar);
             return command;
         }
+        
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value, NpgsqlDbType dbType)
+        {
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, dbType);
+            return command;
+        }
 
 
         public static NpgsqlCommand Returns(this NpgsqlCommand command, string name, NpgsqlDbType type)
