@@ -41,6 +41,18 @@ namespace Weasel.Postgresql
             return command;
         }
         
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, DateTime value)
+        {
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Timestamp);
+            return command;
+        }
+        
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, DateTimeOffset value)
+        {
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.TimestampTz);
+            return command;
+        }
+        
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value, NpgsqlDbType dbType)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, dbType);

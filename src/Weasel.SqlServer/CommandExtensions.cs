@@ -44,6 +44,33 @@ namespace Weasel.SqlServer
             };
         }
 
+        /// <summary>
+        /// Finds or adds a new parameter with the specified name and returns the parameter
+        /// </summary>
+        /// <param name="command"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="dbType"></param>
+        /// <returns></returns>
+        public static SqlCommand With(this SqlCommand command, string name, object value, SqlDbType? dbType = null)
+        {
+            SqlServerProvider.Instance.AddNamedParameter(command, name, value, dbType);
+            return command;
+        }
+        
+        public static SqlCommand With(this SqlCommand command, string name, DateTime value)
+        {
+            SqlServerProvider.Instance.AddNamedParameter(command, name, value, SqlDbType.DateTime);
+            return command;
+        }
+        
+        public static SqlCommand With(this SqlCommand command, string name, DateTimeOffset value)
+        {
+            SqlServerProvider.Instance.AddNamedParameter(command, name, value, SqlDbType.DateTimeOffset);
+            return command;
+        }
+
+
 
     }
 }

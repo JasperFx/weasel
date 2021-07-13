@@ -287,11 +287,5 @@ namespace Weasel.Core
             return command.With(name, value, DbType.Binary);
         }
 
-        public static T With<T>(this T command, string name, DateTimeOffset? value) where T : DbCommand
-        {
-            return command.With(name, value, DbType.DateTimeOffset);
-        }
-
-
     }
 }
