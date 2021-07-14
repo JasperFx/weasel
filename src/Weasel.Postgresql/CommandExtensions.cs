@@ -41,6 +41,24 @@ namespace Weasel.Postgresql
             return command;
         }
         
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, int[] value)
+        {
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Integer);
+            return command;
+        }
+        
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, long[] value)
+        {
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Bigint);
+            return command;
+        }
+        
+        public static NpgsqlCommand With(this NpgsqlCommand command, string name, Guid[] value)
+        {
+            PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Uuid);
+            return command;
+        }
+        
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, DateTime value)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Timestamp);

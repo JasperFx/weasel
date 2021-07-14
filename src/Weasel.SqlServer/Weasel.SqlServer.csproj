@@ -4,7 +4,7 @@
         <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
 
         <Description>SqlClient Helpers and SQL Server Schema Migration Tool, spin off of Marten</Description>
-        <Version>0.9.5</Version>
+        <Version>0.9.6</Version>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
         <GenerateAssemblyProductAttribute>true</GenerateAssemblyProductAttribute>

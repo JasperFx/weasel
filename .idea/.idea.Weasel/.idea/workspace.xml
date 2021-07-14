@@ -7,12 +7,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" afterDir="false" />
-    </list>
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -31,6 +26,7 @@
   </component>
   <component name="HighlightingSettingsPerFile">
     <setting file="file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" root0="FORCE_HIGHLIGHTING" />
+    <setting file="mock://C:/code/weasel/src/Weasel.Core/CommandExtensions.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
@@ -79,11 +75,11 @@
       <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
     </changedPaths>
   </component>
@@ -156,14 +152,7 @@
       <workItem from="1626105086329" duration="1246000" />
       <workItem from="1626137880657" duration="915000" />
       <workItem from="1626140618493" duration="677000" />
-      <workItem from="1626178814808" duration="334000" />
-    </task>
-    <task id="LOCAL-00034" summary="Moved TableDelta.Matches to HasChanges(), ISchemaObject.CreatePatch() is async">
-      <created>1619096447079</created>
-      <option name="number" value="00034" />
-      <option name="presentableId" value="LOCAL-00034" />
-      <option name="project" value="LOCAL" />
-      <updated>1619096447079</updated>
+      <workItem from="1626178814808" duration="961000" />
     </task>
     <task id="LOCAL-00035" summary="Failing tests for TableDelta application, TableColumn.CanAdd()">
       <created>1619107088061</created>
@@ -501,7 +490,14 @@
       <option name="project" value="LOCAL" />
       <updated>1626106296775</updated>
     </task>
-    <option name="localTasksCounter" value="83" />
+    <task id="LOCAL-00083" summary="Moved all the date related extension methods to Postgresql and SqlSErver extension methods. 0.9.5">
+      <created>1626179383064</created>
+      <option name="number" value="00083" />
+      <option name="presentableId" value="LOCAL-00083" />
+      <option name="project" value="LOCAL" />
+      <updated>1626179383064</updated>
+    </task>
+    <option name="localTasksCounter" value="84" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -646,7 +642,6 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Auto-creates schemas when applying migrations" />
     <MESSAGE value="Improved expression matching in IndexDefinition." />
     <MESSAGE value="Added support for FillFactor on index definition" />
     <MESSAGE value="Getting ready for publishing to Nuget" />
@@ -671,7 +666,8 @@
     <MESSAGE value="Adding SqlServer and Core configuration to CI and nuget publishing" />
     <MESSAGE value="New generic DbCommandBuilder" />
     <MESSAGE value="More Xml API comments, cleaned up duplication in extension methods for adding parameters" />
-    <option name="LAST_COMMIT_MESSAGE" value="More Xml API comments, cleaned up duplication in extension methods for adding parameters" />
+    <MESSAGE value="Moved all the date related extension methods to Postgresql and SqlSErver extension methods. 0.9.5" />
+    <option name="LAST_COMMIT_MESSAGE" value="Moved all the date related extension methods to Postgresql and SqlSErver extension methods. 0.9.5" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
