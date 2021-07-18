@@ -7,7 +7,18 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="" />
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Procedures/ProcedureTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableType.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTypeDelta.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTypeTests.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedure.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedureDelta.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -25,19 +36,14 @@
     </file-type-list>
   </component>
   <component name="HighlightingSettingsPerFile">
+    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="mock://C:/code/weasel/src/Weasel.Core/CommandExtensions.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/CA986E89-32C4-408A-8EF6-BCBDFAE16922/29/SequenceEqual.cs" root0="SKIP_HIGHLIGHTING" />
+    <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/1BC366D2-BA14-4BC5-A17E-08D4F35F238B/411/EqualityComparer.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/Tables/ForeignKeyTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/FunctionBody.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/ISchemaObject.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Extension.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Functions/Function.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SequenceTester.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionBodyTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/creating_tables_in_database.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CascadeOption.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/reading_existing_table_from_database.cs" />
@@ -62,10 +68,8 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Functions/FunctionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/StringWriterExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SchemaObjectExtensionsTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/DatabaseProvider.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/ConnectionSource.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderIntegrationTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/CommandBuilderIntegrationTests.cs" />
@@ -75,12 +79,22 @@
       <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedure.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedureDelta.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Procedures/ProcedureTests.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs" />
+      <option value="$APPLICATION_CONFIG_DIR$/consoles/db/bf04a746-fdb6-4903-a1c3-3dcd801dd566/console.sql" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableType.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTypeDelta.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTypeTests.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -106,6 +120,7 @@
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="nodejs_interpreter_path.stuck_in_default_project" value="undefined stuck path" />
     <property name="nodejs_npm_path_reset_for_default_project" value="true" />
+    <property name="nodejs_package_manager_path" value="npm" />
     <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
     <property name="vue.rearranger.settings.migration" value="true" />
   </component>
@@ -153,6 +168,8 @@
       <workItem from="1626137880657" duration="915000" />
       <workItem from="1626140618493" duration="677000" />
       <workItem from="1626178814808" duration="961000" />
+      <workItem from="1626266547599" duration="477000" />
+      <workItem from="1626465397736" duration="9340000" />
     </task>
     <task id="LOCAL-00035" summary="Failing tests for TableDelta application, TableColumn.CanAdd()">
       <created>1619107088061</created>
@@ -829,19 +846,6 @@
           <option name="timeStamp" value="56" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs</url>
-          <line>125</line>
-          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\SchemaMigration.cs" initialLine="125" containingFunctionPresentation="method 'ApplyAll'">
-            <startOffsets>
-              <option value="3710" />
-            </startOffsets>
-            <endOffsets>
-              <option value="3764" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="59" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Postgresql/PostgresqlProvider.cs</url>
           <line>139</line>
           <properties documentPath="C:\code\weasel\src\Weasel.Postgresql\PostgresqlProvider.cs" initialLine="139" containingFunctionPresentation="method 'determineParameterType'">
@@ -855,45 +859,6 @@
           <option name="timeStamp" value="60" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs</url>
-          <line>113</line>
-          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\SchemaObjectsExtensions.cs" initialLine="109" containingFunctionPresentation="method 'DropSchema'">
-            <startOffsets>
-              <option value="3994" />
-            </startOffsets>
-            <endOffsets>
-              <option value="4022" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="62" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs</url>
-          <line>16</line>
-          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\IntegrationContext.cs" initialLine="16" containingFunctionPresentation="constructor 'IntegrationContext'">
-            <startOffsets>
-              <option value="463" />
-            </startOffsets>
-            <endOffsets>
-              <option value="514" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="63" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
-          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs</url>
-          <line>31</line>
-          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\IntegrationContext.cs" initialLine="31" containingFunctionPresentation="method 'ResetSchema'">
-            <startOffsets>
-              <option value="916" />
-            </startOffsets>
-            <endOffsets>
-              <option value="948" />
-            </endOffsets>
-          </properties>
-          <option name="timeStamp" value="64" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/creating_tables_in_database.cs</url>
           <line>17</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\creating_tables_in_database.cs" initialLine="17" containingFunctionPresentation="method 'create_table_in_the_database'">
@@ -905,6 +870,45 @@
             </endOffsets>
           </properties>
           <option name="timeStamp" value="65" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs</url>
+          <line>27</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\SchemaObjectsExtensions.cs" initialLine="27" containingFunctionPresentation="method 'ApplyChanges'">
+            <startOffsets>
+              <option value="736" />
+            </startOffsets>
+            <endOffsets>
+              <option value="810" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="66" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTypeDelta.cs</url>
+          <line>21</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\TableTypeDelta.cs" initialLine="21" containingFunctionPresentation="method 'compare'">
+            <startOffsets>
+              <option value="672" />
+            </startOffsets>
+            <endOffsets>
+              <option value="723" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="68" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="DotNet Breakpoints">
+          <url>file://$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableType.cs</url>
+          <line>130</line>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\TableType.cs" initialLine="130" containingFunctionPresentation="method 'Equals'">
+            <startOffsets>
+              <option value="4011" />
+            </startOffsets>
+            <endOffsets>
+              <option value="4109" />
+            </endOffsets>
+          </properties>
+          <option name="timeStamp" value="69" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

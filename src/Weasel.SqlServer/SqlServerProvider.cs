@@ -30,6 +30,7 @@ namespace Weasel.SqlServer
             store<double>(System.Data.SqlDbType.Float, "float");
             store<int>(System.Data.SqlDbType.Int, "int");
             store<TimeSpan>(System.Data.SqlDbType.Time, "time");
+            store<Guid>(SqlDbType.UniqueIdentifier, "uniqueidentifier");
         }
 
 

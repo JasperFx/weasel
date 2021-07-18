@@ -108,12 +108,17 @@ IF NOT EXISTS ( SELECT  *
                 .CreateCommand($"select sequence_name from information_schema.sequences where sequence_schema = '{schemaName}'")
                 .FetchList<string>();
 
+            var tableTypes = await conn
+                .CreateCommand(
+                    $"select sys.table_types.name from sys.table_types inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id where sys.schemas.name = '{schemaName}'")
+                .FetchList<string>();
 
             var drops = new List<string>();
             drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
             drops.AddRange(constraints);
             drops.AddRange(tables.Select(name => $"drop table {schemaName}.{name};"));
             drops.AddRange(sequences.Select(name => $"drop sequence {schemaName}.{name};"));
+            drops.AddRange(tableTypes.Select(x => $"DROP TYPE {schemaName}.{x};"));
                     
 
             foreach (var drop in drops)
