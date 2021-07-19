@@ -7,17 +7,26 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Added support for Table Types in Sql Server. Yea, that was fun. (not)">
-      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Procedures/StoredProcedureTests.cs" afterDir="false" />
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Added Sql Server StoredProcedure and TableType">
       <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Procedures/ProcedureTests.cs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTypeDelta.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableTypeDelta.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlServerProviderTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlServerProviderTests.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedure.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedure.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedureDelta.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedureDelta.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CommandParameter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CommandParameter.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/SqlFragmentExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/SqlFragmentExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.Deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.Deltas.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -46,7 +55,6 @@
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/ForeignKey.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/reading_existing_table_from_database.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
@@ -80,7 +88,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/bf04a746-fdb6-4903-a1c3-3dcd801dd566/console.sql" />
@@ -97,6 +104,8 @@
       <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -171,14 +180,7 @@
       <workItem from="1626140618493" duration="677000" />
       <workItem from="1626178814808" duration="961000" />
       <workItem from="1626266547599" duration="477000" />
-      <workItem from="1626465397736" duration="14036000" />
-    </task>
-    <task id="LOCAL-00036" summary="TableColumn.AddColumnSql() method">
-      <created>1619107746497</created>
-      <option name="number" value="00036" />
-      <option name="presentableId" value="LOCAL-00036" />
-      <option name="project" value="LOCAL" />
-      <updated>1619107746498</updated>
+      <workItem from="1626465397736" duration="15373000" />
     </task>
     <task id="LOCAL-00037" summary="TableDelta can calculate its difference level">
       <created>1619182255891</created>
@@ -516,7 +518,14 @@
       <option name="project" value="LOCAL" />
       <updated>1626638906596</updated>
     </task>
-    <option name="localTasksCounter" value="85" />
+    <task id="LOCAL-00085" summary="Added Sql Server StoredProcedure and TableType">
+      <created>1626696069491</created>
+      <option name="number" value="00085" />
+      <option name="presentableId" value="LOCAL-00085" />
+      <option name="project" value="LOCAL" />
+      <updated>1626696069491</updated>
+    </task>
+    <option name="localTasksCounter" value="86" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -661,7 +670,6 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Added support for FillFactor on index definition" />
     <MESSAGE value="Getting ready for publishing to Nuget" />
     <MESSAGE value="Upgraded Baseline, slid back to netstandard2.0" />
     <MESSAGE value="Using the old flavor of SchemaGenerator to get around concurrency issues" />
@@ -686,7 +694,8 @@
     <MESSAGE value="More Xml API comments, cleaned up duplication in extension methods for adding parameters" />
     <MESSAGE value="Moved all the date related extension methods to Postgresql and SqlSErver extension methods. 0.9.5" />
     <MESSAGE value="Added support for Table Types in Sql Server. Yea, that was fun. (not)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added support for Table Types in Sql Server. Yea, that was fun. (not)" />
+    <MESSAGE value="Added Sql Server StoredProcedure and TableType" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added Sql Server StoredProcedure and TableType" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -787,10 +796,10 @@
           <line>60</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\Sequence.cs" initialLine="58" containingFunctionPresentation="method 'ConfigureQueryCommand'">
             <startOffsets>
-              <option value="1814" />
+              <option value="1817" />
             </startOffsets>
             <endOffsets>
-              <option value="2021" />
+              <option value="2024" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="46" />
@@ -891,10 +900,10 @@
           <line>130</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\TableType.cs" initialLine="130" containingFunctionPresentation="method 'Equals'">
             <startOffsets>
-              <option value="4004" />
+              <option value="4007" />
             </startOffsets>
             <endOffsets>
-              <option value="4132" />
+              <option value="4135" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="69" />
@@ -917,10 +926,10 @@
           <line>118</line>
           <properties documentPath="C:\code\weasel\src\Weasel.SqlServer\Procedures\StoredProcedure.cs" initialLine="118" containingFunctionPresentation="method 'CanonicizeSql'">
             <startOffsets>
-              <option value="3300" />
+              <option value="3303" />
             </startOffsets>
             <endOffsets>
-              <option value="3451" />
+              <option value="3454" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="74" />

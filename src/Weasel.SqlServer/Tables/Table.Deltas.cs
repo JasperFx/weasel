@@ -1,5 +1,5 @@
 using System.Data.Common;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Threading.Tasks;
 
 namespace Weasel.SqlServer.Tables
