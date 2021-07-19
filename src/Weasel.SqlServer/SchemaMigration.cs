@@ -108,16 +108,33 @@ namespace Weasel.SqlServer
                 return;
             }
 
+            await createSchemas(conn, logSql, onFailure);
+
+
+            AssertPatchingIsValid(autoCreate);
+            
+            foreach (var delta in _deltas)
+            {
+                var writer = new StringWriter();
+                writeUpdate(writer, rules, delta);
+                await executeCommand(conn, logSql, onFailure, writer);
+            }
+
+        }
+
+        private async Task createSchemas(SqlConnection conn, Action<string> logSql, Action<SqlCommand, Exception> onFailure)
+        {
             var writer = new StringWriter();
 
             if (_schemas.Any())
             {
                 SchemaGenerator.WriteSql(_schemas, writer);
+                await executeCommand(conn, logSql, onFailure, writer);
             }
+        }
 
-
-            WriteAllUpdates(writer, rules, autoCreate);
-
+        private static async Task executeCommand(SqlConnection conn, Action<string> logSql, Action<SqlCommand, Exception> onFailure, StringWriter writer)
+        {
             var cmd = conn.CreateCommand(writer.ToString());
             logSql?.Invoke(cmd.CommandText);
 
@@ -144,25 +161,32 @@ namespace Weasel.SqlServer
             AssertPatchingIsValid(autoCreate);
             foreach (var delta in _deltas)
             {
-                switch (delta.Difference)
-                {
-                    case SchemaPatchDifference.None:
-                        break;
-
-                    case SchemaPatchDifference.Create:
-                        delta.SchemaObject.WriteCreateStatement(rules, writer);
-                        break;
-
-                    case SchemaPatchDifference.Update:
-                        delta.WriteUpdate(rules, writer);
-                        break;
-
-                    case SchemaPatchDifference.Invalid:
-                        delta.SchemaObject.WriteDropStatement(rules, writer);
-                        delta.SchemaObject.WriteCreateStatement(rules, writer);
-                        break;
-                }
+                writeUpdate(writer, rules, delta);
             }
+        }
+
+        private static bool writeUpdate(TextWriter writer, DdlRules rules, ISchemaObjectDelta delta)
+        {
+            switch (delta.Difference)
+            {
+                case SchemaPatchDifference.None:
+                    return false;
+
+                case SchemaPatchDifference.Create:
+                    delta.SchemaObject.WriteCreateStatement(rules, writer);
+                    return true;
+
+                case SchemaPatchDifference.Update:
+                    delta.WriteUpdate(rules, writer);
+                    return true;
+
+                case SchemaPatchDifference.Invalid:
+                    delta.SchemaObject.WriteDropStatement(rules, writer);
+                    delta.SchemaObject.WriteCreateStatement(rules, writer);
+                    return true;
+            }
+
+            return false;
         }
 
         public void WriteAllRollbacks(TextWriter writer, DdlRules rules)

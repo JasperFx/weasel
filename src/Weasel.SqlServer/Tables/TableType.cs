@@ -5,11 +5,10 @@ using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Weasel.Core;
 using Baseline;
+using Weasel.Core;
 
-
-namespace Weasel.SqlServer.Tests.Tables
+namespace Weasel.SqlServer.Tables
 {
     public class TableType : ISchemaObject
     {
@@ -128,7 +127,7 @@ order by
 
             protected bool Equals(TableTypeColumn other)
             {
-                return Name == other.Name && DatabaseType == other.DatabaseType && AllowNulls == other.AllowNulls;
+                return Name.EqualsIgnoreCase(other.Name) && DatabaseType.EqualsIgnoreCase(other.DatabaseType) && AllowNulls == other.AllowNulls;
             }
 
             public override bool Equals(object obj)
@@ -151,10 +150,6 @@ order by
                 return Equals((TableTypeColumn) obj);
             }
 
-            public override int GetHashCode()
-            {
-                return HashCode.Combine(Name, DatabaseType, AllowNulls);
-            }
         }
         
         public async Task<TableType> FetchExisting(SqlConnection conn)

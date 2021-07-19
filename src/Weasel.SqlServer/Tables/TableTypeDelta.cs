@@ -1,7 +1,7 @@
 using System.IO;
 using System.Linq;
 
-namespace Weasel.SqlServer.Tests.Tables
+namespace Weasel.SqlServer.Tables
 {
     public class TableTypeDelta : SchemaObjectDelta<TableType>
     {

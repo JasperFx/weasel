@@ -22,7 +22,9 @@ namespace Weasel.SqlServer.Procedures
                 return SchemaPatchDifference.Create;
             }
 
-            if (!expected.CanonicizeSql().Equals(actual.CanonicizeSql(), StringComparison.OrdinalIgnoreCase))
+            var expectedSql = expected.CanonicizeSql();
+            var actualSql = actual.CanonicizeSql();
+            if (!expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase))
             {
                 return SchemaPatchDifference.Update;
             }
@@ -40,8 +42,7 @@ namespace Weasel.SqlServer.Procedures
             {
                 if (Actual != null)
                 {
-                    Expected.WriteDropStatement(rules, writer);
-                    Expected.WriteCreateStatement(rules, writer);
+                    Expected.WriteCreateOrAlterStatement(rules, writer);
                 }
                 else
                 {
@@ -60,8 +61,7 @@ namespace Weasel.SqlServer.Procedures
             }
             else
             {
-                Expected.WriteDropStatement(rules, writer);
-                Expected.WriteCreateStatement(rules, writer);
+                Expected.WriteCreateOrAlterStatement(rules, writer);
             }
         }
 

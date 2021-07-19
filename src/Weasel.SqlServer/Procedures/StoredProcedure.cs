@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Data.SqlClient;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
+using Baseline.ImTools;
 using Weasel.Core;
 
 namespace Weasel.SqlServer.Procedures
@@ -40,6 +43,23 @@ namespace Weasel.SqlServer.Procedures
                 generateBody(writer);
             }
         }
+        
+        public void WriteCreateOrAlterStatement(DdlRules rules, TextWriter writer)
+        {
+            var body = _body;
+            if (_body.IsEmpty())
+            {
+                var w = new StringWriter();
+                generateBody(w);
+
+                body = w.ToString();
+            }
+
+            body = body.Replace("CREATE PROCEDURE", "CREATE OR ALTER PROCEDURE");
+            body = body.Replace("create procedure", "create or alter procedure");
+            
+            writer.WriteLine(body);
+        }
 
         public void WriteDropStatement(DdlRules rules, TextWriter writer)
         {
@@ -60,9 +80,21 @@ where
 ");
         }
 
-        public Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+        public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            throw new System.NotImplementedException();
+            var existing = await readExisting(reader);
+            return new StoredProcedureDelta(this, existing);
+        }
+
+        private async Task<StoredProcedure> readExisting(DbDataReader reader)
+        {
+            if (await reader.ReadAsync())
+            {
+                var body = await reader.GetFieldValueAsync<string>(0);
+                return new StoredProcedure(Identifier, body);
+            }
+
+            return null;
         }
 
         public IEnumerable<DbObjectName> AllNames()
@@ -84,7 +116,30 @@ where
                 body = writer.ToString();
             }
 
-            return body.Trim();
+            return body.ReadLines().Select(x => x.Trim()).Where(x => x.IsNotEmpty())
+                .Select(x => x.Replace("   ", " ")).Join(Environment.NewLine);
         }
+        
+        public async Task<StoredProcedure> FetchExisting(SqlConnection conn)
+        {
+            var builder = new CommandBuilder();
+
+            ConfigureQueryCommand(builder);
+
+            using var reader = await builder.ExecuteReaderAsync(conn);
+            return await readExisting(reader);
+        }
+
+
+        
+        public async Task<StoredProcedureDelta> FindDelta(SqlConnection conn)
+        {
+            var actual = await FetchExisting(conn);
+            return new StoredProcedureDelta(this, actual);
+        }
+
+
     }
+
+
 }
