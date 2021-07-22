@@ -7,28 +7,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="Added Sql Server StoredProcedure and TableType">
-      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandBuilderTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/CommandExtensionsTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/IntegrationContext.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlGeneration/CommandParameterTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlServerProviderTests.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/SqlServerProviderTests.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedure.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedure.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaObjectsExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CommandParameter.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/CommandParameter.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/SqlFragmentExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlGeneration/SqlFragmentExtensions.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.Deltas.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.Deltas.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.FetchExisting.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/Table.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" afterDir="false" />
-    </list>
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -180,14 +159,7 @@
       <workItem from="1626140618493" duration="677000" />
       <workItem from="1626178814808" duration="961000" />
       <workItem from="1626266547599" duration="477000" />
-      <workItem from="1626465397736" duration="15373000" />
-    </task>
-    <task id="LOCAL-00037" summary="TableDelta can calculate its difference level">
-      <created>1619182255891</created>
-      <option name="number" value="00037" />
-      <option name="presentableId" value="LOCAL-00037" />
-      <option name="project" value="LOCAL" />
-      <updated>1619182255892</updated>
+      <workItem from="1626465397736" duration="16001000" />
     </task>
     <task id="LOCAL-00038" summary="TableDelta can calculate its difference level">
       <created>1619183319061</created>
@@ -525,7 +497,14 @@
       <option name="project" value="LOCAL" />
       <updated>1626696069491</updated>
     </task>
-    <option name="localTasksCounter" value="86" />
+    <task id="LOCAL-00086" summary="Shifted to Microsoft.Data.SqlClient">
+      <created>1626701224554</created>
+      <option name="number" value="00086" />
+      <option name="presentableId" value="LOCAL-00086" />
+      <option name="project" value="LOCAL" />
+      <updated>1626701224554</updated>
+    </task>
+    <option name="localTasksCounter" value="87" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -670,7 +649,6 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Getting ready for publishing to Nuget" />
     <MESSAGE value="Upgraded Baseline, slid back to netstandard2.0" />
     <MESSAGE value="Using the old flavor of SchemaGenerator to get around concurrency issues" />
     <MESSAGE value="Moved some of CommandExtensions back to the Core version based on DbCommand" />
@@ -695,7 +673,8 @@
     <MESSAGE value="Moved all the date related extension methods to Postgresql and SqlSErver extension methods. 0.9.5" />
     <MESSAGE value="Added support for Table Types in Sql Server. Yea, that was fun. (not)" />
     <MESSAGE value="Added Sql Server StoredProcedure and TableType" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added Sql Server StoredProcedure and TableType" />
+    <MESSAGE value="Shifted to Microsoft.Data.SqlClient" />
+    <option name="LAST_COMMIT_MESSAGE" value="Shifted to Microsoft.Data.SqlClient" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

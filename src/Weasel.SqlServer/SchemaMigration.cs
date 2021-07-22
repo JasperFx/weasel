@@ -117,7 +117,11 @@ namespace Weasel.SqlServer
             {
                 var writer = new StringWriter();
                 writeUpdate(writer, rules, delta);
-                await executeCommand(conn, logSql, onFailure, writer);
+
+                if (writer.ToString().Trim().IsNotEmpty())
+                {
+                    await executeCommand(conn, logSql, onFailure, writer);
+                }
             }
 
         }
@@ -129,7 +133,10 @@ namespace Weasel.SqlServer
             if (_schemas.Any())
             {
                 SchemaGenerator.WriteSql(_schemas, writer);
-                await executeCommand(conn, logSql, onFailure, writer);
+                if (writer.ToString().Trim().IsNotEmpty()) // Cheesy way of knowing if there is any delta
+                {
+                    await executeCommand(conn, logSql, onFailure, writer);
+                }
             }
         }
 
