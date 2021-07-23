@@ -7,7 +7,15 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="" />
+    <list default="true" id="fee087f7-e87f-45df-b9d1-e2a81ca7a6ef" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/advisory_lock_usage.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.Postgresql/AdvisoryLockExtensions.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/advisory_lock_usage.cs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/SharedLockExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.idea.Weasel/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" beforeDir="false" afterPath="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -25,20 +33,12 @@
     </file-type-list>
   </component>
   <component name="HighlightingSettingsPerFile">
-    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$PROJECT_DIR$/src/Weasel.Postgresql/SchemaGenerator.cs" root0="FORCE_HIGHLIGHTING" />
-    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/CA986E89-32C4-408A-8EF6-BCBDFAE16922/29/SequenceEqual.cs" root0="SKIP_HIGHLIGHTING" />
-    <setting file="mock:///Dummy.cs" root0="SKIP_HIGHLIGHTING" />
     <setting file="file://$APPLICATION_CONFIG_DIR$/resharper-host/SourcesCache/1BC366D2-BA14-4BC5-A17E-08D4F35F238B/411/EqualityComparer.cs" root0="SKIP_HIGHLIGHTING" />
   </component>
   <component name="IdeDocumentHistory">
     <changedPaths>
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/reading_existing_table_from_database.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/using_default_values_in_tables.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Sequence.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/ForeignKeyTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/TableTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/IndexDefinition.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Tables/IndexDefinitionTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaGenerator.cs" />
@@ -66,7 +66,6 @@
       <option value="$PROJECT_DIR$/src/Weasel.Core/CommandBuilderBase.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/SchemaObjectsExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/SchemaObjectExtensionsTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/CommandExtensions.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SqlServerProvider.cs" />
       <option value="$APPLICATION_CONFIG_DIR$/consoles/db/bf04a746-fdb6-4903-a1c3-3dcd801dd566/console.sql" />
@@ -77,14 +76,20 @@
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Procedures/ProcedureTests.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/Procedures/StoredProcedureTests.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedureDelta.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Procedures/StoredProcedure.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SchemaMigration.cs" />
       <option value="$PROJECT_DIR$/src/Weasel.Core/Weasel.Core.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
       <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandBuilder.cs" />
-      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql.Tests/advisory_lock_usage.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer.Tests/advisory_lock_usage.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/AdvisoryLockExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.SqlServer/SharedLockExtensions.cs" />
+      <option value="$PROJECT_DIR$/src/Weasel.Postgresql/AdvisoryLockExtensions.cs" />
     </changedPaths>
   </component>
   <component name="ProjectId" id="1r1me1PqIFh2apke3njAQrFxci3" />
@@ -160,13 +165,8 @@
       <workItem from="1626178814808" duration="961000" />
       <workItem from="1626266547599" duration="477000" />
       <workItem from="1626465397736" duration="16001000" />
-    </task>
-    <task id="LOCAL-00038" summary="TableDelta can calculate its difference level">
-      <created>1619183319061</created>
-      <option name="number" value="00038" />
-      <option name="presentableId" value="LOCAL-00038" />
-      <option name="project" value="LOCAL" />
-      <updated>1619183319061</updated>
+      <workItem from="1626955789990" duration="1495000" />
+      <workItem from="1627068232563" duration="3571000" />
     </task>
     <task id="LOCAL-00039" summary="Updates to .gitignore">
       <created>1619183487084</created>
@@ -504,7 +504,14 @@
       <option name="project" value="LOCAL" />
       <updated>1626701224554</updated>
     </task>
-    <option name="localTasksCounter" value="87" />
+    <task id="LOCAL-00087" summary="Bumping to 0.9.8 with a Sql Server migration fix">
+      <created>1626955961786</created>
+      <option name="number" value="00087" />
+      <option name="presentableId" value="LOCAL-00087" />
+      <option name="project" value="LOCAL" />
+      <updated>1626955961786</updated>
+    </task>
+    <option name="localTasksCounter" value="88" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -649,7 +656,6 @@
   <component name="VcsManagerConfiguration">
     <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <option name="CLEAR_INITIAL_COMMIT_MESSAGE" value="true" />
-    <MESSAGE value="Upgraded Baseline, slid back to netstandard2.0" />
     <MESSAGE value="Using the old flavor of SchemaGenerator to get around concurrency issues" />
     <MESSAGE value="Moved some of CommandExtensions back to the Core version based on DbCommand" />
     <MESSAGE value="Moving more functionality into the default DatabaseProvider" />
@@ -674,7 +680,8 @@
     <MESSAGE value="Added support for Table Types in Sql Server. Yea, that was fun. (not)" />
     <MESSAGE value="Added Sql Server StoredProcedure and TableType" />
     <MESSAGE value="Shifted to Microsoft.Data.SqlClient" />
-    <option name="LAST_COMMIT_MESSAGE" value="Shifted to Microsoft.Data.SqlClient" />
+    <MESSAGE value="Bumping to 0.9.8 with a Sql Server migration fix" />
+    <option name="LAST_COMMIT_MESSAGE" value="Bumping to 0.9.8 with a Sql Server migration fix" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -785,13 +792,13 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.Core/CommandExtensions.cs</url>
-          <line>151</line>
+          <line>166</line>
           <properties documentPath="C:\code\weasel\src\Weasel.Core\CommandExtensions.cs" initialLine="75" containingFunctionPresentation="method 'FetchOne'">
             <startOffsets>
-              <option value="5476" />
+              <option value="5985" />
             </startOffsets>
             <endOffsets>
-              <option value="5538" />
+              <option value="6047" />
             </endOffsets>
           </properties>
           <option name="timeStamp" value="49" />
@@ -864,27 +871,13 @@
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableTypeDelta.cs</url>
           <line>21</line>
-          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\TableTypeDelta.cs" initialLine="21" containingFunctionPresentation="method 'compare'">
-            <startOffsets>
-              <option value="666" />
-            </startOffsets>
-            <endOffsets>
-              <option value="717" />
-            </endOffsets>
-          </properties>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\TableTypeDelta.cs" initialLine="21" containingFunctionPresentation="method 'compare'" />
           <option name="timeStamp" value="68" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">
           <url>file://$PROJECT_DIR$/src/Weasel.SqlServer/Tables/TableType.cs</url>
           <line>130</line>
-          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\TableType.cs" initialLine="130" containingFunctionPresentation="method 'Equals'">
-            <startOffsets>
-              <option value="4007" />
-            </startOffsets>
-            <endOffsets>
-              <option value="4135" />
-            </endOffsets>
-          </properties>
+          <properties documentPath="C:\code\weasel\src\Weasel.SqlServer.Tests\Tables\TableType.cs" initialLine="130" containingFunctionPresentation="method 'Equals'" />
           <option name="timeStamp" value="69" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="DotNet Breakpoints">

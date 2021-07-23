@@ -97,6 +97,21 @@ namespace Weasel.Core
         }
         
         /// <summary>
+        /// Create a new DbCommand enlisted in the current transaction and connection
+        /// </summary>
+        /// <param name="tx"></param>
+        /// <param name="command"></param>
+        /// <returns></returns>
+        public static DbCommand CreateCommand(this DbTransaction tx, string command)
+        {
+            var cmd = tx.Connection.CreateCommand();
+            cmd.Transaction = tx;
+            cmd.CommandText = command;
+
+            return cmd;
+        }
+        
+        /// <summary>
         /// Execute the supplied command as a data reader and convert each row to an object
         /// of type T with the supplied transform function
         /// </summary>
@@ -286,6 +301,13 @@ namespace Weasel.Core
         {
             return command.With(name, value, DbType.Binary);
         }
+        
+        public static T With<T>(this T command, string name, DateTimeOffset? value) where T : DbCommand
+        {
+            return command.With(name, value, DbType.DateTimeOffset);
+        }
+
+
 
     }
 }

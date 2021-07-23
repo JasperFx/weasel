@@ -1,4 +1,5 @@
 using System.Data;
+using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;
 
@@ -16,5 +17,9 @@ namespace Weasel.SqlServer
         public CommandBuilder(SqlCommand command) : base(SqlServerProvider.Instance, ':', command)
         {
         }
+        
+
     }
+    
+
 }
