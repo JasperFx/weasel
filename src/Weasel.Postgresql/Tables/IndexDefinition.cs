@@ -317,7 +317,7 @@ namespace Weasel.Postgresql.Tables
                     .Replace("INDEX CONCURRENTLY", "INDEX")
                     .Replace("::text", "")
                     .Replace(" ->> ", "->>")
-                    .Replace("->", "->").TrimEnd(new[] {';'})
+                    .Replace(" -> ", "->").TrimEnd(new[] {';'})
                 ;
         }
     }

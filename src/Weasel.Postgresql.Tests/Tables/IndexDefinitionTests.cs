@@ -184,6 +184,16 @@ namespace Weasel.Postgresql.Tests.Tables
 
         }
 
-        
+        [Fact]
+        public void Bug30()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 = IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON public.mt_doc_user USING gin ((data->'RoleIds') jsonb_path_ops)");
+            var index2 = IndexDefinition.Parse(
+                "CREATE INDEX idx_1 ON public.mt_doc_user USING gin ((data -> 'RoleIds') jsonb_path_ops)");
+
+            Assert.Equal(IndexDefinition.CanonicizeDdl(index1, table), IndexDefinition.CanonicizeDdl(index2, table));
+        }
     }
 }
