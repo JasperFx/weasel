@@ -184,6 +184,18 @@ namespace Weasel.Postgresql.Tests.Tables
 
         }
 
-        
+        [Fact]
+        public void Can_roundtrip_from_instance_to_ddl_and_back()
+        {
+            var expected = new IndexDefinition("idx_1").AgainstColumns("data->'RoleIds'");
+            expected.ToGinWithJsonbPathOps();
+
+            var table = new Table("test");
+            var ddl = expected.ToDDL(table);
+            var parsed = IndexDefinition.Parse(ddl);
+
+            expected.AssertMatches(parsed, table);
+            Assert.Equal(expected.Mask, parsed.Mask);
+        }
     }
 }
