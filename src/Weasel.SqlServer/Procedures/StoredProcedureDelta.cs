@@ -5,12 +5,12 @@ namespace Weasel.SqlServer.Procedures
 {
     public class StoredProcedureDelta : SchemaObjectDelta<StoredProcedure>
     {
-        public StoredProcedureDelta(StoredProcedure expected, StoredProcedure actual) : base(expected, actual)
+        public StoredProcedureDelta(StoredProcedure expected, StoredProcedure? actual) : base(expected, actual)
         {
 
         }
 
-        protected override SchemaPatchDifference compare(StoredProcedure expected, StoredProcedure actual)
+        protected override SchemaPatchDifference compare(StoredProcedure expected, StoredProcedure? actual)
         {
             if (expected.IsRemoved)
             {
@@ -36,7 +36,7 @@ namespace Weasel.SqlServer.Procedures
         {
             if (Expected.IsRemoved)
             {
-                Actual.WriteCreateStatement(rules, writer);
+                Actual!.WriteCreateStatement(rules, writer);
             }
             else
             {

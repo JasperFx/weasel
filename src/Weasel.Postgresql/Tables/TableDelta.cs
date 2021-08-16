@@ -7,12 +7,12 @@ namespace Weasel.Postgresql.Tables
 {
     public class TableDelta : SchemaObjectDelta<Table>
     {
-        public TableDelta(Table expected, Table actual) : base(expected, actual)
+        public TableDelta(Table expected, Table? actual) : base(expected, actual)
         {
 
         }
 
-        protected override SchemaPatchDifference compare(Table expected, Table actual)
+        protected override SchemaPatchDifference compare(Table expected, Table? actual)
         {
             if (actual == null)
             {
@@ -109,7 +109,7 @@ namespace Weasel.Postgresql.Tables
             {
                 case SchemaPatchDifference.Invalid:
                 case SchemaPatchDifference.Update:
-                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual.PrimaryKeyName};");
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName};");
                     writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                     break;
                 
@@ -213,20 +213,20 @@ namespace Weasel.Postgresql.Tables
             // Extra indexes
             foreach (var extra in Indexes.Extras)
             {
-                writer.WriteLine(extra.ToDDL(Actual));
+                writer.WriteLine(extra.ToDDL(Actual!));
             }
 
             // Different indexes
             foreach (var change in Indexes.Different)
             {
-                writer.WriteDropIndex(Actual, change.Expected);
-                writer.WriteLine(change.Actual.ToDDL(Actual));
+                writer.WriteDropIndex(Actual!, change.Expected);
+                writer.WriteLine(change.Actual.ToDDL(Actual!));
             }
         }
 
         private SchemaPatchDifference determinePatchDifference()
         {
-            if (Actual.PartitionStrategy != Expected.PartitionStrategy)
+            if (Actual!.PartitionStrategy != Expected.PartitionStrategy)
             {
                 return SchemaPatchDifference.Invalid;
             }
@@ -264,11 +264,11 @@ namespace Weasel.Postgresql.Tables
 
             return differences.Min();
         }
-        
-        internal ItemDelta<TableColumn> Columns { get; private set; }
-        internal ItemDelta<IndexDefinition> Indexes { get; private set; }
-        
-        internal ItemDelta<ForeignKey> ForeignKeys { get; private set; }
+
+        internal ItemDelta<TableColumn> Columns { get; private set; } = null!;
+        internal ItemDelta<IndexDefinition> Indexes { get; private set; } = null!;
+
+        internal ItemDelta<ForeignKey> ForeignKeys { get; private set; } = null!;
 
         public bool HasChanges()
         {

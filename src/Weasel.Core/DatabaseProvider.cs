@@ -2,8 +2,6 @@ using System;
 using System.Data.Common;
 using System.Linq;
 using Baseline.ImTools;
-#nullable enable
-
 namespace Weasel.Core
 {
     public interface IDatabaseProvider

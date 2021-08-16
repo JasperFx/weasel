@@ -29,8 +29,8 @@ namespace Weasel.Postgresql
             _startWith = startWith;
         }
 
-        public DbObjectName Owner { get; set; }
-        public string OwnerColumn { get; set; }
+        public DbObjectName? Owner { get; set; }
+        public string OwnerColumn { get; set; } = null!;
 
         public IEnumerable<DbObjectName> AllNames()
         {

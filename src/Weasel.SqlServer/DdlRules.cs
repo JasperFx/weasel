@@ -38,7 +38,7 @@ namespace Weasel.SqlServer
         /// <summary>
         ///     Option to use this database role during DDL scripts
         /// </summary>
-        public string Role { get; set; }
+        public string? Role { get; set; }
 
         /// <summary>
         ///     Read [name].table and [name].function files from the named directory

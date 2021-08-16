@@ -87,7 +87,7 @@ namespace Weasel.Postgresql
             return command;
         }
 
-        public static NpgsqlCommand CreateCommand(this NpgsqlConnection conn, string command, NpgsqlTransaction tx = null)
+        public static NpgsqlCommand CreateCommand(this NpgsqlConnection conn, string command, NpgsqlTransaction? tx = null)
         {
             return new NpgsqlCommand(command, conn)
             {

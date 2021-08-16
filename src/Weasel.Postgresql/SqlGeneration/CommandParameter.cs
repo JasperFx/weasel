@@ -13,15 +13,15 @@ namespace Weasel.Postgresql.SqlGeneration
         public CommandParameter(ConstantExpression expression)
         {
             Value = expression.Value;
-            DbType = PostgresqlProvider.Instance.ToParameterType(expression.Type == typeof(object) ? expression.Value.GetType() : expression.Type);
+            DbType = PostgresqlProvider.Instance.ToParameterType(expression.Type == typeof(object) ? expression.Value!.GetType() : expression.Type);
         }
 
-        public CommandParameter(object value)
+        public CommandParameter(object? value)
         {
             Value = value;
             if (value != null)
             {
-                DbType = PostgresqlProvider.Instance.TryGetDbType(value.GetType()).Value;
+                DbType = PostgresqlProvider.Instance.TryGetDbType(value.GetType())!.Value;
             }
         }
 
@@ -31,7 +31,7 @@ namespace Weasel.Postgresql.SqlGeneration
             DbType = npgsqlDbType;
         }
 
-        public object Value { get; }
+        public object? Value { get; }
         public NpgsqlDbType DbType { get; }
 
         public NpgsqlParameter AddParameter(CommandBuilder builder)

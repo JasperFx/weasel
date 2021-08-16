@@ -110,7 +110,7 @@ order by column_index;
             }
         }
 
-        public async Task<Table> FetchExisting(NpgsqlConnection conn)
+        public async Task<Table?> FetchExisting(NpgsqlConnection conn)
         {
             var builder = new CommandBuilder();
 
@@ -120,7 +120,7 @@ order by column_index;
             return await readExisting(reader);
         }
         
-        private async Task<Table> readExisting(DbDataReader reader)
+        private async Task<Table?> readExisting(DbDataReader reader)
         {
             var existing = new Table(Identifier);
             
@@ -132,7 +132,7 @@ order by column_index;
 
             foreach (var pkColumn in pks)
             {
-                existing.ColumnFor(pkColumn).IsPrimaryKey = true;
+                existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
             }
 
             if (PartitionStrategy != PartitionStrategy.None)

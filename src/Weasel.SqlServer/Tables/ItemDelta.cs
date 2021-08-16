@@ -11,7 +11,7 @@ namespace Weasel.SqlServer.Tables
         private readonly List<T> _matched = new();
         private readonly List<T> _missing = new();
 
-        public ItemDelta(IEnumerable<T> expectedItems, IEnumerable<T> actualItems, Func<T, T, bool> comparison = null)
+        public ItemDelta(IEnumerable<T> expectedItems, IEnumerable<T> actualItems, Func<T, T, bool>? comparison = null)
         {
             comparison ??= (expected, actual) => expected.Equals(actual);
             var expecteds = expectedItems.ToDictionary(x => x.Name);

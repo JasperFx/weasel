@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using Baseline;
 
 namespace Weasel.SqlServer
@@ -45,7 +46,7 @@ namespace Weasel.SqlServer
         {
             _characters.Add(c);
         }
-
+      
         private void startToken(IMode mode)
         {
             _mode = mode;

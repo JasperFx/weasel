@@ -130,7 +130,7 @@ order by
                 return Name.EqualsIgnoreCase(other.Name) && DatabaseType.EqualsIgnoreCase(other.DatabaseType) && AllowNulls == other.AllowNulls;
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 if (ReferenceEquals(null, obj))
                 {
@@ -152,7 +152,7 @@ order by
 
         }
         
-        public async Task<TableType> FetchExisting(SqlConnection conn)
+        public async Task<TableType?> FetchExisting(SqlConnection conn)
         {
             var builder = new CommandBuilder();
 
@@ -168,7 +168,7 @@ order by
             return new TableTypeDelta(this, actual);
         }
 
-        private async Task<TableType> readExisting(DbDataReader reader)
+        private async Task<TableType?> readExisting(DbDataReader reader)
         {
             var existing = new TableType(Identifier);
             while (await reader.ReadAsync())

@@ -60,7 +60,7 @@ namespace Weasel.Postgresql.Tables
                    string.Equals(PostgresqlProvider.Instance.ConvertSynonyms(RawType()), PostgresqlProvider.Instance.ConvertSynonyms(other.RawType()));
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj))
                 return false;

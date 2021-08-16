@@ -3,7 +3,7 @@ using System.Data;
 using System.Data.Common;
 using Baseline;
 using Baseline.ImTools;
-#nullable enable
+
 namespace Weasel.Core
 {
     public class DbCommandBuilder : CommandBuilderBase<DbCommand, DbParameter, DbConnection, DbTransaction, DbType, DbDataReader>

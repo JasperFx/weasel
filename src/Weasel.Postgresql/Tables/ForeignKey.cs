@@ -6,8 +6,6 @@ using System.Text;
 using Baseline;
 using Weasel.Core;
 
-#nullable enable
-
 namespace Weasel.Postgresql.Tables
 {
 
@@ -26,7 +24,7 @@ namespace Weasel.Postgresql.Tables
             return Name == other.Name && ColumnNames.SequenceEqual(other.ColumnNames) && LinkedNames.SequenceEqual(other.LinkedNames) && Equals(LinkedTable, other.LinkedTable) && OnDelete == other.OnDelete && OnUpdate == other.OnUpdate;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj))
             {

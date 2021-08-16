@@ -21,7 +21,7 @@ namespace Weasel.SqlServer
             return getLock(tx.Connection, lockId, "Transaction", tx, cancellation);
         }
 
-        private static async Task getLock(this SqlConnection conn, string lockId, string owner, SqlTransaction tx,
+        private static async Task getLock(this SqlConnection conn, string lockId, string owner, SqlTransaction? tx,
             CancellationToken cancellation)
         {
             var returnValue = await tryGetLock(conn, lockId, owner, tx, cancellation);
@@ -30,7 +30,7 @@ namespace Weasel.SqlServer
                 throw new Exception($"sp_getapplock failed with errorCode '{returnValue}'");
         }
 
-        private static async Task<int> tryGetLock(this SqlConnection conn, string lockId, string owner, SqlTransaction tx,
+        private static async Task<int> tryGetLock(this SqlConnection conn, string lockId, string owner, SqlTransaction? tx,
             CancellationToken cancellation)
         {
             var cmd = conn.CreateCommand("sp_getapplock");
@@ -80,7 +80,7 @@ namespace Weasel.SqlServer
         /// <param name="transaction"></param>
         /// <returns></returns>
         public static Task GetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default(CancellationToken),
-            SqlTransaction transaction = null)
+            SqlTransaction? transaction = null)
         {
             return getLock(conn, lockId, "Session", transaction, cancellation);
         }
@@ -108,7 +108,7 @@ namespace Weasel.SqlServer
         /// <param name="tx"></param>
         /// <returns></returns>
         public static Task ReleaseGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default(CancellationToken),
-            SqlTransaction tx = null)
+            SqlTransaction? tx = null)
         {
             var sqlCommand = conn.CreateCommand("sp_releaseapplock");
             sqlCommand.Transaction = tx;
