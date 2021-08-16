@@ -14,16 +14,16 @@ namespace Weasel.SqlServer.SqlGeneration
         {
             Value = expression.Value;
             DbType = SqlServerProvider.Instance.ToParameterType(expression.Type == typeof(object)
-                ? expression.Value.GetType()
+                ? expression.Value!.GetType()
                 : expression.Type);
         }
 
-        public CommandParameter(object value)
+        public CommandParameter(object? value)
         {
             Value = value;
             if (value != null)
             {
-                DbType = SqlServerProvider.Instance.TryGetDbType(value.GetType()).Value;
+                DbType = SqlServerProvider.Instance.TryGetDbType(value.GetType())!.Value;
             }
         }
 
@@ -33,7 +33,7 @@ namespace Weasel.SqlServer.SqlGeneration
             DbType = SqlDbType;
         }
 
-        public object Value { get; }
+        public object? Value { get; }
         public SqlDbType DbType { get; }
 
         public void Apply(CommandBuilder builder)

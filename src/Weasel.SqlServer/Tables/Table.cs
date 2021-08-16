@@ -183,7 +183,7 @@ namespace Weasel.SqlServer.Tables
             return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
         }
 
-        public TableColumn ColumnFor(string columnName)
+        public TableColumn? ColumnFor(string columnName)
         {
             return Columns.FirstOrDefault(x => x.Name == columnName);
         }
@@ -194,7 +194,7 @@ namespace Weasel.SqlServer.Tables
             return Columns.Any(x => x.Name == columnName);
         }
 
-        public IndexDefinition IndexFor(string indexName)
+        public IndexDefinition? IndexFor(string indexName)
         {
             return Indexes.FirstOrDefault(x => x.Name == indexName);
         }
@@ -292,7 +292,7 @@ namespace Weasel.SqlServer.Tables
             internal TableColumn Column { get; }
 
             public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName,
-                string fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
+                string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
                 CascadeAction onUpdate = CascadeAction.NoAction)
             {
                 return ForeignKeyTo(DbObjectName.Parse(SqlServerProvider.Instance, referencedTableName), referencedColumnName, fkName, onDelete,
@@ -300,14 +300,14 @@ namespace Weasel.SqlServer.Tables
             }
 
             public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName,
-                string fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
+                string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
                 CascadeAction onUpdate = CascadeAction.NoAction)
             {
                 return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName, onDelete, onUpdate);
             }
 
             public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
-                string fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
+                string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
                 CascadeAction onUpdate = CascadeAction.NoAction)
             {
                 var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", Column.Name))
@@ -347,7 +347,7 @@ namespace Weasel.SqlServer.Tables
                 return this;
             }
 
-            public ColumnExpression AddIndex(Action<IndexDefinition> configure = null)
+            public ColumnExpression AddIndex(Action<IndexDefinition>? configure = null)
             {
                 var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", Column.Name))
                 {

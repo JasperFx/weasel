@@ -6,12 +6,12 @@ namespace Weasel.Postgresql.Functions
 {
     public class FunctionDelta : SchemaObjectDelta<Function>
     {
-        public FunctionDelta(Function expected, Function actual) : base(expected, actual)
+        public FunctionDelta(Function expected, Function? actual) : base(expected, actual)
         {
 
         }
 
-        protected override SchemaPatchDifference compare(Function expected, Function actual)
+        protected override SchemaPatchDifference compare(Function expected, Function? actual)
         {
             if (expected.IsRemoved)
             {
@@ -35,7 +35,7 @@ namespace Weasel.Postgresql.Functions
         {
             if (Expected.IsRemoved)
             {
-                Actual.WriteCreateStatement(rules, writer);
+                Actual!.WriteCreateStatement(rules, writer);
             }
             else
             {
@@ -56,11 +56,11 @@ namespace Weasel.Postgresql.Functions
         {
             if (Expected.IsRemoved)
             {
-                writer.WriteDropFunction(Actual);
+                writer.WriteDropFunction(Actual!);
             }
             else
             {
-                writer.WriteReplaceFunction(rules, Actual, Expected);
+                writer.WriteReplaceFunction(rules, Actual!, Expected);
             }
         }
 

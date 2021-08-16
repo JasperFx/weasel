@@ -95,7 +95,7 @@ namespace Weasel.Postgresql
         /// </summary>
         public string RollbackSql => _rollbacks.Value;
 
-        public async Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate, Action<string> logSql = null, Action<NpgsqlCommand, Exception> onFailure = null)
+        public async Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate, Action<string>? logSql = null, Action<NpgsqlCommand, Exception>? onFailure = null)
         {
             if (autoCreate == AutoCreate.None) return;
             if (Difference == SchemaPatchDifference.None) return;

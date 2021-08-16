@@ -9,7 +9,7 @@ namespace Weasel.SqlServer.SqlGeneration
             _parent = parent;
         }
 
-        public ISqlFragment Inner { get; set; }
+        public ISqlFragment Inner { get; set; } = null!;
 
         public void Apply(CommandBuilder builder)
         {

@@ -91,7 +91,7 @@ namespace Weasel.SqlServer
         }
 
         public async Task ApplyAll(SqlConnection conn, DdlRules rules, AutoCreate autoCreate,
-            Action<string> logSql = null, Action<SqlCommand, Exception> onFailure = null)
+            Action<string>? logSql = null, Action<SqlCommand, Exception>? onFailure = null)
         {
             if (autoCreate == AutoCreate.None)
             {
@@ -126,7 +126,7 @@ namespace Weasel.SqlServer
 
         }
 
-        private async Task createSchemas(SqlConnection conn, Action<string> logSql, Action<SqlCommand, Exception> onFailure)
+        private async Task createSchemas(SqlConnection conn, Action<string>? logSql, Action<SqlCommand, Exception>? onFailure)
         {
             var writer = new StringWriter();
 
@@ -140,7 +140,7 @@ namespace Weasel.SqlServer
             }
         }
 
-        private static async Task executeCommand(SqlConnection conn, Action<string> logSql, Action<SqlCommand, Exception> onFailure, StringWriter writer)
+        private static async Task executeCommand(SqlConnection conn, Action<string>? logSql, Action<SqlCommand, Exception>? onFailure, StringWriter writer)
         {
             var cmd = conn.CreateCommand(writer.ToString());
             logSql?.Invoke(cmd.CommandText);

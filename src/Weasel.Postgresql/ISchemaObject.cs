@@ -41,9 +41,9 @@ namespace Weasel.Postgresql
     public abstract class SchemaObjectDelta<T> : ISchemaObjectDelta where T : ISchemaObject
     {
         public T Expected { get; }
-        public T Actual { get; }
+        public T? Actual { get; }
 
-        protected SchemaObjectDelta(T expected, T actual)
+        protected SchemaObjectDelta(T expected, T? actual)
         {
             if (expected == null) throw new ArgumentNullException(nameof(expected));
             
@@ -53,7 +53,7 @@ namespace Weasel.Postgresql
             Difference = compare(Expected, Actual);
         }
 
-        protected abstract SchemaPatchDifference compare(T expected, T actual);
+        protected abstract SchemaPatchDifference compare(T expected, T? actual);
 
         public ISchemaObject SchemaObject => Expected;
 
@@ -63,12 +63,12 @@ namespace Weasel.Postgresql
         public virtual void WriteRollback(DdlRules rules, TextWriter writer)
         {
             Expected.WriteDropStatement(rules, writer);
-            Actual.WriteCreateStatement(rules, writer);
+            Actual!.WriteCreateStatement(rules, writer);
         }
 
         public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
         {
-            Actual.WriteCreateStatement(rules, writer);
+            Actual!.WriteCreateStatement(rules, writer);
         }
     }
 

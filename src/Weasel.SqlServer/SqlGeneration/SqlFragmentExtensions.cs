@@ -64,7 +64,7 @@ namespace Weasel.SqlServer.SqlGeneration
             return new[] {fragment};
         }
 
-        public static string ToSql(this ISqlFragment fragment)
+        public static string? ToSql(this ISqlFragment? fragment)
         {
             if (fragment == null)
             {

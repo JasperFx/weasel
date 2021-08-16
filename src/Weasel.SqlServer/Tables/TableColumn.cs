@@ -33,11 +33,11 @@ namespace Weasel.SqlServer.Tables
 
         public bool AllowNulls { get; set; } = true;
 
-        public string DefaultExpression { get; set; }
+        public string? DefaultExpression { get; set; }
 
 
         public string Type { get; set; }
-        public Table Parent { get; internal set; }
+        public Table Parent { get; internal set; } = null!;
 
         public bool IsPrimaryKey { get; internal set; }
 
@@ -71,7 +71,7 @@ namespace Weasel.SqlServer.Tables
                        SqlServerProvider.Instance.ConvertSynonyms(other.RawType()));
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj))
             {
@@ -148,7 +148,7 @@ namespace Weasel.SqlServer.Tables
         /// <summary>
         ///     The database name for the check. This can be null
         /// </summary>
-        public string Name { get; set; } // TODO -- validate good name
+        public string? Name { get; set; } // TODO -- validate good name
 
         public abstract string Declaration();
 

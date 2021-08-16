@@ -104,7 +104,7 @@ namespace Weasel.Core
         /// <returns></returns>
         public static DbCommand CreateCommand(this DbTransaction tx, string command)
         {
-            var cmd = tx.Connection.CreateCommand();
+            var cmd = tx.Connection!.CreateCommand();
             cmd.Transaction = tx;
             cmd.CommandText = command;
 
@@ -140,7 +140,7 @@ namespace Weasel.Core
         /// <param name="cancellation"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public static Task<IReadOnlyList<T>> FetchList<T>(this DbCommand cmd, CancellationToken cancellation = default)
+        public static Task<IReadOnlyList<T?>> FetchList<T>(this DbCommand cmd, CancellationToken cancellation = default)
         {
             return cmd.FetchList(async reader =>
             {
@@ -162,7 +162,7 @@ namespace Weasel.Core
         /// <param name="cancellation"></param>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public static async Task<T> FetchOne<T>(this DbCommand cmd, CancellationToken cancellation = default)
+        public static async Task<T?> FetchOne<T>(this DbCommand cmd, CancellationToken cancellation = default)
         {
             using var reader = await cmd.ExecuteReaderAsync(cancellation);
             if (await reader.ReadAsync(cancellation))
@@ -260,7 +260,7 @@ namespace Weasel.Core
             return command;
         }
 
-        public static T With<T>(this T command, string name, object value, DbType dbType) where T : DbCommand
+        public static T With<T>(this T command, string name, object? value, DbType dbType) where T : DbCommand
         {
             var parameter = command.CreateParameter();
             parameter.ParameterName = name;

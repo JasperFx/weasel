@@ -38,7 +38,7 @@ namespace Weasel.Postgresql
         /// <summary>
         ///     Option to use this database role during DDL scripts
         /// </summary>
-        public string Role { get; set; }
+        public string? Role { get; set; }
 
         /// <summary>
         /// Read [name].table and [name].function files from the named directory
@@ -135,7 +135,7 @@ namespace Weasel.Postgresql
             _name = name;
         }
 
-        public string TableCreation { get; set; }
-        public string FunctionCreation { get; set; }
+        public string? TableCreation { get; set; }
+        public string? FunctionCreation { get; set; }
     }
 }

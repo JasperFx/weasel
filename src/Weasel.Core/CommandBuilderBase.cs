@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-#nullable enable
 
 namespace Weasel.Core
 {
@@ -98,7 +97,7 @@ namespace Weasel.Core
         /// <param name="value"></param>
         /// <param name="dbType"></param>
         /// <returns></returns>
-        public TParameter AddParameter(object value, TParameterType? dbType = null)
+        public TParameter AddParameter(object? value, TParameterType? dbType = null)
         {
             var name = "p" + _command.Parameters.Count;
 
@@ -225,7 +224,7 @@ namespace Weasel.Core
         /// </summary>
         /// <param name="value"></param>
         /// <param name="dbType"></param>
-        public void AppendParameter(object value, TParameterType? dbType = null)
+        public void AppendParameter(object? value, TParameterType? dbType = null)
         {
             var parameter = AddParameter(value, dbType);
             Append(_parameterPrefix);

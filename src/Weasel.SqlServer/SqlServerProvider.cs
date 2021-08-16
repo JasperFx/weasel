@@ -5,7 +5,6 @@ using Baseline;
 using Baseline.ImTools;
 using Weasel.Core;
 
-#nullable enable
 namespace Weasel.SqlServer
 {
     public class SqlServerProvider : DatabaseProvider<SqlCommand, SqlParameter, SqlConnection, SqlTransaction,

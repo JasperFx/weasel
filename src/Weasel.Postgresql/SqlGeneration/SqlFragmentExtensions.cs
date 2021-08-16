@@ -49,7 +49,7 @@ namespace Weasel.Postgresql.SqlGeneration
             return filter;
         }
         
-        public static ISqlFragment[] Flatten(this ISqlFragment fragment)
+        public static ISqlFragment[] Flatten(this ISqlFragment? fragment)
         {
             if (fragment == null)
             {
@@ -64,7 +64,7 @@ namespace Weasel.Postgresql.SqlGeneration
             return new[] {fragment};
         }
 
-        public static string ToSql(this ISqlFragment fragment)
+        public static string? ToSql(this ISqlFragment? fragment)
         {
             if (fragment == null)
             {

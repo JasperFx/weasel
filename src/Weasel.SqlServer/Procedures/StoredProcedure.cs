@@ -13,7 +13,7 @@ namespace Weasel.SqlServer.Procedures
 {
     public class StoredProcedure : ISchemaObject
     {
-        private readonly string _body;
+        private readonly string? _body;
 
         public StoredProcedure(DbObjectName identifier)
         {
@@ -55,7 +55,7 @@ namespace Weasel.SqlServer.Procedures
                 body = w.ToString();
             }
 
-            body = body.Replace("CREATE PROCEDURE", "CREATE OR ALTER PROCEDURE");
+            body = body!.Replace("CREATE PROCEDURE", "CREATE OR ALTER PROCEDURE");
             body = body.Replace("create procedure", "create or alter procedure");
             
             writer.WriteLine(body);
@@ -86,7 +86,7 @@ where
             return new StoredProcedureDelta(this, existing);
         }
 
-        private async Task<StoredProcedure> readExisting(DbDataReader reader)
+        private async Task<StoredProcedure?> readExisting(DbDataReader reader)
         {
             if (await reader.ReadAsync())
             {
@@ -116,11 +116,11 @@ where
                 body = writer.ToString();
             }
 
-            return body.ReadLines().Select(x => x.Trim()).Where(x => x.IsNotEmpty())
+            return body!.ReadLines().Select(x => x.Trim()).Where(x => x.IsNotEmpty())
                 .Select(x => x.Replace("   ", " ")).Join(Environment.NewLine);
         }
         
-        public async Task<StoredProcedure> FetchExisting(SqlConnection conn)
+        public async Task<StoredProcedure?> FetchExisting(SqlConnection conn)
         {
             var builder = new CommandBuilder();
 

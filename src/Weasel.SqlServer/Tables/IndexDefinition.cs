@@ -12,7 +12,7 @@ namespace Weasel.SqlServer.Tables
         private const string JsonbPathOps = "jsonb_path_ops";
         private static readonly string[] _reserved_words = {"trim", "lower", "upper"};
 
-        private string _indexName;
+        private string? _indexName;
 
         public IndexDefinition(string indexName)
         {
@@ -42,7 +42,7 @@ namespace Weasel.SqlServer.Tables
         /// <summary>
         ///     The constraint expression for a partial index.
         /// </summary>
-        public string Predicate { get; set; }
+        public string? Predicate { get; set; }
 
         /// <summary>
         ///     Set a non-default fill factor on this index

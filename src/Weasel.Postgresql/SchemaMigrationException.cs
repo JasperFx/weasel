@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Baseline;
-#nullable enable
 
 namespace Weasel.Postgresql
 {
@@ -16,7 +15,7 @@ namespace Weasel.Postgresql
         {
         }
 
-        public SchemaMigrationException(AutoCreate autoCreate, IEnumerable<ISchemaObjectDelta> invalids) : base($"Cannot derive schema migrations for {invalids.Select(x => x.ToString()).Join(", ")} AutoCreate.{autoCreate}")
+        public SchemaMigrationException(AutoCreate autoCreate, IEnumerable<ISchemaObjectDelta> invalids) : base($"Cannot derive schema migrations for {invalids.Select(x => x.ToString()!).Join(", ")} AutoCreate.{autoCreate}")
         {
             
         }

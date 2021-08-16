@@ -96,7 +96,7 @@ order by
 
         }
 
-        public async Task<Table> FetchExisting(SqlConnection conn)
+        public async Task<Table?> FetchExisting(SqlConnection conn)
         {
             var builder = new CommandBuilder();
 
@@ -106,14 +106,14 @@ order by
             return await readExisting(reader);
         }
 
-        private async Task<Table> readExisting(DbDataReader reader)
+        private async Task<Table?> readExisting(DbDataReader reader)
         {
             var existing = new Table(Identifier);
 
             await readColumns(reader, existing);
 
             var (pks, primaryKeyName) = await readPrimaryKeys(reader);
-            foreach (var pkColumn in pks) existing.ColumnFor(pkColumn).IsPrimaryKey = true;
+            foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
             existing.PrimaryKeyName = primaryKeyName;
 
             
@@ -246,7 +246,7 @@ order by
 
         private static async Task<(List<string>, string)> readPrimaryKeys(DbDataReader reader)
         {
-            string pkName = null;
+            string? pkName = null;
             var pks = new List<string>();
             await reader.NextResultAsync();
             while (await reader.ReadAsync())
@@ -255,7 +255,7 @@ order by
                 pkName = await reader.GetFieldValueAsync<string>(1);
             }
 
-            return (pks, pkName);
+            return (pks, pkName!);
         }
     }
 }

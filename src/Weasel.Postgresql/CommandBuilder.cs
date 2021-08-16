@@ -3,8 +3,6 @@ using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
 
-#nullable enable
-
 namespace Weasel.Postgresql
 {
     public class CommandBuilder : CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction, NpgsqlDbType, NpgsqlDataReader>

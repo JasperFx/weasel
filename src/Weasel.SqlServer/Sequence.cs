@@ -27,8 +27,8 @@ namespace Weasel.SqlServer
             _startWith = startWith;
         }
 
-        public DbObjectName Owner { get; set; }
-        public string OwnerColumn { get; set; }
+        public DbObjectName? Owner { get; set; }
+        public string OwnerColumn { get; set; } = null!;
         public DbObjectName Identifier { get; }
 
         public IEnumerable<DbObjectName> AllNames()

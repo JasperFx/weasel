@@ -3,8 +3,6 @@ using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;
 
-#nullable enable
-
 namespace Weasel.SqlServer
 {
     public class CommandBuilder : CommandBuilderBase<SqlCommand, SqlParameter, SqlConnection, SqlTransaction, SqlDbType,
