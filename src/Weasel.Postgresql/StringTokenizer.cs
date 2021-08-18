@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Baseline;
 
@@ -8,7 +9,7 @@ namespace Weasel.Postgresql
         public static IEnumerable<string> Tokenize(string content)
         {
             var searchString = content.Trim();
-            if (searchString.Length == 0) return new string[0];
+            if (searchString.Length == 0) return Array.Empty<string>();
 
             var parser = new TokenParser();
             content.ToCharArray().Each(parser.Read);
@@ -23,7 +24,7 @@ namespace Weasel.Postgresql
     public class TokenParser
     {
         private readonly List<string> _tokens = new List<string>();
-        private List<char> _characters;
+        private List<char> _characters = null!;
         private IMode _mode;
 
         public TokenParser()

@@ -115,7 +115,7 @@ AND    n.nspname = :{schemaParam};
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
+            await using var reader = await builder.ExecuteReaderAsync(conn);
             return await readExisting(reader);
         }
         
@@ -168,7 +168,7 @@ AND    n.nspname = :{schemaParam};
         {
             if (_dropStatements?.Length > 0) return _dropStatements;
 
-            if (IsRemoved) return new string[0];
+            if (IsRemoved) return Array.Empty<string>();
 
             var signature = ParseSignature(Body());
 

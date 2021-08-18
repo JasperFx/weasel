@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Baseline;
@@ -53,7 +54,7 @@ namespace Weasel.Postgresql.SqlGeneration
         {
             if (fragment == null)
             {
-                return new ISqlFragment[0];
+                return Array.Empty<ISqlFragment>();
             }
 
             if (fragment is CompoundWhereFragment c)

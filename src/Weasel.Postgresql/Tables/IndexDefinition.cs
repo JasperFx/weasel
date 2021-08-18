@@ -60,7 +60,7 @@ namespace Weasel.Postgresql.Tables
         /// Pattern for surrounding the columns. Use a `?` character
         /// for the location of the columns, like "? jsonb_path_ops"
         /// </summary>
-        public string Mask { get; set; }
+        public string? Mask { get; set; }
 
         /// <summary>
         /// Set the Index expression against the supplied columns

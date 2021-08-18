@@ -38,7 +38,7 @@ namespace Weasel.SqlServer
 
         public void WriteCreateStatement(DdlRules rules, TextWriter writer)
         {
-            var startsWith = _startWith.HasValue ? _startWith.Value : 1;
+            var startsWith = _startWith ?? 1;
             
             writer.WriteLine(
                 $"CREATE SEQUENCE {Identifier} START WITH {startsWith};");

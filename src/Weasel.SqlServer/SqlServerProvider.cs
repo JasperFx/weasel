@@ -71,7 +71,7 @@ namespace Weasel.SqlServer
 
         protected override Type[] determineClrTypesForParameterType(System.Data.SqlDbType dbType)
         {
-            return new Type[0];
+            return Type.EmptyTypes;
         }
 
 

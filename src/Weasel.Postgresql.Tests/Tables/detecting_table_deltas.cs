@@ -218,7 +218,7 @@ namespace Weasel.Postgresql.Tests.Tables
             // The index DDL should match what the database thinks it is in order to match
 
 
-            var expected = existing.Indexes.Single();
+            var expected = existing!.Indexes.Single();
             var actual = theTable.Indexes.Single();
             
             expected.AssertMatches(actual, theTable);
