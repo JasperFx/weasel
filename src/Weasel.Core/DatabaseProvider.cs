@@ -103,7 +103,7 @@ namespace Weasel.Core
 
             TypeMemo.Swap(d => d.AddOrUpdate(parameterType, values!));
 
-            return values!;
+            return values;
         }
 
         public abstract string GetDatabaseType(Type memberType, EnumStorage enumStyle);
@@ -121,7 +121,7 @@ namespace Weasel.Core
         public TParameterType BoolParameterType { get; }
         public TParameterType DoubleParameterType { get; }
         
-        public TParameter AddParameter(TCommand command, object value, TParameterType? dbType = null)
+        public TParameter AddParameter(TCommand command, object? value, TParameterType? dbType = null)
         {
             var name = "p" + command.Parameters.Count;
 
@@ -147,7 +147,7 @@ namespace Weasel.Core
         /// <param name="value"></param>
         /// <param name="dbType"></param>
         /// <returns></returns>
-        public TParameter AddNamedParameter(TCommand command, string name, object value, TParameterType? dbType = null)
+        public TParameter AddNamedParameter(TCommand command, string name, object? value, TParameterType? dbType = null)
         {
             var existing = command.Parameters.OfType<TParameter>().FirstOrDefault(x => x.ParameterName == name);
             if (existing != null) return existing;

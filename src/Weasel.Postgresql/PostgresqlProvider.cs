@@ -76,7 +76,7 @@ namespace Weasel.Postgresql
 
         protected override Type[] determineClrTypesForParameterType(NpgsqlDbType dbType)
         {
-            return GetTypeMapping(dbType)?.ClrTypes ?? new Type[0];
+            return GetTypeMapping(dbType)?.ClrTypes ?? Type.EmptyTypes;
         }
 
         private NpgsqlTypeMapping? GetTypeMapping(Type type)

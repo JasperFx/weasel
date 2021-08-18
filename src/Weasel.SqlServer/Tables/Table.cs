@@ -30,7 +30,7 @@ namespace Weasel.SqlServer.Tables
     {
         private readonly List<TableColumn> _columns = new();
 
-        private string _primaryKeyName;
+        private string? _primaryKeyName;
 
         public Table(DbObjectName name)
         {

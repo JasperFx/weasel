@@ -22,7 +22,7 @@ namespace Weasel.Core
     {
         public static readonly DbDatabaseProvider Instance = new();
         
-        public DbDatabaseProvider() : base(null)
+        public DbDatabaseProvider() : base(null!)
         {
         }
 
@@ -74,7 +74,7 @@ namespace Weasel.Core
                 return true;
             }
 
-            dbType = dbType = DbType.Object;;
+            dbType = DbType.Object;
             return false;
         }
         
@@ -96,7 +96,7 @@ namespace Weasel.Core
 
         protected override Type[] determineClrTypesForParameterType(DbType dbType)
         {
-            return new Type[0];
+            return Type.EmptyTypes;
         }
 
         public override string GetDatabaseType(Type memberType, EnumStorage enumStyle)
