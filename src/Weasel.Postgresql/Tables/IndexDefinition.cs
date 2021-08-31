@@ -208,6 +208,12 @@ namespace Weasel.Postgresql.Tables
 
                         expression = tokens.Dequeue();
                         expression = removeSortOrderFromExpression(expression, out var order);
+
+                        if (expression.EndsWith("jsonb_path_ops)"))
+                        {
+                            index.Mask = "? jsonb_path_ops";
+                            expression = expression.Substring(0, expression.Length - index.Mask.Length) + ")";
+                        }
                         
                         index.SortOrder = order;
                         
