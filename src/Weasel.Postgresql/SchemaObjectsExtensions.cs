@@ -14,7 +14,7 @@ namespace Weasel.Postgresql
 {
     public static class SchemaObjectsExtensions
     {
-        public static Task<Function> FindExistingFunction(this NpgsqlConnection conn, DbObjectName functionName)
+        public static Task<Function?> FindExistingFunction(this NpgsqlConnection conn, DbObjectName functionName)
         {
             var function = new Function(functionName, null);
             return function.FetchExisting(conn);
@@ -73,7 +73,7 @@ namespace Weasel.Postgresql
             }
         }
 
-        public static Task<IReadOnlyList<string>> ActiveSchemaNames(this NpgsqlConnection conn)
+        public static Task<IReadOnlyList<string?>> ActiveSchemaNames(this NpgsqlConnection conn)
         {
             return conn.CreateCommand("select nspname from pg_catalog.pg_namespace order by nspname")
                 .FetchList<string>();
@@ -115,7 +115,7 @@ namespace Weasel.Postgresql
 
         }
 
-        public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(this NpgsqlConnection conn, string namePattern = null, string[] schemas = null)
+        public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(this NpgsqlConnection conn, string? namePattern = null, string[]? schemas = null)
         {
             var builder = new CommandBuilder();
             builder.Append("SELECT schemaname, relname FROM pg_stat_user_tables");
@@ -145,7 +145,7 @@ namespace Weasel.Postgresql
 
         }
 
-        public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctions(this NpgsqlConnection conn, string namePattern = null, string[] schemas = null)
+        public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctions(this NpgsqlConnection conn, string? namePattern = null, string[]? schemas = null)
         {
             var builder = new CommandBuilder();
             builder.Append("SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger'");

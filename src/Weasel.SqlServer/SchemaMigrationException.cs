@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Baseline;
 
-#nullable enable
-
 namespace Weasel.SqlServer
 {
     public class SchemaMigrationException : Exception
@@ -18,7 +16,7 @@ namespace Weasel.SqlServer
         }
 
         public SchemaMigrationException(AutoCreate autoCreate, IEnumerable<ISchemaObjectDelta> invalids) : base(
-            $"Cannot derive schema migrations for {invalids.Select(x => x.ToString()).Join(", ")} AutoCreate.{autoCreate}")
+            $"Cannot derive schema migrations for {invalids.Select(x => x.ToString()!).Join(", ")} AutoCreate.{autoCreate}")
         {
         }
     }

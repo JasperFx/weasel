@@ -16,8 +16,7 @@ namespace Weasel.Postgresql
         /// <param name="lockId">The identity of the lock</param>
         /// <param name="cancellation"></param>
         /// <returns></returns>
-        public static Task GetGlobalTxLock(this NpgsqlTransaction tx, int lockId,
-            CancellationToken cancellation = default(CancellationToken))
+        public static Task GetGlobalTxLock(this NpgsqlTransaction tx, int lockId, CancellationToken cancellation = default)
         {
             return tx.CreateCommand("SELECT pg_advisory_xact_lock(:id);").With("id", lockId)
                 .ExecuteNonQueryAsync(cancellation);
@@ -32,8 +31,7 @@ namespace Weasel.Postgresql
         /// <param name="lockId"></param>
         /// <param name="cancellation"></param>
         /// <returns></returns>
-        public static async Task<bool> TryGetGlobalTxLock(this NpgsqlTransaction tx, int lockId,
-            CancellationToken cancellation = default(CancellationToken))
+        public static async Task<bool> TryGetGlobalTxLock(this NpgsqlTransaction tx, int lockId, CancellationToken cancellation = default)
         {
             var c = await tx.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
                 .With("id", lockId)
@@ -51,7 +49,7 @@ namespace Weasel.Postgresql
         /// <param name="cancellation"></param>
         /// <param name="transaction"></param>
         /// <returns></returns>
-        public static Task GetGlobalLock(this NpgsqlConnection conn, int lockId, CancellationToken cancellation = default(CancellationToken))
+        public static Task GetGlobalLock(this NpgsqlConnection conn, int lockId, CancellationToken cancellation = default)
         {
             return conn.CreateCommand("SELECT pg_advisory_lock(:id);").With("id", lockId)
                 .ExecuteNonQueryAsync(cancellation);
@@ -66,7 +64,7 @@ namespace Weasel.Postgresql
         /// <param name="lockId"></param>
         /// <param name="cancellation"></param>
         /// <returns></returns>
-        public static async Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId, CancellationToken cancellation = default(CancellationToken))
+        public static async Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId, CancellationToken cancellation = default)
         {
             var c = await conn.CreateCommand("SELECT pg_try_advisory_lock(:id);")
                 .With("id", lockId)
@@ -84,8 +82,7 @@ namespace Weasel.Postgresql
         /// <param name="lockId"></param>
         /// <param name="cancellation"></param>
         /// <returns></returns>
-        public static async Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId, NpgsqlTransaction tx,
-            CancellationToken cancellation = default(CancellationToken))
+        public static async Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId, NpgsqlTransaction tx, CancellationToken cancellation = default)
         {
             var c = await conn.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
                 .With("id", lockId)
@@ -102,8 +99,7 @@ namespace Weasel.Postgresql
         /// <param name="cancellation"></param>
         /// <param name="tx"></param>
         /// <returns></returns>
-        public static Task ReleaseGlobalLock(this NpgsqlConnection conn, int lockId, CancellationToken cancellation = default(CancellationToken),
-            NpgsqlTransaction tx = null)
+        public static Task ReleaseGlobalLock(this NpgsqlConnection conn, int lockId, CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
         {
             return conn.CreateCommand("SELECT pg_advisory_unlock(:id);").With("id", lockId)
                 .ExecuteNonQueryAsync(cancellation);

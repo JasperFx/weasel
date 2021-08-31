@@ -36,7 +36,7 @@ namespace Weasel.SqlServer
             return command;
         }
 
-        public static SqlCommand CreateCommand(this SqlConnection conn, string command, SqlTransaction tx = null)
+        public static SqlCommand CreateCommand(this SqlConnection conn, string command, SqlTransaction? tx = null)
         {
             return new(command, conn)
             {

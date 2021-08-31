@@ -81,7 +81,7 @@ IF NOT EXISTS ( SELECT  *
             }
         }
 
-        public static Task<IReadOnlyList<string>> ActiveSchemaNames(this SqlConnection conn)
+        public static Task<IReadOnlyList<string?>> ActiveSchemaNames(this SqlConnection conn)
         {
             return conn.CreateCommand("select name from sys.schemas order by name")
                 .FetchList<string>();
@@ -159,7 +159,7 @@ IF NOT EXISTS ( SELECT  *
         }
 
         public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(this SqlConnection conn,
-            string namePattern = null)
+            string? namePattern = null)
         {
             var builder = new CommandBuilder();
             builder.Append("SELECT table_schema, table_name FROM information_schema.tables");
@@ -177,7 +177,7 @@ IF NOT EXISTS ( SELECT  *
         }
 
         public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctions(this SqlConnection conn,
-            string namePattern = null, string[] schemas = null)
+            string? namePattern = null, string[]? schemas = null)
         {
             var builder = new CommandBuilder();
             builder.Append(

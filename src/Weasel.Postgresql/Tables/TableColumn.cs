@@ -30,13 +30,13 @@ namespace Weasel.Postgresql.Tables
 
         public bool AllowNulls { get; set; } = true;
         
-        public string DefaultExpression { get; set; }
+        public string? DefaultExpression { get; set; }
 
         public string Name { get; }
 
 
         public string Type { get; set; }
-        public Table Parent { get; internal set; }
+        public Table Parent { get; internal set; } = null!;
 
         public string RawType()
         {
@@ -60,7 +60,7 @@ namespace Weasel.Postgresql.Tables
                    string.Equals(PostgresqlProvider.Instance.ConvertSynonyms(RawType()), PostgresqlProvider.Instance.ConvertSynonyms(other.RawType()));
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj))
                 return false;
@@ -130,7 +130,7 @@ namespace Weasel.Postgresql.Tables
         /// <summary>
         /// The database name for the check. This can be null
         /// </summary>
-        public string Name { get; set; } // TODO -- validate good name
+        public string? Name { get; set; } // TODO -- validate good name
 
         public abstract string Declaration();
 

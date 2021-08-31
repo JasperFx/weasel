@@ -9,7 +9,6 @@ using Npgsql.TypeMapping;
 using NpgsqlTypes;
 using Weasel.Core;
 
-#nullable enable
 namespace Weasel.Postgresql
 {
     public class PostgresqlProvider : DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction, NpgsqlDbType, NpgsqlDataReader>
@@ -54,7 +53,7 @@ namespace Weasel.Postgresql
             if (DatabaseTypeMemo.Value.TryFind(type, out var value))
                 return value;
 
-            value = GetTypeMapping(type)?.PgTypeName;
+            value = GetTypeMapping(type)?.PgTypeName!;
 
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, value));
 
@@ -77,7 +76,7 @@ namespace Weasel.Postgresql
 
         protected override Type[] determineClrTypesForParameterType(NpgsqlDbType dbType)
         {
-            return GetTypeMapping(dbType)?.ClrTypes ?? new Type[0];
+            return GetTypeMapping(dbType)?.ClrTypes ?? Type.EmptyTypes;
         }
 
         private NpgsqlTypeMapping? GetTypeMapping(Type type)
@@ -167,7 +166,7 @@ namespace Weasel.Postgresql
                 }
 
                 {
-                    dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType());
+                    dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType()!);
                     return true;
                 }
             }

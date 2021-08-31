@@ -5,6 +5,7 @@
 
         <Description>Core Weasel types for ADO.Net helpers, spin off of Marten</Description>
         <Version>0.9.9</Version>
+        <Nullable>enable</Nullable>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
         <GenerateAssemblyProductAttribute>true</GenerateAssemblyProductAttribute>
@@ -16,7 +17,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Baseline" Version="3.1.1" />
+        <PackageReference Include="Baseline" Version="3.2.1" />
     </ItemGroup>
 
 </Project>

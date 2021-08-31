@@ -12,7 +12,7 @@ namespace Weasel.Postgresql.Tables
         private const string JsonbPathOps = "jsonb_path_ops";
         private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
         
-        private string _indexName;
+        private string? _indexName;
 
         public IndexDefinition(string indexName)
         {
@@ -54,13 +54,13 @@ namespace Weasel.Postgresql.Tables
 
         public bool IsConcurrent { get; set; }
 
-        public virtual string[] Columns { get; set; }
+        public virtual string[]? Columns { get; set; }
 
         /// <summary>
         /// Pattern for surrounding the columns. Use a `?` character
         /// for the location of the columns, like "? jsonb_path_ops"
         /// </summary>
-        public string Mask { get; set; }
+        public string? Mask { get; set; }
 
         /// <summary>
         /// Set the Index expression against the supplied columns
@@ -76,12 +76,12 @@ namespace Weasel.Postgresql.Tables
         /// <summary>
         /// The tablespace in which to create the index. If not specified, default_tablespace is consulted,
         /// </summary>
-        public string TableSpace { get; set; }
+        public string? TableSpace { get; set; }
 
         /// <summary>
         /// The constraint expression for a partial index.
         /// </summary>
-        public string Predicate { get; set; }
+        public string? Predicate { get; set; }
 
         public string ToDDL(Table parent)
         {
@@ -171,7 +171,7 @@ namespace Weasel.Postgresql.Tables
         {
             var tokens = new Queue<string>(StringTokenizer.Tokenize(definition.TrimEnd(';')));
 
-            IndexDefinition index = null;
+            IndexDefinition index = null!;
 
             bool isUnique = false;
             string expression = "";
@@ -323,7 +323,7 @@ namespace Weasel.Postgresql.Tables
                     .Replace("INDEX CONCURRENTLY", "INDEX")
                     .Replace("::text", "")
                     .Replace(" ->> ", "->>")
-                    .Replace("->", "->").TrimEnd(new[] {';'})
+                    .Replace(" -> ", "->").TrimEnd(new[] {';'})
                 ;
         }
     }

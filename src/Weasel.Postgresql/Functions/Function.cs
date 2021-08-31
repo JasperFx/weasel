@@ -23,8 +23,8 @@ namespace Weasel.Postgresql.Functions
          */
 
 
-        private readonly string _body;
-        private readonly string[] _dropStatements;
+        private readonly string? _body;
+        private readonly string[]? _dropStatements;
 
         public static string ParseSignature(string body)
         {
@@ -60,7 +60,7 @@ namespace Weasel.Postgresql.Functions
             Identifier = identifier;
         }
 
-        public Function(DbObjectName identifier, string body)
+        public Function(DbObjectName identifier, string? body)
         {
             _body = body;
             Identifier = identifier;
@@ -109,17 +109,17 @@ AND    n.nspname = :{schemaParam};
 
         public bool IsRemoved { get; protected set; }
 
-        public async Task<Function> FetchExisting(NpgsqlConnection conn)
+        public async Task<Function?> FetchExisting(NpgsqlConnection conn)
         {
             var builder = new CommandBuilder();
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
+            await using var reader = await builder.ExecuteReaderAsync(conn);
             return await readExisting(reader);
         }
         
-        private async Task<Function> readExisting(DbDataReader reader)
+        private async Task<Function?> readExisting(DbDataReader reader)
         {
             if (!await reader.ReadAsync())
             {
@@ -155,7 +155,7 @@ AND    n.nspname = :{schemaParam};
             yield return Identifier;
         }
 
-        public string Body(DdlRules rules = null)
+        public string Body(DdlRules? rules = null)
         {
             rules ??= new DdlRules();
             var writer = new StringWriter();
@@ -168,7 +168,7 @@ AND    n.nspname = :{schemaParam};
         {
             if (_dropStatements?.Length > 0) return _dropStatements;
 
-            if (IsRemoved) return new string[0];
+            if (IsRemoved) return Array.Empty<string>();
 
             var signature = ParseSignature(Body());
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Baseline;
@@ -49,11 +50,11 @@ namespace Weasel.Postgresql.SqlGeneration
             return filter;
         }
         
-        public static ISqlFragment[] Flatten(this ISqlFragment fragment)
+        public static ISqlFragment[] Flatten(this ISqlFragment? fragment)
         {
             if (fragment == null)
             {
-                return new ISqlFragment[0];
+                return Array.Empty<ISqlFragment>();
             }
 
             if (fragment is CompoundWhereFragment c)
@@ -64,7 +65,7 @@ namespace Weasel.Postgresql.SqlGeneration
             return new[] {fragment};
         }
 
-        public static string ToSql(this ISqlFragment fragment)
+        public static string? ToSql(this ISqlFragment? fragment)
         {
             if (fragment == null)
             {

@@ -16,12 +16,12 @@ namespace Weasel.SqlServer
         /// <param name="lockId">The identity of the lock</param>
         /// <param name="cancellation"></param>
         /// <returns></returns>
-        public static Task GetGlobalTxLock(this SqlTransaction tx, string lockId, CancellationToken cancellation = default(CancellationToken))
+        public static Task GetGlobalTxLock(this SqlTransaction tx, string lockId, CancellationToken cancellation = default)
         {
             return getLock(tx.Connection, lockId, "Transaction", tx, cancellation);
         }
 
-        private static async Task getLock(this SqlConnection conn, string lockId, string owner, SqlTransaction tx,
+        private static async Task getLock(this SqlConnection conn, string lockId, string owner, SqlTransaction? tx,
             CancellationToken cancellation)
         {
             var returnValue = await tryGetLock(conn, lockId, owner, tx, cancellation);
@@ -30,7 +30,7 @@ namespace Weasel.SqlServer
                 throw new Exception($"sp_getapplock failed with errorCode '{returnValue}'");
         }
 
-        private static async Task<int> tryGetLock(this SqlConnection conn, string lockId, string owner, SqlTransaction tx,
+        private static async Task<int> tryGetLock(this SqlConnection conn, string lockId, string owner, SqlTransaction? tx,
             CancellationToken cancellation)
         {
             var cmd = conn.CreateCommand("sp_getapplock");
@@ -64,7 +64,7 @@ namespace Weasel.SqlServer
         /// <param name="cancellation"></param>
         /// <returns></returns>
         public static async Task<bool> TryGetGlobalTxLock(this SqlTransaction tx, string lockId,
-            CancellationToken cancellation = default(CancellationToken))
+            CancellationToken cancellation = default)
         {
             return await tryGetLock(tx.Connection, lockId, "Transaction", tx, cancellation) >= 0;
         }
@@ -79,8 +79,8 @@ namespace Weasel.SqlServer
         /// <param name="cancellation"></param>
         /// <param name="transaction"></param>
         /// <returns></returns>
-        public static Task GetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default(CancellationToken),
-            SqlTransaction transaction = null)
+        public static Task GetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default,
+            SqlTransaction? transaction = null)
         {
             return getLock(conn, lockId, "Session", transaction, cancellation);
         }
@@ -94,7 +94,7 @@ namespace Weasel.SqlServer
         /// <param name="lockId"></param>
         /// <param name="cancellation"></param>
         /// <returns></returns>
-        public static async Task<bool> TryGetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default(CancellationToken))
+        public static async Task<bool> TryGetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default)
         {
             return await tryGetLock(conn, lockId, "Session", null, cancellation) >= 0;
         }
@@ -107,8 +107,8 @@ namespace Weasel.SqlServer
         /// <param name="cancellation"></param>
         /// <param name="tx"></param>
         /// <returns></returns>
-        public static Task ReleaseGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default(CancellationToken),
-            SqlTransaction tx = null)
+        public static Task ReleaseGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default,
+            SqlTransaction? tx = null)
         {
             var sqlCommand = conn.CreateCommand("sp_releaseapplock");
             sqlCommand.Transaction = tx;

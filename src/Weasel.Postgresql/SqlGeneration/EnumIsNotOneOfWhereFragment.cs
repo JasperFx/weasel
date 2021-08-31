@@ -20,7 +20,7 @@ namespace Weasel.Postgresql.SqlGeneration
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    numbers[i] = array.GetValue(i).As<int>();
+                    numbers[i] = array.GetValue(i)!.As<int>();
                 }
 
                 _values = numbers;
@@ -32,7 +32,7 @@ namespace Weasel.Postgresql.SqlGeneration
 
                 for (int i = 0; i < array.Length; i++)
                 {
-                    strings[i] = array.GetValue(i).ToString();
+                    strings[i] = array.GetValue(i)!.ToString()!;
                 }
 
                 _values = strings;

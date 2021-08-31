@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Baseline;
 
@@ -10,7 +11,7 @@ namespace Weasel.SqlServer
             var searchString = content.Trim();
             if (searchString.Length == 0)
             {
-                return new string[0];
+                return Array.Empty<string>();
             }
 
             var parser = new TokenParser();
@@ -26,7 +27,7 @@ namespace Weasel.SqlServer
     public class TokenParser
     {
         private readonly List<string> _tokens = new();
-        private List<char> _characters;
+        private List<char> _characters = null!;
         private IMode _mode;
 
         public TokenParser()
@@ -45,7 +46,7 @@ namespace Weasel.SqlServer
         {
             _characters.Add(c);
         }
-
+      
         private void startToken(IMode mode)
         {
             _mode = mode;

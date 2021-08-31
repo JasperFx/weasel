@@ -39,7 +39,7 @@ namespace Weasel.SqlServer
 
     public abstract class SchemaObjectDelta<T> : ISchemaObjectDelta where T : ISchemaObject
     {
-        protected SchemaObjectDelta(T expected, T actual)
+        protected SchemaObjectDelta(T expected, T? actual)
         {
             if (expected == null)
             {
@@ -53,7 +53,7 @@ namespace Weasel.SqlServer
         }
 
         public T Expected { get; }
-        public T Actual { get; }
+        public T? Actual { get; }
 
         public ISchemaObject SchemaObject => Expected;
 
@@ -63,15 +63,15 @@ namespace Weasel.SqlServer
         public virtual void WriteRollback(DdlRules rules, TextWriter writer)
         {
             Expected.WriteDropStatement(rules, writer);
-            Actual.WriteCreateStatement(rules, writer);
+            Actual!.WriteCreateStatement(rules, writer);
         }
 
         public void WriteRestorationOfPreviousState(DdlRules rules, TextWriter writer)
         {
-            Actual.WriteCreateStatement(rules, writer);
+            Actual!.WriteCreateStatement(rules, writer);
         }
 
-        protected abstract SchemaPatchDifference compare(T expected, T actual);
+        protected abstract SchemaPatchDifference compare(T expected, T? actual);
     }
 
     public class SchemaObjectDelta : ISchemaObjectDelta

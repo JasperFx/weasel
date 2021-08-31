@@ -4,8 +4,6 @@ using System.Linq;
 using Baseline;
 using Weasel.Core;
 
-#nullable enable
-
 namespace Weasel.SqlServer.Tables
 {
     public class MisconfiguredForeignKeyException : Exception
@@ -51,7 +49,7 @@ namespace Weasel.SqlServer.Tables
                    OnDelete == other.OnDelete && OnUpdate == other.OnUpdate;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj))
             {

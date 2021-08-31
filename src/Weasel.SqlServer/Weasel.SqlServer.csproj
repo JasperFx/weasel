@@ -5,6 +5,7 @@
 
         <Description>SqlClient Helpers and SQL Server Schema Migration Tool, spin off of Marten</Description>
         <Version>0.9.9</Version>
+        <Nullable>Enable</Nullable>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
         <GenerateAssemblyProductAttribute>true</GenerateAssemblyProductAttribute>

@@ -5,6 +5,7 @@
 
         <Description>Npgsql Helpers and Postgresql Schema Migration Tool, spin off of Marten</Description>
         <Version>0.9.9</Version>
+        <Nullable>enable</Nullable>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
         <GenerateAssemblyProductAttribute>true</GenerateAssemblyProductAttribute>
@@ -17,7 +18,7 @@
 
     <ItemGroup>
       
-      <PackageReference Include="Npgsql" Version="5.0.4" />
+      <PackageReference Include="Npgsql" Version="5.0.7" />
     </ItemGroup>
 
     <!--SourceLink specific settings-->

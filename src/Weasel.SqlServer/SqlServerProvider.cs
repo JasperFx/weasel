@@ -5,7 +5,6 @@ using Baseline;
 using Baseline.ImTools;
 using Weasel.Core;
 
-#nullable enable
 namespace Weasel.SqlServer
 {
     public class SqlServerProvider : DatabaseProvider<SqlCommand, SqlParameter, SqlConnection, SqlTransaction,
@@ -72,7 +71,7 @@ namespace Weasel.SqlServer
 
         protected override Type[] determineClrTypesForParameterType(System.Data.SqlDbType dbType)
         {
-            return new Type[0];
+            return Type.EmptyTypes;
         }
 
 

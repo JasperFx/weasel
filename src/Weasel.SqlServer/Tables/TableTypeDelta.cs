@@ -5,7 +5,7 @@ namespace Weasel.SqlServer.Tables
 {
     public class TableTypeDelta : SchemaObjectDelta<TableType>
     {
-        public TableTypeDelta(TableType expected, TableType actual) : base(expected, actual)
+        public TableTypeDelta(TableType expected, TableType? actual) : base(expected, actual)
         {
         }
 
@@ -15,7 +15,7 @@ namespace Weasel.SqlServer.Tables
             Expected.WriteCreateStatement(rules, writer);
         }
 
-        protected override SchemaPatchDifference compare(TableType expected, TableType actual)
+        protected override SchemaPatchDifference compare(TableType expected, TableType? actual)
         {
             if (actual == null) return SchemaPatchDifference.Create;
             
