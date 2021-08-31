@@ -212,7 +212,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var index2 = IndexDefinition.Parse(
                 "CREATE INDEX idx_1 ON public.mt_doc_user USING gin ((data -> 'RoleIds') jsonb_path_ops)");
 
-            Assert.Equal(IndexDefinition.CanonicizeDdl(index1, table), IndexDefinition.CanonicizeDdl(index2, table));
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
     }
 }
