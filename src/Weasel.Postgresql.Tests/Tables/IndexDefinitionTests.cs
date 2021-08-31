@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Shouldly;
 using Weasel.Postgresql.Tables;
 using Xunit;
@@ -187,6 +188,8 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public void Can_roundtrip_from_instance_to_ddl_and_back()
         {
+            // (data->'RoleIds' jsonb_path_ops)
+            
             var expected = new IndexDefinition("idx_1").AgainstColumns("data->'RoleIds'");
             expected.ToGinWithJsonbPathOps();
 
@@ -195,7 +198,9 @@ namespace Weasel.Postgresql.Tests.Tables
             var parsed = IndexDefinition.Parse(ddl);
 
             expected.AssertMatches(parsed, table);
-            Assert.Equal(expected.Mask, parsed.Mask);
+            
+            parsed.Columns.Single().ShouldBe(expected.Columns.Single());
+            parsed.Mask.ShouldBe(expected.Mask);
         }
     }
 }
