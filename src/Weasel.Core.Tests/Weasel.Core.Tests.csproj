@@ -22,7 +22,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\src\Weasel.Core\Weasel.Core.csproj" />
+      <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
     </ItemGroup>
 
 </Project>
