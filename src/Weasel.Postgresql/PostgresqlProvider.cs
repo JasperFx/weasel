@@ -30,7 +30,7 @@ namespace Weasel.Postgresql
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(long), "bigint"));
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(Guid), "uuid"));
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(string), "varchar"));
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(float), "decimal"));
+            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(float), "real"));
 
             // Default Npgsql mapping is 'numeric' but we are using 'decimal'
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(decimal), "decimal"));
