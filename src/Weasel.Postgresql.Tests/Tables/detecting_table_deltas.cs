@@ -302,6 +302,14 @@ namespace Weasel.Postgresql.Tests.Tables
                 i.Columns = new[] {"CAST(data ->> 'SomeGuid' as uuid)"};
                 i.IsUnique = true;
             }));
+            
+            
+            yield return ("Jsonb property with multiple casts + unique", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Columns = new[] {"CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'OtherGuid' as uuid)"};
+                i.IsUnique = true;
+            }));
+
         }
 
 

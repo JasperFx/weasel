@@ -4,7 +4,7 @@
         <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
 
         <Description>Core Weasel types for ADO.Net helpers, spin off of Marten</Description>
-        <Version>1.0.0</Version>
+        <Version>1.0.1</Version>
         <Nullable>enable</Nullable>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>

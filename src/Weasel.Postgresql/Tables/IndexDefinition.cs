@@ -259,20 +259,20 @@ namespace Weasel.Postgresql.Tables
 
             }
 
+            index.Columns = expression.Split(',').Select(canonicizeColumn).ToArray();
+
+            return index;
+        }
+
+        private static string canonicizeColumn(string expression)
+        {
             expression = expression.Trim().Replace("::text", "");
             while (expression.StartsWith("(") && expression.EndsWith(")"))
             {
                 expression = expression.Substring(1, expression.Length - 2);
             }
 
-            index.Columns = new string[] {expression}; // This might be problematic
-            
-            for (int i = 0; i < index.Columns.Length; i++)
-            {
-                index.Columns[i] = CanonicizeCast(index.Columns[i]);
-            }
-
-            return index;
+            return CanonicizeCast(expression);
         }
 
         private static string removeSortOrderFromExpression(string expression, out SortOrder order)
