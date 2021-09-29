@@ -249,7 +249,12 @@ namespace Weasel.Postgresql.Tests.Tables
                 i.Predicate = "id > 5";
             }));
             
-            
+            yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
+            {
+                i.Mask = "(lower(?))";
+                i.Columns = new[] {"user_name"};
+                i.Predicate = "user_name is not null";
+            }));
             
             yield return ("Simple btree + desc", t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
             yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true));

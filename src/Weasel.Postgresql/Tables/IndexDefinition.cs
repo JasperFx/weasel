@@ -320,10 +320,12 @@ namespace Weasel.Postgresql.Tables
                     .Replace("  ", " ")
                     .Replace("(", "")
                     .Replace(")", "")
+                    .Replace("IS NOT NULL", "is not null")
                     .Replace("INDEX CONCURRENTLY", "INDEX")
                     .Replace("::text", "")
                     .Replace(" ->> ", "->>")
                     .Replace(" -> ", "->").TrimEnd(new[] {';'})
+                    .ToLowerInvariant()
                 ;
         }
     }
