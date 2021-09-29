@@ -202,6 +202,18 @@ namespace Weasel.Postgresql.Tests.Tables
             parsed.Columns.Single().ShouldBe(expected.Columns.Single());
             parsed.Mask.ShouldBe(expected.Mask);
         }
+
+        [Theory]
+        [InlineData("column1", "column1")]
+        [InlineData("column1::uuid", "CAST(column1 as uuid)")]
+        [InlineData("CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'SomeGuid' as uuid)")]
+        [InlineData("((data ->> 'SomeGuid'))::uuid", "CAST(data ->> 'SomeGuid' as uuid)")]
+        [InlineData("((data  ->> 'SomeGuid'))::uuid", "CAST(data ->> 'SomeGuid' as uuid)")]
+        [InlineData("(data  ->> 'SomeGuid')::uuid", "CAST(data ->> 'SomeGuid' as uuid)")]
+        public void canonicize_cast(string actual, string expected)
+        {
+            IndexDefinition.CanonicizeCast(actual).ShouldBe(expected);
+        }
         
         [Fact]
         public void Bug30()

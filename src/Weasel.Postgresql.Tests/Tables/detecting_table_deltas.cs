@@ -261,7 +261,7 @@ namespace Weasel.Postgresql.Tests.Tables
             yield return ("btree + concurrent", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
                 i.IsConcurrent = true;
-
+            
             }));
             
             yield return ("btree + concurrent + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
@@ -282,7 +282,7 @@ namespace Weasel.Postgresql.Tests.Tables
                 i.Columns = new[] {"(data ->> 'Name')"};
                 i.IsUnique = true;
             }));
-
+            
             yield return ("Jsonb property with function", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"lower(data ->> 'Name')"}));
             yield return ("Jsonb property with function + unique", t => t.ModifyColumn("data").AddIndex(i =>
             {
@@ -293,6 +293,13 @@ namespace Weasel.Postgresql.Tests.Tables
             {
                 i.Mask = "lower(?)";
                 i.Columns = new[] {"(data ->> 'Name')"};
+                i.IsUnique = true;
+            }));
+            
+            yield return ("Jsonb property with cast", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"CAST(data ->> 'SomeGuid' as uuid)"}));
+            yield return ("Jsonb property with cast + unique", t => t.ModifyColumn("data").AddIndex(i =>
+            {
+                i.Columns = new[] {"CAST(data ->> 'SomeGuid' as uuid)"};
                 i.IsUnique = true;
             }));
         }

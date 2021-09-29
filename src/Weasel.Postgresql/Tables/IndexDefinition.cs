@@ -83,9 +83,9 @@ namespace Weasel.Postgresql.Tables
         /// </summary>
         public string? Predicate { get; set; }
 
+        
         public string ToDDL(Table parent)
         {
-
             var builder = new StringBuilder();
 
             builder.Append("CREATE ");
@@ -96,8 +96,6 @@ namespace Weasel.Postgresql.Tables
             if (IsConcurrent) builder.Append("CONCURRENTLY ");
 
             builder.Append(Name);
-
-            
 
             builder.Append(" ON ");
             builder.Append(parent.Identifier);
@@ -128,7 +126,19 @@ namespace Weasel.Postgresql.Tables
 
             return builder.ToString();
         }
-        
+
+        public static string CanonicizeCast(string column)
+        {
+            if (!column.Contains("::")) return column;
+
+            var index = column.IndexOf("::");
+            var type = column.Substring(index + 2);
+            var expression = column.Substring(0, index).Trim().TrimStart('(').TrimEnd(')').Replace("  ", " ");
+
+            return $"CAST({expression} as {type})";
+
+        }
+
         /// <summary>
         /// Set a non-default fill factor on this index
         /// </summary>
@@ -245,6 +255,8 @@ namespace Weasel.Postgresql.Tables
                     default:
                         throw new NotImplementedException("NOT YET DEALING WITH " + current);
                 }
+
+
             }
 
             expression = expression.Trim().Replace("::text", "");
@@ -254,6 +266,11 @@ namespace Weasel.Postgresql.Tables
             }
 
             index.Columns = new string[] {expression}; // This might be problematic
+            
+            for (int i = 0; i < index.Columns.Length; i++)
+            {
+                index.Columns[i] = CanonicizeCast(index.Columns[i]);
+            }
 
             return index;
         }
