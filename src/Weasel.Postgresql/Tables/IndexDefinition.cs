@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -13,6 +15,7 @@ namespace Weasel.Postgresql.Tables
         private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
         
         private string? _indexName;
+        private string? _customIndexMethod;
 
         public IndexDefinition(string indexName)
         {
@@ -47,6 +50,16 @@ namespace Weasel.Postgresql.Tables
         }
 
         public IndexMethod Method { get; set; } = IndexMethod.btree;
+
+        public string? CustomMethod
+        {
+            get => Method == IndexMethod.custom ? _customIndexMethod ?? Method.ToString() : null;
+            set
+            {
+                Method = IndexMethod.custom;
+                _customIndexMethod = value;
+            }
+        }
 
         public SortOrder SortOrder { get; set; } = SortOrder.Asc;
 
@@ -100,7 +113,7 @@ namespace Weasel.Postgresql.Tables
             builder.Append(" ON ");
             builder.Append(parent.Identifier);
             builder.Append(" USING ");
-            builder.Append(Method);
+            builder.Append(Method == IndexMethod.custom ? CustomMethod : Method);
             builder.Append(" ");
             builder.Append(correctedExpression());
 
@@ -116,9 +129,22 @@ namespace Weasel.Postgresql.Tables
                 builder.Append($"({Predicate})");
             }
 
-            if (FillFactor.HasValue)
+            if (StorageParameters.Count > 0)
             {
-                builder.Append($" WITH (fillfactor='{FillFactor}')");
+                builder.Append(" WITH (");
+
+                foreach (DictionaryEntry entry in StorageParameters)
+                {
+                    builder.Append(entry.Key);
+                    builder.Append('=');
+                    builder.Append("'");
+                    builder.Append(entry.Value);
+                    builder.Append("'");
+                    builder.Append(", ");
+                }
+
+                builder.Length -= 2;
+                builder.Append(")");
             }
 
             builder.Append(";");
@@ -142,7 +168,13 @@ namespace Weasel.Postgresql.Tables
         /// <summary>
         /// Set a non-default fill factor on this index
         /// </summary>
-        public int? FillFactor { get; set; }
+        public int? FillFactor 
+        {
+            get => StorageParameters["fillfactor"] as int?;
+            set => StorageParameters["fillfactor"] = value;
+        }
+
+        public OrderedDictionary StorageParameters { get; set; } = new();
 
         private string correctedExpression()
         {
@@ -216,6 +248,10 @@ namespace Weasel.Postgresql.Tables
                         {
                             index.Method = method;
                         }
+                        else
+                        {
+                            index.CustomMethod = methodName;
+                        }
 
                         expression = tokens.Dequeue();
                         expression = removeSortOrderFromExpression(expression, out var order);
@@ -259,17 +295,20 @@ namespace Weasel.Postgresql.Tables
                         break;
                     
                     case "WITH":
-                        var factor = tokens.Dequeue().TrimStart('(').TrimEnd(')');
-                        var parts = factor.Split('=');
+                        var storageParameters = getStorageParameters(tokens.Dequeue());
 
-                        if (parts[0].Trim().EqualsIgnoreCase("fillfactor"))
+                        foreach (var parameter in storageParameters)
                         {
-                            index.FillFactor = int.Parse(parts[1].TrimStart('\'').TrimEnd('\''));
-                        }
-                        else
-                        {
-                            throw new NotSupportedException(
-                                $"Weasel does not yet support the '{parts[0]}' storage parameter");
+                            var parts = parameter.Split('=');
+
+                            if (parts[0].Trim().EqualsIgnoreCase("fillfactor"))
+                            {
+                                index.FillFactor = int.Parse(parts[1].TrimStart('\'').TrimEnd('\'').Trim());
+                            }
+                            else
+                            {
+                                index.StorageParameters[parts[0]] = parts[1].TrimStart('\'').TrimEnd('\'').Trim();
+                            }
                         }
 
                         break;
@@ -291,6 +330,76 @@ namespace Weasel.Postgresql.Tables
             }
 
             return index;
+        }
+
+        private static IEnumerable<string> getStorageParameters(string rawInput)
+        {
+            rawInput = rawInput.TrimStart('(').TrimEnd(')');
+
+            var builder = new StringBuilder(rawInput.Length);
+            
+            bool inQuotes = false;
+
+            for (var i = 0; i < rawInput.Length; i++)
+            {
+                var chr = rawInput[i];
+                var nextChr = '\0';
+
+                if (i + 1 < rawInput.Length)
+                {
+                    nextChr = rawInput[i + 1];
+                }
+
+                switch (chr)
+                {
+                    case '\'':
+                        if (inQuotes)
+                        {
+                            if (nextChr == '\'')
+                            {
+                                builder.Append(chr);
+                                i++;
+                                continue;
+                            }
+
+                            if (nextChr != ',' && nextChr != '\0')
+                            {
+                                throw new ArgumentException(
+                                    $"Invalid storage parameters: {rawInput}",
+                                    nameof(rawInput));
+                            }
+
+                            inQuotes = false;
+                            builder.Append(chr);
+                            continue;
+                        }
+                        
+                        inQuotes = true;
+                        builder.Append(chr);
+                        continue;
+                    
+                    case ',':
+                        if (inQuotes)
+                        {
+                            builder.Append(chr);
+                            continue;
+                        }
+
+                        yield return builder.ToString();
+                        builder.Clear();
+                        i++;
+                        continue;
+
+                    default:
+                        builder.Append(chr);
+                        break;
+                }
+            }
+            
+            if (builder.Length > 0)
+            {
+                yield return builder.ToString();
+            }
         }
 
         private static string canonicizeColumn(string expression)

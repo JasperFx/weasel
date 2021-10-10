@@ -6,6 +6,7 @@ namespace Weasel.Postgresql.Tables
         hash,
         gist,
         gin,
-        brin
+        brin,
+        custom
     }
 }
