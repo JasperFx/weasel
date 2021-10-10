@@ -248,5 +248,24 @@ namespace Weasel.Postgresql.Tests.Tables
 
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
+
+        [Fact]
+        public void Bug36_custom_storage_parameters_and_custom_method()
+        {
+            var table = new Table("mt_doc_user");
+
+            var ddl =
+                "CREATE INDEX idx_1 ON public.mt_doc_user USING pgroonga ((data->'RoleIds') pgroonga_text_full_text_search_ops_v2) WITH (normalizers='NormalizerNFKC100(\"unify_kana\", true)', tokenizer='MeCab', test = 1)";
+            var index = IndexDefinition.Parse(ddl);
+            var expectedCanonicalizedDdl = IndexDefinition.CanonicizeDdl(index, table);
+            
+            index.Method.ShouldBe(IndexMethod.custom);
+            index.CustomMethod.ShouldBe("pgroonga");
+            index.StorageParameters.Count.ShouldBe(3);
+            index.StorageParameters["normalizers"].ShouldBe("NormalizerNFKC100(\"unify_kana\", true)");
+
+            var canonicalizedDdl = IndexDefinition.CanonicizeDdl(index, table);
+            canonicalizedDdl.ShouldBe(expectedCanonicalizedDdl);
+        }
     }
 }
