@@ -185,7 +185,7 @@ namespace Weasel.SqlServer.Tables
 
         public TableColumn? ColumnFor(string columnName)
         {
-            return Columns.FirstOrDefault(x => x.Name == columnName);
+            return Columns.FirstOrDefault(x => x.Name.EqualsIgnoreCase(columnName));
         }
 
 

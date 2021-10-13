@@ -116,7 +116,7 @@ namespace Weasel.SqlServer.Tables
 
         public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
         {
-            return $"alter table {table.Identifier} alter column {Name.PadRight(Name.Length)} type {Type};";
+            return $"alter table {table.Identifier} modify column {Name.PadRight(Name.Length)} type {Type};";
         }
 
         public string DropColumnSql(Table table)
@@ -179,11 +179,11 @@ namespace Weasel.SqlServer.Tables
     {
         // GENERATED ALWAYS AS ( generation_expr ) STORED
     }
-    
+
     public class GeneratedAsIdentity : ColumnCheck
     {
         // GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY [ ( sequence_options ) ]
     }
-    
+
     */
 }
