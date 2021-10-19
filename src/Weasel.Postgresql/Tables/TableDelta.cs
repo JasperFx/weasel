@@ -37,6 +37,10 @@ namespace Weasel.Postgresql.Tables
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Create;
             }
+            else if (actual.PrimaryKeyName != expected.PrimaryKeyName)
+            {
+                PrimaryKeyDifference = SchemaPatchDifference.Update;
+            }
             else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Update;
