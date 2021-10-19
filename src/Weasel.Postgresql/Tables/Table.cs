@@ -143,8 +143,6 @@ namespace Weasel.Postgresql.Tables
             }
         }
         
-        
-
         internal string PrimaryKeyDeclaration()
         {
             return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
@@ -180,8 +178,7 @@ namespace Weasel.Postgresql.Tables
         {
             return Indexes.FirstOrDefault(x => x.Name == indexName);
         }
-
-
+        
         public IEnumerable<DbObjectName> AllNames()
         {
             yield return Identifier;
