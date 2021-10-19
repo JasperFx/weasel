@@ -1,10 +1,8 @@
-using System;
+using Npgsql;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
-using Baseline;
-using Npgsql;
 
 namespace Weasel.Postgresql.Tables
 {
@@ -174,7 +172,6 @@ order by column_index;
                 existing._columns.Add(column);
             }
         }
-
         private static async Task<TableColumn> readColumn(DbDataReader reader)
         {
             var column = new TableColumn(await reader.GetFieldValueAsync<string>(0),
@@ -193,7 +190,6 @@ order by column_index;
 
             return column;
         }
-
         private async Task readConstraints(DbDataReader reader, Table existing)
         {
             await reader.NextResultAsync();
@@ -218,7 +214,11 @@ order by column_index;
                     continue;
                 
                 var isPrimary = await reader.GetFieldValueAsync<bool>(6);
-                if (isPrimary) continue;
+                if (isPrimary)
+                {
+                    existing.PrimaryKeyName = await reader.GetFieldValueAsync<string>(3);
+                    continue;
+                }
 
                 var schemaName = await reader.GetFieldValueAsync<string>(1);
                 var tableName = await reader.GetFieldValueAsync<string>(2);
@@ -244,9 +244,5 @@ order by column_index;
             }
             return pks;
         }
-
-        
-    }
-    
-    
+    }    
 }
