@@ -1,9 +1,7 @@
-using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
-using Baseline;
 using Npgsql;
 
 namespace Weasel.Postgresql.Tables
@@ -20,9 +18,10 @@ select column_name, data_type, character_maximum_length, udt_name
 from information_schema.columns where table_schema = :{schemaParam} and table_name = :{nameParam}
 order by ordinal_position;
 
-select a.attname, format_type(a.atttypid, a.atttypmod) as data_type
+select a.attname, format_type(a.atttypid, a.atttypmod) as data_type, c.relname as pk_name
 from pg_index i
 join   pg_attribute a on a.attrelid = i.indrelid and a.attnum = ANY(i.indkey)
+join   pg_class c on c.oid = i.indexrelid
 where attrelid = (select pg_class.oid
                   from pg_class
                   join pg_catalog.pg_namespace n ON n.oid = pg_class.relnamespace
@@ -130,10 +129,11 @@ order by column_index;
             await readIndexes(reader, existing);
             await readConstraints(reader, existing);
 
-            foreach (var pkColumn in pks)
+            foreach (var pkColumn in pks.Columns)
             {
                 existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
             }
+            existing.PrimaryKeyName = pks.PrimaryKeyName!;
 
             if (PartitionStrategy != PartitionStrategy.None)
             {
@@ -234,15 +234,18 @@ order by column_index;
             }
         }
         
-        private static async Task<List<string>> readPrimaryKeys(DbDataReader reader)
+        private static async Task<(string? PrimaryKeyName, List<string> Columns)> readPrimaryKeys(DbDataReader reader)
         {
             var pks = new List<string>();
+            string? primaryKeyName = null;
             await reader.NextResultAsync();
             while (await reader.ReadAsync())
             {
-                pks.Add(await reader.GetFieldValueAsync<string>(0));
+                var columnName = await reader.GetFieldValueAsync<string>(0);
+                primaryKeyName ??= await reader.GetFieldValueAsync<string>(2);
+                pks.Add(columnName);
             }
-            return pks;
+            return (primaryKeyName, pks);
         }
 
         
