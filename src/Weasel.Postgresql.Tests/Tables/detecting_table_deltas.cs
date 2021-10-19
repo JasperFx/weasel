@@ -509,7 +509,25 @@ namespace Weasel.Postgresql.Tests.Tables
             
             await AssertNoDeltasAfterPatching(theTable);
         }
-        
+
+
+        [Fact]
+        public async Task detect_new_primary_key_constraint_name_change()
+        {
+            await CreateSchemaObjectInDatabase(theTable);
+
+            theTable.PrimaryKeyName = "pk_newchange";
+
+            var delta = await theTable.FindDelta(theConnection);
+
+            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+
+            delta.HasChanges().ShouldBeTrue();
+
+            await AssertNoDeltasAfterPatching(theTable);
+        }
+
+
         [Fact]
         public async Task equivalency_with_the_postgres_synonym_issue()
         {
