@@ -22,13 +22,19 @@ jobs:
       with:
           PROJECT_FILE_PATH: src/Weasel.Core/Weasel.Core.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+          TAG_FORMAT: Weasel.v*
+          INCLUDE_SYMBOLS: true
     - name: Publish Weasel.Postgresql
       uses: brandedoutcast/publish-nuget@v2.5.2
       with:
           PROJECT_FILE_PATH: src/Weasel.Postgresql/Weasel.Postgresql.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+          TAG_FORMAT: Weasel.Postgresql.v*
+          INCLUDE_SYMBOLS: true
     - name: Publish Weasel.SqlServer
       uses: brandedoutcast/publish-nuget@v2.5.2
       with:
           PROJECT_FILE_PATH: src/Weasel.SqlServer/Weasel.SqlServer.csproj
           NUGET_KEY: ${{secrets.NUGET_API_KEY}}
+          TAG_FORMAT: Weasel.SqlServer.v*
+          INCLUDE_SYMBOLS: true
