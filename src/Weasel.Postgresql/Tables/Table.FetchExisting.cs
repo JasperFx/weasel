@@ -12,6 +12,7 @@ namespace Weasel.Postgresql.Tables
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
+            var nameWithSchemaParam = builder.AddParameter(Identifier.QualifiedName).ParameterName;
 
             builder.Append($@"
 select column_name, data_type, character_maximum_length, udt_name
@@ -27,34 +28,38 @@ where attrelid = (select pg_class.oid
                   where n.nspname = :{schemaParam} and relname = :{nameParam})
 and i.indisprimary;
 
-SELECT
-  R.rolname                AS user_name,
-  ns.nspname               AS schema_name,
-  pg_catalog.textin(pg_catalog.regclassout(idx.indrelid :: REGCLASS)) AS table_name,
-  i.relname                AS index_name,
-  pg_get_indexdef(i.oid) as ddl,
-  idx.indisunique          AS is_unique,
-  idx.indisprimary         AS is_primary,
-  am.amname                AS index_type,
-  idx.indkey,
-       ARRAY(
-           SELECT pg_get_indexdef(idx.indexrelid, k + 1, TRUE)
-           FROM
-             generate_subscripts(idx.indkey, 1) AS k
-           ORDER BY k
-       ) AS index_keys,
-  (idx.indexprs IS NOT NULL) OR (idx.indkey::int[] @> array[0]) AS is_functional,
-  idx.indpred IS NOT NULL AS is_partial
-FROM pg_index AS idx
-  JOIN pg_class AS i
-    ON i.oid = idx.indexrelid
-  JOIN pg_am AS am
-    ON i.relam = am.oid
-  JOIN pg_namespace AS NS ON i.relnamespace = NS.OID
-  JOIN pg_roles AS R ON i.relowner = r.oid
-WHERE
-  nspname = :{schemaParam} AND
-  NOT nspname LIKE 'pg%';
+SELECT *
+FROM (
+    SELECT
+      R.rolname                AS user_name,
+      ns.nspname               AS schema_name,
+      pg_catalog.textin(pg_catalog.regclassout(idx.indrelid :: REGCLASS)) AS table_name,
+      i.relname                AS index_name,
+      pg_get_indexdef(i.oid) as ddl,
+      idx.indisunique          AS is_unique,
+      idx.indisprimary         AS is_primary,
+      am.amname                AS index_type,
+      idx.indkey,
+           ARRAY(
+               SELECT pg_get_indexdef(idx.indexrelid, k + 1, TRUE)
+               FROM
+                 generate_subscripts(idx.indkey, 1) AS k
+               ORDER BY k
+           ) AS index_keys,
+      (idx.indexprs IS NOT NULL) OR (idx.indkey::int[] @> array[0]) AS is_functional,
+      idx.indpred IS NOT NULL AS is_partial
+    FROM pg_index AS idx
+      JOIN pg_class AS i
+        ON i.oid = idx.indexrelid
+      JOIN pg_am AS am
+        ON i.relam = am.oid
+      JOIN pg_namespace AS NS ON i.relnamespace = NS.OID
+      JOIN pg_roles AS R ON i.relowner = r.oid
+    WHERE
+      nspname = :{schemaParam} AND
+      NOT nspname LIKE 'pg%'
+) ind
+WHERE ind.table_name = :{(Identifier.Schema == "public" ? nameParam : nameWithSchemaParam)};
 
 SELECT c.conname                                     AS constraint_name,
        c.contype                                     AS constraint_type,
