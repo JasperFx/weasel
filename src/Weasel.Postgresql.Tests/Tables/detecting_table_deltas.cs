@@ -1,10 +1,9 @@
+using Baseline;
+using Shouldly;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Baseline;
-using Castle.Components.DictionaryAdapter;
-using Shouldly;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -32,8 +31,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theTable.AddColumn<string>("first_name");
             theTable.AddColumn<string>("last_name");
             theTable.AddColumn<string>("user_name");
-            theTable.AddColumn("data", "jsonb");
-            
+            theTable.AddColumn("data", "jsonb");            
             
             ResetSchema().GetAwaiter().GetResult();
         }
@@ -121,8 +119,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
             
             await AssertNoDeltasAfterPatching();
-        }
-        
+        }        
 
         [Fact]
         public async Task detect_new_index()
@@ -140,7 +137,6 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
             
             await AssertNoDeltasAfterPatching();
-
         }
         
         [Fact]
@@ -188,7 +184,6 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public async Task detect_extra_index()
         {
-
             theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
             await CreateSchemaObjectInDatabase(theTable);
 
@@ -217,7 +212,6 @@ namespace Weasel.Postgresql.Tests.Tables
             
             // The index DDL should match what the database thinks it is in order to match
 
-
             var expected = existing!.Indexes.Single();
             var actual = theTable.Indexes.Single();
             
@@ -226,7 +220,6 @@ namespace Weasel.Postgresql.Tests.Tables
             // And no deltas
             var delta = await theTable.FindDelta(theConnection);
             delta.Indexes.Matched.Count.ShouldBe(1);
-
         }
 
         public static IEnumerable<object[]> IndexTestData()
@@ -312,7 +305,6 @@ namespace Weasel.Postgresql.Tests.Tables
 
         }
 
-
         [Fact]
         public async Task detect_all_new_foreign_key()
         {
@@ -374,8 +366,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
             await AssertNoDeltasAfterPatching(table);
-        }
-        
+        }        
                 
         [Fact]
         public async Task match_foreign_key()
@@ -407,8 +398,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
             
             await AssertNoDeltasAfterPatching(table);
-        }
-        
+        }        
 
         [Fact]
         public async Task match_foreign_key_with_inherited_foreign_key_class()
@@ -487,8 +477,7 @@ namespace Weasel.Postgresql.Tests.Tables
             delta.HasChanges().ShouldBeTrue();
             
             await AssertNoDeltasAfterPatching(theTable);
-        }
-        
+        }        
         
         [Fact]
         public async Task detect_new_primary_key_change()
@@ -510,7 +499,6 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching(theTable);
         }
 
-
         [Fact]
         public async Task detect_new_primary_key_constraint_name_change()
         {
@@ -527,6 +515,31 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching(theTable);
         }
 
+        [Fact]
+        public async Task detect_new_primary_key_constraint_name_change_when_also_used_as_foreign_key()
+        {
+            var dudeTable = new Table("deltas.dudes");
+            dudeTable.AddColumn<int>("id").AsPrimaryKey();
+            dudeTable.AddColumn<string>("first_name");
+
+            await CreateSchemaObjectInDatabase(dudeTable);
+
+            var carTable = new Table("deltas.cars");
+            carTable.AddColumn<int>("id").AsPrimaryKey();
+            carTable.AddColumn<int>("dude_id").ForeignKeyTo(dudeTable, "id");
+
+            await CreateSchemaObjectInDatabase(carTable);
+
+            dudeTable.PrimaryKeyName = "pk_newchange";
+
+            var delta = await dudeTable.FindDelta(theConnection);
+
+            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+
+            delta.HasChanges().ShouldBeTrue();
+
+            await AssertNoDeltasAfterPatching(dudeTable);
+        }
 
         [Fact]
         public async Task equivalency_with_the_postgres_synonym_issue()
@@ -579,7 +592,5 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await AssertNoDeltasAfterPatching(table);
         }
-        
-
     }
 }
