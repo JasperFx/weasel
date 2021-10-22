@@ -113,6 +113,12 @@ namespace Weasel.Postgresql.Tables
             {
                 case SchemaPatchDifference.Invalid:
                 case SchemaPatchDifference.Update:
+                    if (Expected.PrimaryKeyColumns.SequenceEqual(Actual?.PrimaryKeyColumns))
+                    {
+                        //for when PK constraint name changes only
+                        writer.WriteLine($"alter table {Expected.Identifier} rename constraint {Actual!.PrimaryKeyName} to {Expected.PrimaryKeyName};");
+                        break;
+                    }
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName};");
                     writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                     break;
