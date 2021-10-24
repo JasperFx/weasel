@@ -80,7 +80,6 @@ namespace Weasel.Postgresql.Tables
                 writer.WriteLine(column.AddColumnSql(Expected));
             }
             
-            
             // Different columns
             foreach (var change1 in Columns.Different)
             {
@@ -100,20 +99,18 @@ namespace Weasel.Postgresql.Tables
             {
                 writer.WriteLine(change.Expected.ToDDL(Expected));
             }
-
-
+            
             // Extra columns
             foreach (var column in Columns.Extras)
             {
                 writer.WriteLine(column.DropColumnSql(Expected));
             }
 
-
             switch (PrimaryKeyDifference)
             {
                 case SchemaPatchDifference.Invalid:
                 case SchemaPatchDifference.Update:
-                    if (Expected.PrimaryKeyColumns.SequenceEqual(Actual?.PrimaryKeyColumns))
+                    if (Expected.PrimaryKeyColumns.SequenceEqual(Actual!.PrimaryKeyColumns))
                     {
                         //for when PK constraint name changes only
                         writer.WriteLine($"alter table {Expected.Identifier} rename constraint {Actual!.PrimaryKeyName} to {Expected.PrimaryKeyName};");
@@ -196,8 +193,6 @@ namespace Weasel.Postgresql.Tables
                 foreignKey.WriteAddStatement(Expected, writer);
             }
 
-
-
             switch (PrimaryKeyDifference)
             {
                 case SchemaPatchDifference.Invalid:
@@ -264,7 +259,7 @@ namespace Weasel.Postgresql.Tables
                 return SchemaPatchDifference.Invalid;
             }
 
-            var differences = new SchemaPatchDifference[]
+            var differences = new[]
             {
                 Columns.Difference(),
                 ForeignKeys.Difference(),
@@ -291,6 +286,5 @@ namespace Weasel.Postgresql.Tables
         {
             return $"TableDelta for {Expected.Identifier}";
         }
-
     }
 }

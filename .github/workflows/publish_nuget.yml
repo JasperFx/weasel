@@ -13,28 +13,24 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.x
+
     - name: Install dependencies
       run: dotnet restore
+
     - name: Build
       run: dotnet build --configuration Release --no-restore
-    - name: Publish Weasel.Core
-      uses: brandedoutcast/publish-nuget@v2.5.5
-      with:
-          PROJECT_FILE_PATH: src/Weasel.Core/Weasel.Core.csproj
-          NUGET_KEY: ${{secrets.NUGET_API_KEY}}
-          TAG_FORMAT: Weasel.v*
-          INCLUDE_SYMBOLS: true
-    - name: Publish Weasel.Postgresql
-      uses: brandedoutcast/publish-nuget@v2.5.5
-      with:
-          PROJECT_FILE_PATH: src/Weasel.Postgresql/Weasel.Postgresql.csproj
-          NUGET_KEY: ${{secrets.NUGET_API_KEY}}
-          TAG_FORMAT: Weasel.Postgresql.v*
-          INCLUDE_SYMBOLS: true
-    - name: Publish Weasel.SqlServer
-      uses: brandedoutcast/publish-nuget@v2.5.5
-      with:
-          PROJECT_FILE_PATH: src/Weasel.SqlServer/Weasel.SqlServer.csproj
-          NUGET_KEY: ${{secrets.NUGET_API_KEY}}
-          TAG_FORMAT: Weasel.SqlServer.v*
-          INCLUDE_SYMBOLS: true
+      
+    - name: Pack Weasel.Core
+      run: dotnet pack ./src/Weasel.Core/Weasel.Core.csproj -o ./artifacts --configuration Release --no-build
+      
+    - name: Pack Weasel.Postgresql
+      run: dotnet pack ./src/Weasel.Postgresql/Weasel.Postgresql.csproj -o ./artifacts --configuration Release --no-build
+      
+    - name: Pack Weasel.SqlServer
+      run: dotnet pack ./src/Weasel.SqlServer/Weasel.SqlServer.csproj -o ./artifacts --configuration Release --no-build
+    
+    - name: Publish to NuGet
+      run: |
+        find . -name '*.nupkg' -exec dotnet nuget push "{}" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_API_KEY }} --skip-duplicate \;
+        # find . -name '*.snupkg' -exec dotnet nuget push "{}" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_API_KEY }} \;
+      shell: bash
