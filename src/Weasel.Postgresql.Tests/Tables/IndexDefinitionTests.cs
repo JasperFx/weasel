@@ -226,5 +226,27 @@ namespace Weasel.Postgresql.Tests.Tables
 
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
+
+        [Fact]
+        public void ensure_proper_delta_check_for_full_text_index_definition_between_db_and_instance()
+        {
+            var table = new Table("mt_doc_user");
+            // full text index as fetched from db schema
+            // note that the value from db has some differences
+            // 1) it has `::regconfig`
+            // 2)right number of brackets
+            // 3)right spacing between terms
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX mt_doc_user_idx_fts ON fulltext.mt_doc_user USING gin (to_tsvector('english'::regconfig, data))");
+
+            // full text index created by our system
+            // system generated has the following
+            // does not contain ::regconfig
+            // has more brackets and additional spacing between terms
+            var index2 = IndexDefinition.Parse("CREATE INDEX mt_doc_user_idx_fts ON fulltext.mt_doc_user USING gin (( to_tsvector('english', data) ))");
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
     }
 }
