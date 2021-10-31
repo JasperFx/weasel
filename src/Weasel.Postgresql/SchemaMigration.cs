@@ -33,14 +33,14 @@ namespace Weasel.Postgresql
                 schemaObject.ConfigureQueryCommand(builder);
             }
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
-            
-            deltas.Add(await schemaObjects[0].CreateDelta(reader));
-            
+            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+
+            deltas.Add(await schemaObjects[0].CreateDelta(reader).ConfigureAwait(false));
+
             for (var i = 1; i < schemaObjects.Length; i++)
             {
-                await reader.NextResultAsync();
-                deltas.Add(await schemaObjects[i].CreateDelta(reader));
+                await reader.NextResultAsync().ConfigureAwait(false);
+                deltas.Add(await schemaObjects[i].CreateDelta(reader).ConfigureAwait(false));
             }
 
             return new SchemaMigration(deltas);
@@ -117,7 +117,7 @@ namespace Weasel.Postgresql
             try
             {
                 await cmd
-                    .ExecuteNonQueryAsync();
+                    .ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception e)
             {

@@ -247,8 +247,8 @@ namespace Weasel.Postgresql.Tables
                 .With("table", Identifier.Name)
                 .With("schema", Identifier.Schema);
 
-            await using var reader = await cmd.ExecuteReaderAsync();
-            var any = await reader.ReadAsync();
+            using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+            var any = await reader.ReadAsync().ConfigureAwait(false);
             return any;
         }
 

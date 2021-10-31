@@ -8,13 +8,13 @@ namespace Weasel.SqlServer.Tables
     {
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            var existing = await readExisting(reader);
+            var existing = await readExisting(reader).ConfigureAwait(false);
             return new TableDelta(this, existing);
         }
 
         public async Task<TableDelta> FindDelta(SqlConnection conn)
         {
-            var actual = await FetchExisting(conn);
+            var actual = await FetchExisting(conn).ConfigureAwait(false);
             return new TableDelta(this, actual);
         }
     }

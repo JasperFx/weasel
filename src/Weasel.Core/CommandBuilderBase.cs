@@ -69,7 +69,7 @@ namespace Weasel.Core
             cmd.Connection = conn;
             cmd.Transaction = tx;
 
-            return (TDataReader) await cmd.ExecuteReaderAsync(cancellation);
+            return (TDataReader) await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
         }
 
         public async Task<IReadOnlyList<T>> FetchList<T>(TConnection conn, Func<DbDataReader, Task<T>> transform,
@@ -81,10 +81,10 @@ namespace Weasel.Core
             
             var list = new List<T>();
 
-            using var reader = await cmd.ExecuteReaderAsync(cancellation);
-            while (await reader.ReadAsync(cancellation))
+            using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellation).ConfigureAwait(false))
             {
-                list.Add(await transform(reader));
+                list.Add(await transform(reader).ConfigureAwait(false));
             }
 
             return list;

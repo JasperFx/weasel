@@ -80,7 +80,7 @@ order by
 
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            var existing = await readExisting(reader);
+            var existing = await readExisting(reader).ConfigureAwait(false);
             return new TableTypeDelta(this, existing);
         }
 
@@ -158,24 +158,24 @@ order by
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
-            return await readExisting(reader);
+            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+            return await readExisting(reader).ConfigureAwait(false);
         }
 
         public async Task<TableTypeDelta> FindDelta(SqlConnection conn)
         {
-            var actual = await FetchExisting(conn);
+            var actual = await FetchExisting(conn).ConfigureAwait(false);
             return new TableTypeDelta(this, actual);
         }
 
         private async Task<TableType?> readExisting(DbDataReader reader)
         {
             var existing = new TableType(Identifier);
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
-                var column = new TableTypeColumn(await reader.GetFieldValueAsync<string>(0),
-                    await reader.GetFieldValueAsync<string>(1));
-                column.AllowNulls = await reader.GetFieldValueAsync<bool>(2);
+                var column = new TableTypeColumn(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
+                    await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
+                column.AllowNulls = await reader.GetFieldValueAsync<bool>(2).ConfigureAwait(false);
                 
                 existing._columns.Add(column);
             }

@@ -82,15 +82,15 @@ where
 
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            var existing = await readExisting(reader);
+            var existing = await readExisting(reader).ConfigureAwait(false);
             return new StoredProcedureDelta(this, existing);
         }
 
         private async Task<StoredProcedure?> readExisting(DbDataReader reader)
         {
-            if (await reader.ReadAsync())
+            if (await reader.ReadAsync().ConfigureAwait(false))
             {
-                var body = await reader.GetFieldValueAsync<string>(0);
+                var body = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
                 return new StoredProcedure(Identifier, body);
             }
 
@@ -126,15 +126,15 @@ where
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
-            return await readExisting(reader);
+            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+            return await readExisting(reader).ConfigureAwait(false);
         }
 
 
         
         public async Task<StoredProcedureDelta> FindDelta(SqlConnection conn)
         {
-            var actual = await FetchExisting(conn);
+            var actual = await FetchExisting(conn).ConfigureAwait(false);
             return new StoredProcedureDelta(this, actual);
         }
 

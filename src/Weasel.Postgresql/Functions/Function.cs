@@ -115,30 +115,30 @@ AND    n.nspname = :{schemaParam};
 
             ConfigureQueryCommand(builder);
 
-            await using var reader = await builder.ExecuteReaderAsync(conn);
-            return await readExisting(reader);
+            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+            return await readExisting(reader).ConfigureAwait(false);
         }
         
         private async Task<Function?> readExisting(DbDataReader reader)
         {
-            if (!await reader.ReadAsync())
+            if (!await reader.ReadAsync().ConfigureAwait(false))
             {
-                await reader.NextResultAsync();
+                await reader.NextResultAsync().ConfigureAwait(false);
                 return null;
             }
 
-            var existingFunction = await reader.GetFieldValueAsync<string>(0);
+            var existingFunction = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
 
             if (string.IsNullOrEmpty(existingFunction))
             {
                 return null;
             }
 
-            await reader.NextResultAsync();
+            await reader.NextResultAsync().ConfigureAwait(false);
             var drops = new List<string>();
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
-                drops.Add(await reader.GetFieldValueAsync<string>(0));
+                drops.Add(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false));
             }
 
             return new Function(Identifier, existingFunction.TrimEnd() + ";", drops.ToArray());
@@ -146,7 +146,7 @@ AND    n.nspname = :{schemaParam};
 
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            var existing = await readExisting(reader);
+            var existing = await readExisting(reader).ConfigureAwait(false);
             return new FunctionDelta(this, existing);
         }
 
@@ -186,7 +186,7 @@ AND    n.nspname = :{schemaParam};
 
         public async Task<FunctionDelta> FindDelta(NpgsqlConnection conn)
         {
-            var existing = await FetchExisting(conn);
+            var existing = await FetchExisting(conn).ConfigureAwait(false);
             return new FunctionDelta(this, existing);
         }
 

@@ -23,9 +23,9 @@ namespace Weasel.SqlServer
 
         public static async Task ApplyChanges(this ISchemaObject schemaObject, SqlConnection conn)
         {
-            var migration = await SchemaMigration.Determine(conn, schemaObject);
+            var migration = await SchemaMigration.Determine(conn, schemaObject).ConfigureAwait(false);
 
-            await migration.ApplyAll(conn, new DdlRules(), AutoCreate.CreateOrUpdate);
+            await migration.ApplyAll(conn, new DdlRules(), AutoCreate.CreateOrUpdate).ConfigureAwait(false);
         }
 
         public static Task Drop(this ISchemaObject schemaObject, SqlConnection conn)
@@ -51,7 +51,7 @@ namespace Weasel.SqlServer
             if (conn.State != ConnectionState.Open)
             {
                 shouldClose = true;
-                await conn.OpenAsync(cancellation);
+                await conn.OpenAsync(cancellation).ConfigureAwait(false);
             }
 
             try
@@ -66,17 +66,13 @@ IF NOT EXISTS ( SELECT  *
                 
                 await conn
                     .CreateCommand(sql)
-                    .ExecuteNonQueryAsync(cancellation);
+                    .ExecuteNonQueryAsync(cancellation).ConfigureAwait(false);
             }
             finally
             {
                 if (shouldClose)
                 {
-#if NET50
-                    await conn.CloseAsync();
-                    #else
-                    conn.Close();
-#endif
+                    await conn.CloseAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -92,26 +88,26 @@ IF NOT EXISTS ( SELECT  *
         {
             var procedures = await conn
                 .CreateCommand($"select routine_name from information_schema.routines where routine_schema = '{schemaName}';")
-                .FetchList<string>();
+                .FetchList<string>().ConfigureAwait(false);
 
             var constraints = await conn.CreateCommand($"select table_name, constraint_name from information_schema.table_constraints where table_schema = '{schemaName}' order by constraint_type").FetchList<string>(async r =>
             {
-                var tableName = await r.GetFieldValueAsync<string>(0);
-                var constraintName = await r.GetFieldValueAsync<string>(1);
+                var tableName = await r.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+                var constraintName = await r.GetFieldValueAsync<string>(1).ConfigureAwait(false);
 
                 return $"alter table {schemaName}.{tableName} drop constraint {constraintName};";
-            });
+            }).ConfigureAwait(false);
 
-            var tables = await conn.CreateCommand($"select table_name from information_schema.tables where table_schema = '{schemaName}'").FetchList<string>();
+            var tables = await conn.CreateCommand($"select table_name from information_schema.tables where table_schema = '{schemaName}'").FetchList<string>().ConfigureAwait(false);
             
             var sequences = await conn
                 .CreateCommand($"select sequence_name from information_schema.sequences where sequence_schema = '{schemaName}'")
-                .FetchList<string>();
+                .FetchList<string>().ConfigureAwait(false);
 
             var tableTypes = await conn
                 .CreateCommand(
                     $"select sys.table_types.name from sys.table_types inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id where sys.schemas.name = '{schemaName}'")
-                .FetchList<string>();
+                .FetchList<string>().ConfigureAwait(false);
 
             var drops = new List<string>();
             drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
@@ -123,13 +119,13 @@ IF NOT EXISTS ( SELECT  *
 
             foreach (var drop in drops)
             {
-                await conn.CreateCommand(drop).ExecuteNonQueryAsync();
+                await conn.CreateCommand(drop).ExecuteNonQueryAsync().ConfigureAwait(false);
             } 
             
             if (!schemaName.EqualsIgnoreCase(SqlServerProvider.Instance.DefaultDatabaseSchemaName))
             {
                 var sql = $"drop schema if exists {schemaName};";
-                await conn.CreateCommand(sql).ExecuteNonQueryAsync();
+                await conn.CreateCommand(sql).ExecuteNonQueryAsync().ConfigureAwait(false);
             }
 
         }
@@ -141,8 +137,8 @@ IF NOT EXISTS ( SELECT  *
 
         public static async Task ResetSchema(this SqlConnection conn, string schemaName)
         {
-            await conn.DropSchema(schemaName);
-            await conn.RunSql(SchemaMigration.CreateSchemaStatementFor(schemaName));
+            await conn.DropSchema(schemaName).ConfigureAwait(false);
+            await conn.RunSql(SchemaMigration.CreateSchemaStatementFor(schemaName)).ConfigureAwait(false);
         }
 
         public static async Task<bool> FunctionExists(this SqlConnection conn, DbObjectName functionIdentifier)
@@ -153,9 +149,9 @@ IF NOT EXISTS ( SELECT  *
             using var reader = await conn.CreateCommand(sql)
                 .With("name", functionIdentifier.Name)
                 .With("schema", functionIdentifier.Schema)
-                .ExecuteReaderAsync();
+                .ExecuteReaderAsync().ConfigureAwait(false);
 
-            return await reader.ReadAsync();
+            return await reader.ReadAsync().ConfigureAwait(false);
         }
 
         public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(this SqlConnection conn,
@@ -173,7 +169,7 @@ IF NOT EXISTS ( SELECT  *
 
             builder.Append(";");
 
-            return await builder.FetchList(conn, ReadDbObjectName);
+            return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
         }
 
         public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctions(this SqlConnection conn,
@@ -197,12 +193,12 @@ IF NOT EXISTS ( SELECT  *
 
             builder.Append(";");
 
-            return await builder.FetchList(conn, ReadDbObjectName);
+            return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
         }
 
         private static async Task<DbObjectName> ReadDbObjectName(DbDataReader reader)
         {
-            return new(await reader.GetFieldValueAsync<string>(0), await reader.GetFieldValueAsync<string>(1));
+            return new(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false), await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
         }
 
         /// <summary>
