@@ -23,5 +23,5 @@
     <ItemGroup>
       <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
     </ItemGroup>
-
+    <Import Project="../../Analysis.Build.props" />
 </Project>
