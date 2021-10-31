@@ -119,19 +119,19 @@ order by column_index;
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
-            return await readExisting(reader);
+            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+            return await readExisting(reader).ConfigureAwait(false);
         }
         
         private async Task<Table?> readExisting(DbDataReader reader)
         {
             var existing = new Table(Identifier);
             
-            await readColumns(reader, existing);
+            await readColumns(reader, existing).ConfigureAwait(false);
 
-            var pks = await readPrimaryKeys(reader);
-            await readIndexes(reader, existing);
-            await readConstraints(reader, existing);
+            var pks = await readPrimaryKeys(reader).ConfigureAwait(false);
+            await readIndexes(reader, existing).ConfigureAwait(false);
+            await readConstraints(reader, existing).ConfigureAwait(false);
 
             foreach (var pkColumn in pks)
             {
@@ -140,7 +140,7 @@ order by column_index;
 
             if (PartitionStrategy != PartitionStrategy.None)
             {
-                await readPartitions(reader, existing);
+                await readPartitions(reader, existing).ConfigureAwait(false);
             }
             
             return !existing.Columns.Any() 
@@ -150,12 +150,12 @@ order by column_index;
 
         private async Task readPartitions(DbDataReader reader, Table existing)
         {
-            await reader.NextResultAsync();
+            await reader.NextResultAsync().ConfigureAwait(false);
 
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
-                var strategy = await reader.GetFieldValueAsync<string>(1);
-                var columnOrExpression = await reader.GetFieldValueAsync<string>(0);
+                var strategy = await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false);
+                var columnOrExpression = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
 
                 existing.PartitionExpressions.Add(columnOrExpression);
 
@@ -170,26 +170,26 @@ order by column_index;
 
         private static async Task readColumns(DbDataReader reader, Table existing)
         {
-            while (await reader.ReadAsync())
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
-                var column = await readColumn(reader);
+                var column = await readColumn(reader).ConfigureAwait(false);
 
                 existing._columns.Add(column);
             }
         }
         private static async Task<TableColumn> readColumn(DbDataReader reader)
         {
-            var column = new TableColumn(await reader.GetFieldValueAsync<string>(0),
-                await reader.GetFieldValueAsync<string>(1));
+            var column = new TableColumn(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
+                await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
 
             if (column.Type.Equals("user-defined"))
             {
-                column.Type = await reader.GetFieldValueAsync<string>(3);
+                column.Type = await reader.GetFieldValueAsync<string>(3).ConfigureAwait(false);
             }
 
-            if (!await reader.IsDBNullAsync(2))
+            if (!await reader.IsDBNullAsync(2).ConfigureAwait(false))
             {
-                var length = await reader.GetFieldValueAsync<int>(2);
+                var length = await reader.GetFieldValueAsync<int>(2).ConfigureAwait(false);
                 column.Type = $"{column.Type}({length})";
             }
 
@@ -197,11 +197,11 @@ order by column_index;
         }
         private async Task readConstraints(DbDataReader reader, Table existing)
         {
-            await reader.NextResultAsync();
-            while (await reader.ReadAsync())
+            await reader.NextResultAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
-                var name = await reader.GetFieldValueAsync<string>(0);
-                var definition = await reader.GetFieldValueAsync<string>(5);
+                var name = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+                var definition = await reader.GetFieldValueAsync<string>(5).ConfigureAwait(false);
 
                 var fk = new ForeignKey(name);
                 fk.Parse(definition);
@@ -212,22 +212,22 @@ order by column_index;
 
         private async Task readIndexes(DbDataReader reader, Table existing)
         {
-            await reader.NextResultAsync();
-            while (await reader.ReadAsync())
+            await reader.NextResultAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
-                if (await reader.IsDBNullAsync(2))
+                if (await reader.IsDBNullAsync(2).ConfigureAwait(false))
                     continue;
                 
-                var isPrimary = await reader.GetFieldValueAsync<bool>(6);
+                var isPrimary = await reader.GetFieldValueAsync<bool>(6).ConfigureAwait(false);
                 if (isPrimary)
                 {
-                    existing.PrimaryKeyName = await reader.GetFieldValueAsync<string>(3);
+                    existing.PrimaryKeyName = await reader.GetFieldValueAsync<string>(3).ConfigureAwait(false);
                     continue;
                 }
 
-                var schemaName = await reader.GetFieldValueAsync<string>(1);
-                var tableName = await reader.GetFieldValueAsync<string>(2);
-                var ddl = await reader.GetFieldValueAsync<string>(4);
+                var schemaName = await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false);
+                var tableName = await reader.GetFieldValueAsync<string>(2).ConfigureAwait(false);
+                var ddl = await reader.GetFieldValueAsync<string>(4).ConfigureAwait(false);
                 
 
                 if ((Identifier.Schema == schemaName && Identifier.Name == tableName) || Identifier.QualifiedName == tableName)
@@ -242,10 +242,10 @@ order by column_index;
         private static async Task<List<string>> readPrimaryKeys(DbDataReader reader)
         {
             var pks = new List<string>();
-            await reader.NextResultAsync();
-            while (await reader.ReadAsync())
+            await reader.NextResultAsync().ConfigureAwait(false);
+            while (await reader.ReadAsync().ConfigureAwait(false))
             {
-                pks.Add(await reader.GetFieldValueAsync<string>(0));
+                pks.Add(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false));
             }
             return pks;
         }

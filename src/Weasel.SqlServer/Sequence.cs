@@ -64,7 +64,7 @@ namespace Weasel.SqlServer
 
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            if (!await reader.ReadAsync() || await reader.GetFieldValueAsync<int>(0) == 0)
+            if (!await reader.ReadAsync().ConfigureAwait(false) || await reader.GetFieldValueAsync<int>(0).ConfigureAwait(false) == 0)
             {
                 return new SchemaObjectDelta(this, SchemaPatchDifference.Create);
             }
@@ -78,9 +78,9 @@ namespace Weasel.SqlServer
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
+            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
 
-            return await CreateDelta(reader);
+            return await CreateDelta(reader).ConfigureAwait(false);
         }
     }
 }

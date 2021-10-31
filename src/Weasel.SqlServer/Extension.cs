@@ -39,7 +39,7 @@ namespace Weasel.SqlServer
 
         public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
         {
-            var exists = await reader.ReadAsync();
+            var exists = await reader.ReadAsync().ConfigureAwait(false);
 
             return new SchemaObjectDelta(this, exists ? SchemaPatchDifference.None : SchemaPatchDifference.Create);
         }

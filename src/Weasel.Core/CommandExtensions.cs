@@ -124,10 +124,10 @@ namespace Weasel.Core
         {
             var list = new List<T>();
 
-            using var reader = await cmd.ExecuteReaderAsync(cancellation);
-            while (await reader.ReadAsync(cancellation))
+            using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellation).ConfigureAwait(false))
             {
-                list.Add(await transform(reader));
+                list.Add(await transform(reader).ConfigureAwait(false));
             }
 
             return list;
@@ -144,12 +144,12 @@ namespace Weasel.Core
         {
             return cmd.FetchList(async reader =>
             {
-                if (await reader.IsDBNullAsync(0, cancellation))
+                if (await reader.IsDBNullAsync(0, cancellation).ConfigureAwait(false))
                 {
                     return default;
                 }
 
-                return await reader.GetFieldValueAsync<T>(0, cancellation);
+                return await reader.GetFieldValueAsync<T>(0, cancellation).ConfigureAwait(false);
             }, cancellation);
         }
         
@@ -164,15 +164,15 @@ namespace Weasel.Core
         /// <returns></returns>
         public static async Task<T?> FetchOne<T>(this DbCommand cmd, CancellationToken cancellation = default)
         {
-            using var reader = await cmd.ExecuteReaderAsync(cancellation);
-            if (await reader.ReadAsync(cancellation))
+            using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+            if (await reader.ReadAsync(cancellation).ConfigureAwait(false))
             {
-                if (await reader.IsDBNullAsync(0, cancellation))
+                if (await reader.IsDBNullAsync(0, cancellation).ConfigureAwait(false))
                 {
                     return default;
                 }
 
-                var result = await reader.GetFieldValueAsync<T>(0, cancellation);
+                var result = await reader.GetFieldValueAsync<T>(0, cancellation).ConfigureAwait(false);
                 return result;
             }
 
@@ -196,13 +196,13 @@ namespace Weasel.Core
             var conn = command.Connection;
             try
             {
-                await conn.OpenAsync(cancellation);
+                await conn.OpenAsync(cancellation).ConfigureAwait(false);
 
-                await command.ExecuteNonQueryAsync(cancellation);
+                await command.ExecuteNonQueryAsync(cancellation).ConfigureAwait(false);
             }
             finally
             {
-                conn.Close();
+                await conn.CloseAsync().ConfigureAwait(false);
             }
         }
         

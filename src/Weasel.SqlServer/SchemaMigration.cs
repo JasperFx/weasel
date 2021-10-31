@@ -77,14 +77,14 @@ namespace Weasel.SqlServer
 
             foreach (var schemaObject in schemaObjects) schemaObject.ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn);
+            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
 
-            deltas.Add(await schemaObjects[0].CreateDelta(reader));
+            deltas.Add(await schemaObjects[0].CreateDelta(reader).ConfigureAwait(false));
 
             for (var i = 1; i < schemaObjects.Length; i++)
             {
-                await reader.NextResultAsync();
-                deltas.Add(await schemaObjects[i].CreateDelta(reader));
+                await reader.NextResultAsync().ConfigureAwait(false);
+                deltas.Add(await schemaObjects[i].CreateDelta(reader).ConfigureAwait(false));
             }
 
             return new SchemaMigration(deltas);
@@ -108,7 +108,7 @@ namespace Weasel.SqlServer
                 return;
             }
 
-            await createSchemas(conn, logSql, onFailure);
+            await createSchemas(conn, logSql, onFailure).ConfigureAwait(false);
 
 
             AssertPatchingIsValid(autoCreate);
@@ -120,7 +120,7 @@ namespace Weasel.SqlServer
 
                 if (writer.ToString().Trim().IsNotEmpty())
                 {
-                    await executeCommand(conn, logSql, onFailure, writer);
+                    await executeCommand(conn, logSql, onFailure, writer).ConfigureAwait(false);
                 }
             }
 
@@ -135,7 +135,7 @@ namespace Weasel.SqlServer
                 SchemaGenerator.WriteSql(_schemas, writer);
                 if (writer.ToString().Trim().IsNotEmpty()) // Cheesy way of knowing if there is any delta
                 {
-                    await executeCommand(conn, logSql, onFailure, writer);
+                    await executeCommand(conn, logSql, onFailure, writer).ConfigureAwait(false);
                 }
             }
         }
@@ -148,7 +148,7 @@ namespace Weasel.SqlServer
             try
             {
                 await cmd
-                    .ExecuteNonQueryAsync();
+                    .ExecuteNonQueryAsync().ConfigureAwait(false);
             }
             catch (Exception e)
             {

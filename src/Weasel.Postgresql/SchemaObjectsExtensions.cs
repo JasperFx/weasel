@@ -28,9 +28,9 @@ namespace Weasel.Postgresql
 
         public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn)
         {
-            var migration = await SchemaMigration.Determine(conn, new ISchemaObject[] {schemaObject});
+            var migration = await SchemaMigration.Determine(conn, new ISchemaObject[] {schemaObject}).ConfigureAwait(false);
 
-            await migration.ApplyAll(conn, new DdlRules(), AutoCreate.CreateOrUpdate);
+            await migration.ApplyAll(conn, new DdlRules(), AutoCreate.CreateOrUpdate).ConfigureAwait(false);
         }
 
         public static Task Drop(this ISchemaObject schemaObject, NpgsqlConnection conn)
@@ -55,20 +55,20 @@ namespace Weasel.Postgresql
             if (conn.State != ConnectionState.Open)
             {
                 shouldClose = true;
-                await conn.OpenAsync(cancellation);
+                await conn.OpenAsync(cancellation).ConfigureAwait(false);
             }
 
             try
             {
                 await conn
                     .CreateCommand(SchemaMigration.CreateSchemaStatementFor(schemaName))
-                    .ExecuteNonQueryAsync(cancellation);
+                    .ExecuteNonQueryAsync(cancellation).ConfigureAwait(false);
             }
             finally
             {
                 if (shouldClose)
                 {
-                    await conn.CloseAsync();
+                    await conn.CloseAsync().ConfigureAwait(false);
                 }
             }
         }
@@ -109,9 +109,9 @@ namespace Weasel.Postgresql
                 .With("name", functionIdentifier.Name)
                 .With("schema", functionIdentifier.Schema)
 
-                .ExecuteReaderAsync();
+                .ExecuteReaderAsync().ConfigureAwait(false);
 
-            return await reader.ReadAsync();
+            return await reader.ReadAsync().ConfigureAwait(false);
 
         }
 
@@ -141,7 +141,7 @@ namespace Weasel.Postgresql
             
             builder.Append(";");
 
-            return await builder.FetchList(conn, ReadDbObjectName);
+            return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
 
         }
 
@@ -164,12 +164,12 @@ namespace Weasel.Postgresql
             
             builder.Append(";");
 
-            return await builder.FetchList(conn, ReadDbObjectName);
+            return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
         }
         
         private static async Task<DbObjectName> ReadDbObjectName(DbDataReader reader)
         {
-            return new DbObjectName(await reader.GetFieldValueAsync<string>(0), await reader.GetFieldValueAsync<string>(1));
+            return new DbObjectName(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false), await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
         }
 
         /// <summary>

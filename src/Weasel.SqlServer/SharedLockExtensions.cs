@@ -24,7 +24,7 @@ namespace Weasel.SqlServer
         private static async Task getLock(this SqlConnection conn, string lockId, string owner, SqlTransaction? tx,
             CancellationToken cancellation)
         {
-            var returnValue = await tryGetLock(conn, lockId, owner, tx, cancellation);
+            var returnValue = await tryGetLock(conn, lockId, owner, tx, cancellation).ConfigureAwait(false);
 
             if (returnValue < 0)
                 throw new Exception($"sp_getapplock failed with errorCode '{returnValue}'");
@@ -49,7 +49,7 @@ namespace Weasel.SqlServer
             returnValue.Direction = ParameterDirection.ReturnValue;
             cmd.Parameters.Add(returnValue);
 
-            await cmd.ExecuteNonQueryAsync(cancellation);
+            await cmd.ExecuteNonQueryAsync(cancellation).ConfigureAwait(false);
 
             return (int) returnValue.Value;
         }
@@ -66,7 +66,7 @@ namespace Weasel.SqlServer
         public static async Task<bool> TryGetGlobalTxLock(this SqlTransaction tx, string lockId,
             CancellationToken cancellation = default)
         {
-            return await tryGetLock(tx.Connection, lockId, "Transaction", tx, cancellation) >= 0;
+            return await tryGetLock(tx.Connection, lockId, "Transaction", tx, cancellation).ConfigureAwait(false) >= 0;
         }
 
 
@@ -96,7 +96,7 @@ namespace Weasel.SqlServer
         /// <returns></returns>
         public static async Task<bool> TryGetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation = default)
         {
-            return await tryGetLock(conn, lockId, "Session", null, cancellation) >= 0;
+            return await tryGetLock(conn, lockId, "Session", null, cancellation).ConfigureAwait(false) >= 0;
         }
 
         /// <summary>

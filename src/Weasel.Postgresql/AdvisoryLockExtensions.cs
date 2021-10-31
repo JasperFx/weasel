@@ -35,7 +35,7 @@ namespace Weasel.Postgresql
         {
             var c = await tx.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
                 .With("id", lockId)
-                .ExecuteScalarAsync(cancellation);
+                .ExecuteScalarAsync(cancellation).ConfigureAwait(false);
 
             return (bool) c;
         }
@@ -68,7 +68,7 @@ namespace Weasel.Postgresql
         {
             var c = await conn.CreateCommand("SELECT pg_try_advisory_lock(:id);")
                 .With("id", lockId)
-                .ExecuteScalarAsync(cancellation);
+                .ExecuteScalarAsync(cancellation).ConfigureAwait(false);
 
             return (bool) c;
         }
@@ -86,7 +86,7 @@ namespace Weasel.Postgresql
         {
             var c = await conn.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
                 .With("id", lockId)
-                .ExecuteScalarAsync(cancellation);
+                .ExecuteScalarAsync(cancellation).ConfigureAwait(false);
 
             return (bool) c;
         }
