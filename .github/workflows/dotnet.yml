@@ -1,4 +1,4 @@
-name: .NET
+name: Postgres CI Build
 
 on:
   push:
@@ -35,14 +35,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2019-latest
-        ports:
-          - 1433:1433
-        env:
-          ACCEPT_EULA: Y
-          SA_PASSWORD: ${{ env.db_pwd }}
-          MSSQL_PID: ${{ env.db_user }}
 
     steps:
     - uses: actions/checkout@v2
@@ -65,12 +57,8 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
 
-    - name: Postgres Tests
+    - name: Test
       env:
         weasel_postgresql_testing_database: "Host=localhost;Database=${{ env.db_name }};Username=${{ env.db_user }};Password=${{ env.db_pwd }};"
       run: dotnet test src/Weasel.Postgresql.Tests/Weasel.Postgresql.Tests.csproj --no-build --verbosity normal
 
-    - name: SQL Server Tests
-      env:
-        weasel_sqlserver_testing_database: "Server=localhost;Database=${{ env.db_name }};User Id=${{ env.db_user }};Password=${{ env.db_pwd }};"
-      run: dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj --no-build --verbosity normal
