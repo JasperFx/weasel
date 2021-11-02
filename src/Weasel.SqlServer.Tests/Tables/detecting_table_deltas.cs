@@ -23,11 +23,13 @@ namespace Weasel.SqlServer.Tests.Tables
             theTable.AddColumn<string>("last_name");
             theTable.AddColumn<string>("user_name");
             theTable.AddColumn("data", "text");
-            
-            
-            ResetSchema().GetAwaiter().GetResult();
         }
-        
+
+        public override async Task InitializeAsync()
+        {
+            await ResetSchema();
+        }
+
         protected async Task AssertNoDeltasAfterPatching(Table table = null)
         {
             table ??= theTable;

@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
-    public abstract class IntegrationContext : IDisposable
+    public abstract class IntegrationContext : IDisposable, IAsyncLifetime
     {
         private readonly string _schemaName;
         protected readonly SqlConnection theConnection = new SqlConnection(ConnectionSource.ConnectionString);
@@ -59,6 +59,16 @@ namespace Weasel.SqlServer.Tests
 
             return theConnection.CreateCommand(writer.ToString())
                 .ExecuteNonQueryAsync();
+        }
+
+        public virtual Task InitializeAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public virtual Task DisposeAsync()
+        {
+            return Task.CompletedTask;
         }
     }
 }

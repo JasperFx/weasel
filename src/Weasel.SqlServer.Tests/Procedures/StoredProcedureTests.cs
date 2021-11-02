@@ -69,16 +69,19 @@ AS
 
     DELETE FROM procs.jasper_incoming_envelopes WHERE id IN (SELECT ID FROM @IDLIST);
 ");
-            
-            ResetSchema().GetAwaiter().GetResult();
+        }
+
+        public override async Task InitializeAsync()
+        {
+            await ResetSchema();
 
             var table = new IncomingEnvelopeTable("procs");
-            table.Create(theConnection).GetAwaiter().GetResult();
-            
+            await table.Create(theConnection);
+
             var type = new TableType(new DbObjectName("procs", "EnvelopeIdList"));
             type.AddColumn<Guid>("ID");
 
-            type.ApplyChanges(theConnection).GetAwaiter().GetResult();
+            await type.ApplyChanges(theConnection);
         }
 
         private void afterChangingTheProcedure()
