@@ -31,11 +31,14 @@ namespace Weasel.Postgresql.Tests.Tables
             theTable.AddColumn<string>("first_name");
             theTable.AddColumn<string>("last_name");
             theTable.AddColumn<string>("user_name");
-            theTable.AddColumn("data", "jsonb");            
-            
-            ResetSchema().GetAwaiter().GetResult();
+            theTable.AddColumn("data", "jsonb");
         }
-        
+
+        public override async Task InitializeAsync()
+        {
+            await ResetSchema();
+        }
+
         protected async Task AssertNoDeltasAfterPatching(Table table = null)
         {
             table ??= theTable;

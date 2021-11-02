@@ -8,7 +8,7 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests
 {
-    public abstract class IntegrationContext : IDisposable
+    public abstract class IntegrationContext : IDisposable, IAsyncLifetime
     {
         private readonly string _schemaName;
         protected readonly NpgsqlConnection theConnection = new NpgsqlConnection(ConnectionSource.ConnectionString);
@@ -60,6 +60,16 @@ namespace Weasel.Postgresql.Tests
 
             return theConnection.CreateCommand(writer.ToString())
                 .ExecuteNonQueryAsync();
+        }
+
+        public virtual Task InitializeAsync()
+        {
+            return Task.CompletedTask;
+        }
+
+        public virtual Task DisposeAsync()
+        {
+            return Task.CompletedTask;
         }
     }
 }
