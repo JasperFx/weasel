@@ -11,7 +11,6 @@ env:
   disable_test_parallelization: true
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
-  db_name: weasel_testing
   db_user: test_user
   db_pwd: P@55w0rd
 
@@ -47,5 +46,5 @@ jobs:
 
     - name: Test
       env:
-        weasel_sqlserver_testing_database: "Server=localhost;Database=${{ env.db_name }};User Id=${{ env.db_user }};Password=${{ env.db_pwd }};"
+        weasel_sqlserver_testing_database: "Server=localhost;User Id=${{ env.db_user }};Password=${{ env.db_pwd }};"
       run: dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj --no-build --verbosity normal
