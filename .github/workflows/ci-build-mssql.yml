@@ -48,5 +48,5 @@ jobs:
     - name: Test
       env:
         # weasel_sqlserver_testing_database: "Server=localhost;Database=${{ env.db_name }};User Id=${{ env.db_user }};Password=${{ env.db_pwd }};"
-        weasel_sqlserver_testing_database: "Server=(localdb)\MSSQLLocalDB;Integrated Security=true"
+        weasel_sqlserver_testing_database: "Server=(localdb)\\MSSQLLocalDB;Integrated Security=true"
       run: dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj --no-build --verbosity normal
