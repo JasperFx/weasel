@@ -17,6 +17,20 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.SqlServer.Tests", "s
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.Core.Tests", "src\Weasel.Core.Tests\Weasel.Core.Tests.csproj", "{2B508523-234F-4431-A9E2-15ED8275254D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CI", "CI", "{4E257542-CA6B-4B84-BA33-78A3AF2D6922}"
+	ProjectSection(SolutionItems) = preProject
+		.github\workflows\ci-build-mssql.yml = .github\workflows\ci-build-mssql.yml
+		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
+		.github\workflows\publish_nuget.yml = .github\workflows\publish_nuget.yml
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{28703D10-2FA5-4526-8B0A-4FD7EABD6375}"
+	ProjectSection(SolutionItems) = preProject
+		Analysis.Build.props = Analysis.Build.props
+		Directory.Build.props = Directory.Build.props
+		docker-compose.yml = docker-compose.yml
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU

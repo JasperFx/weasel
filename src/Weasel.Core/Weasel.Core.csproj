@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.0;net5.0;net6.0</TargetFrameworks>
         <Description>Core Weasel types for ADO.Net helpers, spin off of Marten</Description>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>

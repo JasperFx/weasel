@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.0;net5.0;net6.0</TargetFrameworks>
 
         <Description>SqlClient Helpers and SQL Server Schema Migration Tool, spin off of Marten</Description>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
@@ -17,7 +17,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Data.SqlClient" Version="3.0.0" />
+      <PackageReference Include="Microsoft.Data.SqlClient" Version="3.0.1" />
     </ItemGroup>
 
     <ItemGroup>
