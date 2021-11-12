@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.0;net5.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.0;net5.0;net6.0</TargetFrameworks>
 
         <Description>Npgsql Helpers and Postgresql Schema Migration Tool, spin off of Marten</Description>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
@@ -18,7 +18,7 @@
 
     <ItemGroup>
 
-      <PackageReference Include="Npgsql" Version="5.0.7" />
+      <PackageReference Include="Npgsql" Version="[5.0.10,6.0)" />
     </ItemGroup>
 
     <!--SourceLink specific settings-->
@@ -34,7 +34,7 @@
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
