@@ -36,6 +36,11 @@ namespace Weasel.Postgresql.Tables
         public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
         public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
 
+        /// <summary>
+        /// Max identifier length for identifiers like table name, column name, constraints, primary key etc
+        /// </summary>
+        public int MaxIdentifierLength { get; set; } = 63;
+
         public IReadOnlyList<string> PrimaryKeyColumns => _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
 
         public IList<string> PartitionExpressions { get; } = new List<string>();
@@ -251,6 +256,9 @@ namespace Weasel.Postgresql.Tables
             var any = await reader.ReadAsync().ConfigureAwait(false);
             return any;
         }
+
+        public string TruncatedNameIdentifier(string nameIdentifier) =>
+            nameIdentifier.Substring(0, Math.Min(MaxIdentifierLength, nameIdentifier.Length));
 
         public class ColumnExpression
         {
