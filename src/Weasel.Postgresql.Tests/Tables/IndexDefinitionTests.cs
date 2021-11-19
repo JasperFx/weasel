@@ -10,10 +10,10 @@ namespace Weasel.Postgresql.Tests.Tables
     {
         private IndexDefinition theIndex = new IndexDefinition("idx_1")
             .AgainstColumns("column1");
-        
+
         private Table parent = new Table("people");
-        
-        
+
+
         [InlineData(IndexMethod.btree, true)]
         [InlineData(IndexMethod.gin, false)]
         [InlineData(IndexMethod.brin, false)]
@@ -37,7 +37,7 @@ namespace Weasel.Postgresql.Tests.Tables
                 ddl.ShouldNotEndWith(" DESC);");
             }
         }
-        
+
         [Fact]
         public void default_sort_order_is_asc()
         {
@@ -61,8 +61,8 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             theIndex.IsConcurrent.ShouldBeFalse();
         }
-        
-        
+
+
 
         [Fact]
         public void write_basic_index()
@@ -70,21 +70,21 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1);");
         }
-        
+
         [Fact]
         public void write_unique_index()
         {
             theIndex.IsUnique = true;
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE UNIQUE INDEX idx_1 ON public.people USING btree (column1);");
         }
-        
+
         [Fact]
         public void write_concurrent_index()
         {
             theIndex.IsConcurrent = true;
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);");
         }
@@ -94,25 +94,25 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             theIndex.IsUnique = true;
             theIndex.IsConcurrent = true;
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);");
         }
-        
+
         [Fact]
         public void write_desc()
         {
             theIndex.SortOrder = SortOrder.Desc;
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1 DESC);");
         }
-        
+
         [Fact]
         public void write_gin()
         {
             theIndex.Method = IndexMethod.gin;
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1);");
         }
@@ -122,7 +122,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             theIndex.TableSpace = "green";
             theIndex.Method = IndexMethod.gin;
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green;");
         }
@@ -133,7 +133,7 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.TableSpace = "green";
             theIndex.Method = IndexMethod.gin;
             theIndex.Predicate = "foo > 1";
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1);");
         }
@@ -145,11 +145,11 @@ namespace Weasel.Postgresql.Tests.Tables
             theIndex.Method = IndexMethod.gin;
             theIndex.Predicate = "foo > 1";
             theIndex.FillFactor = 70;
-            
+
             theIndex.ToDDL(parent)
                 .ShouldBe("CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor='70');");
         }
-        
+
         [Fact]
         public void generate_ddl_for_descending_sort_order()
         {
@@ -168,7 +168,7 @@ namespace Weasel.Postgresql.Tests.Tables
             {
                 IsUnique = true
             }.AgainstColumns("name", "age")};
-            
+
             yield return new[]{new IndexDefinition("idx_1"){SortOrder = SortOrder.Desc}.AgainstColumns("name")};
         }
 
@@ -180,7 +180,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var ddl = expected.ToDDL(table);
 
             var actual = IndexDefinition.Parse(ddl);
-            
+
             expected.AssertMatches(actual, table);
 
         }
@@ -214,7 +214,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             IndexDefinition.CanonicizeCast(actual).ShouldBe(expected);
         }
-        
+
         [Fact]
         public void Bug30()
         {
@@ -258,7 +258,7 @@ namespace Weasel.Postgresql.Tests.Tables
                 "CREATE INDEX idx_1 ON public.mt_doc_user USING pgroonga ((data->'RoleIds') pgroonga_text_full_text_search_ops_v2) WITH (normalizers='NormalizerNFKC100(\"unify_kana\", true)', tokenizer='MeCab', test = 1)";
             var index = IndexDefinition.Parse(ddl);
             var expectedCanonicalizedDdl = IndexDefinition.CanonicizeDdl(index, table);
-            
+
             index.Method.ShouldBe(IndexMethod.custom);
             index.CustomMethod.ShouldBe("pgroonga");
             index.StorageParameters.Count.ShouldBe(3);
@@ -266,6 +266,21 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var canonicalizedDdl = IndexDefinition.CanonicizeDdl(index, table);
             canonicalizedDdl.ShouldBe(expectedCanonicalizedDdl);
+        }
+
+        [Fact]
+        public void ensure_include_columns_are_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 = IndexDefinition.Parse(
+                "CREATE INDEX idx_1 ON public.mt_doc_user USING gin ((data->'RoleIds') jsonb_path_ops INCLUDE (column2))");
+
+            var index2 = new IndexDefinition("idx_1");
+            index2.Columns = new[] {"data->'RoleIds'"};
+            index2.ToGinWithJsonbPathOps();
+            index2.IncludeColumns = new[] {"column2"};
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
     }
 }
