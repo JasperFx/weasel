@@ -13,7 +13,7 @@ namespace Weasel.Postgresql.Tables
     {
         private const string JsonbPathOps = "jsonb_path_ops";
         private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
-        
+
         private string? _indexName;
         private string? _customIndexMethod;
 
@@ -69,6 +69,8 @@ namespace Weasel.Postgresql.Tables
 
         public virtual string[]? Columns { get; set; }
 
+        public virtual string[]? IncludeColumns { get; set; }
+
         /// <summary>
         /// Pattern for surrounding the columns. Use a `?` character
         /// for the location of the columns, like "? jsonb_path_ops"
@@ -85,7 +87,7 @@ namespace Weasel.Postgresql.Tables
             Columns = columns;
             return this;
         }
-        
+
         /// <summary>
         /// The tablespace in which to create the index. If not specified, default_tablespace is consulted,
         /// </summary>
@@ -96,7 +98,7 @@ namespace Weasel.Postgresql.Tables
         /// </summary>
         public string? Predicate { get; set; }
 
-        
+
         public string ToDDL(Table parent)
         {
             var builder = new StringBuilder();
@@ -105,7 +107,7 @@ namespace Weasel.Postgresql.Tables
 
             if (IsUnique) builder.Append("UNIQUE ");
             builder.Append("INDEX ");
-            
+
             if (IsConcurrent) builder.Append("CONCURRENTLY ");
 
             builder.Append(Name);
@@ -147,6 +149,13 @@ namespace Weasel.Postgresql.Tables
                 builder.Append(")");
             }
 
+            if (IncludeColumns != null &&  IncludeColumns.Any())
+            {
+                builder.Append(" INCLUDE (");
+                builder.Append(IncludeColumns.Join(", "));
+                builder.Append(')');
+            }
+
             builder.Append(";");
 
 
@@ -168,7 +177,7 @@ namespace Weasel.Postgresql.Tables
         /// <summary>
         /// Set a non-default fill factor on this index
         /// </summary>
-        public int? FillFactor 
+        public int? FillFactor
         {
             get => StorageParameters["fillfactor"] as int?;
             set => StorageParameters["fillfactor"] = value;
@@ -191,7 +200,7 @@ namespace Weasel.Postgresql.Tables
             {
                 expression = Mask.Replace("?", expression);
             }
-            
+
             if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
             {
                 expression += " DESC";
@@ -227,21 +236,21 @@ namespace Weasel.Postgresql.Tables
                     case "CREATE":
                     case "CONCURRENTLY":
                         continue;
-                    
+
                     case "INDEX":
                         var name = tokens.Dequeue();
                         index = new IndexDefinition(name){Mask = String.Empty, IsUnique = isUnique};
                         break;
-                    
+
                     case "ON":
                         // Skip the table name
                         tokens.Dequeue();
                         break;
-                    
+
                     case "UNIQUE":
                         isUnique = true;
                         break;
-                    
+
                     case "USING":
                         var methodName = tokens.Dequeue();
                         if (Enum.TryParse<IndexMethod>(methodName, out var method))
@@ -282,18 +291,18 @@ namespace Weasel.Postgresql.Tables
                                 .Replace("::regconfig", "")
                                 .Replace(" ", "");
                         }
-                        
+
                         index.SortOrder = order;
-                        
+
                         break;
-                    
-                    
-                    
+
+
+
                     case "WHERE":
                         var predicate = tokens.Dequeue();
                         index.Predicate = predicate;
                         break;
-                    
+
                     case "WITH":
                         var storageParameters = getStorageParameters(tokens.Dequeue());
 
@@ -312,7 +321,11 @@ namespace Weasel.Postgresql.Tables
                         }
 
                         break;
-                    
+
+                    case "INCLUDE":
+                        index.IncludeColumns = getIncludeColumns(tokens.Dequeue()).ToArray();
+                        break;
+
                     default:
                         throw new NotImplementedException("NOT YET DEALING WITH " + current);
                 }
@@ -337,7 +350,7 @@ namespace Weasel.Postgresql.Tables
             rawInput = rawInput.TrimStart('(').TrimEnd(')');
 
             var builder = new StringBuilder(rawInput.Length);
-            
+
             bool inQuotes = false;
 
             for (var i = 0; i < rawInput.Length; i++)
@@ -373,11 +386,11 @@ namespace Weasel.Postgresql.Tables
                             builder.Append(chr);
                             continue;
                         }
-                        
+
                         inQuotes = true;
                         builder.Append(chr);
                         continue;
-                    
+
                     case ',':
                         if (inQuotes)
                         {
@@ -395,11 +408,17 @@ namespace Weasel.Postgresql.Tables
                         break;
                 }
             }
-            
+
             if (builder.Length > 0)
             {
                 yield return builder.ToString();
             }
+        }
+
+        private static IEnumerable<string> getIncludeColumns(string rawInput)
+        {
+            rawInput = rawInput.TrimStart('(').TrimEnd(')');
+            return rawInput.Split(',').Select(x => x.Trim());
         }
 
         private static string canonicizeColumn(string expression)
@@ -429,17 +448,17 @@ namespace Weasel.Postgresql.Tables
             order = SortOrder.Asc;
             return expression.Trim();
         }
-        
+
         public bool Matches(IndexDefinition actual, Table parent)
         {
             var expectedExpression = correctedExpression();
-            
-            
+
+
             if (actual.Mask == expectedExpression)
             {
                 actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
             }
-            
+
             var expectedSql = CanonicizeDdl(this, parent);
 
             var actualSql = CanonicizeDdl(actual, parent);
@@ -450,13 +469,13 @@ namespace Weasel.Postgresql.Tables
         public void AssertMatches(IndexDefinition actual, Table parent)
         {
             var expectedExpression = correctedExpression();
-            
-            
+
+
             if (actual.Mask == expectedExpression)
             {
                 actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
             }
-            
+
             var expectedSql = CanonicizeDdl(this, parent);
 
             var actualSql = CanonicizeDdl(actual, parent);
