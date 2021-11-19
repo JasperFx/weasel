@@ -78,6 +78,7 @@ WHERE
 	tbl.relname = :{nameParam}
 GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
+SHOW max_identifier_length;
 ");
 
             if (PartitionStrategy != PartitionStrategy.None)
@@ -138,6 +139,8 @@ order by column_index;
                 existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
             }
 
+            await readMaxIdentifierLength(reader, existing).ConfigureAwait(false);
+
             if (PartitionStrategy != PartitionStrategy.None)
             {
                 await readPartitions(reader, existing).ConfigureAwait(false);
@@ -146,6 +149,20 @@ order by column_index;
             return !existing.Columns.Any() 
                 ? null 
                 : existing;
+        }
+
+        private static async Task readMaxIdentifierLength(DbDataReader reader, Table existing)
+        {
+            await reader.NextResultAsync().ConfigureAwait(false);
+
+            while (await reader.ReadAsync().ConfigureAwait(false))
+            {
+                var str = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+                if (str != null && int.TryParse(str, out var maxIdentifierLength))
+                {
+                    existing.MaxIdentifierLength = maxIdentifierLength;
+                }
+            }
         }
 
         private async Task readPartitions(DbDataReader reader, Table existing)

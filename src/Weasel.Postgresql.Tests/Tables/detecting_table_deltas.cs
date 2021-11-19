@@ -519,6 +519,16 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
+        public async Task detect_primary_key_constraint_name_change_with_key_beyond_namedatalen_limit()
+        {
+            theTable.PrimaryKeyName = "pk_this_primary_key_exceeds_the_postgres_default_namedatalen_limit_of_sixtythree_chars";
+            await CreateSchemaObjectInDatabase(theTable);
+
+            var delta = await theTable.FindDelta(theConnection);
+            delta.HasChanges().ShouldBeFalse();
+        }
+
+        [Fact]
         public async Task detect_new_primary_key_constraint_name_change_when_also_used_as_foreign_key()
         {
             var dudeTable = new Table("deltas.dudes");
