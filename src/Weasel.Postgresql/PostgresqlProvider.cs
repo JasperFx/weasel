@@ -5,7 +5,6 @@ using System.Reflection;
 using Baseline;
 using Baseline.ImTools;
 using Npgsql;
-using Npgsql.TypeMapping;
 using NpgsqlTypes;
 using Weasel.Core;
 
@@ -13,11 +12,10 @@ namespace Weasel.Postgresql
 {
     public class PostgresqlProvider : DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction, NpgsqlDbType, NpgsqlDataReader>
     {
-        public static readonly PostgresqlProvider Instance = new PostgresqlProvider();
-        
-        public List<Type> ContainmentOperatorTypes { get; } = new List<Type>();
-        public List<Type> TimespanTypes { get; } = new List<Type>();
-        public List<Type> TimespanZTypes { get; } = new List<Type>();
+        public static readonly PostgresqlProvider Instance = new();
+        public List<Type> ContainmentOperatorTypes { get; } = new();
+        public List<Type> TimespanTypes { get; } = new();
+        public List<Type> TimespanZTypes { get; } = new();
 
         private PostgresqlProvider() : base("public")
         {
@@ -53,7 +51,7 @@ namespace Weasel.Postgresql
             if (DatabaseTypeMemo.Value.TryFind(type, out var value))
                 return value;
 
-            value = GetTypeMapping(type)?.PgTypeName!;
+            value = GetTypeMapping(type)?.DataTypeName;
 
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, value));
 
@@ -72,24 +70,20 @@ namespace Weasel.Postgresql
             return value;
         }
 
-
-
         protected override Type[] determineClrTypesForParameterType(NpgsqlDbType dbType)
         {
             return GetTypeMapping(dbType)?.ClrTypes ?? Type.EmptyTypes;
         }
 
-        private NpgsqlTypeMapping? GetTypeMapping(Type type)
-            => NpgsqlConnection
-                .GlobalTypeMapper
+        private static NpgsqlTypeMapping? GetTypeMapping(Type type)
+            => NpgsqlTypeMapper
                 .Mappings
-                .FirstOrDefault(mapping => mapping.ClrTypes.Contains(type));
+                .LastOrDefault(mapping => mapping.ClrTypes.Contains(type));
 
-        private NpgsqlTypeMapping? GetTypeMapping(NpgsqlDbType type)
-            => NpgsqlConnection
-                .GlobalTypeMapper
+        private static NpgsqlTypeMapping? GetTypeMapping(NpgsqlDbType type)
+            => NpgsqlTypeMapper
                 .Mappings
-                .FirstOrDefault(mapping => mapping.NpgsqlDbType == type);
+                .LastOrDefault(mapping => mapping.NpgsqlDbType == type);
 
         public string ConvertSynonyms(string type)
         {
@@ -129,10 +123,6 @@ namespace Weasel.Postgresql
 
             return type;
         }
-
-
-
-
 
         protected override bool determineParameterType(Type type, out NpgsqlDbType dbType)
         {

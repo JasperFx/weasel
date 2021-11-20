@@ -1,7 +1,6 @@
 ﻿using System;
+using System.Data;
 using Npgsql;
-using Npgsql.TypeHandlers;
-using Npgsql.TypeMapping;
 using NpgsqlTypes;
 using Shouldly;
 using Weasel.Core;
@@ -22,13 +21,12 @@ namespace Weasel.Postgresql.Tests
         [Fact]
         public void execute_to_db_custom_mappings_resolve()
         {
-            NpgsqlConnection.GlobalTypeMapper.AddMapping(new NpgsqlTypeMappingBuilder
-            {
-                PgTypeName = "varchar",
-                NpgsqlDbType = NpgsqlDbType.Varchar,
-                ClrTypes = new[] { typeof(MappedTarget) },
-                TypeHandlerFactory = new TextHandlerFactory()
-            }.Build());
+            NpgsqlTypeMapper.Mappings.Add(new NpgsqlTypeMapping(
+                NpgsqlDbType.Varchar,
+                DbType.String,
+                "varchar",
+                typeof(MappedTarget)
+            ));
 
             PostgresqlProvider.Instance.ToParameterType(typeof(MappedTarget)).ShouldBe(NpgsqlDbType.Varchar);
             ShouldThrowExtensions.ShouldThrow<Exception>(() => PostgresqlProvider.Instance.ToParameterType(typeof(UnmappedTarget)));
