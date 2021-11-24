@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Shouldly;
@@ -279,6 +280,21 @@ namespace Weasel.Postgresql.Tests.Tables
             index2.Columns = new[] {"data->'RoleIds'"};
             index2.ToGinWithJsonbPathOps();
             index2.IncludeColumns = new[] {"column2"};
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
+
+        [Fact]
+        public void ensure_tablespace_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON public.mt_doc_user USING gin ((data->'RoleIds') jsonb_path_ops) TABLESPACE pg_default;");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"data->'RoleIds'"}};
+            index2.ToGinWithJsonbPathOps();
+            index2.TableSpace = "pg_default";
 
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
