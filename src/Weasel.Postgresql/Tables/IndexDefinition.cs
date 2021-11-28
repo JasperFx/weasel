@@ -326,6 +326,10 @@ namespace Weasel.Postgresql.Tables
                         index.IncludeColumns = getIncludeColumns(tokens.Dequeue()).ToArray();
                         break;
 
+                    case "TABLESPACE":
+                        index.TableSpace = tokens.Dequeue();
+                        break;
+
                     default:
                         throw new NotImplementedException("NOT YET DEALING WITH " + current);
                 }
