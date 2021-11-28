@@ -63,6 +63,8 @@ namespace Weasel.Postgresql.Tables
 
         public SortOrder SortOrder { get; set; } = SortOrder.Asc;
 
+        public NullsSortOrder? NullsSortOrder { get; set; } = null;
+
         public bool IsUnique { get; set; }
 
         public bool IsConcurrent { get; set; }
@@ -201,9 +203,23 @@ namespace Weasel.Postgresql.Tables
                 expression = Mask.Replace("?", expression);
             }
 
-            if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
+            if (Method == IndexMethod.btree)
             {
-                expression += " DESC";
+                // ASC is default so ignore adding in expression
+                // NULLS LAST is default for ASC so ignore adding in expression
+                // NULLS FIRST is default for DESC so ignore adding in expression
+                if (SortOrder == SortOrder.Asc && NullsSortOrder == Tables.NullsSortOrder.First)
+                {
+                    expression += " ASC NULLS FIRST";
+                }
+                else if (SortOrder == SortOrder.Desc && NullsSortOrder is null or Tables.NullsSortOrder.First)
+                {
+                    expression += " DESC";
+                }
+                else if (SortOrder == SortOrder.Desc && NullsSortOrder == Tables.NullsSortOrder.Last)
+                {
+                    expression += " DESC NULLS LAST";
+                }
             }
 
             return $"({expression})";
@@ -263,7 +279,7 @@ namespace Weasel.Postgresql.Tables
                         }
 
                         expression = tokens.Dequeue();
-                        expression = removeSortOrderFromExpression(expression, out var order);
+                        expression = removeSortOrderFromExpression(expression, out var order, out var nullsOrder);
 
                         if (expression.EndsWith("jsonb_path_ops)"))
                         {
@@ -293,7 +309,7 @@ namespace Weasel.Postgresql.Tables
                         }
 
                         index.SortOrder = order;
-
+                        index.NullsSortOrder = nullsOrder;
                         break;
 
 
@@ -436,20 +452,47 @@ namespace Weasel.Postgresql.Tables
             return CanonicizeCast(expression);
         }
 
-        private static string removeSortOrderFromExpression(string expression, out SortOrder order)
+        private static string removeSortOrderFromExpression(string expression, out SortOrder order, out NullsSortOrder? nullsSort)
         {
             if (expression.EndsWith("DESC)"))
             {
                 order = SortOrder.Desc;
+                nullsSort = null;
                 return expression.Substring(0, expression.Length - 6) + ")";
+            }
+            else if (expression.EndsWith("DESC NULLS FIRST)"))
+            {
+                order = SortOrder.Desc;
+                nullsSort = Tables.NullsSortOrder.First;
+                return expression.Substring(0, expression.Length - 18) + ")";
+            }
+            else if (expression.EndsWith("DESC NULLS LAST)"))
+            {
+                order = SortOrder.Desc;
+                nullsSort = Tables.NullsSortOrder.Last;
+                return expression.Substring(0, expression.Length - 17) + ")";
             }
             else if (expression.EndsWith("ASC)"))
             {
                 order = SortOrder.Asc;
+                nullsSort = null;
                 return  expression.Substring(0, expression.Length - 5) + ")";
+            }
+            else if (expression.EndsWith("ASC NULLS LAST)"))
+            {
+                order = SortOrder.Asc;
+                nullsSort = Tables.NullsSortOrder.Last;
+                return expression.Substring(0, expression.Length - 16) + ")";
+            }
+            else if (expression.EndsWith("ASC NULLS FIRST)"))
+            {
+                order = SortOrder.Asc;
+                nullsSort = Tables.NullsSortOrder.First;
+                return expression.Substring(0, expression.Length - 17) + ")";
             }
 
             order = SortOrder.Asc;
+            nullsSort = null;
             return expression.Trim();
         }
 
@@ -460,7 +503,7 @@ namespace Weasel.Postgresql.Tables
 
             if (actual.Mask == expectedExpression)
             {
-                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
+                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order, out var nullOrder);
             }
 
             var expectedSql = CanonicizeDdl(this, parent);
@@ -477,7 +520,7 @@ namespace Weasel.Postgresql.Tables
 
             if (actual.Mask == expectedExpression)
             {
-                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
+                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order, out var nullsOrder);
             }
 
             var expectedSql = CanonicizeDdl(this, parent);

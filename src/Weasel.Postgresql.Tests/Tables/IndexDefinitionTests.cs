@@ -298,5 +298,69 @@ namespace Weasel.Postgresql.Tests.Tables
 
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
+
+        [Fact]
+        public void ensure_asc_sort_order_nulls_default_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            // NULLS LAST is explicitly added for test even though it is default for test
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON mt_doc_user USING btree (column1 ASC NULLS LAST);");
+
+            // NULLS LAST not added here
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.btree;
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
+
+        [Fact]
+        public void ensure_desc_sort_order_nulls_default_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            // NULLS FIRST is explicitly added even though it is default
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON mt_doc_user USING btree (mt_immutable_timestamp(data ->> 'ArrivalDate'::text) DESC NULLS FIRST);");
+
+            // NULLS FIRST not added here
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"mt_immutable_timestamp(data ->> 'ArrivalDate'::text)"}};
+            index2.Method = IndexMethod.btree;
+            index2.SortOrder = SortOrder.Desc;
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
+
+        [Fact]
+        public void ensure_asc_sort_order_nulls_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON mt_doc_user USING btree (column1 ASC NULLS FIRST);");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.btree;
+            index2.NullsSortOrder = NullsSortOrder.First;
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
+
+        [Fact]
+        public void ensure_desc_sort_order_nulls_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON mt_doc_user USING btree (column1 DESC NULLS LAST);");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.btree;
+            index2.SortOrder = SortOrder.Desc;
+            index2.NullsSortOrder = NullsSortOrder.Last;
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
     }
 }
