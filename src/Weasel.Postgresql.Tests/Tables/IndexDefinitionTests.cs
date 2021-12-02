@@ -377,5 +377,35 @@ namespace Weasel.Postgresql.Tests.Tables
 
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
+
+        [Fact]
+        public void ensure_collation_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON public.mt_doc_user USING btree (column1 COLLATE \"de_DE\");");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.btree;
+            index2.Collation = "de_DE";
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
+
+        [Fact]
+        public void ensure_handling_of_index_def_without_using_clause()
+        {
+            var table = new Table("mt_doc_user");
+            // index does not contain using clause
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON public.mt_doc_user (column1);");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.btree;
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
     }
 }
