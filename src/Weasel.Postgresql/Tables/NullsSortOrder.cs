@@ -5,9 +5,11 @@ namespace Weasel.Postgresql.Tables
     /// </summary>
     public enum NullsSortOrder
     {
-        // specifies that nulls sort before non-nulls
+        // nulls sort is not set
+        None,
+        // nulls sort before non-nulls
         First,
-        // specifies that nulls sort after non-nulls
+        // nulls sort after non-nulls
         Last
     }
 }
