@@ -362,5 +362,20 @@ namespace Weasel.Postgresql.Tests.Tables
 
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
+
+        [Fact]
+        public void gin_index_with_fastupdate_on()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON public.mt_doc_user USING gin (column1) WITH (fastupdate=on);");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.gin;
+            index2.StorageParameters.Add("FASTUPDATE", "ON");
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
     }
 }
