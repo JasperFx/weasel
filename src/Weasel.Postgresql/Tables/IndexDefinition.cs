@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Baseline;
@@ -13,6 +12,12 @@ namespace Weasel.Postgresql.Tables
     {
         private const string JsonbPathOps = "jsonb_path_ops";
         private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
+        private const string Ascending = "ASC";
+        private const string Descending = "DESC";
+        private const string AscendingNullsFirst = "ASC NULLS FIRST";
+        private const string AscendingNullsLast = "ASC NULLS LAST";
+        private const string DescendingNullsFirst = "DESC NULLS FIRST";
+        private const string DescendingNullsLast = "DESC NULLS LAST";
 
         private string? _indexName;
         private string? _customIndexMethod;
@@ -27,6 +32,9 @@ namespace Weasel.Postgresql.Tables
         }
 
 
+        /// <summary>
+        /// The index name used for the index definition
+        /// </summary>
         public string Name
         {
             get
@@ -49,8 +57,14 @@ namespace Weasel.Postgresql.Tables
             throw new NotSupportedException();
         }
 
+        /// <summary>
+        /// Set the index method using <see cref="IndexMethod"/>
+        /// </summary>
         public IndexMethod Method { get; set; } = IndexMethod.btree;
 
+        /// <summary>
+        /// Set custom index method not defined in <see cref="IndexMethod"/>
+        /// </summary>
         public string? CustomMethod
         {
             get => Method == IndexMethod.custom ? _customIndexMethod ?? Method.ToString() : null;
@@ -61,14 +75,32 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
+        /// <summary>
+        ///  Set sort order for a btree index column/expression
+        /// </summary>
         public SortOrder SortOrder { get; set; } = SortOrder.Asc;
 
+        /// <summary>
+        /// Set the null sort order for a btree index column/expression
+        /// </summary>
+        public NullsSortOrder NullsSortOrder { get; set; } = NullsSortOrder.None;
+
+        /// <summary>
+        /// Option to create unique index
+        /// </summary>
         public bool IsUnique { get; set; }
 
+        /// <summary>
+        /// Option to build index without taking any locks that prevent concurrent inserts, updates or deletes in table
+        /// </summary>
         public bool IsConcurrent { get; set; }
 
+        // Define the columns part of the index definition
         public virtual string[]? Columns { get; set; }
 
+        /// <summary>
+        /// Define the columns part of the include clause
+        /// </summary>
         public virtual string[]? IncludeColumns { get; set; }
 
         /// <summary>
@@ -99,6 +131,11 @@ namespace Weasel.Postgresql.Tables
         public string? Predicate { get; set; }
 
 
+        /// <summary>
+        /// Method to get the DDL statement for the index definition
+        /// </summary>
+        /// <param name="parent"></param>
+        /// <returns></returns>
         public string ToDDL(Table parent)
         {
             var builder = new StringBuilder();
@@ -162,6 +199,11 @@ namespace Weasel.Postgresql.Tables
             return builder.ToString();
         }
 
+        /// <summary>
+        /// Method to normalize a column definition for checking match/equivalene
+        /// </summary>
+        /// <param name="column"></param>
+        /// <returns></returns>
         public static string CanonicizeCast(string column)
         {
             if (!column.Contains("::")) return column;
@@ -183,6 +225,9 @@ namespace Weasel.Postgresql.Tables
             set => StorageParameters["fillfactor"] = value;
         }
 
+        /// <summary>
+        /// Method to define the index storage parameters
+        /// </summary>
         public OrderedDictionary StorageParameters { get; set; } = new();
 
         private string correctedExpression()
@@ -201,9 +246,23 @@ namespace Weasel.Postgresql.Tables
                 expression = Mask.Replace("?", expression);
             }
 
-            if (Method == IndexMethod.btree && SortOrder != SortOrder.Asc)
+            if (Method == IndexMethod.btree)
             {
-                expression += " DESC";
+                // ASC is default so ignore adding in expression
+                // NULLS LAST is default for ASC so ignore adding in expression
+                // NULLS FIRST is default for DESC so ignore adding in expression
+                if (SortOrder == SortOrder.Asc && NullsSortOrder == NullsSortOrder.First)
+                {
+                    expression += $" {AscendingNullsFirst}";
+                }
+                else if (SortOrder == SortOrder.Desc && NullsSortOrder is NullsSortOrder.None or NullsSortOrder.First)
+                {
+                    expression += $" {Descending}";
+                }
+                else if (SortOrder == SortOrder.Desc && NullsSortOrder == NullsSortOrder.Last)
+                {
+                    expression += $" {DescendingNullsLast}";
+                }
             }
 
             return $"({expression})";
@@ -263,7 +322,7 @@ namespace Weasel.Postgresql.Tables
                         }
 
                         expression = tokens.Dequeue();
-                        expression = removeSortOrderFromExpression(expression, out var order);
+                        (expression, index.SortOrder, index.NullsSortOrder) = removeSortOrderFromExpression(expression);
 
                         if (expression.EndsWith("jsonb_path_ops)"))
                         {
@@ -292,11 +351,7 @@ namespace Weasel.Postgresql.Tables
                                 .Replace(" ", "");
                         }
 
-                        index.SortOrder = order;
-
                         break;
-
-
 
                     case "WHERE":
                         var predicate = tokens.Dequeue();
@@ -436,23 +491,42 @@ namespace Weasel.Postgresql.Tables
             return CanonicizeCast(expression);
         }
 
-        private static string removeSortOrderFromExpression(string expression, out SortOrder order)
+        private static (string expression, SortOrder order, NullsSortOrder nullsOrder) removeSortOrderFromExpression(string expression)
         {
-            if (expression.EndsWith("DESC)"))
-            {
-                order = SortOrder.Desc;
-                return expression.Substring(0, expression.Length - 6) + ")";
-            }
-            else if (expression.EndsWith("ASC)"))
-            {
-                order = SortOrder.Asc;
-                return  expression.Substring(0, expression.Length - 5) + ")";
-            }
+            const int spaceAndEndParenthesis = 2;
 
-            order = SortOrder.Asc;
-            return expression.Trim();
+            return expression switch
+            {
+                var expr when expr.EndsWith($"{Descending})") =>
+                    (expr.Substring(0, expr.Length - Descending.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Desc, NullsSortOrder.None),
+                var expr when expr.EndsWith($"{DescendingNullsFirst})") =>
+                    (expr.Substring(0,
+                            expr.Length - DescendingNullsFirst.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Desc, NullsSortOrder.First),
+                var expr when expr.EndsWith($"{DescendingNullsLast})") =>
+                    (expr.Substring(0,
+                            expr.Length - DescendingNullsLast.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Desc, NullsSortOrder.Last),
+                var expr when expr.EndsWith($"{Ascending})") =>
+                    (expr.Substring(0, expr.Length - Ascending.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Asc, NullsSortOrder.None),
+                var expr when expr.EndsWith($"{AscendingNullsLast})") =>
+                    (expr.Substring(0, expr.Length - AscendingNullsLast.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Asc, NullsSortOrder.Last),
+                var expr when expr.EndsWith($"{AscendingNullsFirst})") =>
+                    (expr.Substring(0, expr.Length - AscendingNullsFirst.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Asc, NullsSortOrder.First),
+                _ => (expression.Trim(), SortOrder.Asc, NullsSortOrder.None)
+            };
         }
 
+        /// <summary>
+        /// Method to check if the index definition matches with a passed index definition
+        /// </summary>
+        /// <param name="actual"></param>
+        /// <param name="parent"></param>
+        /// <returns></returns>
         public bool Matches(IndexDefinition actual, Table parent)
         {
             var expectedExpression = correctedExpression();
@@ -460,7 +534,7 @@ namespace Weasel.Postgresql.Tables
 
             if (actual.Mask == expectedExpression)
             {
-                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
+                (actual.Mask, _, _) = removeSortOrderFromExpression(expectedExpression);
             }
 
             var expectedSql = CanonicizeDdl(this, parent);
@@ -470,6 +544,12 @@ namespace Weasel.Postgresql.Tables
             return expectedSql == actualSql;
         }
 
+        /// <summary>
+        /// Method to assert if the index definition matches with a passed index definition
+        /// </summary>
+        /// <param name="actual"></param>
+        /// <param name="parent"></param>
+        /// <exception cref="Exception"></exception>
         public void AssertMatches(IndexDefinition actual, Table parent)
         {
             var expectedExpression = correctedExpression();
@@ -477,7 +557,7 @@ namespace Weasel.Postgresql.Tables
 
             if (actual.Mask == expectedExpression)
             {
-                actual.Mask = removeSortOrderFromExpression(expectedExpression, out var order);
+                (actual.Mask, _, _) = removeSortOrderFromExpression(expectedExpression);
             }
 
             var expectedSql = CanonicizeDdl(this, parent);
@@ -491,6 +571,12 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
+        /// <summary>
+        /// Method to normalize the index definition to use for checking match/equivalence
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="parent"></param>
+        /// <returns></returns>
         public static string CanonicizeDdl(IndexDefinition index, Table parent)
         {
             return index.ToDDL(parent)
