@@ -5,7 +5,7 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
-    
+
 env:
   config: Release
   disable_test_parallelization: true
@@ -44,5 +44,5 @@ jobs:
 
     - name: Test
       env:
-        weasel_sqlserver_testing_database: "Server=localhost;User Id=sa;Password=${{ env.db_pwd }};"
+        weasel_sqlserver_testing_database: "Server=localhost;User Id=sa;Password=${{ env.db_pwd }};TrustServerCertificate=true"
       run: dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj --no-build --verbosity normal
