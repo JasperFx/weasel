@@ -14,6 +14,8 @@ namespace Weasel.Postgresql.Tables
         private static readonly string[] _reserved_words = new string[] {"trim", "lower", "upper"};
         private const string Ascending = "ASC";
         private const string Descending = "DESC";
+        private const string NullsFirst = "NULLS FIRST";
+        private const string NullsLast = "NULLS LAST";
         private const string AscendingNullsFirst = "ASC NULLS FIRST";
         private const string AscendingNullsLast = "ASC NULLS LAST";
         private const string DescendingNullsFirst = "DESC NULLS FIRST";
@@ -263,7 +265,7 @@ namespace Weasel.Postgresql.Tables
                 // NULLS FIRST is default for DESC so ignore adding in expression
                 if (SortOrder == SortOrder.Asc && NullsSortOrder == NullsSortOrder.First)
                 {
-                    expression += $" {AscendingNullsFirst}";
+                    expression += $" {NullsFirst}";
                 }
                 else if (SortOrder == SortOrder.Desc && NullsSortOrder is NullsSortOrder.None or NullsSortOrder.First)
                 {
@@ -543,6 +545,12 @@ namespace Weasel.Postgresql.Tables
                 var expr when expr.EndsWith($"{AscendingNullsFirst})") =>
                     (expr.Substring(0, expr.Length - AscendingNullsFirst.Length - spaceAndEndParenthesis) + ")",
                         SortOrder.Asc, NullsSortOrder.First),
+                var expr when !expr.Contains(Ascending) && !expr.Contains(Descending) && expr.EndsWith($"{NullsFirst})") =>
+                    (expr.Substring(0, expr.Length - NullsFirst.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Asc, NullsSortOrder.First),
+                var expr when !expr.Contains(Ascending) && !expr.Contains(Descending) && expr.EndsWith($"{NullsLast})") =>
+                    (expr.Substring(0, expr.Length - NullsLast.Length - spaceAndEndParenthesis) + ")",
+                        SortOrder.Asc, NullsSortOrder.Last),
                 _ => (expression.Trim(), SortOrder.Asc, NullsSortOrder.None)
             };
         }

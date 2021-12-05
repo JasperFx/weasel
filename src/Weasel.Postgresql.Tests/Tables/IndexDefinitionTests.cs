@@ -312,6 +312,10 @@ namespace Weasel.Postgresql.Tests.Tables
             var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
             index2.Method = IndexMethod.btree;
 
+            index1.ToDDL(parent).ShouldNotContain("ASC");
+            index2.ToDDL(parent).ShouldNotContain("ASC");
+            index1.ToDDL(parent).ShouldNotContain("ASC NULLS LAST");
+            index2.ToDDL(parent).ShouldNotContain("ASC NULLS LAST");
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
 
@@ -329,6 +333,10 @@ namespace Weasel.Postgresql.Tests.Tables
             index2.Method = IndexMethod.btree;
             index2.SortOrder = SortOrder.Desc;
 
+            index1.ToDDL(parent).ShouldContain("DESC");
+            index2.ToDDL(parent).ShouldContain("DESC");
+            index1.ToDDL(parent).ShouldNotContain("DESC NULLS FIRST");
+            index2.ToDDL(parent).ShouldNotContain("DESC NULLS FIRST");
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
 
@@ -344,6 +352,48 @@ namespace Weasel.Postgresql.Tests.Tables
             index2.Method = IndexMethod.btree;
             index2.NullsSortOrder = NullsSortOrder.First;
 
+            index1.ToDDL(parent).ShouldNotContain("ASC");
+            index2.ToDDL(parent).ShouldNotContain("ASC");
+            index1.ToDDL(parent).ShouldContain("NULLS FIRST");
+            index2.ToDDL(parent).ShouldContain("NULLS FIRST");
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
+
+        [Fact]
+        public void ensure_sort_order_nulls_first_without_asc_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON mt_doc_user USING btree (column1 NULLS FIRST);");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.btree;
+            index2.NullsSortOrder = NullsSortOrder.First;
+
+            index1.ToDDL(parent).ShouldNotContain("ASC");
+            index2.ToDDL(parent).ShouldNotContain("ASC");
+            index1.ToDDL(parent).ShouldContain("NULLS FIRST");
+            index2.ToDDL(parent).ShouldContain("NULLS FIRST");
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
+
+        [Fact]
+        public void ensure_sort_order_nulls_last_without_asc_is_handled_properly()
+        {
+            var table = new Table("mt_doc_user");
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON mt_doc_user USING btree (column1 NULLS LAST);");
+
+            var index2 = new IndexDefinition("idx_1") {Columns = new[] {"column1"}};
+            index2.Method = IndexMethod.btree;
+            index2.NullsSortOrder = NullsSortOrder.Last;
+
+            index1.ToDDL(parent).ShouldNotContain("ASC");
+            index2.ToDDL(parent).ShouldNotContain("ASC");
+            index1.ToDDL(parent).ShouldNotContain("ASC NULLS LAST");
+            index2.ToDDL(parent).ShouldNotContain("ASC NULLS LAST");
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
 
@@ -360,6 +410,8 @@ namespace Weasel.Postgresql.Tests.Tables
             index2.SortOrder = SortOrder.Desc;
             index2.NullsSortOrder = NullsSortOrder.Last;
 
+            index1.ToDDL(parent).ShouldContain("DESC NULLS LAST");
+            index2.ToDDL(parent).ShouldContain("DESC NULLS LAST");
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
 
