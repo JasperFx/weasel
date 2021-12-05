@@ -251,6 +251,11 @@ namespace Weasel.Postgresql.Tables
                 expression = Mask.Replace("?", expression);
             }
 
+            if (Collation != null)
+            {
+                expression += $" COLLATE \"{Collation}\"";
+            }
+
             if (Method == IndexMethod.btree)
             {
                 // ASC is default so ignore adding in expression

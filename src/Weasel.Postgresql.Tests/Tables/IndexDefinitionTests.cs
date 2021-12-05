@@ -390,6 +390,9 @@ namespace Weasel.Postgresql.Tests.Tables
             index2.Method = IndexMethod.btree;
             index2.Collation = "de_DE";
 
+            index1.ToDDL(parent).ShouldContain("COLLATE \"de_DE\"");
+            index2.ToDDL(parent).ShouldContain("COLLATE \"de_DE\"");
+
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
 
