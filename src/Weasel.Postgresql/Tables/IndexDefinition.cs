@@ -130,6 +130,11 @@ namespace Weasel.Postgresql.Tables
         /// </summary>
         public string? Predicate { get; set; }
 
+        /// <summary>
+        /// Set the collation to be used for the column/expression part of the index
+        /// </summary>
+        public string? Collation { get; set; }
+
 
         /// <summary>
         /// Method to get the DDL statement for the index definition
@@ -246,6 +251,11 @@ namespace Weasel.Postgresql.Tables
                 expression = Mask.Replace("?", expression);
             }
 
+            if (Collation != null)
+            {
+                expression += $" COLLATE \"{Collation}\"";
+            }
+
             if (Method == IndexMethod.btree)
             {
                 // ASC is default so ignore adding in expression
@@ -304,6 +314,13 @@ namespace Weasel.Postgresql.Tables
                     case "ON":
                         // Skip the table name
                         tokens.Dequeue();
+
+                        // USING clause is optional hence if next token isn't an USING clause then add it
+                        if (!tokens.Peek().Contains("USING", StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            // btree is default method
+                            tokens = new Queue<string>(new[] { "USING", "btree" }.Concat(tokens.ToArray()));
+                        }
                         break;
 
                     case "UNIQUE":
@@ -323,6 +340,15 @@ namespace Weasel.Postgresql.Tables
 
                         expression = tokens.Dequeue();
                         (expression, index.SortOrder, index.NullsSortOrder) = removeSortOrderFromExpression(expression);
+
+                        if (expression.Contains("COLLATE", StringComparison.OrdinalIgnoreCase))
+                        {
+                            // ensure to convert keyword to upper case
+                            expression = expression.Replace("collate", "COLLATE");
+                            var expressionsParts = expression.Split(new string[] { " COLLATE "}, StringSplitOptions.None );
+                            index.Collation = expressionsParts[1].TrimEnd(')').Trim('"');
+                            expression = expressionsParts[0] + ")";
+                        }
 
                         if (expression.EndsWith("jsonb_path_ops)"))
                         {
