@@ -1,5 +1,6 @@
 using System.Threading.Tasks;
 using Shouldly;
+using Weasel.Core;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests
@@ -17,15 +18,15 @@ namespace Weasel.Postgresql.Tests
             await ResetSchema();
             var extension = new Extension("plv8");
             await DropSchemaObjectInDatabase(extension);
-            
-                
+
+
             var migration = await SchemaMigration.Determine(theConnection, extension);
-            
+
             migration.Difference.ShouldBe(SchemaPatchDifference.Create);
 
             await this.CreateSchemaObjectInDatabase(extension);
-            
-            
+
+
             migration = await SchemaMigration.Determine(theConnection, extension);
             migration.Difference.ShouldBe(SchemaPatchDifference.None);
         }

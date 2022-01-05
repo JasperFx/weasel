@@ -2,6 +2,9 @@ using System;
 
 namespace Weasel.Core
 {
+    /// <summary>
+    /// Models a database object with both schema name and object name
+    /// </summary>
     public class DbObjectName
     {
         public string Schema { get; }

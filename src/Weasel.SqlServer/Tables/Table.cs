@@ -65,9 +65,9 @@ namespace Weasel.SqlServer.Tables
             set => _primaryKeyName = value;
         }
 
-        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
-            if (rules.TableCreation == CreationStyle.DropThenCreate)
+            if (migrator.TableCreation == CreationStyle.DropThenCreate)
             {
                 writer.WriteLine("DROP TABLE IF EXISTS {0};", Identifier);
                 writer.WriteLine("CREATE TABLE {0} (", Identifier);
@@ -77,7 +77,7 @@ namespace Weasel.SqlServer.Tables
                 writer.WriteLine("CREATE TABLE IF NOT EXISTS {0} (", Identifier);
             }
 
-            if (rules.Formatting == DdlFormatting.Pretty)
+            if (migrator.Formatting == SqlFormatting.Pretty)
             {
                 var columnLength = Columns.Max(x => x.Name.Length) + 4;
                 var typeLength = Columns.Max(x => x.Type.Length) + 4;
@@ -146,7 +146,7 @@ namespace Weasel.SqlServer.Tables
             }
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             writer.WriteLine($"DROP TABLE IF EXISTS {Identifier};");
         }
@@ -171,7 +171,7 @@ namespace Weasel.SqlServer.Tables
         public string ToBasicCreateTableSql()
         {
             var writer = new StringWriter();
-            var rules = new DdlRules {Formatting = DdlFormatting.Concise};
+            var rules = new SqlServerMigrator {Formatting = SqlFormatting.Concise};
             WriteCreateStatement(rules, writer);
 
             return writer.ToString();

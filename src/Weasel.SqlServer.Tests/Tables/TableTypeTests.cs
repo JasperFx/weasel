@@ -7,7 +7,6 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    [Collection("table_types")]
     public class TableTypeTests : IntegrationContext
     {
         public TableTypeTests() : base("table_types")
@@ -37,7 +36,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var existing = await type.FetchExisting(theConnection);
             existing.ShouldBeNull();
         }
-        
+
         [Fact]
         public async Task fetch_existing_when_it_does_exist()
         {
@@ -46,7 +45,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
+
             await type.Create(theConnection);
 
             var existing = await type.FetchExisting(theConnection);
@@ -54,7 +53,7 @@ namespace Weasel.SqlServer.Tests.Tables
             existing.Columns.Count.ShouldBe(1);
             existing.Columns[0].Name.ShouldBe("ID");
         }
-        
+
         [Fact]
         public async Task fetch_delta_when_does_not_exist()
         {
@@ -63,12 +62,12 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
+
             var delta = await type.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
-        
-        
+
+
         [Fact]
         public async Task apply_new_delta()
         {
@@ -79,14 +78,14 @@ namespace Weasel.SqlServer.Tests.Tables
             type.AddColumn<Guid>("ID");
 
             await type.ApplyChanges(theConnection);
-            
+
             var delta = await type.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
-        
-        
 
-        
+
+
+
         [Fact]
         public async Task fetch_delta_with_no_differences()
         {
@@ -95,13 +94,13 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
+
             await type.Create(theConnection);
 
             var delta = await type.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
-        
+
         [Fact]
         public async Task fetch_delta_with_no_differences_2()
         {
@@ -111,7 +110,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
             type.AddColumn("name", "varchar");
-            
+
             await type.Create(theConnection);
 
             var delta = await type.FindDelta(theConnection);
@@ -127,16 +126,16 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
+
             await type.Create(theConnection);
 
             await type.Drop(theConnection);
-            
+
             var delta = await type.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
-        
-        
+
+
         [Fact]
         public async Task fetch_delta_with_different_columns()
         {
@@ -145,7 +144,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
+
             await type.Create(theConnection);
 
             type.Columns[0].DatabaseType = "varchar";
@@ -153,8 +152,8 @@ namespace Weasel.SqlServer.Tests.Tables
             var delta = await type.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
-        
-                
+
+
         [Fact]
         public async Task fetch_delta_with_different_columns_2()
         {
@@ -163,7 +162,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
+
             await type.Create(theConnection);
 
             type.Columns[0].AllowNulls = !type.Columns[0].AllowNulls;
@@ -171,8 +170,8 @@ namespace Weasel.SqlServer.Tests.Tables
             var delta = await type.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
-        
-                
+
+
         [Fact]
         public async Task fetch_delta_with_different_columns_3()
         {
@@ -181,17 +180,17 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
-            
+
+
             await type.Create(theConnection);
-            
+
             type.AddColumn<string>("name");
 
             var delta = await type.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
-        
-                
+
+
         [Fact]
         public async Task apply_update_delta()
         {
@@ -200,17 +199,17 @@ namespace Weasel.SqlServer.Tests.Tables
             var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
-            
-            
+
+
             await type.Create(theConnection);
-            
+
             type.AddColumn("name", "varchar");
 
-            
+
             await type.ApplyChanges(theConnection);
-            
+
             var delta = await type.FindDelta(theConnection);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
     }

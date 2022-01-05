@@ -44,9 +44,9 @@ $BODY$
         {
             var func = new FunctionBody(new DbObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
 
-            func.BuildTemplate($"*{DdlRules.SCHEMA}*").ShouldBe("*public*");
-            func.BuildTemplate($"*{DdlRules.FUNCTION}*").ShouldBe("*mt_upsert_target*");
-            func.BuildTemplate($"*{DdlRules.SIGNATURE}*").ShouldBe($"*{Function.ParseSignature(func.Body)}*");
+            func.BuildTemplate($"*{PostgresqlMigrator.SCHEMA}*").ShouldBe("*public*");
+            func.BuildTemplate($"*{PostgresqlMigrator.FUNCTION}*").ShouldBe("*mt_upsert_target*");
+            func.BuildTemplate($"*{PostgresqlMigrator.SIGNATURE}*").ShouldBe($"*{Function.ParseSignature(func.Body)}*");
         }
     }
 }

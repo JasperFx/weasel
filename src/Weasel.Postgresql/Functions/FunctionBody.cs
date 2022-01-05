@@ -27,13 +27,13 @@ namespace Weasel.Postgresql.Functions
         public string BuildTemplate(string template)
         {
             return template
-                .Replace(DdlRules.SCHEMA, Identifier.Schema)
-                .Replace(DdlRules.FUNCTION, Identifier.Name)
-                .Replace(DdlRules.SIGNATURE, Functions.Function.ParseSignature(Body))
+                .Replace(PostgresqlMigrator.SCHEMA, Identifier.Schema)
+                .Replace(PostgresqlMigrator.FUNCTION, Identifier.Name)
+                .Replace(PostgresqlMigrator.SIGNATURE, Functions.Function.ParseSignature(Body))
                 ;
         }
 
-        public void WriteTemplate(DdlTemplate template, StringWriter writer)
+        public void WriteTemplate(SqlTemplate template, StringWriter writer)
         {
             var text = template?.FunctionCreation;
             if (text.IsNotEmpty())

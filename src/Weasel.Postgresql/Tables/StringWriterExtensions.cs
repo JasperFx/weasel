@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Weasel.Core;
 using Weasel.Postgresql.Functions;
 
 namespace Weasel.Postgresql.Tables
@@ -48,7 +49,7 @@ namespace Weasel.Postgresql.Tables
 
         }
 
-        public static void WriteReplaceFunction(this TextWriter writer, DdlRules rules, Function oldFunction, Function newFunction)
+        public static void WriteReplaceFunction(this TextWriter writer, Migrator rules, Function oldFunction, Function newFunction)
         {
             writer.WriteDropFunction(oldFunction);
             newFunction.WriteCreateStatement(rules, writer);

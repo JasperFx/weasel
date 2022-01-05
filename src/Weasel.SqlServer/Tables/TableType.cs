@@ -7,13 +7,14 @@ using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
 using Weasel.Core;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.SqlServer.Tables
 {
     public class TableType : ISchemaObject
     {
         private readonly List<TableTypeColumn> _columns = new List<TableTypeColumn>();
-        
+
         public DbObjectName Identifier { get; }
 
         public TableType(DbObjectName identifier)
@@ -50,24 +51,24 @@ namespace Weasel.SqlServer.Tables
             return column;
         }
 
-        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
             writer.Write($"CREATE TYPE {Identifier.QualifiedName} AS TABLE (");
-            
+
             writer.Write(_columns.Select(x => x.Declaration()).Join(", "));
             writer.WriteLine(")");
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             writer.WriteLine($"drop type {Identifier};");
         }
 
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             builder.Append($@"
 select sys.columns.name, sys.types.name, sys.columns.is_nullable
-from 
+from
     sys.table_types inner join sys.columns on sys.table_types.type_table_object_id = sys.columns.object_id
     inner join sys.types on sys.columns.system_type_id = sys.types.system_type_id
     inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id
@@ -94,12 +95,12 @@ order by
             void AllowNulls();
             void NotNull();
         }
-        
+
         public class TableTypeColumn : ITableTypeColumn
         {
             public string Name { get; }
             public string DatabaseType { get; set; }
-            
+
             public bool AllowNulls { get; set; }
 
             public TableTypeColumn(string name, string databaseType)
@@ -151,10 +152,10 @@ order by
             }
 
         }
-        
+
         public async Task<TableType?> FetchExisting(SqlConnection conn)
         {
-            var builder = new CommandBuilder();
+            var builder = new DbCommandBuilder(conn);
 
             ConfigureQueryCommand(builder);
 
@@ -176,13 +177,13 @@ order by
                 var column = new TableTypeColumn(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
                     await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
                 column.AllowNulls = await reader.GetFieldValueAsync<bool>(2).ConfigureAwait(false);
-                
+
                 existing._columns.Add(column);
             }
 
             return existing._columns.Any() ? existing : null;
         }
-        
-        
+
+
     }
 }

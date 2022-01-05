@@ -25,13 +25,13 @@ namespace Weasel.SqlServer
         {
             var migration = await SchemaMigration.Determine(conn, schemaObject).ConfigureAwait(false);
 
-            await migration.ApplyAll(conn, new DdlRules(), AutoCreate.CreateOrUpdate).ConfigureAwait(false);
+            await new SqlServerMigrator().ApplyAll(conn, migration, AutoCreate.CreateOrUpdate).ConfigureAwait(false);
         }
 
         public static Task Drop(this ISchemaObject schemaObject, SqlConnection conn)
         {
             var writer = new StringWriter();
-            schemaObject.WriteDropStatement(new DdlRules(), writer);
+            schemaObject.WriteDropStatement(new SqlServerMigrator(), writer);
 
             return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
         }
@@ -39,7 +39,7 @@ namespace Weasel.SqlServer
         public static Task Create(this ISchemaObject schemaObject, SqlConnection conn)
         {
             var writer = new StringWriter();
-            schemaObject.WriteCreateStatement(new DdlRules(), writer);
+            schemaObject.WriteCreateStatement(new SqlServerMigrator(), writer);
 
             return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
         }
@@ -63,7 +63,7 @@ IF NOT EXISTS ( SELECT  *
     EXEC('CREATE SCHEMA [{schemaName}]');
 
 ";
-                
+
                 await conn
                     .CreateCommand(sql)
                     .ExecuteNonQueryAsync(cancellation).ConfigureAwait(false);
@@ -99,7 +99,7 @@ IF NOT EXISTS ( SELECT  *
             }).ConfigureAwait(false);
 
             var tables = await conn.CreateCommand($"select table_name from information_schema.tables where table_schema = '{schemaName}'").FetchList<string>().ConfigureAwait(false);
-            
+
             var sequences = await conn
                 .CreateCommand($"select sequence_name from information_schema.sequences where sequence_schema = '{schemaName}'")
                 .FetchList<string>().ConfigureAwait(false);
@@ -115,13 +115,13 @@ IF NOT EXISTS ( SELECT  *
             drops.AddRange(tables.Select(name => $"drop table {schemaName}.{name};"));
             drops.AddRange(sequences.Select(name => $"drop sequence {schemaName}.{name};"));
             drops.AddRange(tableTypes.Select(x => $"DROP TYPE {schemaName}.{x};"));
-                    
+
 
             foreach (var drop in drops)
             {
                 await conn.CreateCommand(drop).ExecuteNonQueryAsync().ConfigureAwait(false);
-            } 
-            
+            }
+
             if (!schemaName.EqualsIgnoreCase(SqlServerProvider.Instance.DefaultDatabaseSchemaName))
             {
                 var sql = $"drop schema if exists {schemaName};";
@@ -132,13 +132,30 @@ IF NOT EXISTS ( SELECT  *
 
         public static Task CreateSchema(this SqlConnection conn, string schemaName)
         {
-            return conn.CreateCommand(SchemaMigration.CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync();
+            return conn.CreateCommand(SqlServerMigrator.CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync();
         }
 
         public static async Task ResetSchema(this SqlConnection conn, string schemaName)
         {
-            await conn.DropSchema(schemaName).ConfigureAwait(false);
-            await conn.RunSql(SchemaMigration.CreateSchemaStatementFor(schemaName)).ConfigureAwait(false);
+            try
+            {
+                await conn.DropSchema(schemaName).ConfigureAwait(false);
+            }
+            catch (SqlException e)
+            {
+                if (e.Message.Contains("deadlocked"))
+                {
+                    await Task.Delay(100).ConfigureAwait(false);
+                    await conn.CloseAsync().ConfigureAwait(false);
+                    await conn.OpenAsync().ConfigureAwait(false);
+                    await conn.DropSchema(schemaName).ConfigureAwait(false);
+                }
+                else
+                {
+                    throw;
+                }
+            }
+            await conn.RunSql(SqlServerMigrator.CreateSchemaStatementFor(schemaName)).ConfigureAwait(false);
         }
 
         public static async Task<bool> FunctionExists(this SqlConnection conn, DbObjectName functionIdentifier)
@@ -207,7 +224,7 @@ IF NOT EXISTS ( SELECT  *
         /// <param name="object"></param>
         /// <param name="rules"></param>
         /// <returns></returns>
-        public static string ToCreateSql(this ISchemaObject @object, DdlRules rules)
+        public static string ToCreateSql(this ISchemaObject @object, SqlServerMigrator rules)
         {
             var writer = new StringWriter();
             @object.WriteCreateStatement(rules, writer);

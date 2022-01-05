@@ -1,4 +1,4 @@
-﻿namespace Weasel.Postgresql
+﻿namespace Weasel.Core
 {
     public enum CreationStyle
     {

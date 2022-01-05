@@ -54,8 +54,7 @@ namespace Weasel.SqlServer.Tests.Procedures
         }
     }
 
-    
-    [Collection("procs")]
+
     public class StoredProcedureTests : IntegrationContext
     {
         private StoredProcedure theProcedure;
@@ -110,7 +109,7 @@ AS
             var existing = await theProcedure.FetchExisting(theConnection);
             existing.ShouldNotBeNull();
         }
-        
+
 
         [Fact]
         public async Task fetch_existing_when_it_does_not_exist()
@@ -125,9 +124,9 @@ AS
             var delta = await theProcedure.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
-        
-                
-        
+
+
+
         [Fact]
         public async Task apply_new_delta()
         {
@@ -136,12 +135,12 @@ AS
             afterChangingTheProcedure();
 
             await theProcedure.ApplyChanges(theConnection);
-            
+
             var delta = await theProcedure.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
-        
-                
+
+
         [Fact]
         public async Task fetch_delta_with_different_body()
         {
@@ -152,19 +151,19 @@ AS
             var delta = await theProcedure.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
-        
+
         [Fact]
         public async Task apply_update_delta()
         {
-      
+
             await theProcedure.Create(theConnection);
 
             afterChangingTheProcedure();
 
             await theProcedure.ApplyChanges(theConnection);
-            
+
             var delta = await theProcedure.FindDelta(theConnection);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -177,14 +176,14 @@ AS
             var delta = await theProcedure.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
-        
+
         [Fact]
         public async Task drop_procedure()
         {
             await theProcedure.Create(theConnection);
 
             await theProcedure.Drop(theConnection);
-            
+
             var delta = await theProcedure.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }

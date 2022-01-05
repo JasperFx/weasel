@@ -17,16 +17,16 @@ namespace Weasel.Postgresql.Tables
         /// No partitioning
         /// </summary>
         None,
-        
+
         /// <summary>
         /// Postgresql PARTITION BY RANGE semantics
         /// </summary>
         Range,
-        
-        
+
+
         //List
     }
-    
+
     public partial class Table : ISchemaObject
     {
         private readonly List<TableColumn> _columns = new List<TableColumn>();
@@ -45,7 +45,7 @@ namespace Weasel.Postgresql.Tables
 
         public IList<string> PartitionExpressions { get; } = new List<string>();
 
-        
+
         /// <summary>
         /// PARTITION strategy for this table
         /// </summary>
@@ -59,15 +59,15 @@ namespace Weasel.Postgresql.Tables
         public string ToBasicCreateTableSql()
         {
             var writer = new StringWriter();
-            var rules = new DdlRules{Formatting = DdlFormatting.Concise};
+            var rules = new PostgresqlMigrator{Formatting = SqlFormatting.Concise};
             WriteCreateStatement(rules, writer);
 
             return writer.ToString();
         }
-        
-        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
-            if (rules.TableCreation == CreationStyle.DropThenCreate)
+            if (migrator.TableCreation == CreationStyle.DropThenCreate)
             {
                 writer.WriteLine("DROP TABLE IF EXISTS {0} CASCADE;", Identifier);
                 writer.WriteLine("CREATE TABLE {0} (", Identifier);
@@ -76,8 +76,8 @@ namespace Weasel.Postgresql.Tables
             {
                 writer.WriteLine("CREATE TABLE IF NOT EXISTS {0} (", Identifier);
             }
-            
-            if (rules.Formatting == DdlFormatting.Pretty)
+
+            if (migrator.Formatting == SqlFormatting.Pretty)
             {
                 var columnLength = Columns.Max(x => x.Name.Length) + 4;
                 var typeLength = Columns.Max(x => x.Type.Length) + 4;
@@ -103,7 +103,7 @@ namespace Weasel.Postgresql.Tables
                 var lines = Columns
                     .Select(column => column.ToDeclaration())
                     .ToList();
-                
+
                 if (PrimaryKeyColumns.Any())
                 {
                     lines.Add(PrimaryKeyDeclaration());
@@ -122,14 +122,14 @@ namespace Weasel.Postgresql.Tables
                 case PartitionStrategy.None:
                     writer.WriteLine(");");
                     break;
-                
+
                 case PartitionStrategy.Range:
                     writer.WriteLine($") PARTITION BY RANGE ({PartitionExpressions.Join(", ")});");
                     break;
             }
 
 
-            
+
 
             // TODO -- support OriginWriter
             //writer.WriteLine(OriginWriter.OriginStatement("TABLE", Identifier.QualifiedName));
@@ -139,23 +139,23 @@ namespace Weasel.Postgresql.Tables
                 writer.WriteLine();
                 writer.WriteLine(foreignKey.ToDDL(this));
             }
-            
-            
+
+
             foreach (var index in Indexes)
             {
                 writer.WriteLine();
                 writer.WriteLine(index.ToDDL(this));
             }
         }
-        
-        
+
+
 
         internal string PrimaryKeyDeclaration()
         {
             return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
         }
@@ -169,13 +169,13 @@ namespace Weasel.Postgresql.Tables
             get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
             set => _primaryKeyName = value;
         }
-        
+
         public TableColumn? ColumnFor(string columnName)
         {
             return Columns.FirstOrDefault(x => x.Name == columnName);
         }
-        
-        
+
+
         public bool HasColumn(string columnName)
         {
             return Columns.Any(x => x.Name == columnName);
@@ -209,7 +209,7 @@ namespace Weasel.Postgresql.Tables
 
         public Table(string tableName) : this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
         {
-            
+
         }
 
         public ColumnExpression AddColumn(TableColumn column)
@@ -276,7 +276,7 @@ namespace Weasel.Postgresql.Tables
             {
                 return ForeignKeyTo(DbObjectName.Parse(PostgresqlProvider.Instance, referencedTableName), referencedColumnName, fkName, onDelete, onUpdate);
             }
-            
+
             public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName, string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction, CascadeAction onUpdate = CascadeAction.NoAction)
             {
                 return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName, onDelete, onUpdate);
@@ -298,7 +298,7 @@ namespace Weasel.Postgresql.Tables
 
                 return this;
             }
-            
+
             /// <summary>
             /// Marks this column as being part of the parent table's primary key
             /// </summary>
@@ -309,7 +309,7 @@ namespace Weasel.Postgresql.Tables
                 Column.AllowNulls = false;
                 return this;
             }
-            
+
             public ColumnExpression AllowNulls()
             {
                 Column.AllowNulls = true;
@@ -330,7 +330,7 @@ namespace Weasel.Postgresql.Tables
                 };
 
                 _parent.Indexes.Add(index);
-                
+
                 configure?.Invoke(index);
 
                 return this;
@@ -346,17 +346,17 @@ namespace Weasel.Postgresql.Tables
             {
                 return DefaultValueByExpression($"'{value}'");
             }
-            
+
             public ColumnExpression DefaultValue(int value)
             {
                 return DefaultValueByExpression(value.ToString());
             }
-            
+
             public ColumnExpression DefaultValue(long value)
             {
                 return DefaultValueByExpression(value.ToString());
             }
-            
+
             public ColumnExpression DefaultValue(double value)
             {
                 return DefaultValueByExpression(value.ToString(CultureInfo.InvariantCulture));
@@ -366,7 +366,7 @@ namespace Weasel.Postgresql.Tables
             {
                 return DefaultValueFromSequence(sequence.Identifier);
             }
-            
+
             public ColumnExpression DefaultValueFromSequence(DbObjectName sequenceName)
             {
                 return DefaultValueByExpression($"nextval('{sequenceName}')");

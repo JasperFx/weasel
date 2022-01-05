@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
+using Weasel.Core;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests
@@ -12,7 +13,7 @@ namespace Weasel.Postgresql.Tests
     {
         private readonly string _schemaName;
         protected readonly NpgsqlConnection theConnection = new NpgsqlConnection(ConnectionSource.ConnectionString);
-        
+
         protected IntegrationContext(string schemaName)
         {
             if (!GetType().HasAttribute<CollectionAttribute>())
@@ -27,7 +28,7 @@ namespace Weasel.Postgresql.Tests
         {
             theConnection?.Dispose();
         }
-        
+
         protected async Task ResetSchema()
         {
             await theConnection.OpenAsync();
@@ -37,7 +38,7 @@ namespace Weasel.Postgresql.Tests
 
         protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
         {
-            var rules = new DdlRules();
+            var rules = new PostgresqlMigrator();
             var writer = new StringWriter();
             schemaObject.WriteCreateStatement(rules, writer);
 
@@ -54,7 +55,7 @@ namespace Weasel.Postgresql.Tests
 
         protected Task DropSchemaObjectInDatabase(ISchemaObject schemaObject)
         {
-            var rules = new DdlRules();
+            var rules = new PostgresqlMigrator();
             var writer = new StringWriter();
             schemaObject.WriteDropStatement(rules, writer);
 

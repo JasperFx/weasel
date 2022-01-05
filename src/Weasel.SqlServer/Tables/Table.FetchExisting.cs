@@ -5,12 +5,13 @@ using Microsoft.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using Weasel.Core;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.SqlServer.Tables
 {
     public partial class Table
     {
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -20,17 +21,17 @@ select column_name, data_type, character_maximum_length
 from information_schema.columns where table_schema = @{schemaParam} and table_name = @{nameParam}
 order by ordinal_position;
 
-select 
-    COLUMN_NAME, 
-    CONSTRAINT_NAME 
-from 
-    INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE 
-where 
-    TABLE_SCHEMA = @{schemaParam} and 
-    TABLE_NAME = @{nameParam} and 
+select
+    COLUMN_NAME,
+    CONSTRAINT_NAME
+from
+    INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE
+where
+    TABLE_SCHEMA = @{schemaParam} and
+    TABLE_NAME = @{nameParam} and
     CONSTRAINT_NAME in (select constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where TABLE_CONSTRAINTS.TABLE_NAME = @{nameParam} and TABLE_CONSTRAINTS.TABLE_SCHEMA = @{schemaParam} and CONSTRAINT_TYPE = 'PRIMARY KEY')
 
-   select 
+   select
           parent.name as constraint_name,
           fkt.name as referenced_table,
           fks.name as referenced_schema,
@@ -39,7 +40,7 @@ where
           parent.delete_referential_action_desc,
           parent.update_referential_action_desc
 
-   from sys.foreign_key_columns fk 
+   from sys.foreign_key_columns fk
        inner join sys.foreign_keys parent on fk.constraint_object_id = parent.object_id
        inner join sys.tables t on fk.parent_object_id = t.object_id
        inner join sys.schemas s on t.schema_id = s.schema_id
@@ -54,15 +55,15 @@ where
 
 
 
-select 
+select
     i.index_id,
-    i.name, 
+    i.name,
     i.type_desc as type,
     i.is_unique,
     i.fill_factor,
     i.has_filter,
     i.filter_definition
-from 
+from
     sys.indexes i
     inner join sys.tables t on t.object_id = i.object_id
     inner join sys.schemas s on s.schema_id = t.schema_id
@@ -72,20 +73,20 @@ where
     i.is_primary_key = 0;
 
 
-select 
+select
     ic.index_id,
     c.name,
     ic.is_descending_key
-       
+
 from
-    sys.index_columns ic 
+    sys.index_columns ic
     inner join sys.tables t on t.object_id = ic.object_id
     inner join sys.schemas s on s.schema_id = t.schema_id
     inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
 where
         t.name = @{nameParam} and
         s.name = @{schemaParam}
-order by 
+order by
     ic.index_id,
     ic.index_column_id;
 
@@ -98,7 +99,7 @@ order by
 
         public async Task<Table?> FetchExisting(SqlConnection conn)
         {
-            var builder = new CommandBuilder();
+            var builder = new DbCommandBuilder(conn);
 
             ConfigureQueryCommand(builder);
 

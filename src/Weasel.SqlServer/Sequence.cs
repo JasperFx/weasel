@@ -4,6 +4,7 @@ using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
 using Weasel.Core;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.SqlServer
 {
@@ -36,10 +37,10 @@ namespace Weasel.SqlServer
             yield return Identifier;
         }
 
-        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
             var startsWith = _startWith ?? 1;
-            
+
             writer.WriteLine(
                 $"CREATE SEQUENCE {Identifier} START WITH {startsWith};");
 
@@ -49,12 +50,12 @@ namespace Weasel.SqlServer
             }
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             writer.WriteLine($"DROP SEQUENCE IF EXISTS {Identifier};");
         }
 
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -74,7 +75,7 @@ namespace Weasel.SqlServer
 
         public async Task<ISchemaObjectDelta> FindDelta(SqlConnection conn)
         {
-            var builder = new CommandBuilder();
+            var builder = new DbCommandBuilder(conn);
 
             ConfigureQueryCommand(builder);
 

@@ -5,7 +5,6 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
-    [Collection("sequences")]
     public class SequenceTester : IntegrationContext
     {
         private readonly Sequence theSequence = new(new DbObjectName("sequences", "mysequence"));
@@ -22,8 +21,8 @@ namespace Weasel.SqlServer.Tests
 
             await theSequence.Create(theConnection);
         }
-        
-        
+
+
         [Fact]
         public async Task can_create_with_startup_sequence_without_blowing_up()
         {
@@ -41,7 +40,7 @@ namespace Weasel.SqlServer.Tests
             await ResetSchema();
 
             var delta = await theSequence.FindDelta(theConnection);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
 
@@ -61,12 +60,12 @@ namespace Weasel.SqlServer.Tests
             await ResetSchema();
 
             await theSequence.Create(theConnection);
-            
+
             var delta = await theSequence.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
 
             await theSequence.Drop(theConnection);
-            
+
             delta = await theSequence.FindDelta(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);

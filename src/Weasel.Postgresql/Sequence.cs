@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Npgsql;
 using Weasel.Core;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql
 {
@@ -16,8 +17,8 @@ namespace Weasel.Postgresql
         public Sequence(string identifier)
         {
             Identifier = DbObjectName.Parse(PostgresqlProvider.Instance, identifier);
-        } 
-        
+        }
+
         public Sequence(DbObjectName identifier)
         {
             Identifier = identifier;
@@ -37,7 +38,7 @@ namespace Weasel.Postgresql
             yield return Identifier;
         }
 
-        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
             writer.WriteLine($"CREATE SEQUENCE {Identifier}{(_startWith.HasValue ? $" START {_startWith.Value}" : string.Empty)};");
 
@@ -47,12 +48,12 @@ namespace Weasel.Postgresql
             }
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             writer.WriteLine($"DROP SEQUENCE IF EXISTS {Identifier};");
         }
 
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -71,7 +72,7 @@ namespace Weasel.Postgresql
 
         public async Task<ISchemaObjectDelta> FindDelta(NpgsqlConnection conn)
         {
-            var builder = new CommandBuilder();
+            var builder = new DbCommandBuilder(conn);
 
             ConfigureQueryCommand(builder);
 

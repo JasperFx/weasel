@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using System.Threading.Tasks;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables
 {
