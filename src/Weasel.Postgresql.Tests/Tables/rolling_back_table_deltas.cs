@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Baseline.Dates;
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -21,7 +22,7 @@ namespace Weasel.Postgresql.Tests.Tables
             initial.AddColumn<string>("last_name");
             initial.AddColumn<string>("user_name");
             initial.AddColumn("data", "jsonb");
-            
+
             configured = new Table("rollbacks.people");
             configured.AddColumn<int>("id").AsPrimaryKey();
             configured.AddColumn<string>("first_name");
@@ -47,11 +48,11 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var migration = new SchemaMigration(new ISchemaObjectDelta[] {delta});
 
-            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
 
             await Task.Delay(100.Milliseconds());
-            
-            await migration.RollbackAll(theConnection, new DdlRules());
+
+            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
 
             var delta2 = await initial.FindDelta(theConnection);
             delta2.Difference.ShouldBe(SchemaPatchDifference.None);
@@ -71,7 +72,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             initial.ModifyColumn("user_name").AddIndex();
             configured.ModifyColumn("last_name").AddIndex();
-            
+
             await AssertRollbackIsSuccessful();
         }
 
@@ -80,7 +81,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             initial.ModifyColumn("user_name").AddIndex();
             configured.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
-            
+
             await AssertRollbackIsSuccessful();
         }
 
@@ -89,21 +90,21 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             var states = new Table("rollbacks.states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             configured.AddColumn<int>("state_id")
                 .ForeignKeyTo(states, "id");
-            
+
             await AssertRollbackIsSuccessful(states);
         }
-        
+
         [Fact]
         public async Task if_an_fkey_is_removed_rollback_should_put_it_back()
         {
             var states = new Table("rollbacks.states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             initial.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
-            
+
             await AssertRollbackIsSuccessful(states);
         }
 
@@ -111,7 +112,7 @@ namespace Weasel.Postgresql.Tests.Tables
         public async Task changed_primary_key()
         {
             configured.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValueByString("foo");
-            
+
             await AssertRollbackIsSuccessful();
         }
     }

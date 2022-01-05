@@ -1,32 +1,38 @@
-using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
-using Npgsql;
-using Weasel.Postgresql.Functions;
 
-namespace Weasel.Postgresql
+namespace Weasel.Core
 {
+    /// <summary>
+    /// A detected change between desired database configuration
+    /// and the actual state of the database
+    /// </summary>
     public class SchemaMigration
     {
         private readonly List<ISchemaObjectDelta> _deltas;
-        private readonly string[] _schemas;
-        private Lazy<string> _updates;
-        private Lazy<string> _rollbacks;
 
-        public static async Task<SchemaMigration> Determine(NpgsqlConnection conn, params ISchemaObject[] schemaObjects)
+        /// <summary>
+        /// Create a SchemaMigration for the supplied connection and array of schema
+        /// objects
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="schemaObjects"></param>
+        /// <returns></returns>
+        public static async Task<SchemaMigration> Determine(DbConnection conn, params ISchemaObject[] schemaObjects)
         {
             var deltas = new List<ISchemaObjectDelta>();
-            
-            
+
+
             if (!schemaObjects.Any())
             {
                 return new SchemaMigration(deltas);
             }
-            
-            var builder = new CommandBuilder();
+
+            var builder = new DbCommandBuilder(conn);
 
             foreach (var schemaObject in schemaObjects)
             {
@@ -49,31 +55,16 @@ namespace Weasel.Postgresql
         public SchemaMigration(IEnumerable<ISchemaObjectDelta> deltas)
         {
             _deltas = new List<ISchemaObjectDelta>(deltas);
-            _schemas = _deltas.SelectMany(x => x.SchemaObject.AllNames())
+            Schemas = _deltas.SelectMany(x => x.SchemaObject.AllNames())
                 .Select(x => x.Schema)
                 .Where(x => x != "public")
                 .Distinct().ToArray();
-            
+
             if (_deltas.Any())
             {
                 Difference = _deltas.Min(x => x.Difference);
             }
 
-            _updates = new Lazy<string>(() =>
-            {
-                var writer = new StringWriter();
-                WriteAllUpdates(writer, new DdlRules(), AutoCreate.CreateOrUpdate);
-
-                return writer.ToString();
-            });
-
-            _rollbacks = new Lazy<string>(() =>
-            {
-                var writer = new StringWriter();
-                WriteAllRollbacks(writer, new DdlRules());
-
-                return writer.ToString();
-            });
         }
 
         public SchemaMigration(ISchemaObjectDelta delta) : this(new ISchemaObjectDelta[]{delta})
@@ -83,56 +74,24 @@ namespace Weasel.Postgresql
 
         public IReadOnlyList<ISchemaObjectDelta> Deltas => _deltas;
 
+        /// <summary>
+        /// The unique schemas part of this migration
+        /// </summary>
+        public string[] Schemas { get; }
+
+        /// <summary>
+        /// The detected difference between configuration and the actual database
+        /// </summary>
         public SchemaPatchDifference Difference { get; private set; } = SchemaPatchDifference.None;
 
-        /// <summary>
-        /// The SQL that will be executed to update this migration
-        /// </summary>
-        public string UpdateSql => _updates.Value;
 
         /// <summary>
-        /// The SQL to rollback the application of this migration
+        /// Writes all the necessary SQL statements to update the actual database to the expected configuration
         /// </summary>
-        public string RollbackSql => _rollbacks.Value;
-
-        public async Task ApplyAll(NpgsqlConnection conn, DdlRules rules, AutoCreate autoCreate, Action<string>? logSql = null, Action<NpgsqlCommand, Exception>? onFailure = null)
-        {
-            if (autoCreate == AutoCreate.None) return;
-            if (Difference == SchemaPatchDifference.None) return;
-            if (!_deltas.Any()) return;
-
-            var writer = new StringWriter();
-
-            if (_schemas.Any())
-            {
-                SchemaGenerator.WriteSql(_schemas, writer);
-            }
-            
-            
-            WriteAllUpdates(writer, rules, autoCreate);
-
-            var cmd = conn.CreateCommand(writer.ToString());
-            logSql?.Invoke(cmd.CommandText);
-
-            try
-            {
-                await cmd
-                    .ExecuteNonQueryAsync().ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                if (onFailure != null)
-                {
-                    onFailure(cmd, e);
-                }
-                else
-                {
-                    throw;
-                }
-            }
-        }
-
-        public void WriteAllUpdates(TextWriter writer, DdlRules rules, AutoCreate autoCreate)
+        /// <param name="writer"></param>
+        /// <param name="rules"></param>
+        /// <param name="autoCreate"></param>
+        public void WriteAllUpdates(TextWriter writer, Migrator rules, AutoCreate autoCreate)
         {
             AssertPatchingIsValid(autoCreate);
             foreach (var delta in _deltas)
@@ -141,15 +100,15 @@ namespace Weasel.Postgresql
                 {
                     case SchemaPatchDifference.None:
                         break;
-                    
+
                     case SchemaPatchDifference.Create:
                         delta.SchemaObject.WriteCreateStatement(rules, writer);
                         break;
-                    
+
                     case SchemaPatchDifference.Update:
                         delta.WriteUpdate(rules, writer);
                         break;
-                    
+
                     case SchemaPatchDifference.Invalid:
                         delta.SchemaObject.WriteDropStatement(rules, writer);
                         delta.SchemaObject.WriteCreateStatement(rules, writer);
@@ -158,7 +117,13 @@ namespace Weasel.Postgresql
             }
         }
 
-        public void WriteAllRollbacks(TextWriter writer, DdlRules rules)
+        /// <summary>
+        /// Writes all the necessary SQL statements to rollback the actual database to the initial state if
+        /// this migration has already been applied
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="rules"></param>
+        public void WriteAllRollbacks(TextWriter writer, Migrator rules)
         {
             foreach (var delta in _deltas)
             {
@@ -166,15 +131,15 @@ namespace Weasel.Postgresql
                 {
                     case SchemaPatchDifference.None:
                         continue;
-                    
+
                     case SchemaPatchDifference.Create:
                         delta.SchemaObject.WriteDropStatement(rules, writer);
                         break;
-                    
+
                     case SchemaPatchDifference.Update:
                         delta.WriteRollback(rules, writer);
                         break;
-                    
+
                     case SchemaPatchDifference.Invalid:
                         delta.SchemaObject.WriteDropStatement(rules, writer);
                         delta.WriteRestorationOfPreviousState(rules, writer);
@@ -182,7 +147,7 @@ namespace Weasel.Postgresql
                 }
             }
         }
-        
+
         public static string ToDropFileName(string updateFile)
         {
             var containingFolder = updateFile.ParentDirectory();
@@ -194,17 +159,22 @@ namespace Weasel.Postgresql
             return containingFolder.IsEmpty() ? dropFile : containingFolder.AppendPath(dropFile);
         }
 
-
+        /// <summary>
+        /// Assert that this migration can be applied based on the supplied
+        /// autoCreate threshold
+        /// </summary>
+        /// <param name="autoCreate"></param>
+        /// <exception cref="SchemaMigrationException"></exception>
         public void AssertPatchingIsValid(AutoCreate autoCreate)
         {
             if (Difference == SchemaPatchDifference.None) return;
-            
+
             switch (autoCreate)
             {
                 case AutoCreate.All:
                 case AutoCreate.None:
                     return;
-                
+
                 case AutoCreate.CreateOnly:
                     if (Difference != SchemaPatchDifference.Create)
                     {
@@ -213,7 +183,7 @@ namespace Weasel.Postgresql
                     }
 
                     break;
-                
+
                 case AutoCreate.CreateOrUpdate:
                     if (Difference == SchemaPatchDifference.Invalid)
                     {
@@ -226,8 +196,13 @@ namespace Weasel.Postgresql
 
         }
 
-
-        public Task RollbackAll(NpgsqlConnection conn, DdlRules rules)
+        /// <summary>
+        /// Apply all the rollback steps from this migration to the supplied database connection
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="rules"></param>
+        /// <returns></returns>
+        public Task RollbackAll(DbConnection conn, Migrator rules)
         {
             var writer = new StringWriter();
             WriteAllRollbacks(writer, rules);
@@ -235,11 +210,6 @@ namespace Weasel.Postgresql
             return conn
                 .CreateCommand(writer.ToString())
                 .ExecuteNonQueryAsync();
-        }
-
-        public static string CreateSchemaStatementFor(string schemaName)
-        {
-            return $"create schema if not exists {schemaName};";
         }
     }
 }

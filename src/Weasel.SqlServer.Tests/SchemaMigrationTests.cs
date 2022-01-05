@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using NSubstitute;
 using Shouldly;
+using Weasel.Core;
 using Xunit;
 
 namespace Weasel.SqlServer.Tests
@@ -44,10 +45,10 @@ namespace Weasel.SqlServer.Tests
         [InlineData(AutoCreate.CreateOrUpdate, new []{SchemaPatchDifference.Update, SchemaPatchDifference.Create, SchemaPatchDifference.None})]
         public void valid_asserts(AutoCreate autoCreate, SchemaPatchDifference[] differences)
         {
-            var migration = migrationFor(differences); 
+            var migration = migrationFor(differences);
             migration.AssertPatchingIsValid(autoCreate); // nothing thrown
         }
-        
+
         [Theory]
         [InlineData(AutoCreate.CreateOnly, new []{SchemaPatchDifference.Update, SchemaPatchDifference.None, SchemaPatchDifference.None})]
         [InlineData(AutoCreate.CreateOnly, new []{SchemaPatchDifference.Invalid, SchemaPatchDifference.None, SchemaPatchDifference.None})]
@@ -75,11 +76,11 @@ namespace Weasel.SqlServer.Tests
         [Fact]
         public void none_if_no_changes_detected()
         {
-            var migration = migrationFor(SchemaPatchDifference.None, SchemaPatchDifference.None); 
+            var migration = migrationFor(SchemaPatchDifference.None, SchemaPatchDifference.None);
             migration.Difference.ShouldBe(SchemaPatchDifference.None);
         }
-        
-        
+
+
         [Fact]
         public void translates_the_file_name()
         {
@@ -97,14 +98,14 @@ namespace Weasel.SqlServer.Tests
             var writer = new StringWriter();
             var delta = migration.Deltas.Single();
 
-            var rules = new DdlRules();
+            var rules = new SqlServerMigrator();
             migration.WriteAllUpdates(writer, rules, AutoCreate.All);
-            
+
             delta.DidNotReceive().WriteUpdate(rules, writer);
             delta.SchemaObject.Received().WriteDropStatement(rules, writer);
             delta.SchemaObject.Received().WriteCreateStatement(rules, writer);
         }
-        
+
         [Fact]
         public void writing_out_updates_when_schema_object_is_create()
         {
@@ -113,14 +114,14 @@ namespace Weasel.SqlServer.Tests
             var writer = new StringWriter();
             var delta = migration.Deltas.Single();
 
-            var rules = new DdlRules();
+            var rules = new SqlServerMigrator();
             migration.WriteAllUpdates(writer, rules, AutoCreate.All);
-            
+
             delta.DidNotReceive().WriteUpdate(rules, writer);
             delta.SchemaObject.DidNotReceive().WriteDropStatement(rules, writer);
             delta.SchemaObject.Received().WriteCreateStatement(rules, writer);
         }
-        
+
         [Fact]
         public void writing_out_updates_when_schema_object_is_update()
         {
@@ -129,9 +130,9 @@ namespace Weasel.SqlServer.Tests
             var writer = new StringWriter();
             var delta = migration.Deltas.Single();
 
-            var rules = new DdlRules();
+            var rules = new SqlServerMigrator();
             migration.WriteAllUpdates(writer, rules, AutoCreate.All);
-            
+
             delta.Received().WriteUpdate(rules, writer);
             delta.SchemaObject.DidNotReceive().WriteDropStatement(rules, writer);
             delta.SchemaObject.DidNotReceive().WriteCreateStatement(rules, writer);

@@ -5,7 +5,6 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    [Collection("tables")]
     public class creating_tables_in_database : IntegrationContext
     {
         public creating_tables_in_database() : base("tables")
@@ -18,7 +17,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name");
@@ -33,8 +32,8 @@ namespace Weasel.SqlServer.Tests.Tables
                 "insert into people (id, first_name, last_name) values (1, 'Elton', 'John')")
                 .ExecuteNonQueryAsync();
         }
-        
-        
+
+
 
         [Fact]
         public async Task create_then_drop()
@@ -42,7 +41,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name");
@@ -51,18 +50,18 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(table);
 
             await DropSchemaObjectInDatabase(table);
-            
+
             (await table.ExistsInDatabase(theConnection))
                 .ShouldBeFalse();
         }
-        
+
         [Fact]
         public async Task create_with_multi_column_pk()
         {
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("tenant_id").AsPrimaryKey();
@@ -75,7 +74,7 @@ namespace Weasel.SqlServer.Tests.Tables
                 .ShouldBeTrue();
         }
 
-        
+
         [Fact]
         public async Task create_tables_with_foreign_keys_too_in_the_database()
         {
@@ -85,10 +84,10 @@ namespace Weasel.SqlServer.Tests.Tables
 
             var states = new Table("tables.states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             await CreateSchemaObjectInDatabase(states);
-            
-            
+
+
             var table = new Table("tables.people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").NotNull();
@@ -101,7 +100,7 @@ namespace Weasel.SqlServer.Tests.Tables
                 .ShouldBeTrue();
 
         }
-        
+
         [Fact]
         public async Task create_tables_with_indexes_too_in_the_database()
         {
@@ -111,10 +110,10 @@ namespace Weasel.SqlServer.Tests.Tables
 
             var states = new Table("states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             await CreateSchemaObjectInDatabase(states);
-            
-            
+
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").NotNull().AddIndex();
@@ -127,7 +126,7 @@ namespace Weasel.SqlServer.Tests.Tables
                 .ShouldBeTrue();
 
         }
-        
+
         [Fact]
         public async Task create_tables_with_indexes_too_in_the_database_with_different_methods()
         {
@@ -137,10 +136,10 @@ namespace Weasel.SqlServer.Tests.Tables
 
             var states = new Table("states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             await CreateSchemaObjectInDatabase(states);
-            
-            
+
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AddIndex(x =>

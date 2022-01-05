@@ -6,12 +6,15 @@ using Baseline.ImTools;
 
 namespace Weasel.Core
 {
+    /// <summary>
+    /// CommandBuilder for generic DbCommand or DbConnection commands
+    /// </summary>
     public class DbCommandBuilder : CommandBuilderBase<DbCommand, DbParameter, DbConnection, DbTransaction, DbType, DbDataReader>
     {
         public DbCommandBuilder(DbCommand command) : base(DbDatabaseProvider.Instance, '@', command)
         {
         }
-        
+
         public DbCommandBuilder(DbConnection connection) : base(DbDatabaseProvider.Instance, '@', connection.CreateCommand())
         {
         }
@@ -21,7 +24,7 @@ namespace Weasel.Core
         DbDataReader>
     {
         public static readonly DbDatabaseProvider Instance = new();
-        
+
         public DbDatabaseProvider() : base(null!)
         {
         }
@@ -39,7 +42,7 @@ namespace Weasel.Core
             store<int>(System.Data.DbType.Int32, "int");
             store<TimeSpan>(System.Data.DbType.Time, "time");
         }
-        
+
         protected override bool determineParameterType(Type type, out DbType dbType)
         {
             var resolveSqlDbType = ResolveSqlDbType(type);
@@ -77,14 +80,14 @@ namespace Weasel.Core
             dbType = DbType.Object;
             return false;
         }
-        
+
         private DbType? ResolveSqlDbType(Type type)
         {
             if (ParameterTypeMemo.Value.TryFind(type, out var value))
             {
                 return value;
             }
-            
+
             if (type.IsNullable() && ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var parameterType))
             {
                 ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
@@ -124,7 +127,7 @@ namespace Weasel.Core
 
             return ResolveDatabaseType(memberType) ?? "json";
         }
-        
+
         // Lazily retrieve the CLR type to SqlDbType and PgTypeName mapping from exposed ISqlTypeMapper.Mappings.
         // This is lazily calculated instead of precached because it allows consuming code to register
         // custom Sql mappings prior to execution.
@@ -134,7 +137,7 @@ namespace Weasel.Core
             {
                 return value;
             }
-            
+
             if (type.IsNullable() && DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out string databaseType))
             {
                 DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));

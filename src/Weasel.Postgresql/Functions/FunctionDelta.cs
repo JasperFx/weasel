@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql.Functions
@@ -22,16 +23,16 @@ namespace Weasel.Postgresql.Functions
             {
                 return SchemaPatchDifference.Create;
             }
-            
+
             if (!expected.Body().CanonicizeSql().Equals(actual.Body().CanonicizeSql(), StringComparison.OrdinalIgnoreCase))
             {
                 return SchemaPatchDifference.Update;
             }
-            
+
             return SchemaPatchDifference.None;
         }
 
-        public override void WriteRollback(DdlRules rules, TextWriter writer)
+        public override void WriteRollback(Migrator rules, TextWriter writer)
         {
             if (Expected.IsRemoved)
             {
@@ -49,10 +50,10 @@ namespace Weasel.Postgresql.Functions
                 }
             }
         }
-        
 
 
-        public override void WriteUpdate(DdlRules rules, TextWriter writer)
+
+        public override void WriteUpdate(Migrator rules, TextWriter writer)
         {
             if (Expected.IsRemoved)
             {

@@ -7,7 +7,6 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
-    [Collection("integration")]
     public class CommandBuilderIntegrationTests : IntegrationContext
     {
         public CommandBuilderIntegrationTests() : base("integration")
@@ -41,12 +40,12 @@ namespace Weasel.SqlServer.Tests
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
-            
+
             (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
             (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
             (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
         }
-        
+
         [Fact]
         public async Task use_parameters_to_query_by_anonymous_type_generic_db_builder()
         {
@@ -74,12 +73,12 @@ namespace Weasel.SqlServer.Tests
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
-            
+
             (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
             (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
             (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
         }
-        
+
         [Fact]
         public async Task fetch_list()
         {
@@ -95,17 +94,17 @@ namespace Weasel.SqlServer.Tests
                 .With("id", 1)
                 .With("tag", "one")
                 .ExecuteNonQueryAsync();
-            
+
             await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
                 .With("id", 2)
                 .With("tag", "two")
                 .ExecuteNonQueryAsync();
-            
+
             await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
                 .With("id", 3)
                 .With("tag", "three")
                 .ExecuteNonQueryAsync();
-                
+
 
             var builder = new CommandBuilder();
             builder.Append("select id, tag from integration.thing order by id");
@@ -114,7 +113,7 @@ namespace Weasel.SqlServer.Tests
             {
                 var thing = new Thing
                 {
-                    id = await r.GetFieldValueAsync<int>(0), 
+                    id = await r.GetFieldValueAsync<int>(0),
                     tag = await r.GetFieldValueAsync<string>(1)
                 };
 
@@ -128,7 +127,7 @@ namespace Weasel.SqlServer.Tests
             things.ElementAt(2).tag.ShouldBe("three");
             things.Count.ShouldBe(3);
         }
-        
+
         [Fact]
         public async Task fetch_list_with_generic_db_command_builder()
         {
@@ -144,17 +143,17 @@ namespace Weasel.SqlServer.Tests
                 .With("id", 1)
                 .With("tag", "one")
                 .ExecuteNonQueryAsync();
-            
+
             await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
                 .With("id", 2)
                 .With("tag", "two")
                 .ExecuteNonQueryAsync();
-            
+
             await theConnection.CreateCommand("insert into integration.thing (id, tag) values (@id, @tag)")
                 .With("id", 3)
                 .With("tag", "three")
                 .ExecuteNonQueryAsync();
-                
+
 
             var builder = new DbCommandBuilder(theConnection);
             builder.Append("select id, tag from integration.thing order by id");
@@ -163,7 +162,7 @@ namespace Weasel.SqlServer.Tests
             {
                 var thing = new Thing
                 {
-                    id = await r.GetFieldValueAsync<int>(0), 
+                    id = await r.GetFieldValueAsync<int>(0),
                     tag = await r.GetFieldValueAsync<string>(1)
                 };
 
@@ -183,7 +182,7 @@ namespace Weasel.SqlServer.Tests
             public int id { get; set; }
             public string tag { get; set; }
         }
-        
+
         [Fact]
         public async Task add_named_parameter()
         {
@@ -207,7 +206,7 @@ namespace Weasel.SqlServer.Tests
             builder.AddNamedParameter("rate", 1.1);
             builder.AddNamedParameter("sequence", 100L);
             builder.AddNamedParameter("done", true);
-            
+
 
             await builder.ExecuteNonQueryAsync(theConnection);
 
@@ -215,7 +214,7 @@ namespace Weasel.SqlServer.Tests
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
-            
+
             (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
             (await reader.GetFieldValueAsync<string>(1)).ShouldBe("toodles");
             (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);

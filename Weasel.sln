@@ -31,6 +31,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{28703D10
 		docker-compose.yml = docker-compose.yml
 	EndProjectSection
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CommandLine", "CommandLine", "{341239AE-ABB0-4728-9C05-875E7053CAB6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.CommandLine", "src\Weasel.CommandLine\Weasel.CommandLine.csproj", "{8F143A07-12DA-420F-94B5-7CEF3FA6CEBB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.CommandLine.Tests", "src\Weasel.CommandLine.Tests\Weasel.CommandLine.Tests.csproj", "{450F4607-AD19-440B-B146-5C131B304A99}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommandLineTarget", "src\CommandLineTarget\CommandLineTarget.csproj", "{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -61,5 +69,22 @@ Global
 		{2B508523-234F-4431-A9E2-15ED8275254D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2B508523-234F-4431-A9E2-15ED8275254D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2B508523-234F-4431-A9E2-15ED8275254D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F143A07-12DA-420F-94B5-7CEF3FA6CEBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F143A07-12DA-420F-94B5-7CEF3FA6CEBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F143A07-12DA-420F-94B5-7CEF3FA6CEBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F143A07-12DA-420F-94B5-7CEF3FA6CEBB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{450F4607-AD19-440B-B146-5C131B304A99}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{450F4607-AD19-440B-B146-5C131B304A99}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{450F4607-AD19-440B-B146-5C131B304A99}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{450F4607-AD19-440B-B146-5C131B304A99}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8F143A07-12DA-420F-94B5-7CEF3FA6CEBB} = {341239AE-ABB0-4728-9C05-875E7053CAB6}
+		{450F4607-AD19-440B-B146-5C131B304A99} = {341239AE-ABB0-4728-9C05-875E7053CAB6}
+		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598} = {341239AE-ABB0-4728-9C05-875E7053CAB6}
 	EndGlobalSection
 EndGlobal

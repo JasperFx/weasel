@@ -1,5 +1,6 @@
 using System.IO;
 using System.Linq;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables
 {
@@ -9,7 +10,7 @@ namespace Weasel.SqlServer.Tables
         {
         }
 
-        public override void WriteUpdate(DdlRules rules, TextWriter writer)
+        public override void WriteUpdate(Migrator rules, TextWriter writer)
         {
             Expected.WriteDropStatement(rules, writer);
             Expected.WriteCreateStatement(rules, writer);
@@ -18,7 +19,7 @@ namespace Weasel.SqlServer.Tables
         protected override SchemaPatchDifference compare(TableType expected, TableType? actual)
         {
             if (actual == null) return SchemaPatchDifference.Create;
-            
+
             if (expected.Columns.SequenceEqual(actual.Columns))
             {
                 return SchemaPatchDifference.None;

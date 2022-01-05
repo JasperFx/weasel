@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Baseline;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables
 {
@@ -18,13 +19,13 @@ namespace Weasel.Postgresql.Tables
             {
                 return SchemaPatchDifference.Create;
             }
-            
+
             Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
             Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, actual.Indexes,
                 (e, a) => e.Matches(a, Expected));
 
             ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
-            
+
             PrimaryKeyDifference = SchemaPatchDifference.None;
             if (expected.PrimaryKeyName.IsEmpty())
             {
@@ -53,45 +54,45 @@ namespace Weasel.Postgresql.Tables
             return determinePatchDifference();
         }
 
-        public override void WriteUpdate(DdlRules rules, TextWriter writer)
+        public override void WriteUpdate(Migrator rules, TextWriter writer)
         {
             if (Difference == SchemaPatchDifference.Invalid)
             {
                 throw new InvalidOperationException($"TableDelta for {Expected.Identifier} is invalid");
             }
-            
+
             if (Difference == SchemaPatchDifference.Create)
             {
                 SchemaObject.WriteCreateStatement(rules, writer);
                 return;
             }
-            
+
             // Extra indexes
             foreach (var extra in Indexes.Extras)
             {
                 writer.WriteDropIndex(Expected, extra);
             }
-            
+
             // Different indexes
             foreach (var change in Indexes.Different)
             {
                 writer.WriteDropIndex(Expected, change.Actual);
             }
-            
+
             // Missing columns
             foreach (var column in Columns.Missing)
             {
                 writer.WriteLine(column.AddColumnSql(Expected));
             }
-            
+
             // Different columns
             foreach (var change1 in Columns.Different)
             {
                 writer.WriteLine(change1.Expected.AlterColumnTypeSql(Expected, change1.Actual));
             }
-            
+
             writeForeignKeyUpdates(writer);
-            
+
             // Missing indexes
             foreach (var indexDefinition in Indexes.Missing)
             {
@@ -103,7 +104,7 @@ namespace Weasel.Postgresql.Tables
             {
                 writer.WriteLine(change.Expected.ToDDL(Expected));
             }
-            
+
             // Extra columns
             foreach (var column in Columns.Extras)
             {
@@ -123,7 +124,7 @@ namespace Weasel.Postgresql.Tables
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName};");
                     writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                     break;
-                
+
                 case SchemaPatchDifference.Create:
                     writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                     break;
@@ -149,24 +150,24 @@ namespace Weasel.Postgresql.Tables
             }
         }
 
-        public override void WriteRollback(DdlRules rules, TextWriter writer)
+        public override void WriteRollback(Migrator rules, TextWriter writer)
         {
             if (Actual == null)
             {
                 Expected.WriteDropStatement(rules, writer);
                 return;
             }
-            
+
             foreach (var foreignKey in ForeignKeys.Missing)
             {
                 foreignKey.WriteDropStatement(Expected, writer);
             }
-            
+
             foreach (var change in ForeignKeys.Different)
             {
                 change.Expected.WriteDropStatement(Expected, writer);
             }
-            
+
             // Extra columns
             foreach (var column in Columns.Extras)
             {
@@ -178,12 +179,12 @@ namespace Weasel.Postgresql.Tables
             {
                 writer.WriteLine(change1.Actual.AlterColumnTypeSql(Actual, change1.Expected));
             }
-            
+
             foreach (var change in ForeignKeys.Different)
             {
                 change.Actual.WriteAddStatement(Expected, writer);
             }
-            
+
             rollbackIndexes(writer);
 
             // Missing columns
@@ -204,7 +205,7 @@ namespace Weasel.Postgresql.Tables
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
                     writer.WriteLine($"alter table {Expected.Identifier} add {Actual.PrimaryKeyDeclaration()};");
                     break;
-                
+
                 case SchemaPatchDifference.Create:
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
                     break;
@@ -245,9 +246,9 @@ namespace Weasel.Postgresql.Tables
                 return SchemaPatchDifference.Invalid;
             }
 
-            
+
             if (!HasChanges()) return SchemaPatchDifference.None;
-            
+
 
             // If there are any columns that are different and at least one cannot
             // automatically generate an `ALTER TABLE` statement, the patch is invalid

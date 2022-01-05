@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
 using System.Threading.Tasks;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql.Tables
 {
     public partial class Table
     {
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -116,18 +117,18 @@ order by column_index;
 
         public async Task<Table?> FetchExisting(NpgsqlConnection conn)
         {
-            var builder = new CommandBuilder();
+            var builder = new DbCommandBuilder(conn);
 
             ConfigureQueryCommand(builder);
 
             using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
             return await readExisting(reader).ConfigureAwait(false);
         }
-        
+
         private async Task<Table?> readExisting(DbDataReader reader)
         {
             var existing = new Table(Identifier);
-            
+
             await readColumns(reader, existing).ConfigureAwait(false);
 
             var pks = await readPrimaryKeys(reader).ConfigureAwait(false);
@@ -145,9 +146,9 @@ order by column_index;
             {
                 await readPartitions(reader, existing).ConfigureAwait(false);
             }
-            
-            return !existing.Columns.Any() 
-                ? null 
+
+            return !existing.Columns.Any()
+                ? null
                 : existing;
         }
 
@@ -222,7 +223,7 @@ order by column_index;
 
                 var fk = new ForeignKey(name);
                 fk.Parse(definition);
-                
+
                 existing.ForeignKeys.Add(fk);
             }
         }
@@ -234,7 +235,7 @@ order by column_index;
             {
                 if (await reader.IsDBNullAsync(2).ConfigureAwait(false))
                     continue;
-                
+
                 var isPrimary = await reader.GetFieldValueAsync<bool>(6).ConfigureAwait(false);
                 if (isPrimary)
                 {
@@ -245,7 +246,7 @@ order by column_index;
                 var schemaName = await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false);
                 var tableName = await reader.GetFieldValueAsync<string>(2).ConfigureAwait(false);
                 var ddl = await reader.GetFieldValueAsync<string>(4).ConfigureAwait(false);
-                
+
 
                 if ((Identifier.Schema == schemaName && Identifier.Name == tableName) || Identifier.QualifiedName == tableName)
                 {
@@ -255,7 +256,7 @@ order by column_index;
                 }
             }
         }
-        
+
         private static async Task<List<string>> readPrimaryKeys(DbDataReader reader)
         {
             var pks = new List<string>();
@@ -266,5 +267,5 @@ order by column_index;
             }
             return pks;
         }
-    }    
+    }
 }

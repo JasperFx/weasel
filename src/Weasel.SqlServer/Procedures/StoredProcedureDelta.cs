@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Procedures
 {
@@ -32,7 +33,7 @@ namespace Weasel.SqlServer.Procedures
             return SchemaPatchDifference.None;
         }
 
-        public override void WriteRollback(DdlRules rules, TextWriter writer)
+        public override void WriteRollback(Migrator rules, TextWriter writer)
         {
             if (Expected.IsRemoved)
             {
@@ -53,7 +54,7 @@ namespace Weasel.SqlServer.Procedures
 
 
 
-        public override void WriteUpdate(DdlRules rules, TextWriter writer)
+        public override void WriteUpdate(Migrator rules, TextWriter writer)
         {
             if (Expected.IsRemoved)
             {

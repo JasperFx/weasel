@@ -3,22 +3,19 @@ using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Threading.Tasks;
 using Baseline;
+using Weasel.Core;
 using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
+    [Collection("integration")]
     public abstract class IntegrationContext : IDisposable, IAsyncLifetime
     {
         private readonly string _schemaName;
         protected readonly SqlConnection theConnection = new SqlConnection(ConnectionSource.ConnectionString);
-        
+
         protected IntegrationContext(string schemaName)
         {
-            if (!GetType().HasAttribute<CollectionAttribute>())
-            {
-                throw new InvalidOperationException("You must decorate this class with a [Collection(\"schemaname\"] attribute. Preferably w/ the schema name");
-            }
-
             _schemaName = schemaName;
         }
 
@@ -26,7 +23,7 @@ namespace Weasel.SqlServer.Tests
         {
             theConnection?.Dispose();
         }
-        
+
         protected async Task ResetSchema()
         {
             await theConnection.OpenAsync();
@@ -36,7 +33,7 @@ namespace Weasel.SqlServer.Tests
 
         protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
         {
-            var rules = new DdlRules();
+            var rules = new SqlServerMigrator();
             var writer = new StringWriter();
             schemaObject.WriteCreateStatement(rules, writer);
 
@@ -53,7 +50,7 @@ namespace Weasel.SqlServer.Tests
 
         protected Task DropSchemaObjectInDatabase(ISchemaObject schemaObject)
         {
-            var rules = new DdlRules();
+            var rules = new SqlServerMigrator();
             var writer = new StringWriter();
             schemaObject.WriteDropStatement(rules, writer);
 

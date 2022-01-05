@@ -1,11 +1,11 @@
 using System.Threading.Tasks;
 using Shouldly;
+using Weasel.Core;
 using Weasel.SqlServer.Tables;
 using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
-    [Collection("schemas")]
     public class create_and_teardown_schemas : IntegrationContext
     {
         public create_and_teardown_schemas() : base("schemas")
@@ -18,13 +18,13 @@ namespace Weasel.SqlServer.Tests
             await theConnection.OpenAsync();
 
             await theConnection.DropSchema("one");
-            
+
             (await theConnection.ActiveSchemaNames()).ShouldNotContain("one");
 
             await theConnection.CreateSchema("one");
-            
+
             var schemas = await theConnection.ActiveSchemaNames();
-            
+
             schemas.ShouldContain("one");
         }
 
@@ -38,14 +38,14 @@ namespace Weasel.SqlServer.Tests
 
             var table1 = new Table("one.table1");
             table1.AddColumn<string>("name").AsPrimaryKey();
-            
+
             var table2 = new Table("two.table2");
             table2.AddColumn<string>("name").AsPrimaryKey();
 
             var migration = await SchemaMigration.Determine(theConnection, new ISchemaObject[] {table1, table2});
             migration.Difference.ShouldBe(SchemaPatchDifference.Create);
 
-            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+            await new SqlServerMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
 
             (await table1.FetchExisting(theConnection)).ShouldNotBeNull();
             (await table2.FetchExisting(theConnection)).ShouldNotBeNull();

@@ -102,7 +102,7 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<string>("first_name");
             table.AddColumn<string>("last_name");
 
-            var rules = new DdlRules
+            var rules = new SqlServerMigrator
             {
                 TableCreation = CreationStyle.DropThenCreate
             };
@@ -129,7 +129,7 @@ namespace Weasel.SqlServer.Tests.Tables
             table.AddColumn<string>("first_name");
             table.AddColumn<string>("last_name");
 
-            var rules = new DdlRules
+            var rules = new SqlServerMigrator
             {
                 TableCreation = CreationStyle.CreateIfNotExists
             };

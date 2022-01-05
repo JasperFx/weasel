@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Baseline;
 using Baseline.ImTools;
 using Weasel.Core;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.SqlServer.Procedures
 {
@@ -32,7 +33,7 @@ namespace Weasel.SqlServer.Procedures
                 "This must be implemented in subclasses that do not inject the procedure body");
         }
 
-        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
             if (_body.IsNotEmpty())
             {
@@ -43,8 +44,8 @@ namespace Weasel.SqlServer.Procedures
                 generateBody(writer);
             }
         }
-        
-        public void WriteCreateOrAlterStatement(DdlRules rules, TextWriter writer)
+
+        public void WriteCreateOrAlterStatement(Migrator rules, TextWriter writer)
         {
             var body = _body;
             if (_body.IsEmpty())
@@ -57,16 +58,16 @@ namespace Weasel.SqlServer.Procedures
 
             body = body!.Replace("CREATE PROCEDURE", "CREATE OR ALTER PROCEDURE");
             body = body.Replace("create procedure", "create or alter procedure");
-            
+
             writer.WriteLine(body);
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             writer.WriteLine($"drop procedure if exists {Identifier};");
         }
 
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             builder.Append($@"
 select
@@ -119,10 +120,10 @@ where
             return body!.ReadLines().Select(x => x.Trim()).Where(x => x.IsNotEmpty())
                 .Select(x => x.Replace("   ", " ")).Join(Environment.NewLine);
         }
-        
+
         public async Task<StoredProcedure?> FetchExisting(SqlConnection conn)
         {
-            var builder = new CommandBuilder();
+            var builder = new DbCommandBuilder(conn);
 
             ConfigureQueryCommand(builder);
 
@@ -131,7 +132,7 @@ where
         }
 
 
-        
+
         public async Task<StoredProcedureDelta> FindDelta(SqlConnection conn)
         {
             var actual = await FetchExisting(conn).ConfigureAwait(false);

@@ -37,7 +37,7 @@ END
 
 $$ LANGUAGE plpgsql;
 ";
-        
+
         private readonly string theDifferentBody = @"
 CREATE OR REPLACE FUNCTION functions.mt_get_next_hi(entity varchar) RETURNS integer AS
 $$
@@ -52,7 +52,7 @@ END
 
 $$ LANGUAGE plpgsql;
 ";
-        
+
         private readonly string theEvenDifferentBody = @"
 CREATE OR REPLACE FUNCTION functions.mt_get_next_hi(entity varchar, name varchar) RETURNS integer AS
 $$
@@ -77,13 +77,13 @@ $$ LANGUAGE plpgsql;
             theHiloTable.AddColumn<int>("next_value");
             theHiloTable.AddColumn<int>("hi_value");
         }
-        
+
         protected async Task AssertNoDeltasAfterPatching(Function func)
         {
             await func.ApplyChanges(theConnection);
 
             var delta = await func.FindDelta(theConnection);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -114,7 +114,7 @@ $$ LANGUAGE plpgsql;
         {
             var function = Function.ForSql(theFunctionBody);
             function.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
-            
+
             function.DropStatements().Single()
                 .ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
         }
@@ -132,13 +132,13 @@ $$ LANGUAGE plpgsql;
 
             var next = await theConnection.CreateCommand("select functions.mt_get_next_hi('foo');")
                 .ExecuteScalarAsync();
-            
+
             next.As<int>().ShouldBe(0);
 
             await theConnection.FunctionExists(function.Identifier);
         }
-        
-        
+
+
 
         [Fact]
         public async Task existing_functions_extension_method()
@@ -146,13 +146,13 @@ $$ LANGUAGE plpgsql;
             await ResetSchema();
 
             await CreateSchemaObjectInDatabase(theHiloTable);
-            
+
             var function = Function.ForSql(theFunctionBody);
 
             await CreateSchemaObjectInDatabase(function);
 
             var functions = await theConnection.ExistingFunctions();
-            
+
             functions.ShouldContain(function.Identifier);
 
             var existing = await theConnection.FindExistingFunction(function.Identifier);
@@ -167,11 +167,11 @@ $$ LANGUAGE plpgsql;
             await CreateSchemaObjectInDatabase(theHiloTable);
 
             var function = Function.ForSql(theFunctionBody);
-            
+
             await CreateSchemaObjectInDatabase(function);
 
             var existing = await function.FetchExisting(theConnection);
-            
+
             existing.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
             existing.DropStatements().Single().ShouldBe("DROP FUNCTION IF EXISTS functions.mt_get_next_hi(entity character varying);");
             existing.Body().ShouldNotBeNull();
@@ -185,11 +185,11 @@ $$ LANGUAGE plpgsql;
             await CreateSchemaObjectInDatabase(theHiloTable);
 
             var function = Function.ForSql(theFunctionBody);
-            
+
             (await function.FetchExisting(theConnection)).ShouldBeNull();
 
             var delta = await function.FindDelta(theConnection);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
 
@@ -210,10 +210,10 @@ $$ LANGUAGE plpgsql;
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
             await AssertNoDeltasAfterPatching(toRemove);
-            
+
             (await theConnection.FunctionExists(toRemove.Identifier)).ShouldBeFalse();
         }
-        
+
         [Fact]
         public async Task rollback_existing()
         {
@@ -232,13 +232,13 @@ $$ LANGUAGE plpgsql;
 
             var migration = new SchemaMigration(delta);
 
-            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            await migration.RollbackAll(theConnection, new DdlRules());
-            
+            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
+
             (await theConnection.FunctionExists(toRemove.Identifier)).ShouldBeTrue();
         }
-        
+
         [Fact]
         public async Task can_fetch_the_delta_when_the_existing_matches()
         {
@@ -251,7 +251,7 @@ $$ LANGUAGE plpgsql;
             await CreateSchemaObjectInDatabase(function);
 
             var delta = await function.FindDelta(theConnection);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -268,7 +268,7 @@ $$ LANGUAGE plpgsql;
             var different = Function.ForSql(theDifferentBody);
 
             var delta = await different.FindDelta(theConnection);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
         }
@@ -279,7 +279,7 @@ $$ LANGUAGE plpgsql;
             await ResetSchema();
 
             await CreateSchemaObjectInDatabase(theHiloTable);
-            
+
             var function = Function.ForSql(theFunctionBody);
 
             await AssertNoDeltasAfterPatching(function);
@@ -299,7 +299,7 @@ $$ LANGUAGE plpgsql;
 
             await AssertNoDeltasAfterPatching(different);
         }
-        
+
         [Fact]
         public async Task can_apply_a_changed_delta_with_different_signature()
         {
@@ -331,14 +331,14 @@ $$ LANGUAGE plpgsql;
 
             var migration = new SchemaMigration(delta);
 
-            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            await migration.RollbackAll(theConnection, new DdlRules());
-            
+            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
+
             // Should be back to the original function
 
             var lastDelta = await function.FindDelta(theConnection);
-             
+
             lastDelta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -350,16 +350,16 @@ $$ LANGUAGE plpgsql;
             await CreateSchemaObjectInDatabase(theHiloTable);
 
             var function = Function.ForSql(theFunctionBody);
-            
+
             var delta = await function.FindDelta(theConnection);
             var migration = new SchemaMigration(delta);
-            
-            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
-            
+
+            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+
             (await theConnection.FunctionExists(function.Identifier)).ShouldBeTrue();
 
-            await migration.RollbackAll(theConnection, new DdlRules());
-            
+            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
+
             (await theConnection.FunctionExists(function.Identifier)).ShouldBeFalse();
         }
     }

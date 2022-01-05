@@ -1,12 +1,12 @@
 using System.Threading.Tasks;
 using Baseline.Dates;
 using Shouldly;
+using Weasel.Core;
 using Weasel.SqlServer.Tables;
 using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    [Collection("rollbacks")]
     public class rolling_back_table_deltas : IntegrationContext
     {
         private Table initial;
@@ -20,7 +20,7 @@ namespace Weasel.SqlServer.Tests.Tables
             initial.AddColumn<string>("last_name");
             initial.AddColumn<string>("user_name");
             initial.AddColumn("data", "text");
-            
+
             configured = new Table("rollbacks.people");
             configured.AddColumn<int>("id").AsPrimaryKey();
             configured.AddColumn<string>("first_name");
@@ -46,11 +46,11 @@ namespace Weasel.SqlServer.Tests.Tables
 
             var migration = new SchemaMigration(new ISchemaObjectDelta[] {delta});
 
-            await migration.ApplyAll(theConnection, new DdlRules(), AutoCreate.CreateOrUpdate);
+            await new SqlServerMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
 
             await Task.Delay(100.Milliseconds());
-            
-            await migration.RollbackAll(theConnection, new DdlRules());
+
+            await migration.RollbackAll(theConnection, new SqlServerMigrator());
 
             var delta2 = await initial.FindDelta(theConnection);
             delta2.Difference.ShouldBe(SchemaPatchDifference.None);
@@ -70,7 +70,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             initial.ModifyColumn("user_name").AddIndex();
             configured.ModifyColumn("last_name").AddIndex();
-            
+
             await AssertRollbackIsSuccessful();
         }
 
@@ -79,7 +79,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             initial.ModifyColumn("user_name").AddIndex();
             configured.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
-            
+
             await AssertRollbackIsSuccessful();
         }
 
@@ -88,21 +88,21 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             var states = new Table("rollbacks.states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             configured.AddColumn<int>("state_id")
                 .ForeignKeyTo(states, "id");
-            
+
             await AssertRollbackIsSuccessful(states);
         }
-        
+
         [Fact]
         public async Task if_an_fkey_is_removed_rollback_should_put_it_back()
         {
             var states = new Table("rollbacks.states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             initial.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
-            
+
             await AssertRollbackIsSuccessful(states);
         }
 
@@ -110,7 +110,7 @@ namespace Weasel.SqlServer.Tests.Tables
         public async Task changed_primary_key()
         {
             configured.AddColumn<string>("tenant_id");
-            
+
             await AssertRollbackIsSuccessful();
         }
     }

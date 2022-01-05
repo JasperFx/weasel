@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net6.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>10</LangVersion>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Weasel.CommandLine.Tests\Weasel.CommandLine.Tests.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="SqlDump\all.sql" />
+      <None Remove="SqlDump\one.sql" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="SqlDump" />
+    </ItemGroup>
+
+</Project>

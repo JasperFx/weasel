@@ -1,0 +1,3 @@
+using Oakton;
+
+[assembly:OaktonCommandAssembly]

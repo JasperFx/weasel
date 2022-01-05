@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Baseline;
 using Npgsql;
 using Weasel.Core;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql.Functions
 {
@@ -18,8 +19,8 @@ namespace Weasel.Postgresql.Functions
          * parse drop statements
          *
          *
-         * 
-         * 
+         *
+         *
          */
 
 
@@ -44,7 +45,7 @@ namespace Weasel.Postgresql.Functions
 
             return $"{funcName}({args})";
         }
-        
+
         public static DbObjectName ParseIdentifier(string functionSql)
         {
             var signature = ParseSignature(functionSql);
@@ -72,12 +73,12 @@ namespace Weasel.Postgresql.Functions
         }
 
 
-        public virtual void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        public virtual void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
             writer.WriteLine(_body);
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             foreach (var dropStatement in DropStatements())
             {
@@ -86,7 +87,7 @@ namespace Weasel.Postgresql.Functions
         }
 
         public DbObjectName Identifier { get; }
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
             var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -111,14 +112,14 @@ AND    n.nspname = :{schemaParam};
 
         public async Task<Function?> FetchExisting(NpgsqlConnection conn)
         {
-            var builder = new CommandBuilder();
+            var builder = new DbCommandBuilder(conn);
 
             ConfigureQueryCommand(builder);
 
             using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
             return await readExisting(reader).ConfigureAwait(false);
         }
-        
+
         private async Task<Function?> readExisting(DbDataReader reader)
         {
             if (!await reader.ReadAsync().ConfigureAwait(false))
@@ -155,9 +156,9 @@ AND    n.nspname = :{schemaParam};
             yield return Identifier;
         }
 
-        public string Body(DdlRules? rules = null)
+        public string Body(Migrator? rules = null)
         {
-            rules ??= new DdlRules();
+            rules ??= new PostgresqlMigrator();
             var writer = new StringWriter();
             WriteCreateStatement(rules, writer);
 
@@ -194,7 +195,7 @@ AND    n.nspname = :{schemaParam};
         {
             return ForRemoval(DbObjectName.Parse(PostgresqlProvider.Instance, identifier));
         }
-        
+
         public static Function ForRemoval(DbObjectName identifier)
         {
             return new Function(identifier, null)
@@ -207,14 +208,14 @@ AND    n.nspname = :{schemaParam};
         {
             var body = Body();
             var signature = ParseSignature(body);
-            
+
             return template
-                    .Replace(DdlRules.SCHEMA, Identifier.Schema)
-                    .Replace(DdlRules.FUNCTION, Identifier.Name)
-                    .Replace(DdlRules.SIGNATURE, signature);
+                    .Replace(Migrator.SCHEMA, Identifier.Schema)
+                    .Replace(Migrator.FUNCTION, Identifier.Name)
+                    .Replace(Migrator.SIGNATURE, signature);
         }
 
-        public void WriteTemplate(DdlRules rules, DdlTemplate template, TextWriter writer)
+        public void WriteTemplate(Migrator rules, SqlTemplate template, TextWriter writer)
         {
             var text = template?.FunctionCreation;
             if (text.IsNotEmpty())

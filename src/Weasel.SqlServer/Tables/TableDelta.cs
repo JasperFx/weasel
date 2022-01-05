@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Baseline;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables
 {
@@ -51,7 +52,7 @@ namespace Weasel.SqlServer.Tables
             return determinePatchDifference();
         }
 
-        public override void WriteUpdate(DdlRules rules, TextWriter writer)
+        public override void WriteUpdate(Migrator rules, TextWriter writer)
         {
             if (Difference == SchemaPatchDifference.Invalid)
             {
@@ -118,7 +119,7 @@ namespace Weasel.SqlServer.Tables
             }
         }
 
-        public override void WriteRollback(DdlRules rules, TextWriter writer)
+        public override void WriteRollback(Migrator rules, TextWriter writer)
         {
             if (Actual == null)
             {

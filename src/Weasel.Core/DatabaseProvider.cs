@@ -4,11 +4,23 @@ using System.Linq;
 using Baseline.ImTools;
 namespace Weasel.Core
 {
+    /// <summary>
+    /// Primarily responsible for handling .Net to database engine type mappings
+    /// </summary>
     public interface IDatabaseProvider
     {
         string DefaultDatabaseSchemaName { get; }
     }
-    
+
+    /// <summary>
+    /// Primarily responsible for handling .Net to database engine type mappings
+    /// </summary>
+    /// <typeparam name="TCommand"></typeparam>
+    /// <typeparam name="TParameter"></typeparam>
+    /// <typeparam name="TConnection"></typeparam>
+    /// <typeparam name="TTransaction"></typeparam>
+    /// <typeparam name="TParameterType"></typeparam>
+    /// <typeparam name="TDataReader"></typeparam>
     public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> : IDatabaseProvider
         where TCommand : DbCommand
         where TParameter : DbParameter
@@ -25,7 +37,7 @@ namespace Weasel.Core
 
         void AddParameter(TCommand command, TParameter parameter);
         void SetParameterType(TParameter parameter, TParameterType dbType);
-        
+
         TParameterType StringParameterType { get; }
         TParameterType IntegerParameterType { get; }
         TParameterType LongParameterType { get; }
@@ -34,6 +46,15 @@ namespace Weasel.Core
         TParameterType DoubleParameterType { get; }
     }
 
+    /// <summary>
+    /// Base type for database providers. Primarily responsible for handling .Net to database engine type mappings
+    /// </summary>
+    /// <typeparam name="TCommand"></typeparam>
+    /// <typeparam name="TParameter"></typeparam>
+    /// <typeparam name="TConnection"></typeparam>
+    /// <typeparam name="TTransaction"></typeparam>
+    /// <typeparam name="TParameterType"></typeparam>
+    /// <typeparam name="TDataReader"></typeparam>
     public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
         : IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
         where TCommand : DbCommand
@@ -41,7 +62,7 @@ namespace Weasel.Core
         where TConnection : DbConnection
         where TTransaction : DbTransaction
         where TDataReader : DbDataReader
-        where TParameterType : struct  
+        where TParameterType : struct
     {
         public string DefaultDatabaseSchemaName { get; }
         protected readonly Ref<ImHashMap<Type, string>> DatabaseTypeMemo = Ref.Of(ImHashMap<Type, string>.Empty);
@@ -69,7 +90,7 @@ namespace Weasel.Core
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(T), databaseType));
             ParameterTypeMemo.Swap(d => d.AddOrUpdate(typeof(T), parameterType));
         }
-        
+
         public TParameterType? TryGetDbType(Type? type)
         {
             if (type == null || !determineParameterType(type, out var dbType))
@@ -77,7 +98,7 @@ namespace Weasel.Core
 
             return dbType;
         }
-        
+
         public TParameterType ToParameterType(Type type)
         {
             if (determineParameterType(type, out var dbType))
@@ -85,7 +106,7 @@ namespace Weasel.Core
 
             throw new NotSupportedException($"Can't infer {typeof(TParameterType).Name} for type " + type);
         }
-        
+
         public void RegisterMapping(Type type, string databaseType, TParameterType? parameterType)
         {
             DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
@@ -120,7 +141,7 @@ namespace Weasel.Core
         public TParameterType GuidParameterType { get; }
         public TParameterType BoolParameterType { get; }
         public TParameterType DoubleParameterType { get; }
-        
+
         public TParameter AddParameter(TCommand command, object? value, TParameterType? dbType = null)
         {
             var name = "p" + command.Parameters.Count;
@@ -138,7 +159,7 @@ namespace Weasel.Core
 
             return parameter;
         }
-        
+
         /// <summary>
         /// Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
@@ -165,7 +186,7 @@ namespace Weasel.Core
             {
                 SetParameterType(parameter, ToParameterType(value.GetType()));
             }
-            
+
             parameter.Value = value ?? DBNull.Value;
             command.Parameters.Add(parameter);
 
@@ -176,36 +197,36 @@ namespace Weasel.Core
         {
             return AddNamedParameter(command, name, value, StringParameterType);
         }
-        
+
         public TParameter AddNamedParameter(TCommand command, string name, int value)
         {
             return AddNamedParameter(command, name, value, IntegerParameterType);
         }
-        
+
         public TParameter AddNamedParameter(TCommand command, string name, long value)
         {
             return AddNamedParameter(command, name, value, LongParameterType);
         }
-        
+
         public TParameter AddNamedParameter(TCommand command, string name, double value)
         {
             return AddNamedParameter(command, name, value, DoubleParameterType);
         }
-        
+
         public TParameter AddNamedParameter(TCommand command, string name, Guid value)
         {
             return AddNamedParameter(command, name, value, GuidParameterType);
         }
-        
+
         public TParameter AddNamedParameter(TCommand command, string name, bool value)
         {
             return AddNamedParameter(command, name, value, BoolParameterType);
         }
-        
-        
-        
-        
-        
+
+
+
+
+
 
     }
 }

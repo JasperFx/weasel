@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.IO;
 using System.Threading.Tasks;
 using Weasel.Core;
+using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql
 {
@@ -18,18 +19,18 @@ namespace Weasel.Postgresql
             ExtensionName = extensionName.Trim().ToLower();
         }
 
-        public void WriteCreateStatement(DdlRules rules, TextWriter writer)
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
         {
             writer.WriteLine($"CREATE EXTENSION IF NOT EXISTS {ExtensionName};");
         }
 
-        public void WriteDropStatement(DdlRules rules, TextWriter writer)
+        public void WriteDropStatement(Migrator rules, TextWriter writer)
         {
             writer.WriteLine($"DROP EXTENSION IF EXISTS {ExtensionName} CASCADE;");
         }
 
         public DbObjectName Identifier => new DbObjectName("public", ExtensionName);
-        public void ConfigureQueryCommand(CommandBuilder builder)
+        public void ConfigureQueryCommand(DbCommandBuilder builder)
         {
             builder.Append("select extname from pg_extension where extname = ");
             builder.AppendParameter(ExtensionName);

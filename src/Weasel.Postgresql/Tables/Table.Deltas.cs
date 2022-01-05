@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.Common;
 using System.Threading.Tasks;
 using Npgsql;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables
 {
@@ -19,7 +20,7 @@ namespace Weasel.Postgresql.Tables
             var existing = await readExisting(reader).ConfigureAwait(false);
             return new TableDelta(this, existing);
         }
-        
+
     }
 
 }

@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -17,10 +18,10 @@ namespace Weasel.Postgresql.Tests.Tables
             actual.AddColumn<int>("id").AsPrimaryKey();
 
             var delta = new TableDelta(expected, actual);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
         }
-        
+
         [Fact]
         public void invalid_if_any_new_columns_cannot_be_modified()
         {
@@ -33,7 +34,7 @@ namespace Weasel.Postgresql.Tests.Tables
             actual.AddColumn(new CannotAddColumn("foo", "int"));
 
             var delta = new TableDelta(expected, actual);
-            
+
             delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
         }
 

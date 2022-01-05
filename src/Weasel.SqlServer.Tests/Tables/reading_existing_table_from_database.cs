@@ -6,7 +6,6 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    [Collection("tables")]
     public class reading_existing_table_from_database : IntegrationContext
     {
         public reading_existing_table_from_database() : base("tables")
@@ -19,7 +18,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name");
@@ -38,7 +37,7 @@ namespace Weasel.SqlServer.Tests.Tables
                 existing.Columns[i].Name.ShouldBe(table.Columns[i].Name);
                 var existingType = existing.Columns[i].Type;
                 var tableType = table.Columns[i].Type;
-                
+
                 SqlServerProvider.Instance.ConvertSynonyms(existingType)
                     .ShouldBe(SqlServerProvider.Instance.ConvertSynonyms(tableType));
 
@@ -51,7 +50,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name");
@@ -60,18 +59,18 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(table);
 
             var existing = await table.FetchExisting(theConnection);
-            
+
             existing.PrimaryKeyColumns.Single()
                 .ShouldBe("id");
         }
-        
+
         [Fact]
         public async Task read_multi_pk_fields()
         {
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("tenant_id").AsPrimaryKey();
@@ -81,7 +80,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(table);
 
             var existing = await table.FetchExisting(theConnection);
-            
+
             existing.PrimaryKeyColumns.OrderBy(x => x)
                 .ShouldBe(new []{"id", "tenant_id"});
         }
@@ -92,50 +91,50 @@ namespace Weasel.SqlServer.Tests.Tables
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
-            
+
+
             var states = new Table("tables.states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             await CreateSchemaObjectInDatabase(states);
 
-            
+
             var table = new Table("tables.people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AddIndex();
             table.AddColumn<string>("last_name").AddIndex(i =>
             {
             });
-            
+
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
             await CreateSchemaObjectInDatabase(table);
 
             var existing = await table.FetchExisting(theConnection);
-            
-            
+
+
             existing.Indexes.Count.ShouldBe(2);
         }
-        
+
         [Fact]
         public async Task read_fk()
         {
             await ResetSchema();
-            
-            
+
+
             var states = new Table("tables.states");
             states.AddColumn<int>("id").AsPrimaryKey();
-            
+
             await CreateSchemaObjectInDatabase(states);
 
-            
+
             var table = new Table("tables.people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AddIndex();
             table.AddColumn<string>("last_name").AddIndex(i =>
             {
             });
-            
+
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id", onDelete:CascadeAction.Cascade, onUpdate:CascadeAction.SetNull);
 
             await CreateSchemaObjectInDatabase(table);
@@ -144,32 +143,32 @@ namespace Weasel.SqlServer.Tests.Tables
 
 
             var fk = existing.ForeignKeys.Single();
-            
+
             fk.Name.ShouldBe("fkey_people_state_id");
-            
+
             fk.ColumnNames.Single().ShouldBe("state_id");
             fk.LinkedNames.Single().ShouldBe("id");
             fk.LinkedTable.Name.ShouldBe("states");
-            
+
             fk.OnDelete.ShouldBe(CascadeAction.Cascade);
             fk.OnUpdate.ShouldBe(CascadeAction.SetNull);
         }
-        
+
         [Fact]
         public async Task read_fk_with_multiple_columns()
         {
             await theConnection.OpenAsync();
 
             await theConnection.ResetSchema("tables");
-            
-            
+
+
             var states = new Table("states");
             states.AddColumn<int>("id").AsPrimaryKey();
             states.AddColumn<string>("tenant_id").AsPrimaryKey();
-            
+
             await CreateSchemaObjectInDatabase(states);
 
-            
+
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
             table.AddColumn<string>("first_name").AddIndex();
@@ -179,7 +178,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             table.AddColumn<string>("tenant_id");
             table.AddColumn<int>("state_id");
-            
+
             table.ForeignKeys.Add(new ForeignKey("fkey_people_state_id_tenant_id")
             {
                 LinkedTable = states.Identifier,
@@ -195,9 +194,9 @@ namespace Weasel.SqlServer.Tests.Tables
 
 
             var fk = existing.ForeignKeys.Single();
-            
+
             fk.Name.ShouldBe("fkey_people_state_id_tenant_id");
-            
+
             fk.ColumnNames.ShouldBe(new []{"state_id", "tenant_id"});
             fk.LinkedNames.ShouldBe(new []{"id", "tenant_id"});
             fk.LinkedTable.Name.ShouldBe("states");

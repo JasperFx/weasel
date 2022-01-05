@@ -8,6 +8,15 @@ using System.Threading.Tasks;
 
 namespace Weasel.Core
 {
+    /// <summary>
+    /// Base class for batch queries against a relational database
+    /// </summary>
+    /// <typeparam name="TCommand"></typeparam>
+    /// <typeparam name="TParameter"></typeparam>
+    /// <typeparam name="TConnection"></typeparam>
+    /// <typeparam name="TTransaction"></typeparam>
+    /// <typeparam name="TParameterType"></typeparam>
+    /// <typeparam name="TDataReader"></typeparam>
     public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
         where TCommand : DbCommand
         where TParameter : DbParameter
@@ -19,7 +28,7 @@ namespace Weasel.Core
         private readonly IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> _provider;
         private readonly char _parameterPrefix;
         private readonly TCommand _command;
-        
+
         // TEMP -- will shift this to being pooled later
         private readonly StringBuilder _sql = new();
 
@@ -30,28 +39,51 @@ namespace Weasel.Core
             _parameterPrefix = parameterPrefix;
             _command = command;
         }
-        
+
+        /// <summary>
+        /// Add text to the batched command SQL string
+        /// </summary>
+        /// <param name="text"></param>
         public void Append(string text)
         {
             _sql.Append(text);
         }
 
+        /// <summary>
+        /// Add text to the batched command SQL string
+        /// </summary>
+        /// <param name="character"></param>
         public void Append(char character)
         {
             _sql.Append(character);
         }
 
+        /// <summary>
+        /// Add text to the batched command SQL string
+        /// </summary>
+        /// <param name="value"></param>
         public void Append(object value)
         {
             _sql.Append(value);
         }
-        
+
+        /// <summary>
+        /// Build out the batched ADO.Net command
+        /// </summary>
+        /// <returns></returns>
         public TCommand Compile()
         {
             _command.CommandText = _sql.ToString();
             return _command;
         }
-        
+
+        /// <summary>
+        /// Compile and execute the batched command against the user supplied connection
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="cancellation"></param>
+        /// <param name="tx"></param>
+        /// <returns></returns>
         public Task<int> ExecuteNonQueryAsync(TConnection conn, CancellationToken cancellation = default,
             TTransaction? tx = null)
         {
@@ -61,7 +93,15 @@ namespace Weasel.Core
 
             return cmd.ExecuteNonQueryAsync(cancellation);
         }
-        
+
+        /// <summary>
+        /// Compile and execute the command against the user supplied connection and
+        /// return a data reader for the results
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="cancellation"></param>
+        /// <param name="tx"></param>
+        /// <returns></returns>
         public async Task<TDataReader> ExecuteReaderAsync(TConnection conn,
             CancellationToken cancellation = default, TTransaction? tx = null)
         {
@@ -72,13 +112,22 @@ namespace Weasel.Core
             return (TDataReader) await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Compile and execute the query and returns the results transformed from the raw database reader
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="transform"></param>
+        /// <param name="cancellation"></param>
+        /// <param name="tx"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         public async Task<IReadOnlyList<T>> FetchList<T>(TConnection conn, Func<DbDataReader, Task<T>> transform,
             CancellationToken cancellation = default, TTransaction? tx = null)
         {
             var cmd = Compile();
             cmd.Connection = conn;
             cmd.Transaction = tx;
-            
+
             var list = new List<T>();
 
             using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
@@ -89,7 +138,7 @@ namespace Weasel.Core
 
             return list;
         }
-        
+
         /// <summary>
         ///     Adds a parameter to the underlying command, but does NOT add the
         ///     parameter usage to the command text
@@ -109,12 +158,12 @@ namespace Weasel.Core
             {
                 _provider.SetParameterType(parameter, dbType.Value);
             }
-            
+
             _provider.AddParameter(_command, parameter);
 
             return parameter;
         }
-        
+
         /// <summary>
         /// Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
@@ -141,13 +190,13 @@ namespace Weasel.Core
             {
                 _provider.SetParameterType(parameter, _provider.ToParameterType(value.GetType()));
             }
-            
+
             parameter.Value = value ?? DBNull.Value;
             _command.Parameters.Add(parameter);
 
             return parameter;
         }
-        
+
         /// <summary>
         ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
@@ -173,7 +222,7 @@ namespace Weasel.Core
         {
             return AddNamedParameter(name, value, _provider.BoolParameterType);
         }
-        
+
         /// <summary>
         ///     Finds or adds a new parameter with the specified name and returns the parameter
         /// </summary>
@@ -217,7 +266,7 @@ namespace Weasel.Core
         {
             return _sql.ToString();
         }
-        
+
         /// <summary>
         ///     Append a parameter with the supplied value to the underlying command
         /// parameter collection *and* the command text
@@ -241,7 +290,7 @@ namespace Weasel.Core
         {
             AppendParameter(value, _provider.IntegerParameterType);
         }
-        
+
         /// <summary>
         /// Append a parameter with the supplied value to the underlying command
         /// parameter collection *and* the command text
@@ -252,7 +301,7 @@ namespace Weasel.Core
         {
             AppendParameter(value, _provider.GuidParameterType);
         }
-        
+
         /// <summary>
         ///     Append a parameter with the supplied value to the underlying command parameter
         ///     collection and adds the parameter usage to the SQL
@@ -284,7 +333,13 @@ namespace Weasel.Core
                 AddNamedParameter(property.Name, value ?? DBNull.Value, _provider.ToParameterType(property.PropertyType));
             }
         }
-        
+
+        /// <summary>
+        /// Append a SQL string with `?` placeholders for new parameters, and returns an
+        /// array of the newly created parameters
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
         public TParameter[] AppendWithParameters(string text)
         {
             var split = text.Split('?');
@@ -304,6 +359,6 @@ namespace Weasel.Core
             return parameters;
         }
     }
-    
-    
+
+
 }
