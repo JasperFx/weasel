@@ -10,7 +10,7 @@ namespace Weasel.CommandLine;
 public class WeaselInput: NetCoreInput
 {
     [Description("Identify which database to dump in the case of multiple databases")]
-    public string DatabaseFlag { get; set; }
+    public string? DatabaseFlag { get; set; }
 
     [Description("Optionally choose the database interactively")]
     public bool InteractiveFlag { get; set; }
@@ -75,7 +75,7 @@ public class WeaselInput: NetCoreInput
         return names;
     }
 
-    public bool TryChooseSingleDatabase(IHost host, out IDatabase database)
+    public bool TryChooseSingleDatabase(IHost host, out IDatabase? database)
     {
         var databases = host.Services.GetServices<IDatabase>().ToArray();
 
@@ -97,30 +97,28 @@ public class WeaselInput: NetCoreInput
         if (DatabaseFlag.IsNotEmpty())
         {
             database = databases.FirstOrDefault(x => x.Identifier.EqualsIgnoreCase(DatabaseFlag));
-            if (database == null)
+            if (database != null)
             {
-                AnsiConsole.MarkupLine($"[red]No matching database named '{DatabaseFlag}'[/].");
-                listDatabases(databases);
-
-                return false;
+                return true;
             }
 
-            return true;
+            AnsiConsole.MarkupLine($"[red]No matching database named '{DatabaseFlag}'[/].");
+            listDatabases(databases);
+
+            return false;
+
         }
-        else if (databases.Length == 1)
+
+        if (databases.Length == 1)
         {
             database = databases.Single();
             return true;
         }
-        else
-        {
-            AnsiConsole.MarkupLine("[bold]A specific database from this list must be selected with the -d|--database flag:[/]");
-            listDatabases(databases);
 
-            database = null;
-            return false;
-        }
+        AnsiConsole.MarkupLine("[bold]A specific database from this list must be selected with the -d|--database flag:[/]");
+        listDatabases(databases);
 
+        database = null;
         return false;
     }
 

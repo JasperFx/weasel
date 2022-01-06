@@ -61,6 +61,7 @@ namespace Weasel.Core
         /// to serve as templates for extra DDL (GRANT's probably)
         /// </summary>
         /// <param name="directory"></param>
+        // TODO -- make this async
         public void ReadTemplates(string directory)
         {
             var system = new FileSystem();
@@ -93,16 +94,14 @@ namespace Weasel.Core
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="writeStep"></param>
-        ///
-        // TODO -- this should be async
-        public void WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep)
+        public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep)
         {
             using var stream = new FileStream(filename, FileMode.Create);
             var writer = new StreamWriter(stream) { AutoFlush = true };
 
             WriteScript(writer, writeStep);
 
-            stream.Flush(true);
+            await stream.FlushAsync().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -184,23 +183,23 @@ namespace Weasel.Core
         /// </summary>
         /// <param name="filename"></param>
         /// <param name="migration"></param>
-        public void WriteMigrationFile(string filename, SchemaMigration patch)
+        public async Task WriteMigrationFile(string filename, SchemaMigration patch)
         {
             if (!Path.IsPathRooted(filename))
             {
                 filename = AppContext.BaseDirectory.AppendPath(filename);
             }
 
-            WriteTemplatedFile(filename, (r, w) =>
+            await WriteTemplatedFile(filename, (r, w) =>
             {
                 patch.WriteAllUpdates(w, r, AutoCreate.All);
-            });
+            }).ConfigureAwait(false);
 
             var dropFile = SchemaMigration.ToDropFileName(filename);
-            WriteTemplatedFile(dropFile, (r, w) =>
+            await WriteTemplatedFile(dropFile, (r, w) =>
             {
                 patch.WriteAllRollbacks(w, r);
-            });
+            }).ConfigureAwait(false);
         }
 
         /// <summary>

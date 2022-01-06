@@ -8,15 +8,15 @@ namespace Weasel.CommandLine;
 public class DumpInput: WeaselInput
 {
     [Description("File (or folder) location to write the SQL file")]
-    public string Path { get; set; }
+    public string Path { get; set; } = string.Empty;
 
     [Description("Opt into writing the SQL split out by features into separate files")]
     [FlagAlias("by-feature", 'f')]
-    public bool ByFeatureFlag { get; set; }
+    public bool ByFeatureFlag { get; set; } = false;
 
     [Description("Option to create scripts as transactional script")]
     [FlagAlias("transactional-script")]
-    public bool TransactionalScriptFlag { get; set; }
+    public bool TransactionalScriptFlag { get; set; } = false;
 
 
 

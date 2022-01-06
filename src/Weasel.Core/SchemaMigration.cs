@@ -169,25 +169,23 @@ namespace Weasel.Core
         {
             if (Difference == SchemaPatchDifference.None) return;
 
+            if (Difference == SchemaPatchDifference.Invalid)
+            {
+                var invalids = _deltas.Where(x => x.Difference == SchemaPatchDifference.Invalid);
+                throw new SchemaMigrationException(autoCreate, invalids);
+            }
+
             switch (autoCreate)
             {
                 case AutoCreate.All:
                 case AutoCreate.None:
+                case AutoCreate.CreateOrUpdate:
                     return;
 
                 case AutoCreate.CreateOnly:
                     if (Difference != SchemaPatchDifference.Create)
                     {
                         var invalids = _deltas.Where(x => x.Difference < SchemaPatchDifference.Create);
-                        throw new SchemaMigrationException(autoCreate, invalids);
-                    }
-
-                    break;
-
-                case AutoCreate.CreateOrUpdate:
-                    if (Difference == SchemaPatchDifference.Invalid)
-                    {
-                        var invalids = _deltas.Where(x => x.Difference == SchemaPatchDifference.Invalid);
                         throw new SchemaMigrationException(autoCreate, invalids);
                     }
 

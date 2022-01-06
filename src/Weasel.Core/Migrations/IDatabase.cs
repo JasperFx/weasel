@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace Weasel.Core.Migrations
@@ -67,7 +68,7 @@ namespace Weasel.Core.Migrations
         /// Write the SQL creation script by feature type to the supplied directory
         /// </summary>
         /// <param name="directory"></param>
-        void WriteDatabaseCreationScriptByType(string directory);
+        Task WriteDatabaseCreationScriptByType(string directory);
 
         /// <summary>
         /// Determine a migration for the configured database against the actual database
@@ -87,6 +88,32 @@ namespace Weasel.Core.Migrations
         /// </summary>
         /// <returns></returns>
         Task AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    public static class DatabaseExtensions
+    {
+        /// <summary>
+        /// Generate a migration, and write the results to the specified file name
+        /// </summary>
+        /// <param name="database"></param>
+        /// <param name="filename"></param>
+        public static async Task WriteMigrationFileAsync(this IDatabase database, string filename)
+        {
+            var migration = await database.CreateMigrationAsync().ConfigureAwait(false);
+            await database.Migrator.WriteMigrationFile(filename, migration).ConfigureAwait(false);
+        }
+
+        public static Task<SchemaMigration> CreateMigrationAsync(this IDatabase database, Type featureType)
+        {
+            var feature = database.BuildFeatureSchemas().FirstOrDefault(x => x.StorageType == featureType);
+            if (feature == null)
+            {
+                throw new ArgumentOutOfRangeException(nameof(featureType),
+                    $"Type '{featureType.FullName}' is an unknown storage type");
+            }
+
+            return database.CreateMigrationAsync(feature);
+        }
     }
 
     public interface IDatabase<T>: IDatabase, IConnectionSource<T> where T : DbConnection

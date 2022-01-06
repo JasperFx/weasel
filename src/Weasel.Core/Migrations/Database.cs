@@ -134,7 +134,7 @@ namespace Weasel.Core.Migrations
         }
 
         // TODO -- shorten names
-        public void WriteDatabaseCreationScriptByType(string directory)
+        public async Task WriteDatabaseCreationScriptByType(string directory)
         {
             // TODO -- really time for async helpers in Baseline
             var system = new FileSystem();
@@ -153,10 +153,10 @@ namespace Weasel.Core.Migrations
             if (schemaNames.Any())
             {
                 scriptNames.Add("schemas.sql");
-                Migrator.WriteTemplatedFile(directory.AppendPath("schemas.sql"), (m, w) =>
+                await Migrator.WriteTemplatedFile(directory.AppendPath("schemas.sql"), (m, w) =>
                 {
                     m.WriteSchemaCreationSql(schemaNames, w);
-                });
+                }).ConfigureAwait(false);
             }
 
 
@@ -165,16 +165,16 @@ namespace Weasel.Core.Migrations
                 var scriptName = $"{feature.Identifier}.sql";
                 scriptNames.Add(scriptName);
 
-                Migrator.WriteTemplatedFile(directory.AppendPath(scriptName), (m, w) =>
+                await Migrator.WriteTemplatedFile(directory.AppendPath(scriptName), (m, w) =>
                 {
                     feature.WriteFeatureCreation(m, w);
-                });
+                }).ConfigureAwait(false);
             }
 
             var writer = new StringWriter();
             foreach (var scriptName in scriptNames)
             {
-                writer.WriteLine(Migrator.ToExecuteScriptLine(scriptName));
+                await writer.WriteLineAsync(Migrator.ToExecuteScriptLine(scriptName)).ConfigureAwait(false);
             }
 
             var filename = directory.AppendPath("all.sql");
@@ -195,7 +195,7 @@ namespace Weasel.Core.Migrations
         public async Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(AutoCreate? @override = null)
         {
             var autoCreate = @override ?? AutoCreate;
-            if (@override == AutoCreate.None)
+            if (autoCreate == AutoCreate.None)
             {
                 autoCreate = AutoCreate.CreateOrUpdate;
             }
@@ -229,7 +229,7 @@ namespace Weasel.Core.Migrations
         public async Task WriteMigrationFileAsync(string filename)
         {
             var patch = await CreateMigrationAsync().ConfigureAwait(false);
-            Migrator.WriteMigrationFile(filename, patch);
+            await Migrator.WriteMigrationFile(filename, patch).ConfigureAwait(false);
         }
 
         public virtual void ResetSchemaExistenceChecks()
