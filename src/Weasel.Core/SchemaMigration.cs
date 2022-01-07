@@ -167,6 +167,7 @@ namespace Weasel.Core
         /// <exception cref="SchemaMigrationException"></exception>
         public void AssertPatchingIsValid(AutoCreate autoCreate)
         {
+            if (autoCreate == AutoCreate.All) return;
             if (Difference == SchemaPatchDifference.None) return;
 
             if (Difference == SchemaPatchDifference.Invalid)
@@ -177,7 +178,6 @@ namespace Weasel.Core
 
             switch (autoCreate)
             {
-                case AutoCreate.All:
                 case AutoCreate.None:
                 case AutoCreate.CreateOrUpdate:
                     return;

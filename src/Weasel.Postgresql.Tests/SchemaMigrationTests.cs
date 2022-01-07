@@ -34,7 +34,6 @@ namespace Weasel.Postgresql.Tests
         [InlineData(AutoCreate.All, new []{SchemaPatchDifference.Create, SchemaPatchDifference.None, SchemaPatchDifference.None})]
         [InlineData(AutoCreate.All, new []{SchemaPatchDifference.Update, SchemaPatchDifference.None, SchemaPatchDifference.None})]
         [InlineData(AutoCreate.None, new []{SchemaPatchDifference.None, SchemaPatchDifference.None, SchemaPatchDifference.None})]
-        [InlineData(AutoCreate.None, new []{SchemaPatchDifference.Invalid, SchemaPatchDifference.None, SchemaPatchDifference.None})]
         [InlineData(AutoCreate.None, new []{SchemaPatchDifference.Create, SchemaPatchDifference.None, SchemaPatchDifference.None})]
         [InlineData(AutoCreate.None, new []{SchemaPatchDifference.Update, SchemaPatchDifference.None, SchemaPatchDifference.None})]
         [InlineData(AutoCreate.CreateOnly, new []{SchemaPatchDifference.None, SchemaPatchDifference.None, SchemaPatchDifference.None})]
