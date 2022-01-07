@@ -27,6 +27,20 @@ namespace Weasel.Postgresql.Tests.Migrations
         }
 
         [Fact]
+        public async Task calling_apply_will_override_AutoCreate_none()
+        {
+            // Just expressing the pre-condition
+            theDatabase.AutoCreate.ShouldBe(AutoCreate.None);
+
+            theDatabase.Features["One"].AddTable(SchemaName, "one");
+            await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync();
+
+            await theDatabase.AssertDatabaseMatchesConfigurationAsync();
+
+
+        }
+
+        [Fact]
         public async Task assert_valid_change_with_only_creation_deltas()
         {
             theDatabase.Features["One"].AddTable(SchemaName, "one");
@@ -71,6 +85,8 @@ namespace Weasel.Postgresql.Tests.Migrations
             // Not good!
             Should.Throw<SchemaMigrationException>(() => migration.AssertPatchingIsValid(AutoCreate.CreateOnly));
         }
+
+
     }
 
     public class NamedTable: Table
