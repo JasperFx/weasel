@@ -89,7 +89,7 @@ namespace Weasel.Postgresql.Tests.Migrations
             names.ShouldContain(databaseName);
         }
 
-        [Fact]
+        //[Fact]
         public async Task all_defaults()
         {
             await AssertCanCreateDatabase();
