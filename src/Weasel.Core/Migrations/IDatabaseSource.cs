@@ -12,6 +12,6 @@ namespace Weasel.Core.Migrations
         /// Resolve a list of the known databases
         /// </summary>
         /// <returns></returns>
-        IReadOnlyList<IDatabase> BuildDatabases();
+        IReadOnlyList<IDatabase> BuildDatabases(); // TODO -- this needs to be ValueTask
     }
 }

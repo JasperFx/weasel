@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
+using Npgsql;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -122,7 +123,19 @@ namespace Weasel.Postgresql.Tests.Migrations
 
     public class DatabaseWithTables: PostgresqlDatabase
     {
+        public static DatabaseWithTables ForConnectionString(string connectionString)
+        {
+            var builder = new NpgsqlConnectionStringBuilder(connectionString);
+            var identifier = builder.Database;
+
+            return new DatabaseWithTables(identifier, connectionString);
+        }
+
         public DatabaseWithTables(AutoCreate autoCreate, string identifier) : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, ConnectionSource.ConnectionString)
+        {
+        }
+
+        public DatabaseWithTables(string identifier, string connectionString) : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, connectionString)
         {
         }
 

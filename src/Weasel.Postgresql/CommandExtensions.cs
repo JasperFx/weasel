@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Baseline;
@@ -32,7 +31,7 @@ namespace Weasel.Postgresql
         {
             return PostgresqlProvider.Instance.AddNamedParameter(command, name, value, dbType);
         }
-        
+
 
 
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, string[] value)
@@ -40,37 +39,37 @@ namespace Weasel.Postgresql
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Varchar);
             return command;
         }
-        
+
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, int[] value)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Integer);
             return command;
         }
-        
+
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, long[] value)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Bigint);
             return command;
         }
-        
+
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, Guid[] value)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Array | NpgsqlDbType.Uuid);
             return command;
         }
-        
+
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, DateTime value)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Timestamp);
             return command;
         }
-        
+
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, DateTimeOffset value)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.TimestampTz);
             return command;
         }
-        
+
         public static NpgsqlCommand With(this NpgsqlCommand command, string name, object value, NpgsqlDbType dbType)
         {
             PostgresqlProvider.Instance.AddNamedParameter(command, name, value, dbType);
@@ -94,6 +93,42 @@ namespace Weasel.Postgresql
                 Transaction = tx
             };
         }
+
+        /// <summary>
+        /// Calls pg_terminate_backend to kill off all idle sessions. USE CAUTIOUSLY!
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="databaseName"></param>
+        /// <returns></returns>
+        public static Task KillIdleSessions(this NpgsqlConnection conn, string databaseName)
+        {
+            return conn.CreateCommand(
+                    $"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = :db AND pid <> pg_backend_pid();")
+                .With("db", databaseName)
+                .ExecuteNonQueryAsync();
+        }
+
+        public static Task DropDatabase(this NpgsqlConnection conn, string databaseName)
+        {
+            return conn.CreateCommand($"DROP DATABASE IF EXISTS {databaseName}")
+                .ExecuteNonQueryAsync();
+        }
+
+        public static async Task<bool> DatabaseExists(this NpgsqlConnection conn, string databaseName)
+        {
+            var name = await conn.CreateCommand("SELECT datname FROM pg_database where datname = :db")
+                .With("db", databaseName).ExecuteScalarAsync().ConfigureAwait(false);
+
+            return name != null;
+        }
+
+        public static Task<IReadOnlyList<string>> AllDatabaseNames(this NpgsqlConnection conn)
+        {
+            return conn
+                .CreateCommand("SELECT datname FROM pg_database").FetchList<string>();
+        }
+
+
 
     }
 }

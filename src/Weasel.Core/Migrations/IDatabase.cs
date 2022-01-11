@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Weasel.Core.Migrations
 {
+
     /// <summary>
     /// Marker interface for a known database with expected schema features
     /// used to drive the migration process
@@ -88,6 +90,7 @@ namespace Weasel.Core.Migrations
         /// </summary>
         /// <returns></returns>
         Task AssertDatabaseMatchesConfigurationAsync();
+
     }
 
     public static class DatabaseExtensions
