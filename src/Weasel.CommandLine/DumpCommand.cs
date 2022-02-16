@@ -78,7 +78,7 @@ public class DumpCommand: OaktonCommand<DumpInput>
         }
 
         AnsiConsole.WriteLine("Writing SQL files to " + input.Path);
-        database.WriteDatabaseCreationScriptByType(input.Path);
+        database.WriteScriptsByType(input.Path);
 
 
     }

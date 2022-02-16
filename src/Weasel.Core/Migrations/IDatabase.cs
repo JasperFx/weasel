@@ -70,7 +70,7 @@ namespace Weasel.Core.Migrations
         /// Write the SQL creation script by feature type to the supplied directory
         /// </summary>
         /// <param name="directory"></param>
-        Task WriteDatabaseCreationScriptByType(string directory);
+        Task WriteScriptsByType(string directory);
 
         /// <summary>
         /// Determine a migration for the configured database against the actual database

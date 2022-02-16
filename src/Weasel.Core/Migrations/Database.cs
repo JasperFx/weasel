@@ -85,7 +85,11 @@ namespace Weasel.Core.Migrations
 
         public async Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group)
         {
+#if NETSTANDARD2_0
             using var conn = CreateConnection();
+            #else
+            await using var conn = CreateConnection();
+#endif
             await conn.OpenAsync().ConfigureAwait(false);
 
             var migration = await SchemaMigration.Determine(conn, group.Objects).ConfigureAwait(false);
@@ -133,8 +137,12 @@ namespace Weasel.Core.Migrations
             File.WriteAllText(filename, sql);
         }
 
-        // TODO -- shorten names
-        public async Task WriteDatabaseCreationScriptByType(string directory)
+        /// <summary>
+        /// Write scripts for all the features in this database to a file for
+        /// each feature
+        /// </summary>
+        /// <param name="directory"></param>
+        public async Task WriteScriptsByType(string directory)
         {
             // TODO -- really time for async helpers in Baseline
             var system = new FileSystem();
@@ -186,7 +194,11 @@ namespace Weasel.Core.Migrations
         {
             var @objects = AllObjects().ToArray();
 
+#if NETSTANDARD2_0
             using var conn = CreateConnection();
+#else
+            await using var conn = CreateConnection();
+#endif
             await conn.OpenAsync().ConfigureAwait(false);
 
             return await SchemaMigration.Determine(conn, @objects).ConfigureAwait(false);
@@ -204,7 +216,11 @@ namespace Weasel.Core.Migrations
 
             if (patch.Difference == SchemaPatchDifference.None) return SchemaPatchDifference.None;
 
+#if NETSTANDARD2_0
             using var conn = CreateConnection();
+#else
+            await using var conn = CreateConnection();
+#endif
             await conn.OpenAsync().ConfigureAwait(false);
 
             await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
@@ -244,17 +260,25 @@ namespace Weasel.Core.Migrations
                 return;
             }
 
+
 #pragma warning disable VSTHRD002
+#if NETSTANDARD2_0
             ensureStorageExists(new List<Type>(), featureType).GetAwaiter().GetResult();
+#else
+            ensureStorageExists(new List<Type>(), featureType).AsTask().GetAwaiter().GetResult();
+#endif
+
 #pragma warning restore VSTHRD002
         }
 
-        public Task EnsureStorageExistsAsync(Type featureType, CancellationToken token = default)
+#if !NETSTANDARD2_0
+        public ValueTask EnsureStorageExistsAsync(Type featureType, CancellationToken token = default)
         {
-            return AutoCreate == AutoCreate.None
-                ? Task.CompletedTask
-                : ensureStorageExists(new List<Type>(), featureType, token);
+            if (AutoCreate == AutoCreate.None) return new ValueTask();
+
+            return ensureStorageExists(new List<Type>(), featureType, token);
         }
+#endif
 
         public virtual IFeatureSchema FindFeature(Type featureType)
         {
@@ -269,7 +293,11 @@ namespace Weasel.Core.Migrations
             }
         }
 
+#if NETSTANDARD2_0
         private async Task ensureStorageExists(IList<Type> types, Type featureType, CancellationToken token = default)
+        #else
+        private async ValueTask ensureStorageExists(IList<Type> types, Type featureType, CancellationToken token = default)
+#endif
         {
             if (_checks.ContainsKey(featureType))
             {
@@ -299,13 +327,19 @@ namespace Weasel.Core.Migrations
             types.Fill(featureType);
 
             foreach (var dependentType in feature.DependentTypes())
+            {
                 await ensureStorageExists(types, dependentType, token).ConfigureAwait(false);
+            }
 
             await generateOrUpdateFeature(featureType, feature, token).ConfigureAwait(false);
         }
 
 
+#if NETSTANDARD2_0
         protected async Task generateOrUpdateFeature(Type featureType, IFeatureSchema feature, CancellationToken token)
+#else
+        protected async ValueTask generateOrUpdateFeature(Type featureType, IFeatureSchema feature, CancellationToken token)
+#endif
         {
             if (_checks.ContainsKey(featureType))
             {
@@ -336,7 +370,12 @@ namespace Weasel.Core.Migrations
 
         private async Task executeMigration(ISchemaObject[] schemaObjects, CancellationToken token = default)
         {
+
+#if NETSTANDARD2_0
             using var conn = _connectionSource();
+            #else
+            await using var conn = _connectionSource();
+#endif
             await conn.OpenAsync(token).ConfigureAwait(false);
 
             var migration = await SchemaMigration.Determine(conn, schemaObjects).ConfigureAwait(false);

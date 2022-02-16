@@ -125,6 +125,7 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching();
         }
 
+
         [Fact]
         public async Task detect_new_index()
         {
