@@ -271,14 +271,22 @@ namespace Weasel.Core.Migrations
 #pragma warning restore VSTHRD002
         }
 
-#if !NETSTANDARD2_0
+#if NETSTANDARD2_0
+        public Task EnsureStorageExistsAsync(Type featureType, CancellationToken token = default)
+        #else
+
         public ValueTask EnsureStorageExistsAsync(Type featureType, CancellationToken token = default)
+        #endif
         {
+#if NETSTANDARD2_0
+            if (AutoCreate == AutoCreate.None) return Task.CompletedTask;
+            #else
             if (AutoCreate == AutoCreate.None) return new ValueTask();
+#endif
 
             return ensureStorageExists(new List<Type>(), featureType, token);
         }
-#endif
+
 
         public virtual IFeatureSchema FindFeature(Type featureType)
         {
