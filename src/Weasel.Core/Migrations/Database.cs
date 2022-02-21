@@ -11,6 +11,25 @@ using Baseline.Dates;
 
 namespace Weasel.Core.Migrations
 {
+    public interface IGlobalLock<TConnection> where TConnection : DbConnection
+    {
+        Task<bool> TryAttainLock(TConnection conn);
+        Task ReleaseLock(TConnection conn);
+    }
+
+    internal class NulloGlobalList<TConnection> : IGlobalLock<TConnection> where TConnection : DbConnection
+    {
+        public Task<bool> TryAttainLock(TConnection conn)
+        {
+            return Task.FromResult(true);
+        }
+
+        public Task ReleaseLock(TConnection conn)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
     public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TConnection : DbConnection, new()
     {
         private readonly IMigrationLogger _logger;
@@ -204,7 +223,12 @@ namespace Weasel.Core.Migrations
             return await SchemaMigration.Determine(conn, @objects).ConfigureAwait(false);
         }
 
-        public async Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(AutoCreate? @override = null)
+        public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(AutoCreate? @override = null)
+        {
+            return ApplyAllConfiguredChangesToDatabaseAsync(new NulloGlobalList<TConnection>(), @override);
+        }
+
+        public async Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(IGlobalLock<TConnection> globalLock, AutoCreate? @override = null)
         {
             var autoCreate = @override ?? AutoCreate;
             if (autoCreate == AutoCreate.None)
@@ -212,9 +236,7 @@ namespace Weasel.Core.Migrations
                 autoCreate = AutoCreate.CreateOrUpdate;
             }
 
-            var patch = await CreateMigrationAsync().ConfigureAwait(false);
-
-            if (patch.Difference == SchemaPatchDifference.None) return SchemaPatchDifference.None;
+            var @objects = AllObjects().ToArray();
 
 #if NETSTANDARD2_0
             using var conn = CreateConnection();
@@ -223,11 +245,22 @@ namespace Weasel.Core.Migrations
 #endif
             await conn.OpenAsync().ConfigureAwait(false);
 
-            await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
+            if (await globalLock.TryAttainLock(conn).ConfigureAwait(false))
+            {
+                var patch = await SchemaMigration.Determine(conn, @objects).ConfigureAwait(false);
 
-            MarkAllFeaturesAsChecked();
+                if (patch.Difference == SchemaPatchDifference.None) return SchemaPatchDifference.None;
 
-            return patch.Difference;
+                await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
+
+                MarkAllFeaturesAsChecked();
+
+                return patch.Difference;
+            }
+
+            await conn.CloseAsync().ConfigureAwait(false);
+            throw new InvalidOperationException(
+                "Unable to attain a global lock in time order to apply database changes");
         }
 
         public async Task AssertDatabaseMatchesConfigurationAsync()
