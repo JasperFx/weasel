@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Baseline.Dates;
 using Npgsql;
@@ -23,6 +24,11 @@ namespace Weasel.Postgresql.Migrations
         }
 
         public DatabaseSpecification Specification { get; } = new DatabaseSpecification();
+
+        public IReadOnlyList<T> AllDatabases()
+        {
+            return _databases.Values.ToList();
+        }
 
         /// <summary>
         /// Force the database to be dropped and re-created
