@@ -69,6 +69,7 @@ public class DumpCommandTests : IntegrationContext
             Path = Path.GetTempPath().AppendPath("dump2", "file.sql"),
         };
 
+
         ExecuteDumpCommand(input).ShouldBeTrue();
         await Task.Delay(100); // Let the file system calm down
 

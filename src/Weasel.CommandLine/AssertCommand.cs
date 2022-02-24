@@ -12,7 +12,7 @@ namespace Weasel.CommandLine
         {
             using var host = input.BuildHost();
 
-            var databases = input.FilterDatabases(host);
+            var databases = await input.FilterDatabases(host);
 
             var success = true;
             foreach (var database in databases)

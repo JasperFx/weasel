@@ -15,10 +15,17 @@ public class WeaselInput: NetCoreInput
     [Description("Optionally choose the database interactively")]
     public bool InteractiveFlag { get; set; }
 
-    public IEnumerable<IDatabase> FilterDatabases(IHost host)
+    public async ValueTask<IList<IDatabase>> FilterDatabases(IHost host)
     {
+        var databases = host.Services.GetServices<IDatabase>().ToList();
         var sources = host.Services.GetServices<IDatabaseSource>();
-        var databases = host.Services.GetServices<IDatabase>().Concat(sources.SelectMany(x => x.BuildDatabases())).ToArray();
+
+        foreach (var source in sources)
+        {
+            var found = await source.BuildDatabases();
+            databases.AddRange(found);
+        }
+
         if (!databases.Any())
         {
             throw new InvalidOperationException("No Weasel databases were registered in this application");
@@ -28,13 +35,7 @@ public class WeaselInput: NetCoreInput
         {
             var names = SelectOptions(databases);
 
-            foreach (var database in databases.Where(x => names.Contains(x.Identifier)))
-            {
-                yield return database;
-            }
-
-            yield break;
-
+            return databases.Where(x => names.Contains(x.Identifier)).ToList();
         }
 
         if (DatabaseFlag.IsNotEmpty())
@@ -49,19 +50,16 @@ public class WeaselInput: NetCoreInput
                     $"Specified database does not exist. Options are {databases.Select(x => $"'{x.Identifier}'").Join(", ")}");
             }
 
-            yield return database;
+            return new List<IDatabase> { database };
         }
         else
         {
-            foreach (var database in databases)
-            {
-                yield return database;
-            }
+            return databases;
         }
 
     }
 
-    public virtual List<string> SelectOptions(IDatabase[] databases)
+    public virtual List<string> SelectOptions(List<IDatabase> databases)
     {
         var names = AnsiConsole.Prompt(
             new MultiSelectionPrompt<string>()
@@ -77,7 +75,7 @@ public class WeaselInput: NetCoreInput
 
     public bool TryChooseSingleDatabase(IHost host, out IDatabase? database)
     {
-        var databases = host.Services.GetServices<IDatabase>().ToArray();
+        var databases = host.Services.GetServices<IDatabase>().ToList();
 
         if (!databases.Any())
         {
@@ -109,7 +107,7 @@ public class WeaselInput: NetCoreInput
 
         }
 
-        if (databases.Length == 1)
+        if (databases.Count == 1)
         {
             database = databases.Single();
             return true;
@@ -122,7 +120,7 @@ public class WeaselInput: NetCoreInput
         return false;
     }
 
-    private static void listDatabases(IDatabase[] databases)
+    private static void listDatabases(List<IDatabase> databases)
     {
         var tree = new Tree("Registered Databases");
         foreach (var database1 in databases)

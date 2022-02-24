@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Weasel.Core.Migrations
 {
@@ -12,6 +13,6 @@ namespace Weasel.Core.Migrations
         /// Resolve a list of the known databases
         /// </summary>
         /// <returns></returns>
-        IReadOnlyList<IDatabase> BuildDatabases(); // TODO -- this needs to be ValueTask
+        ValueTask<IReadOnlyList<IDatabase>> BuildDatabases();
     }
 }

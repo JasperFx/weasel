@@ -56,45 +56,45 @@ public class WeaselInputTests
     }
 
     [Fact]
-    public void filter_all_databases_with_no_selections()
+    public async Task filter_all_databases_with_no_selections()
     {
         using var host = theInput.BuildHost();
-        theInput.FilterDatabases(host)
+        (await theInput.FilterDatabases(host))
             .ShouldBe(new[]{database1, database2, database3, database4, database5, database6, database7});
 
     }
 
     [Fact]
-    public void filter_by_database_flag()
+    public async Task filter_by_database_flag()
     {
         theInput.DatabaseFlag = database2.Identifier;
         using var host = theInput.BuildHost();
-        theInput.FilterDatabases(host)
+        (await theInput.FilterDatabases(host))
             .Single().ShouldBe(database2);
     }
 
     [Fact]
-    public void throw_if_no_databases()
+    public async Task throw_if_no_databases()
     {
-        Should.Throw<InvalidOperationException>(() =>
+        await Should.ThrowAsync<InvalidOperationException>(async () =>
         {
             using var host = theInput.BuildHost();
             theInput.DatabaseFlag = Guid.NewGuid().ToString();
-            theInput.FilterDatabases(host).ShouldBeEmpty();
+            (await theInput.FilterDatabases(host)).ShouldBeEmpty();
         });
     }
 
     [Fact]
-    public void interactive_filtering()
+    public async Task interactive_filtering()
     {
         var input = Substitute.For<WeaselInput>();
-        input.SelectOptions(Arg.Any<IDatabase[]>())
+        input.SelectOptions(Arg.Any<List<IDatabase>>())
             .Returns(new List<string> { database3.Identifier, database7.Identifier });
 
         input.InteractiveFlag = true;
 
         using var host = theInput.BuildHost();
-        input.FilterDatabases(host)
+        (await input.FilterDatabases(host))
             .ShouldBe(new[]{database3, database7});
     }
 }

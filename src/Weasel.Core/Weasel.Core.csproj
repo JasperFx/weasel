@@ -17,6 +17,7 @@
 
     <ItemGroup>
         <PackageReference Include="Baseline" Version="3.2.2" />
+        <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" Condition="'$(TargetFramework)' == 'netstandard2.0'"/>
     </ItemGroup>
     <Import Project="../../Analysis.Build.props" />
 </Project>

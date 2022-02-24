@@ -14,7 +14,7 @@ public class ApplyCommand : OaktonAsyncCommand<WeaselInput>
     {
         using var host = input.BuildHost();
 
-        var databases = input.FilterDatabases(host).ToArray();
+        var databases = await input.FilterDatabases(host);
 
         foreach (var database in databases)
         {

@@ -140,6 +140,9 @@ namespace Weasel.Core.Migrations
 
         public Task WriteCreationScriptToFile(string filename)
         {
+            var directory = Path.GetDirectoryName(filename);
+            Directory.CreateDirectory(directory);
+
             var sql = ToDatabaseScript();
 #if NETSTANDARD2_0
             File.WriteAllText(filename, sql);
