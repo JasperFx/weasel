@@ -33,13 +33,13 @@ namespace Weasel.Postgresql.Tests.Migrations
             (await theDatabases.FindOrCreateDatabase("three")).ShouldBeSameAs(three);
         }
 
-        public class Databases: SingleInstanceDatabaseCollection
+        public class Databases: SingleServerDatabaseCollection<DatabaseWithTables>
         {
             public Databases() : base(ConnectionSource.ConnectionString)
             {
             }
 
-            protected override PostgresqlDatabase buildDatabase(string databaseName, string connectionString)
+            protected override DatabaseWithTables buildDatabase(string databaseName, string connectionString)
             {
                 return new DatabaseWithTables(databaseName, connectionString);
             }

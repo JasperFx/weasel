@@ -6,13 +6,18 @@ using Weasel.Core.Migrations;
 
 namespace Weasel.Postgresql.Migrations
 {
-    public abstract class SingleInstanceDatabaseCollection
+    /// <summary>
+    /// This models the condition of having multiple databases by name in the same
+    /// Postgresql database instance
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlDatabase
     {
         private readonly string _masterConnectionString;
-        private readonly Dictionary<string, IDatabase> _databases = new Dictionary<string, IDatabase>();
+        private readonly Dictionary<string, T> _databases = new Dictionary<string, T>();
         private readonly TimedLock _lock = new TimedLock();
 
-        public SingleInstanceDatabaseCollection(string masterConnectionString)
+        public SingleServerDatabaseCollection(string masterConnectionString)
         {
             _masterConnectionString = masterConnectionString;
         }
@@ -24,9 +29,9 @@ namespace Weasel.Postgresql.Migrations
         /// </summary>
         public bool DropAndRecreate { get; set; } = false;
 
-        protected abstract PostgresqlDatabase buildDatabase(string databaseName, string connectionString);
+        protected abstract T buildDatabase(string databaseName, string connectionString);
 
-        public async ValueTask<IDatabase> FindOrCreateDatabase(string databaseName)
+        public async ValueTask<T> FindOrCreateDatabase(string databaseName)
         {
             if (_databases.TryGetValue(databaseName, out var database))
             {
@@ -49,8 +54,7 @@ namespace Weasel.Postgresql.Migrations
                     await Specification.BuildDatabase(conn, databaseName).ConfigureAwait(false);
                 }
 
-                var builder = new NpgsqlConnectionStringBuilder(_masterConnectionString);
-                builder.Database = databaseName;
+                var builder = new NpgsqlConnectionStringBuilder(_masterConnectionString) { Database = databaseName };
 
                 var connectionString = builder.ConnectionString;
                 database = buildDatabase(databaseName, connectionString);
