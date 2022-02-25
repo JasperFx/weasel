@@ -258,6 +258,8 @@ namespace Weasel.Core.Migrations
 
                 MarkAllFeaturesAsChecked();
 
+                await globalLock.ReleaseLock(conn).ConfigureAwait(false);
+
                 return patch.Difference;
             }
 
