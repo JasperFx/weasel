@@ -252,9 +252,10 @@ namespace Weasel.Core.Migrations
             {
                 var patch = await SchemaMigration.Determine(conn, @objects).ConfigureAwait(false);
 
-                if (patch.Difference == SchemaPatchDifference.None) return SchemaPatchDifference.None;
-
-                await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
+                if (patch.Difference != SchemaPatchDifference.None)
+                {
+                    await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
+                }
 
                 MarkAllFeaturesAsChecked();
 
