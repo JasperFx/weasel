@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Baseline.Dates;
+using Baseline.ImTools;
 using Npgsql;
 using Weasel.Core.Migrations;
 
@@ -15,7 +16,7 @@ namespace Weasel.Postgresql.Migrations
     public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlDatabase
     {
         private readonly string _masterConnectionString;
-        private readonly Dictionary<string, T> _databases = new Dictionary<string, T>();
+        private ImHashMap<string, T> _databases = ImHashMap<string, T>.Empty;
         private readonly TimedLock _lock = new TimedLock();
 
         public SingleServerDatabaseCollection(string masterConnectionString)
@@ -27,7 +28,7 @@ namespace Weasel.Postgresql.Migrations
 
         public IReadOnlyList<T> AllDatabases()
         {
-            return _databases.Values.ToList();
+            return _databases.Enumerate().Select(x => x.Value).ToList();
         }
 
         /// <summary>
@@ -39,16 +40,21 @@ namespace Weasel.Postgresql.Migrations
 
         public async ValueTask<T> FindOrCreateDatabase(string databaseName)
         {
-            if (_databases.TryGetValue(databaseName, out var database))
+            if (_databases.TryFind(databaseName, out var database))
             {
                 return database;
             }
 
-            await using var conn = new NpgsqlConnection(_masterConnectionString);
-            await conn.OpenAsync().ConfigureAwait(false);
-
             using (await _lock.Lock(5.Seconds()).ConfigureAwait(false))
             {
+                if (_databases.TryFind(databaseName, out database))
+                {
+                    return database;
+                }
+
+                await using var conn = new NpgsqlConnection(_masterConnectionString);
+                await conn.OpenAsync().ConfigureAwait(false);
+
                 if (DropAndRecreate)
                 {
                     await conn.KillIdleSessions(databaseName).ConfigureAwait(false);
@@ -65,7 +71,7 @@ namespace Weasel.Postgresql.Migrations
                 var connectionString = builder.ConnectionString;
                 database = buildDatabase(databaseName, connectionString);
 
-                _databases.Add(databaseName, database);
+                _databases = _databases.AddOrUpdate(databaseName, database);
 
                 return database;
             }
