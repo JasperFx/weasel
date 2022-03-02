@@ -17,6 +17,11 @@ namespace Weasel.Core.Migrations
         {
         }
 
+        public DatabaseValidationException(string databaseName, Exception inner)
+            : base($"Configuration to Schema Validation for Database '{databaseName}' Failed!", inner)
+        {
+        }
+
 #if SERIALIZE
         protected DatabaseValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
         {

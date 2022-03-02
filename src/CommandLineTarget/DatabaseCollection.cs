@@ -2,6 +2,7 @@ using Baseline;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Oakton;
+using Weasel.CommandLine;
 using Weasel.CommandLine.Tests;
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -29,6 +30,8 @@ namespace CommandLineTarget
                 {
                     services.AddSingleton<IDatabase>(database);
                 }
+
+                services.CheckAllWeaselDatabases();
             }).RunOaktonCommands(args);
         }
     }
