@@ -10,7 +10,7 @@ namespace Weasel.CommandLine.Tests;
 
 public class DumpCommandTests : IntegrationContext
 {
-    internal bool ExecuteDumpCommand(DumpInput input)
+    internal Task<bool> ExecuteDumpCommand(DumpInput input)
     {
         var command = new DumpCommand();
         var builder = Host.CreateDefaultBuilder().ConfigureServices(services =>
@@ -39,10 +39,10 @@ public class DumpCommandTests : IntegrationContext
             ByFeatureFlag = true
         };
 
-        ExecuteDumpCommand(input).ShouldBeTrue();
+        (await ExecuteDumpCommand(input)).ShouldBeTrue();
         await Task.Delay(100); // Let the file system calm down
 
-        ExecuteDumpCommand(input).ShouldBeTrue();
+        (await ExecuteDumpCommand(input)).ShouldBeTrue();
 
         Directory.Exists(input.Path).ShouldBeTrue();
 
@@ -70,10 +70,10 @@ public class DumpCommandTests : IntegrationContext
         };
 
 
-        ExecuteDumpCommand(input).ShouldBeTrue();
+        (await ExecuteDumpCommand(input)).ShouldBeTrue();
         await Task.Delay(100); // Let the file system calm down
 
-        ExecuteDumpCommand(input).ShouldBeTrue();
+        (await ExecuteDumpCommand(input)).ShouldBeTrue();
 
         File.Exists(input.Path).ShouldBeTrue();
     }

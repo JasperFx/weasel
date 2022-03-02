@@ -19,10 +19,8 @@ public class PatchCommand : OaktonAsyncCommand<PatchInput>
     {
         using var host = input.BuildHost();
 
-        if (!input.TryChooseSingleDatabase(host, out var database))
-        {
-            return false;
-        }
+        var (found, database) = await input.TryChooseSingleDatabase(host);
+        if (!found) return false;
 
         var migration = await database.CreateMigrationAsync();
         if (migration.Difference == SchemaPatchDifference.None)

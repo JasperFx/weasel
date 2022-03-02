@@ -73,15 +73,19 @@ public class WeaselInput: NetCoreInput
         return names;
     }
 
-    public bool TryChooseSingleDatabase(IHost host, out IDatabase? database)
+    public async ValueTask<(bool, IDatabase?)> TryChooseSingleDatabase(IHost host)
     {
         var databases = host.Services.GetServices<IDatabase>().ToList();
+        var sources = host.Services.GetServices<IDatabaseSource>();
+        foreach (var source in sources)
+        {
+            databases.AddRange(await source.BuildDatabases().ConfigureAwait(false));
+        }
 
         if (!databases.Any())
         {
             AnsiConsole.MarkupLine("[red]No Weasel databases were registered in this application[/]");
-            database = null;
-            return false;
+            return (false, null);
         }
 
         if (InteractiveFlag)
@@ -94,30 +98,28 @@ public class WeaselInput: NetCoreInput
 
         if (DatabaseFlag.IsNotEmpty())
         {
-            database = databases.FirstOrDefault(x => x.Identifier.EqualsIgnoreCase(DatabaseFlag));
+            var database = databases.FirstOrDefault(x => x.Identifier.EqualsIgnoreCase(DatabaseFlag));
             if (database != null)
             {
-                return true;
+                return (true, database);
             }
 
             AnsiConsole.MarkupLine($"[red]No matching database named '{DatabaseFlag}'[/].");
             listDatabases(databases);
 
-            return false;
+            return (false, null);
 
         }
 
         if (databases.Count == 1)
         {
-            database = databases.Single();
-            return true;
+            return (true, databases.Single());
         }
 
         AnsiConsole.MarkupLine("[bold]A specific database from this list must be selected with the -d|--database flag:[/]");
         listDatabases(databases);
 
-        database = null;
-        return false;
+        return (false, null);
     }
 
     private static void listDatabases(List<IDatabase> databases)

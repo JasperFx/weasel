@@ -59,8 +59,21 @@ public class WeaselInputTests
     public async Task filter_all_databases_with_no_selections()
     {
         using var host = theInput.BuildHost();
-        (await theInput.FilterDatabases(host))
+        var databases = await theInput.FilterDatabases(host);
+        databases
             .ShouldBe(new[]{database1, database2, database3, database4, database5, database6, database7});
+
+    }
+
+    [Fact]
+    public async Task find_one_from_source()
+    {
+        theInput.DatabaseFlag = "Seven";
+        using var host = theInput.BuildHost();
+        var (found, database) = await theInput.TryChooseSingleDatabase(host);
+        found.ShouldBeTrue();
+
+        database.Identifier.ShouldBe("Seven");
 
     }
 

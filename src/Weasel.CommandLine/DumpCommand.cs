@@ -23,7 +23,7 @@ public class DumpInput: WeaselInput
 }
 
 [Description("Dumps the entire DDL for the configured Marten database", Name = "db-dump")]
-public class DumpCommand: OaktonCommand<DumpInput>
+public class DumpCommand: OaktonAsyncCommand<DumpInput>
 {
     public DumpCommand()
     {
@@ -31,14 +31,12 @@ public class DumpCommand: OaktonCommand<DumpInput>
             .Arguments(x => x.Path);
     }
 
-    public override bool Execute(DumpInput input)
+    public override async Task<bool> Execute(DumpInput input)
     {
         using var host = input.BuildHost();
 
-        if (!input.TryChooseSingleDatabase(host, out var database))
-        {
-            return false;
-        }
+        var (found, database) = await input.TryChooseSingleDatabase(host);
+        if (!found) return false;
 
         // This can only override to true
         if (input.TransactionalScriptFlag)
@@ -48,20 +46,20 @@ public class DumpCommand: OaktonCommand<DumpInput>
 
         if (input.ByFeatureFlag)
         {
-            writeByType(input, database);
+            await writeByType(input, database);
         }
         else
         {
             AnsiConsole.MarkupLine("Writing SQL file to " + input.Path);
 
-            database.WriteCreationScriptToFile(input.Path);
+            await database.WriteCreationScriptToFile(input.Path);
         }
 
         return true;
 
     }
 
-    private static void writeByType(DumpInput input, IDatabase? database)
+    private static Task writeByType(DumpInput input, IDatabase? database)
     {
         // You only need to clean out the existing folder when dumping
         // by type
@@ -78,8 +76,6 @@ public class DumpCommand: OaktonCommand<DumpInput>
         }
 
         AnsiConsole.WriteLine("Writing SQL files to " + input.Path);
-        database.WriteScriptsByType(input.Path);
-
-
+        return database.WriteScriptsByType(input.Path);
     }
 }
