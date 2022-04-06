@@ -36,8 +36,9 @@ public class PatchCommand : OaktonAsyncCommand<PatchInput>
             database.Migrator.IsTransactional = true;
         }
 
-        await database.Migrator.WriteMigrationFile(input.FileName, migration);
-        AnsiConsole.MarkupLine($"[green]Wrote migration file to {input.FileName.ToFullPath()}[/]");
+        var fullPathToFile = input.FileName.ToFullPath();
+        await database.Migrator.WriteMigrationFile(fullPathToFile, migration);
+        AnsiConsole.MarkupLine($"[green]Wrote migration file to {fullPathToFile}[/]");
 
         return true;
     }
