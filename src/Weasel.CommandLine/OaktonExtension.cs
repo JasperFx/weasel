@@ -1,3 +1,4 @@
 using Oakton;
+using Weasel.CommandLine;
 
-[assembly:OaktonCommandAssembly]
+[assembly:OaktonCommandAssembly(typeof(WeaselCommandLineExtension))]

@@ -102,6 +102,13 @@ namespace Weasel.Core.Migrations
             return CreateMigrationAsync(feature);
         }
 
+        public async Task AssertConnectivity()
+        {
+            using var conn = CreateConnection();
+            await conn.OpenAsync().ConfigureAwait(false);
+            await conn.CloseAsync().ConfigureAwait(false);
+        }
+
         public async Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group)
         {
 #if NETSTANDARD2_0
