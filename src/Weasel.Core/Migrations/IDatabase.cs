@@ -91,6 +91,12 @@ namespace Weasel.Core.Migrations
         /// <returns></returns>
         Task AssertDatabaseMatchesConfigurationAsync();
 
+        /// <summary>
+        /// Attempts to connect to the actual database and throws an exception
+        /// if that fails
+        /// </summary>
+        /// <returns></returns>
+        Task AssertConnectivity();
     }
 
     public static class DatabaseExtensions

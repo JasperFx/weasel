@@ -31,7 +31,6 @@ namespace CommandLineTarget
                     services.AddSingleton<IDatabase>(database);
                 }
 
-                services.CheckAllWeaselDatabases();
             }).RunOaktonCommands(args);
         }
     }
