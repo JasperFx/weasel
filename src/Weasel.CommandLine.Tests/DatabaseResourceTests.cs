@@ -1,6 +1,9 @@
+using Baseline;
 using NSubstitute;
+using NSubstitute.Core.Arguments;
 using Shouldly;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 using Xunit;
@@ -23,6 +26,33 @@ public class DatabaseResourceTests
     {
         await theResource.Check(CancellationToken.None);
         await theDatabase.Received().AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    [Fact]
+    public async Task optionally_delegates_on_clear_state()
+    {
+        var database = Substitute.For<IDatabase, IDatabaseWithRewindableState>();
+        var resource = new DatabaseResource(database);
+        var cancellationToken = CancellationToken.None;
+        await resource.ClearState(cancellationToken);
+
+        await database.As<IDatabaseWithRewindableState>().Received().ClearState(cancellationToken);
+    }
+
+
+    [Fact]
+    public async Task optionally_delegates_on_statistics()
+    {
+        var database = Substitute.For<IDatabase, IDatabaseWithStatistics>();
+        var resource = new DatabaseResource(database);
+        var databaseWithStatistics = database.As<IDatabaseWithStatistics>();
+
+        var cancellationToken = CancellationToken.None;
+
+        await resource.DetermineStatus(cancellationToken);
+
+
+        await databaseWithStatistics.Received().DetermineStatus(cancellationToken);
     }
 
     [Fact]

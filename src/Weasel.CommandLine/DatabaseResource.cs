@@ -6,6 +6,24 @@ using Weasel.Core.Migrations;
 
 namespace Weasel.CommandLine;
 
+/// <summary>
+/// Exposes optional status information about a database to the Oakton
+/// command line report "resources statistics" model
+/// </summary>
+public interface IDatabaseWithStatistics
+{
+    Task<IRenderable> DetermineStatus(CancellationToken token);
+}
+
+/// <summary>
+/// Exposes optional status information about a database to the Oakton
+/// command line report "resources clear" model
+/// </summary>
+public interface IDatabaseWithRewindableState
+{
+    Task ClearState(CancellationToken token);
+}
+
 internal class DatabaseResource: IStatefulResource
 {
     private readonly IDatabase _database;
@@ -24,6 +42,7 @@ internal class DatabaseResource: IStatefulResource
 
     public Task ClearState(CancellationToken token)
     {
+        if (_database is IDatabaseWithRewindableState d) return d.ClearState(token);
         return Task.CompletedTask;
     }
 
@@ -39,6 +58,8 @@ internal class DatabaseResource: IStatefulResource
 
     public async Task<IRenderable> DetermineStatus(CancellationToken token)
     {
+        if (_database is IDatabaseWithStatistics d) return await d.DetermineStatus(token).ConfigureAwait(false);
+
         var migration = await _database.CreateMigrationAsync();
         switch (migration.Difference)
         {
