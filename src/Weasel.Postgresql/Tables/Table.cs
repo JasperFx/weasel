@@ -35,6 +35,7 @@ namespace Weasel.Postgresql.Tables
 
         public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
         public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
+        public ISet<string> IgnoredIndexes { get; } = new HashSet<string>();
 
         /// <summary>
         /// Max identifier length for identifiers like table name, column name, constraints, primary key etc
@@ -329,6 +330,11 @@ namespace Weasel.Postgresql.Tables
                     Columns = new[]{Column.Name}
                 };
 
+                if (_parent.HasIgnoredIndex(index.Name))
+                {
+                    throw new ArgumentException($"Cannot add ignored index {index.Name} on table {_parent.Identifier}");
+                }
+
                 _parent.Indexes.Add(index);
 
                 configure?.Invoke(index);
@@ -401,9 +407,24 @@ namespace Weasel.Postgresql.Tables
             return new ColumnExpression(this, column);
         }
 
+        public void IgnoreIndex(string indexName)
+        {
+            if (Indexes.Any(idx => idx.Name == indexName))
+            {
+                throw new ArgumentException($"Cannot ignore defined index {indexName} on table {Identifier}");
+            }
+
+            IgnoredIndexes.Add(indexName);
+        }
+
         public bool HasIndex(string indexName)
         {
             return Indexes.Any(x => x.Name == indexName);
+        }
+
+        public bool HasIgnoredIndex(string indexName)
+        {
+            return IgnoredIndexes.Contains(indexName);
         }
 
         public void PartitionByRange(params string[] columnOrExpressions)

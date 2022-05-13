@@ -205,6 +205,23 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching();
         }
 
+        [Fact]
+        public async Task ignore_new_index_that_is_ignored()
+        {
+            var existing = new detecting_table_deltas().theTable;
+            existing.ModifyColumn("user_name").AddIndex(idx => idx.Name = "ignore_me");
+
+            await CreateSchemaObjectInDatabase(existing);
+
+            theTable.IgnoreIndex("ignore_me");
+
+            var delta = await theTable.FindDelta(theConnection);
+            delta.HasChanges().ShouldBeFalse();
+
+            delta.Difference.ShouldBe(SchemaPatchDifference.None);
+
+            await AssertNoDeltasAfterPatching();
+        }
 
         [Theory]
         [MemberData(nameof(IndexTestData))]
