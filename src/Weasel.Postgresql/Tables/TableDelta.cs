@@ -21,7 +21,8 @@ namespace Weasel.Postgresql.Tables
             }
 
             Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
-            Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, actual.Indexes,
+            Indexes = new ItemDelta<IndexDefinition>(expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
+                actual.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
                 (e, a) => e.Matches(a, Expected));
 
             ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);

@@ -86,6 +86,16 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
+        public async Task changed_ignored_index()
+        {
+            initial.ModifyColumn("last_name").AddIndex(); // required to have non-empty rollback
+            initial.ModifyColumn("user_name").AddIndex(idx => idx.Name = "ignore_me");
+            configured.IgnoreIndex("ignore_me");
+
+            await AssertRollbackIsSuccessful();
+        }
+
+        [Fact]
         public async Task new_fkey_should_be_dropped_on_rollback()
         {
             var states = new Table("rollbacks.states");
