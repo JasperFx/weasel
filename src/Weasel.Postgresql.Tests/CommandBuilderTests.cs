@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Npgsql;
 using Shouldly;
 using Xunit;
@@ -19,6 +20,19 @@ namespace Weasel.Postgresql.Tests
             builder.ToString().ShouldBe("select data from table where foo = :p0");
 
 
+        }
+
+        [Fact]
+        public async Task starting_with_existing_command()
+        {
+            var command = new NpgsqlCommand("select data from table");
+            var builder = new CommandBuilder(command);
+
+            builder.Append(" where ");
+            builder.AppendWithParameters("foo = ?")
+                .Length.ShouldBe(1);
+
+            builder.ToString().ShouldBe("select data from table where foo = :p0");
         }
 
         [Fact]

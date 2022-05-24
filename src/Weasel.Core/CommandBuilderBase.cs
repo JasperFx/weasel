@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Baseline;
 
 namespace Weasel.Core
 {
@@ -38,6 +39,11 @@ namespace Weasel.Core
             _provider = provider;
             _parameterPrefix = parameterPrefix;
             _command = command;
+
+            if (_command.CommandText.IsNotEmpty())
+            {
+                _sql.Append(_command.CommandText);
+            }
         }
 
         /// <summary>
