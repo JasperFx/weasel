@@ -20,6 +20,7 @@ namespace Weasel.Postgresql
                 .Replace('\n', ' ')
                 .Replace('\r', ' ')
                 .Replace('\t', ' ')
+                .Replace("!=", "<>")
                 .ReplaceMultiSpace(" ")
                 .Replace(" ;", ";")
                 .Replace("SECURITY INVOKER", "")
@@ -33,7 +34,7 @@ namespace Weasel.Postgresql
                 .Replace("int[]", "integer[]")
                 .Replace("numeric", "decimal").TrimEnd(';').TrimEnd();
 
-            
+
             if (replaced.ContainsIgnoreCase("PLV8"))
             {
                 replaced = replaced

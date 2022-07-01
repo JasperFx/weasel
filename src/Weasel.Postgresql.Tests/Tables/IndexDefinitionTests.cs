@@ -205,6 +205,16 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Theory]
+        [InlineData("column1 <> column2", "column1 != column2")]
+        [InlineData("column1 != column2", "column1 <> column2")]
+        [InlineData("column1 <> column2", "column1 <> column2")]
+        [InlineData("column1 != column2", "column1 != column2")]
+        public void canonicalize_not_equals(string actual, string expected)
+        {
+            actual.CanonicizeSql().ShouldBe(expected.CanonicizeSql());
+        }
+
+        [Theory]
         [InlineData("column1", "column1")]
         [InlineData("column1::uuid", "CAST(column1 as uuid)")]
         [InlineData("CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'SomeGuid' as uuid)")]

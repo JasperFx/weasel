@@ -615,6 +615,7 @@ namespace Weasel.Postgresql.Tables
         {
             return index.ToDDL(parent)
                     .Replace("\"\"", "\"")
+                    .Replace("!=", "<>")
                     .Replace("  ", " ")
                     .Replace("(", "")
                     .Replace(")", "")
