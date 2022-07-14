@@ -46,6 +46,15 @@ namespace Weasel.Postgresql.Tables
 
         public IList<string> PartitionExpressions { get; } = new List<string>();
 
+        /// <summary>
+        /// Mutate this table to change the identifier to being in a different schema
+        /// </summary>
+        /// <param name="schemaName"></param>
+        public void MoveToSchema(string schemaName)
+        {
+            var identifier = new DbObjectName(schemaName, Identifier.Name);
+            Identifier = identifier;
+        }
 
         /// <summary>
         /// PARTITION strategy for this table
@@ -161,7 +170,7 @@ namespace Weasel.Postgresql.Tables
             writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
         }
 
-        public DbObjectName Identifier { get; }
+        public DbObjectName Identifier { get; private set; }
 
         private string? _primaryKeyName = null;
 

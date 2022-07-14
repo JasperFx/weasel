@@ -20,6 +20,14 @@ namespace Weasel.Postgresql.Tests.Tables
         }
 
         [Fact]
+        public void move_to_different_schema()
+        {
+            var table = new Table("mytable");
+            table.MoveToSchema("other");
+            table.Identifier.Schema.ShouldBe("other");
+        }
+
+        [Fact]
         public void build_table_by_name_only_puts_it_in_public()
         {
             var table = new Table("mytable");
@@ -33,10 +41,10 @@ namespace Weasel.Postgresql.Tests.Tables
             var table = new Table("mytable");
             table.AddColumn("col1", "varchar");
             var column = table.Columns.Single();
-            
+
             column.Name.ShouldBe("col1");
             column.Type.ShouldBe("varchar");
-            
+
             table.Columns.ShouldContain(column);
         }
 
@@ -45,7 +53,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             var table = new Table("mytable");
             table.AddColumn("col1", "varchar");
-            
+
             table.HasColumn("col1").ShouldBeTrue();
             table.HasColumn("doesnotexist").ShouldBeFalse();
         }
@@ -57,7 +65,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var column = new TableColumn("col1", "varchar");
 
             table.AddColumn(column);
-            
+
             table.Columns.ShouldContain(column);
             column.Parent.ShouldBe(table);
         }
@@ -68,7 +76,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var table = new Table("mytable");
             table.AddColumn("col1", "varchar");
             var column = table.Columns.Single();
-            
+
             column.Parent.ShouldBe(table);
         }
 
@@ -90,7 +98,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var column = table.Columns.Single();
             column
                 .Type.ShouldBe(PostgresqlProvider.Instance.GetDatabaseType(typeof(int), EnumStorage.AsInteger));
-            
+
             table.Columns.ShouldContain(column);
         }
 
@@ -111,11 +119,11 @@ namespace Weasel.Postgresql.Tests.Tables
             table.WriteCreateStatement(rules, writer);
 
             var ddl = writer.ToString();
-            
+
             _output.WriteLine(ddl);
-            
+
             var lines = ddl.ReadLines().ToArray();
-            
+
             lines.ShouldContain("DROP TABLE IF EXISTS public.people CASCADE;");
             lines.ShouldContain("CREATE TABLE public.people (");
 
@@ -138,11 +146,11 @@ namespace Weasel.Postgresql.Tests.Tables
             table.WriteCreateStatement(rules, writer);
 
             var ddl = writer.ToString();
-            
+
             _output.WriteLine(ddl);
-            
+
             var lines = ddl.ReadLines().ToArray();
-            
+
             lines.ShouldContain("CREATE TABLE IF NOT EXISTS public.people (");
         }
 
@@ -159,11 +167,11 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
             var fk = table.ForeignKeys.Single();
-            
+
             fk.Name.ShouldBe("fkey_people_state_id");
         }
-        
-        
+
+
         [Fact]
         public void add_foreign_key_to__external_table_by_name_with_fluent_interface()
         {
@@ -177,11 +185,11 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<int>("state_id").ForeignKeyTo("states", "id");
 
             var fk = table.ForeignKeys.Single();
-            
+
             fk.Name.ShouldBe("fkey_people_state_id");
         }
-        
-        
+
+
         [Fact]
         public void add_index_to_table_with_fluent_interface()
         {
@@ -193,13 +201,13 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<int>("state_id").AddIndex();
 
             var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
-            
+
             index.Name.ShouldBe("idx_people_state_id");
             index.Columns.Single().ShouldBe("state_id");
         }
-        
-                
-        
+
+
+
         [Fact]
         public void add_index_to_table_with_fluent_interface_with_customization()
         {
@@ -211,7 +219,7 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<int>("state_id").AddIndex(i => i.Method = IndexMethod.hash);
 
             var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
-            
+
             index.Name.ShouldBe("idx_people_state_id");
             index.Columns.Single().ShouldBe("state_id");
             index.Method.ShouldBe(IndexMethod.hash);
@@ -240,7 +248,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             table.PrimaryKeyName.ShouldBe("pkey_people_id_first_name");
         }
-        
+
         [Fact]
         public void override_primary_key_name()
         {
@@ -253,15 +261,15 @@ namespace Weasel.Postgresql.Tests.Tables
             table.PrimaryKeyName = "pk_people";
             table.PrimaryKeyName.ShouldBe("pk_people");
         }
-        
-        
+
+
         [Fact]
         public void is_primary_key_mechanics()
         {
             var states = new Table("states");
             states.AddColumn<int>("id").AsPrimaryKey();
             states.AddColumn<string>("abbreviation");
-            
+
             states.Columns.First().IsPrimaryKey.ShouldBeTrue();
             states.Columns.Last().IsPrimaryKey.ShouldBeFalse();
         }
@@ -274,7 +282,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
 
             var sql = states.ToBasicCreateTableSql();
-            
+
             sql.ShouldContain("id SERIAL");
         }
 
