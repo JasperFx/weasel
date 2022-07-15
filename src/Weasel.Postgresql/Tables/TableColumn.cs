@@ -10,7 +10,7 @@ namespace Weasel.Postgresql.Tables
     {
         string Name { get; }
     }
-    
+
     public class TableColumn : INamed
     {
         public TableColumn(string name, string type)
@@ -19,17 +19,17 @@ namespace Weasel.Postgresql.Tables
                 throw new ArgumentOutOfRangeException(nameof(name));
             if (string.IsNullOrEmpty(type))
                 throw new ArgumentOutOfRangeException(nameof(type));
-            
+
             Name = name.ToLower().Trim().Replace(' ', '_');
             Type = type.ToLower();
         }
-        
-        
+
+
 
         public IList<ColumnCheck> ColumnChecks { get; } = new List<ColumnCheck>();
 
         public bool AllowNulls { get; set; } = true;
-        
+
         public string? DefaultExpression { get; set; }
 
         public string Name { get; }
@@ -83,8 +83,8 @@ namespace Weasel.Postgresql.Tables
         {
             var declaration = Declaration();
 
-            return declaration.IsEmpty() 
-                ? $"{Name} {Type}" 
+            return declaration.IsEmpty()
+                ? $"{Name} {Type}"
                 : $"{Name} {Type} {declaration}";
         }
 
@@ -123,6 +123,31 @@ namespace Weasel.Postgresql.Tables
             // TODO -- need this to be more systematic
             return true;
         }
+
+        public string ToFunctionArgumentDeclaration()
+        {
+            if (Type.StartsWith("varchar", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{ToArgumentName()} text";
+            }
+
+            if (Type.StartsWith("nvarchar", StringComparison.OrdinalIgnoreCase))
+            {
+                return $"{ToArgumentName()} nvarchar";
+            }
+
+            return $"{ToArgumentName()} {Type}";
+        }
+
+        public string ToArgumentName()
+        {
+            return "p_" + Name;
+        }
+
+        public string ToFunctionUpdate()
+        {
+            return $"{Name} = {ToArgumentName()}";
+        }
     }
 
     public abstract class ColumnCheck
@@ -155,11 +180,11 @@ namespace Weasel.Postgresql.Tables
     {
         // GENERATED ALWAYS AS ( generation_expr ) STORED
     }
-    
+
     public class GeneratedAsIdentity : ColumnCheck
     {
         // GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY [ ( sequence_options ) ]
     }
-    
+
     */
 }

@@ -128,7 +128,30 @@ namespace Weasel.Postgresql
                 .CreateCommand("SELECT datname FROM pg_database").FetchList<string>();
         }
 
+        /// <summary>
+        /// Call a Postgresql function by name
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="functionName"></param>
+        /// <returns></returns>
+        public static NpgsqlCommand CallFunction(this NpgsqlConnection conn, string functionName)
+        {
+            var cmd = conn.CreateCommand(functionName);
+            cmd.CommandType = CommandType.StoredProcedure;
+            return cmd;
+        }
 
-
+        /// <summary>
+        /// Call a Postgresql function by name
+        /// </summary>
+        /// <param name="conn"></param>
+        /// <param name="functionName"></param>
+        /// <returns></returns>
+        public static NpgsqlCommand CallFunction(this NpgsqlConnection conn, DbObjectName functionName)
+        {
+            var cmd = conn.CreateCommand(functionName.QualifiedName);
+            cmd.CommandType = CommandType.StoredProcedure;
+            return cmd;
+        }
     }
 }

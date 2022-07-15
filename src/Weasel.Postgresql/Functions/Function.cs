@@ -13,17 +13,6 @@ namespace Weasel.Postgresql.Functions
 {
     public class Function : ISchemaObject
     {
-        /* TODO
-         * load from a file?
-         * load from an embedded resource
-         * parse drop statements
-         *
-         *
-         *
-         *
-         */
-
-
         private readonly string? _body;
         private readonly string[]? _dropStatements;
 
