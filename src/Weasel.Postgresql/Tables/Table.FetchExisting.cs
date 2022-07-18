@@ -60,7 +60,9 @@ FROM (
       nspname = :{schemaParam} AND
       NOT nspname LIKE 'pg%'
 ) ind
-WHERE ind.table_name = :{(Identifier.Schema == "public" ? nameParam : nameWithSchemaParam)};
+WHERE
+      ind.table_name = :{nameParam} OR
+      ind.table_name = :{nameWithSchemaParam};
 
 SELECT c.conname                                     AS constraint_name,
        c.contype                                     AS constraint_type,
