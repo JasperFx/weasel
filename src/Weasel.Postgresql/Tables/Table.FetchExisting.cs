@@ -221,10 +221,11 @@ order by column_index;
             while (await reader.ReadAsync().ConfigureAwait(false))
             {
                 var name = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+                var schema = await reader.GetFieldValueAsync<string>(2).ConfigureAwait(false);
                 var definition = await reader.GetFieldValueAsync<string>(5).ConfigureAwait(false);
 
                 var fk = new ForeignKey(name);
-                fk.Parse(definition);
+                fk.Parse(definition, schema);
 
                 existing.ForeignKeys.Add(fk);
             }

@@ -69,7 +69,7 @@ namespace Weasel.Postgresql.Tables
         /// </summary>
         /// <param name="definition"></param>
         /// <exception cref="NotImplementedException"></exception>
-        public void Parse(string definition)
+        public void Parse(string definition, string schema = "public")
         {
             var open1 = definition.IndexOf('(');
             var closed1 = definition.IndexOf(')');
@@ -86,6 +86,10 @@ namespace Weasel.Postgresql.Tables
             var tableStart = definition.IndexOf(references) + references.Length;
 
             var tableName = definition.Substring(tableStart, open2 - tableStart).Trim();
+			if (!tableName.Contains('.'))
+            {
+                tableName = $"{schema}.{tableName}";
+            }
             LinkedTable = DbObjectName.Parse(PostgresqlProvider.Instance, tableName);
 
             if (definition.ContainsIgnoreCase("ON DELETE CASCADE"))

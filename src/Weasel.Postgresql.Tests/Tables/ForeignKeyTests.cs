@@ -143,5 +143,20 @@ namespace Weasel.Postgresql.Tests.Tables
             fk.LinkedNames.ShouldBe(new string[]{"id", "tenant_id"});
             fk.LinkedTable.ShouldBe(new DbObjectName("public","states"));
         }
+		
+		[Fact]
+        public void parse_single_column_fk_definition_with_schema_set_explicitly()
+        {
+            var foreignKey = new ForeignKey("fk_people_state_id");
+            const string definition = "FOREIGN KEY (state_id) REFERENCES states(id)";
+            const string schema = "test";
+
+            foreignKey.Parse(definition, schema);
+
+            foreignKey.ColumnNames.Single().ShouldBe("state_id");
+            foreignKey.LinkedNames.Single().ShouldBe("id");
+            var expectedLinkedTable = new DbObjectName(schema, "states");
+            foreignKey.LinkedTable.ShouldBe(expectedLinkedTable);
+        }
     }
 }
