@@ -20,14 +20,14 @@ namespace Weasel.CommandLine
                 try
                 {
                     await database.AssertDatabaseMatchesConfigurationAsync();
-                    AnsiConsole.MarkupLine($"[bold green]No database differences detected for '{database.Identifier}'.[/]");
+                    AnsiConsole.MarkupLine($"[green]No database differences detected for '{database.Identifier.EscapeMarkup()}'.[/]");
                 }
                 catch (DatabaseValidationException e)
                 {
                     success = false;
 
-                    AnsiConsole.MarkupLine($"[bold red]Database '{database.Identifier}' does not match the configuration![/]");
-                    AnsiConsole.MarkupLine($"[yellow]{e.ToString()}[/]");
+                    AnsiConsole.MarkupLine($"[red]Database '{database.Identifier.EscapeMarkup()}' does not match the configuration![/]");
+                    AnsiConsole.WriteException(e);
                 }
             }
 
