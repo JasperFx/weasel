@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>netstandard2.0;net5.0;net6.0</TargetFrameworks>
+        <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
         <Description>Core Weasel types for ADO.Net helpers, spin off of Marten</Description>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
@@ -17,7 +17,6 @@
 
     <ItemGroup>
         <PackageReference Include="Baseline" Version="3.2.2" />
-        <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" Condition="'$(TargetFramework)' == 'netstandard2.0'"/>
     </ItemGroup>
     <Import Project="../../Analysis.Build.props" />
 </Project>

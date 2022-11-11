@@ -12,26 +12,26 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v1
       with:
-        dotnet-version: 6.0.x
+        dotnet-version: 7.0.x
 
     - name: Install dependencies
       run: dotnet restore
 
     - name: Build
       run: dotnet build --configuration Release --no-restore
-      
+
     - name: Pack Weasel.Core
       run: dotnet pack ./src/Weasel.Core/Weasel.Core.csproj -o ./artifacts --configuration Release --no-build
-      
+
     - name: Pack Weasel.Postgresql
       run: dotnet pack ./src/Weasel.Postgresql/Weasel.Postgresql.csproj -o ./artifacts --configuration Release --no-build
-      
+
     - name: Pack Weasel.SqlServer
       run: dotnet pack ./src/Weasel.SqlServer/Weasel.SqlServer.csproj -o ./artifacts --configuration Release --no-build
-    
+
     - name: Pack Weasel.CommandLine
       run: dotnet pack ./src/Weasel.CommandLine/Weasel.CommandLine.csproj -o ./artifacts --configuration Release --no-build
-    
+
 
     - name: Publish to NuGet
       run: |
