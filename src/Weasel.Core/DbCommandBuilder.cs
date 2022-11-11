@@ -2,7 +2,7 @@ using System;
 using System.Data;
 using System.Data.Common;
 using Baseline;
-using Baseline.ImTools;
+using ImTools;
 
 namespace Weasel.Core
 {

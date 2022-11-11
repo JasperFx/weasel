@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Baseline;
-using Baseline.ImTools;
+using ImTools;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
