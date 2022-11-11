@@ -50,7 +50,7 @@ namespace Weasel.Postgresql.Tests
             }
             catch (Exception e)
             {
-                throw new Exception("DDL Execution Failure.\n" + writer.ToString(), e);
+                throw new Exception("DDL Execution Failure.\n" + writer, e);
             }
         }
 
