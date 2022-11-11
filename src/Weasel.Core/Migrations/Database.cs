@@ -111,11 +111,7 @@ namespace Weasel.Core.Migrations
 
         public async Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group)
         {
-#if NETSTANDARD2_0
-            using var conn = CreateConnection();
-            #else
             await using var conn = CreateConnection();
-#endif
             await conn.OpenAsync().ConfigureAwait(false);
 
             var migration = await SchemaMigration.Determine(conn, group.Objects).ConfigureAwait(false);
@@ -151,12 +147,7 @@ namespace Weasel.Core.Migrations
             Directory.CreateDirectory(directory);
 
             var sql = ToDatabaseScript();
-#if NETSTANDARD2_0
-            File.WriteAllText(filename, sql);
-            return Task.CompletedTask;
-#else
             return File.WriteAllTextAsync(filename, sql);
-#endif
         }
 
         [Obsolete("Prefer WriteCreationScriptToFile()")]
@@ -221,16 +212,12 @@ namespace Weasel.Core.Migrations
 
         public async Task<SchemaMigration> CreateMigrationAsync()
         {
-            var @objects = AllObjects().ToArray();
+            var objects = AllObjects().ToArray();
 
-#if NETSTANDARD2_0
-            using var conn = CreateConnection();
-#else
             await using var conn = CreateConnection();
-#endif
             await conn.OpenAsync().ConfigureAwait(false);
 
-            return await SchemaMigration.Determine(conn, @objects).ConfigureAwait(false);
+            return await SchemaMigration.Determine(conn, objects).ConfigureAwait(false);
         }
 
         public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(AutoCreate? @override = null)
@@ -246,18 +233,14 @@ namespace Weasel.Core.Migrations
                 autoCreate = AutoCreate.CreateOrUpdate;
             }
 
-            var @objects = AllObjects().ToArray();
+            var objects = AllObjects().ToArray();
 
-#if NETSTANDARD2_0
-            using var conn = CreateConnection();
-#else
             await using var conn = CreateConnection();
-#endif
             await conn.OpenAsync().ConfigureAwait(false);
 
             if (await globalLock.TryAttainLock(conn).ConfigureAwait(false))
             {
-                var patch = await SchemaMigration.Determine(conn, @objects).ConfigureAwait(false);
+                var patch = await SchemaMigration.Determine(conn, objects).ConfigureAwait(false);
 
                 if (patch.Difference != SchemaPatchDifference.None)
                 {
@@ -308,27 +291,13 @@ namespace Weasel.Core.Migrations
 
 
 #pragma warning disable VSTHRD002
-#if NETSTANDARD2_0
-            ensureStorageExists(new List<Type>(), featureType).GetAwaiter().GetResult();
-#else
             ensureStorageExists(new List<Type>(), featureType).AsTask().GetAwaiter().GetResult();
-#endif
-
 #pragma warning restore VSTHRD002
         }
 
-#if NETSTANDARD2_0
-        public Task EnsureStorageExistsAsync(Type featureType, CancellationToken token = default)
-        #else
-
         public ValueTask EnsureStorageExistsAsync(Type featureType, CancellationToken token = default)
-        #endif
         {
-#if NETSTANDARD2_0
-            if (AutoCreate == AutoCreate.None) return Task.CompletedTask;
-            #else
             if (AutoCreate == AutoCreate.None) return new ValueTask();
-#endif
 
             return ensureStorageExists(new List<Type>(), featureType, token);
         }
@@ -347,11 +316,7 @@ namespace Weasel.Core.Migrations
             }
         }
 
-#if NETSTANDARD2_0
-        private async Task ensureStorageExists(IList<Type> types, Type featureType, CancellationToken token = default)
-        #else
         private async ValueTask ensureStorageExists(IList<Type> types, Type featureType, CancellationToken token = default)
-#endif
         {
             if (_checks.ContainsKey(featureType))
             {
@@ -388,12 +353,7 @@ namespace Weasel.Core.Migrations
             await generateOrUpdateFeature(featureType, feature, token).ConfigureAwait(false);
         }
 
-
-#if NETSTANDARD2_0
-        protected async Task generateOrUpdateFeature(Type featureType, IFeatureSchema feature, CancellationToken token)
-#else
         protected async ValueTask generateOrUpdateFeature(Type featureType, IFeatureSchema feature, CancellationToken token)
-#endif
         {
             if (_checks.ContainsKey(featureType))
             {
@@ -424,12 +384,8 @@ namespace Weasel.Core.Migrations
 
         private async Task executeMigration(ISchemaObject[] schemaObjects, CancellationToken token = default)
         {
-
-#if NETSTANDARD2_0
-            using var conn = _connectionSource();
-            #else
             await using var conn = _connectionSource();
-#endif
+
             await conn.OpenAsync(token).ConfigureAwait(false);
 
             var migration = await SchemaMigration.Determine(conn, schemaObjects).ConfigureAwait(false);

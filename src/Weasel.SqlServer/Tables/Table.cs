@@ -239,12 +239,7 @@ namespace Weasel.SqlServer.Tables
                 .With("table", Identifier.Name)
                 .With("schema", Identifier.Schema);
 
-#if NET5_0
-            var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-            await using (reader.ConfigureAwait(false))
-#else
-            using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-#endif
+            await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
             {
                 var any = await reader.ReadAsync().ConfigureAwait(false);
                 return any;
