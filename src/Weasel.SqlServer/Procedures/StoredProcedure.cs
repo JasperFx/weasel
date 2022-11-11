@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Baseline;
-using Baseline.ImTools;
+using ImTools;
 using Weasel.Core;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 

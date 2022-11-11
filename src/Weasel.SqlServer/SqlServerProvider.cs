@@ -2,7 +2,7 @@ using System;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Baseline;
-using Baseline.ImTools;
+using ImTools;
 using Weasel.Core;
 
 namespace Weasel.SqlServer
@@ -42,7 +42,7 @@ namespace Weasel.SqlServer
             {
                 return value;
             }
-            
+
             if (type.IsNullable() && DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out string databaseType))
             {
                 DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
@@ -58,7 +58,7 @@ namespace Weasel.SqlServer
             {
                 return value;
             }
-            
+
             if (type.IsNullable() && ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var parameterType))
             {
                 ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
@@ -182,7 +182,7 @@ namespace Weasel.SqlServer
                     return CascadeAction.SetNull;
                 case "SET_DEFAULT":
                     return CascadeAction.SetDefault;
-                
+
             }
 
             return CascadeAction.NoAction;
