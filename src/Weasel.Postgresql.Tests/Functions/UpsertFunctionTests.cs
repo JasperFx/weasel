@@ -56,7 +56,7 @@ namespace Weasel.Postgresql.Tests.Functions
             var entities = await theConnection
                 .CreateCommand("select next_value, hi_value from functions.mt_hilo where entity_name = :name")
                 .With("name", entityName)
-                .FetchList<HiloEntity>(async reader =>
+                .FetchList(async reader =>
                 {
                     var next = await reader.GetFieldValueAsync<int>(0);
                     var high = await reader.GetFieldValueAsync<int>(1);
@@ -74,7 +74,7 @@ namespace Weasel.Postgresql.Tests.Functions
 
             var entityName = Guid.NewGuid().ToString();
 
-            await theConnection.CallFunction(theFunction.Identifier)
+            await theConnection.CallFunction(theFunction.Identifier, "p_entity_name", "p_next_value", "p_hi_value")
                 .With("p_entity_name", entityName)
                 .With("p_next_value", 5)
                 .With("p_hi_value", 10)
@@ -84,13 +84,13 @@ namespace Weasel.Postgresql.Tests.Functions
             data.Next.ShouldBe(5);
             data.High.ShouldBe(10);
 
-            await theConnection.CallFunction(theFunction.Identifier)
+            await theConnection.CallFunction(theFunction.Identifier, "p_entity_name", "p_next_value", "p_hi_value")
                 .With("p_entity_name", entityName)
                 .With("p_next_value", 15)
                 .With("p_hi_value", 25)
                 .ExecuteNonQueryAsync();
 
-            await theConnection.CallFunction(theFunction.Identifier)
+            await theConnection.CallFunction(theFunction.Identifier, "p_entity_name", "p_next_value", "p_hi_value")
                 .With("p_entity_name", Guid.NewGuid().ToString())
                 .With("p_next_value", 16)
                 .With("p_hi_value", 26)

@@ -40,20 +40,20 @@ namespace Weasel.SqlServer.Tests
         {
             var command = new SqlCommand();
             command.Sql("select 1").ShouldBeSameAs(command);
-            
+
             command.CommandText.ShouldBe("select 1");
-            
+
         }
 
         [Fact]
         public void CallsSproc_extension_method()
         {
             var command = new SqlCommand();
-            command.CallsSproc(DbObjectName.Parse(SqlServerProvider.Instance, "foo.func")).ShouldBeSameAs(command);
+            command.CallsSproc(DbObjectName.Parse(SqlServerProvider.Instance, "foo.proc")).ShouldBeSameAs(command);
             command.CommandType.ShouldBe(CommandType.StoredProcedure);
-            command.CommandText.ShouldBe("foo.func");
+            command.CommandText.ShouldBe("foo.proc");
         }
-        
+
         [Fact]
         public void returns_extension_method()
         {
@@ -63,16 +63,16 @@ namespace Weasel.SqlServer.Tests
             var returnParam = command.Parameters.OfType<SqlParameter>().Single();
             returnParam.Direction.ShouldBe(ParameterDirection.ReturnValue);
             returnParam.ParameterName.ShouldBe("returnValue");
-            
+
         }
-        
+
         [Fact]
         public void CallsSproc_extension_method_by_string()
         {
             var command = new SqlCommand();
-            command.CallsSproc("foo.func").ShouldBeSameAs(command);
+            command.CallsSproc("foo.proc").ShouldBeSameAs(command);
             command.CommandType.ShouldBe(CommandType.StoredProcedure);
-            command.CommandText.ShouldBe("foo.func");
+            command.CommandText.ShouldBe("foo.proc");
         }
     }
 }
