@@ -115,20 +115,12 @@ namespace Weasel.Postgresql
             // Misc types
             new(NpgsqlDbType.Boolean, DbType.Boolean, "boolean", typeof(bool)),
             new(NpgsqlDbType.Boolean, DbType.Boolean, "boolean", typeof(bool)),
-            new(NpgsqlDbType.Bytea,   DbType.Binary,  "bytea", typeof(byte[]), typeof(ArraySegment<byte>)
-#if !NETSTANDARD2_0
-                , typeof(ReadOnlyMemory<byte>), typeof(Memory<byte>)
-#endif
-            ),
+            new(NpgsqlDbType.Bytea,   DbType.Binary,  "bytea", typeof(byte[]), typeof(ArraySegment<byte>), typeof(ReadOnlyMemory<byte>), typeof(Memory<byte>)),
             new(NpgsqlDbType.Uuid,    DbType.Guid,    "uuid", typeof(Guid)),
             new(NpgsqlDbType.Varbit,  DbType.Object,  "bit varying", typeof(BitArray), typeof(BitVector32)),
             new(NpgsqlDbType.Varbit,  DbType.Object,  "bit varying", typeof(BitArray), typeof(BitVector32)),
             new(NpgsqlDbType.Bit,     DbType.Object,  "bit"),
-            new(NpgsqlDbType.Hstore,  DbType.Object,  "hstore", typeof(Dictionary<string, string?>), typeof(IDictionary<string, string?>)
-#if !NETSTANDARD2_0 && !NETSTANDARD2_1
-                , typeof(ImmutableDictionary<string, string?>)
-#endif
-            ),
+            new(NpgsqlDbType.Hstore,  DbType.Object,  "hstore", typeof(Dictionary<string, string?>), typeof(IDictionary<string, string?>), typeof(ImmutableDictionary<string, string?>)),
 
             // Internal types
             new(NpgsqlDbType.Int2Vector,   DbType.Object, "int2vector"),
