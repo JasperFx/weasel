@@ -60,21 +60,13 @@ namespace Weasel.Postgresql
 
             // Date/time types
 #pragma warning disable 618 // NpgsqlDateTime is obsolete, remove in 7.0
-            new(NpgsqlDbType.Timestamp,   DbType.DateTime,       "timestamp without time zone", typeof(DateTime), typeof(NpgsqlDateTime)),
+            new(NpgsqlDbType.Timestamp,   DbType.DateTime,       "timestamp without time zone", typeof(DateTime)),
 #pragma warning disable 618
             new(NpgsqlDbType.TimestampTz, DbType.DateTimeOffset, "timestamp with time zone",    typeof(DateTimeOffset)),
-            new(NpgsqlDbType.Date,        DbType.Date,           "date",                        typeof(NpgsqlDate)
-#if NET6_0_OR_GREATER
-                , typeof(DateOnly)
-#endif
-            ),
-            new(NpgsqlDbType.Time,        DbType.Time,     "time without time zone"
-#if NET6_0_OR_GREATER
-                , typeof(TimeOnly)
-#endif
-            ),
+            new(NpgsqlDbType.Date,        DbType.Date,           "date",                        typeof(DateOnly)),
+            new(NpgsqlDbType.Time,        DbType.Time,     "time without time zone", typeof(TimeOnly) ),
             new(NpgsqlDbType.TimeTz,      DbType.Object,   "time with time zone"),
-            new(NpgsqlDbType.Interval,    DbType.Object,   "interval", typeof(TimeSpan), typeof(NpgsqlTimeSpan)),
+            new(NpgsqlDbType.Interval,    DbType.Object,   "interval", typeof(TimeSpan)),
 
             new(NpgsqlDbType.Array | NpgsqlDbType.Timestamp,   DbType.Object, "timestamp without time zone[]"),
             new(NpgsqlDbType.Array | NpgsqlDbType.TimestampTz, DbType.Object, "timestamp with time zone[]"),
