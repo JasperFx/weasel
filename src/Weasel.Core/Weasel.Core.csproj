@@ -16,7 +16,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Baseline" Version="4.0.0" />
+        <PackageReference Include="Baseline" Version="4.1.0" />
     </ItemGroup>
     <Import Project="../../Analysis.Build.props" />
 </Project>
