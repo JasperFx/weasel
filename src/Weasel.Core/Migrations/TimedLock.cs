@@ -22,7 +22,7 @@ namespace Weasel.Core.Migrations
             throw new TimeoutException();
         }
 
-        public struct LockReleaser : IDisposable
+        public readonly struct LockReleaser : IDisposable
         {
             private readonly SemaphoreSlim toRelease;
 

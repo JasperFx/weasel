@@ -136,7 +136,7 @@ namespace Weasel.Core
 
             var list = new List<T>();
 
-            using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+            await using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellation).ConfigureAwait(false))
             {
                 list.Add(await transform(reader).ConfigureAwait(false));

@@ -96,7 +96,7 @@ namespace Weasel.Core
         /// <param name="writeStep"></param>
         public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep)
         {
-            using var stream = new FileStream(filename, FileMode.Create);
+            await using var stream = new FileStream(filename, FileMode.Create);
             var writer = new StreamWriter(stream) { AutoFlush = true };
 
             WriteScript(writer, writeStep);

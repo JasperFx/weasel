@@ -39,7 +39,7 @@ namespace Weasel.Core
                 schemaObject.ConfigureQueryCommand(builder);
             }
 
-            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+            await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
 
             deltas.Add(await schemaObjects[0].CreateDelta(reader).ConfigureAwait(false));
 

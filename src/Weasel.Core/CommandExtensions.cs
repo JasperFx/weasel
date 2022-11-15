@@ -124,7 +124,7 @@ namespace Weasel.Core
         {
             var list = new List<T>();
 
-            using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+            await using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
             while (await reader.ReadAsync(cancellation).ConfigureAwait(false))
             {
                 list.Add(await transform(reader).ConfigureAwait(false));
@@ -164,7 +164,7 @@ namespace Weasel.Core
         /// <returns></returns>
         public static async Task<T?> FetchOne<T>(this DbCommand cmd, CancellationToken cancellation = default)
         {
-            using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+            await using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
             if (await reader.ReadAsync(cancellation).ConfigureAwait(false))
             {
                 if (await reader.IsDBNullAsync(0, cancellation).ConfigureAwait(false))

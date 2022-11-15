@@ -151,6 +151,10 @@ order by
                 return Equals((TableTypeColumn) obj);
             }
 
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(Name, DatabaseType, AllowNulls);
+            }
         }
 
         public async Task<TableType?> FetchExisting(SqlConnection conn)
@@ -159,7 +163,7 @@ order by
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+            await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
             return await readExisting(reader).ConfigureAwait(false);
         }
 

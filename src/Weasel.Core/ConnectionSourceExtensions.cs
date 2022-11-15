@@ -37,7 +37,7 @@ namespace Weasel.Core
         /// <typeparam name="T"></typeparam>
         public static async Task RunSqlAsync<T>(this IConnectionSource<T> source, string sql) where T : DbConnection
         {
-            using var conn = source.CreateConnection();
+            await using var conn = source.CreateConnection();
             await conn.OpenAsync().ConfigureAwait(false);
 
             try
