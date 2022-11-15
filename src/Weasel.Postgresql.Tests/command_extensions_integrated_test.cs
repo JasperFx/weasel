@@ -34,9 +34,9 @@ namespace Weasel.Postgresql.Tests
                 .With("id", 3).With("tag", "Toodles").With("age", 5);
             
             await command.ExecuteOnce();
-            
-            
-            using var reader = await theConnection.CreateCommand("select id, tag, age from general.thing")
+
+
+            await using var reader = await theConnection.CreateCommand("select id, tag, age from general.thing")
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();

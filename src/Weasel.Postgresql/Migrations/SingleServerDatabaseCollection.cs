@@ -19,12 +19,12 @@ namespace Weasel.Postgresql.Migrations
         private ImHashMap<string, T> _databases = ImHashMap<string, T>.Empty;
         private readonly TimedLock _lock = new TimedLock();
 
-        public SingleServerDatabaseCollection(string masterConnectionString)
+        protected SingleServerDatabaseCollection(string masterConnectionString)
         {
             _masterConnectionString = masterConnectionString;
         }
 
-        public DatabaseSpecification Specification { get; } = new DatabaseSpecification();
+        private DatabaseSpecification Specification { get; } = new();
 
         public IReadOnlyList<T> AllDatabases()
         {
@@ -38,7 +38,7 @@ namespace Weasel.Postgresql.Migrations
 
         protected abstract T buildDatabase(string databaseName, string connectionString);
 
-        public async ValueTask<T> FindOrCreateDatabase(string databaseName)
+        public virtual async ValueTask<T> FindOrCreateDatabase(string databaseName)
         {
             if (_databases.TryFind(databaseName, out var database))
             {

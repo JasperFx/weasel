@@ -37,7 +37,7 @@ namespace Weasel.Postgresql.Tests
 
             await builder.ExecuteNonQueryAsync(theConnection);
 
-            using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+            await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
@@ -70,7 +70,7 @@ namespace Weasel.Postgresql.Tests
 
             await builder.ExecuteNonQueryAsync(theConnection);
 
-            using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+            await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
@@ -162,7 +162,7 @@ namespace Weasel.Postgresql.Tests
 
             await builder.ExecuteNonQueryAsync(theConnection);
 
-            using var reader = await theConnection.CreateCommand("select id, tag, age, rate, sequence, is_done from integration.thing")
+            await using var reader = await theConnection.CreateCommand("select id, tag, age, rate, sequence, is_done from integration.thing")
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();

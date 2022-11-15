@@ -12,9 +12,9 @@ namespace Weasel.SqlServer.Tests
         [Fact]
         public async Task explicitly_release_global_session_locks()
         {
-            using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
             {
                 await conn1.OpenAsync();
                 await conn2.OpenAsync();
@@ -45,9 +45,9 @@ namespace Weasel.SqlServer.Tests
         [Fact]
         public async Task explicitly_release_global_tx_session_locks()
         {
-            using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
             {
                 await conn1.OpenAsync();
                 await conn2.OpenAsync();
@@ -83,9 +83,9 @@ namespace Weasel.SqlServer.Tests
         [Fact] // - too slow
         public async Task global_session_locks()
         {
-            using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
             {
                 await conn1.OpenAsync();
                 await conn2.OpenAsync();
@@ -116,9 +116,9 @@ namespace Weasel.SqlServer.Tests
         [Fact] // -- too slow
         public async Task tx_session_locks()
         {
-            using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
-            using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn1 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn2 = new SqlConnection(ConnectionSource.ConnectionString))
+            await using (var conn3 = new SqlConnection(ConnectionSource.ConnectionString))
             {
                 await conn1.OpenAsync();
                 await conn2.OpenAsync();

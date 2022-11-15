@@ -76,7 +76,7 @@ namespace Weasel.Postgresql
 
             ConfigureQueryCommand(builder);
 
-            using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+            await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
 
             return await CreateDelta(reader).ConfigureAwait(false);
         }

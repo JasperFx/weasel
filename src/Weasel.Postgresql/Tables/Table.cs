@@ -262,7 +262,7 @@ namespace Weasel.Postgresql.Tables
                 .With("table", Identifier.Name)
                 .With("schema", Identifier.Schema);
 
-            using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
+            await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
             var any = await reader.ReadAsync().ConfigureAwait(false);
             return any;
         }

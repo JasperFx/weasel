@@ -104,7 +104,7 @@ namespace Weasel.Core.Migrations
 
         public async Task AssertConnectivity()
         {
-            using var conn = CreateConnection();
+            await using var conn = CreateConnection();
             await conn.OpenAsync().ConfigureAwait(false);
             await conn.CloseAsync().ConfigureAwait(false);
         }
