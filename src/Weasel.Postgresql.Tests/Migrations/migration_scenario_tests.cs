@@ -6,9 +6,9 @@ using Npgsql;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Core.Migrations;
-using Weasel.Core.Util;
 using Weasel.Postgresql.Tables;
 using Xunit;
+using JasperFx.Core;
 
 namespace Weasel.Postgresql.Tests.Migrations
 {

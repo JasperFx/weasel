@@ -1,7 +1,7 @@
 using System.Data;
 using System.Data.Common;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
-using Weasel.Core.Util;
 
 namespace Weasel.Core;
 

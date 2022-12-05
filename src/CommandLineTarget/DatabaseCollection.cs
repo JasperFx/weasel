@@ -1,11 +1,10 @@
+using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Oakton;
-using Weasel.CommandLine;
 using Weasel.CommandLine.Tests;
 using Weasel.Core;
 using Weasel.Core.Migrations;
-using Weasel.Core.Util;
 using Weasel.Postgresql;
 
 namespace CommandLineTarget
@@ -13,7 +12,7 @@ namespace CommandLineTarget
     public class DatabaseCollection
     {
         internal readonly LightweightCache<string, DatabaseWithTables> Databases
-            = new LightweightCache<string, DatabaseWithTables>(name =>
+            = new(name =>
                 new DatabaseWithTables(AutoCreate.CreateOrUpdate, name));
 
         public void AddTable(string databaseName, string featureName, string tableName)

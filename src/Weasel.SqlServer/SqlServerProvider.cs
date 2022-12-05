@@ -1,8 +1,8 @@
 using System.Data;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;
-using Weasel.Core.Util;
 
 namespace Weasel.SqlServer;
 

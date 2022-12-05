@@ -1,6 +1,6 @@
-﻿using Weasel.Core;
+﻿using JasperFx.Core;
+using Weasel.Core;
 using Weasel.Core.Migrations;
-using Weasel.Core.Util;
 using Weasel.Postgresql;
 using Weasel.Postgresql.Tables;
 using Weasel.Postgresql.Tests;
@@ -43,7 +43,7 @@ public class DatabaseWithTables: PostgresqlDatabase
     }
 
     public LightweightCache<string, NamedTableFeature> Features { get; } =
-        new LightweightCache<string, NamedTableFeature>(name =>
+        new(name =>
             new NamedTableFeature(name, new PostgresqlMigrator()));
 
     public override IFeatureSchema[] BuildFeatureSchemas()

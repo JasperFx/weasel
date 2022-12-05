@@ -1,7 +1,6 @@
 using JasperFx.Core;
 using Npgsql;
 using Weasel.Core.Migrations;
-using Weasel.Core.Util;
 
 namespace Weasel.Postgresql.Migrations;
 

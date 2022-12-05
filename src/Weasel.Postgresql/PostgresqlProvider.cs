@@ -1,9 +1,9 @@
 using System.Reflection;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
-using Weasel.Core.Util;
 
 namespace Weasel.Postgresql;
 
