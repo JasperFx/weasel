@@ -1,9 +1,9 @@
-using Baseline;
 using Shouldly;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using JasperFx.Core.Reflection;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;

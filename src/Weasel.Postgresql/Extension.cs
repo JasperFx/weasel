@@ -1,52 +1,49 @@
-using System.Collections.Generic;
 using System.Data.Common;
-using System.IO;
-using System.Threading.Tasks;
 using Weasel.Core;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
-namespace Weasel.Postgresql
+namespace Weasel.Postgresql;
+
+/// <summary>
+///     Used to register Postgresql extensions
+/// </summary>
+public class Extension: ISchemaObject
 {
-    /// <summary>
-    /// Used to register Postgresql extensions
-    /// </summary>
-    public class Extension : ISchemaObject
+    public Extension(string extensionName)
     {
-        public string ExtensionName { get; }
+        ExtensionName = extensionName.Trim().ToLower();
+    }
 
-        public Extension(string extensionName)
-        {
-            ExtensionName = extensionName.Trim().ToLower();
-        }
+    public string ExtensionName { get; }
 
-        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
-        {
-            writer.WriteLine($"CREATE EXTENSION IF NOT EXISTS {ExtensionName};");
-        }
+    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    {
+        writer.WriteLine($"CREATE EXTENSION IF NOT EXISTS {ExtensionName};");
+    }
 
-        public void WriteDropStatement(Migrator rules, TextWriter writer)
-        {
-            writer.WriteLine($"DROP EXTENSION IF EXISTS {ExtensionName} CASCADE;");
-        }
+    public void WriteDropStatement(Migrator rules, TextWriter writer)
+    {
+        writer.WriteLine($"DROP EXTENSION IF EXISTS {ExtensionName} CASCADE;");
+    }
 
-        public DbObjectName Identifier => new DbObjectName("public", ExtensionName);
-        public void ConfigureQueryCommand(DbCommandBuilder builder)
-        {
-            builder.Append("select extname from pg_extension where extname = ");
-            builder.AppendParameter(ExtensionName);
-            builder.Append(";");
-        }
+    public DbObjectName Identifier => new("public", ExtensionName);
 
-        public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
-        {
-            var exists = await reader.ReadAsync().ConfigureAwait(false);
+    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    {
+        builder.Append("select extname from pg_extension where extname = ");
+        builder.AppendParameter(ExtensionName);
+        builder.Append(";");
+    }
 
-            return new SchemaObjectDelta(this, exists ? SchemaPatchDifference.None : SchemaPatchDifference.Create);
-        }
+    public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+    {
+        var exists = await reader.ReadAsync().ConfigureAwait(false);
 
-        public IEnumerable<DbObjectName> AllNames()
-        {
-            yield return Identifier;
-        }
+        return new SchemaObjectDelta(this, exists ? SchemaPatchDifference.None : SchemaPatchDifference.Create);
+    }
+
+    public IEnumerable<DbObjectName> AllNames()
+    {
+        yield return Identifier;
     }
 }

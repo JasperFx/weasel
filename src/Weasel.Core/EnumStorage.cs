@@ -1,19 +1,18 @@
-namespace Weasel.Core
+namespace Weasel.Core;
+
+/// <summary>
+///     Governs how .Net Enum types are persisted
+///     in the serialized JSON
+/// </summary>
+public enum EnumStorage
 {
     /// <summary>
-    /// Governs how .Net Enum types are persisted
-    /// in the serialized JSON
+    ///     Serialize Enum values as their integer value
     /// </summary>
-    public enum EnumStorage
-    {
-        /// <summary>
-        /// Serialize Enum values as their integer value
-        /// </summary>
-        AsInteger,
+    AsInteger,
 
-        /// <summary>
-        /// Serialize Enum values as their string value
-        /// </summary>
-        AsString
-    }
+    /// <summary>
+    ///     Serialize Enum values as their string value
+    /// </summary>
+    AsString
 }

@@ -1,12 +1,11 @@
-namespace Weasel.Postgresql.Tables
+namespace Weasel.Postgresql.Tables;
+
+public enum IndexMethod
 {
-    public enum IndexMethod
-    {
-        btree,
-        hash,
-        gist,
-        gin,
-        brin,
-        custom
-    }
+    btree,
+    hash,
+    gist,
+    gin,
+    brin,
+    custom
 }

@@ -1,11 +1,10 @@
-namespace Weasel.Postgresql
+namespace Weasel.Postgresql;
+
+public enum CascadeAction
 {
-    public enum CascadeAction
-    {
-        SetNull,
-        SetDefault,
-        Restrict,
-        NoAction,
-        Cascade
-    }
+    SetNull,
+    SetDefault,
+    Restrict,
+    NoAction,
+    Cascade
 }

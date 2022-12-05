@@ -1,74 +1,69 @@
-using System;
-using System.IO;
 using Weasel.Core;
 
-namespace Weasel.SqlServer.Procedures
+namespace Weasel.SqlServer.Procedures;
+
+public class StoredProcedureDelta: SchemaObjectDelta<StoredProcedure>
 {
-    public class StoredProcedureDelta : SchemaObjectDelta<StoredProcedure>
+    public StoredProcedureDelta(StoredProcedure expected, StoredProcedure? actual): base(expected, actual)
     {
-        public StoredProcedureDelta(StoredProcedure expected, StoredProcedure? actual) : base(expected, actual)
-        {
+    }
 
+    protected override SchemaPatchDifference compare(StoredProcedure expected, StoredProcedure? actual)
+    {
+        if (expected.IsRemoved)
+        {
+            return actual == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update;
         }
 
-        protected override SchemaPatchDifference compare(StoredProcedure expected, StoredProcedure? actual)
+        if (actual == null)
         {
-            if (expected.IsRemoved)
-            {
-                return actual == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update;
-            }
-
-            if (actual == null)
-            {
-                return SchemaPatchDifference.Create;
-            }
-
-            var expectedSql = expected.CanonicizeSql();
-            var actualSql = actual.CanonicizeSql();
-            if (!expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase))
-            {
-                return SchemaPatchDifference.Update;
-            }
-
-            return SchemaPatchDifference.None;
+            return SchemaPatchDifference.Create;
         }
 
-        public override void WriteRollback(Migrator rules, TextWriter writer)
+        var expectedSql = expected.CanonicizeSql();
+        var actualSql = actual.CanonicizeSql();
+        if (!expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase))
         {
-            if (Expected.IsRemoved)
-            {
-                Actual!.WriteCreateStatement(rules, writer);
-            }
-            else
-            {
-                if (Actual != null)
-                {
-                    Expected.WriteCreateOrAlterStatement(rules, writer);
-                }
-                else
-                {
-                    Expected.WriteDropStatement(rules, writer);
-                }
-            }
+            return SchemaPatchDifference.Update;
         }
 
+        return SchemaPatchDifference.None;
+    }
 
-
-        public override void WriteUpdate(Migrator rules, TextWriter writer)
+    public override void WriteRollback(Migrator rules, TextWriter writer)
+    {
+        if (Expected.IsRemoved)
         {
-            if (Expected.IsRemoved)
-            {
-                Expected.WriteDropStatement(rules, writer);
-            }
-            else
+            Actual!.WriteCreateStatement(rules, writer);
+        }
+        else
+        {
+            if (Actual != null)
             {
                 Expected.WriteCreateOrAlterStatement(rules, writer);
             }
+            else
+            {
+                Expected.WriteDropStatement(rules, writer);
+            }
         }
+    }
 
-        public override string ToString()
+
+    public override void WriteUpdate(Migrator rules, TextWriter writer)
+    {
+        if (Expected.IsRemoved)
         {
-            return Expected.Identifier.QualifiedName + " Diff";
+            Expected.WriteDropStatement(rules, writer);
         }
+        else
+        {
+            Expected.WriteCreateOrAlterStatement(rules, writer);
+        }
+    }
+
+    public override string ToString()
+    {
+        return Expected.Identifier.QualifiedName + " Diff";
     }
 }

@@ -1,4 +1,3 @@
-using Baseline;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Oakton;
@@ -6,6 +5,7 @@ using Weasel.CommandLine;
 using Weasel.CommandLine.Tests;
 using Weasel.Core;
 using Weasel.Core.Migrations;
+using Weasel.Core.Util;
 using Weasel.Postgresql;
 
 namespace CommandLineTarget

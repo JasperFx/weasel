@@ -1,11 +1,10 @@
-namespace Weasel.SqlServer.SqlGeneration
+namespace Weasel.SqlServer.SqlGeneration;
+
+public interface IReversibleWhereFragment: ISqlFragment
 {
-    public interface IReversibleWhereFragment : ISqlFragment
-    {
-        /// <summary>
-        ///     Effectively create a "reversed" NOT where fragment
-        /// </summary>
-        /// <returns></returns>
-        ISqlFragment Reverse();
-    }
+    /// <summary>
+    ///     Effectively create a "reversed" NOT where fragment
+    /// </summary>
+    /// <returns></returns>
+    ISqlFragment Reverse();
 }

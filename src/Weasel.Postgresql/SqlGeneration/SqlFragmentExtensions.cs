@@ -1,83 +1,78 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Baseline;
+using JasperFx.Core;
 using Npgsql;
 
-namespace Weasel.Postgresql.SqlGeneration
+namespace Weasel.Postgresql.SqlGeneration;
+
+public static class SqlFragmentExtensions
 {
-    public static class SqlFragmentExtensions
+    /// <summary>
+    ///     Combine an "and" compound filter with the two filters
+    /// </summary>
+    /// <param name="filter"></param>
+    /// <param name="fragments"></param>
+    /// <returns></returns>
+    public static ISqlFragment CombineAnd(this ISqlFragment filter, ISqlFragment other)
     {
-        /// <summary>
-        /// Combine an "and" compound filter with the two filters
-        /// </summary>
-        /// <param name="filter"></param>
-        /// <param name="fragments"></param>
-        /// <returns></returns>
-        public static ISqlFragment CombineAnd(this ISqlFragment filter, ISqlFragment other)
+        if (filter is CompoundWhereFragment c && c.Separator.EqualsIgnoreCase("and"))
+        {
+            c.Add(other);
+            return c;
+        }
+
+        return CompoundWhereFragment.And(filter, other);
+    }
+
+    /// <summary>
+    ///     If extras has any items, return an "and" compound fragment. Otherwise return the original filter
+    /// </summary>
+    /// <param name="filter"></param>
+    /// <param name="fragments"></param>
+    /// <returns></returns>
+    public static ISqlFragment CombineAnd(this ISqlFragment filter, IReadOnlyList<ISqlFragment> extras)
+    {
+        if (extras.Any())
         {
             if (filter is CompoundWhereFragment c && c.Separator.EqualsIgnoreCase("and"))
             {
-                c.Add(other);
+                c.Add(extras);
                 return c;
             }
 
-            return CompoundWhereFragment.And(filter, other);
+            var compound = CompoundWhereFragment.And(extras);
+            compound.Add(filter);
+
+            return compound;
         }
-        
-        /// <summary>
-        /// If extras has any items, return an "and" compound fragment. Otherwise return the original filter
-        /// </summary>
-        /// <param name="filter"></param>
-        /// <param name="fragments"></param>
-        /// <returns></returns>
-        public static ISqlFragment CombineAnd(this ISqlFragment filter, IReadOnlyList<ISqlFragment> extras)
+
+        return filter;
+    }
+
+    public static ISqlFragment[] Flatten(this ISqlFragment? fragment)
+    {
+        if (fragment == null)
         {
-            if (extras.Any())
-            {
-                if (filter is CompoundWhereFragment c && c.Separator.EqualsIgnoreCase("and"))
-                {
-                    c.Add(extras);
-                    return c;
-                }
-                
-                var compound = CompoundWhereFragment.And(extras);
-                compound.Add(filter);
-
-                return compound;
-            }
-
-            return filter;
+            return Array.Empty<ISqlFragment>();
         }
-        
-        public static ISqlFragment[] Flatten(this ISqlFragment? fragment)
+
+        if (fragment is CompoundWhereFragment c)
         {
-            if (fragment == null)
-            {
-                return Array.Empty<ISqlFragment>();
-            }
-
-            if (fragment is CompoundWhereFragment c)
-            {
-                return c.Children.ToArray();
-            }
-
-            return new[] {fragment};
+            return c.Children.ToArray();
         }
 
-        public static string? ToSql(this ISqlFragment? fragment)
+        return new[] { fragment };
+    }
+
+    public static string? ToSql(this ISqlFragment? fragment)
+    {
+        if (fragment == null)
         {
-            if (fragment == null)
-            {
-                return null;
-            }
-
-            var cmd = new NpgsqlCommand();
-            var builder = new CommandBuilder(cmd);
-            fragment.Apply(builder);
-
-            return builder.ToString().Trim();
+            return null;
         }
 
+        var cmd = new NpgsqlCommand();
+        var builder = new CommandBuilder(cmd);
+        fragment.Apply(builder);
+
+        return builder.ToString().Trim();
     }
 }

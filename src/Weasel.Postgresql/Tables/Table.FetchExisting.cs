@@ -1,21 +1,18 @@
-using Npgsql;
-using System.Collections.Generic;
 using System.Data.Common;
-using System.Linq;
-using System.Threading.Tasks;
+using Npgsql;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
-namespace Weasel.Postgresql.Tables
-{
-    public partial class Table
-    {
-        public void ConfigureQueryCommand(DbCommandBuilder builder)
-        {
-            var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
-            var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
-            var nameWithSchemaParam = builder.AddParameter(Identifier.QualifiedName).ParameterName;
+namespace Weasel.Postgresql.Tables;
 
-            builder.Append($@"
+public partial class Table
+{
+    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    {
+        var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
+        var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
+        var nameWithSchemaParam = builder.AddParameter(Identifier.QualifiedName).ParameterName;
+
+        builder.Append($@"
 select column_name, data_type, character_maximum_length, udt_name
 from information_schema.columns where table_schema = :{schemaParam} and table_name = :{nameParam}
 order by ordinal_position;
@@ -84,9 +81,9 @@ GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 SHOW max_identifier_length;
 ");
 
-            if (PartitionStrategy != PartitionStrategy.None)
-            {
-                builder.Append($@"
+        if (PartitionStrategy != PartitionStrategy.None)
+        {
+            builder.Append($@"
 select
     col.column_name,
     partition_strategy
@@ -114,161 +111,163 @@ where
     col.table_schema = :{schemaParam} and table_name = :{nameParam}
 order by column_index;
 ");
-            }
         }
+    }
 
-        public async Task<Table?> FetchExisting(NpgsqlConnection conn)
+    public async Task<Table?> FetchExisting(NpgsqlConnection conn)
+    {
+        var builder = new DbCommandBuilder(conn);
+
+        ConfigureQueryCommand(builder);
+
+        await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+        return await readExisting(reader).ConfigureAwait(false);
+    }
+
+    private async Task<Table?> readExisting(DbDataReader reader)
+    {
+        var existing = new Table(Identifier);
+
+        await readColumns(reader, existing).ConfigureAwait(false);
+
+        var pks = await readPrimaryKeys(reader).ConfigureAwait(false);
+        await readIndexes(reader, existing).ConfigureAwait(false);
+        await readConstraints(reader, existing).ConfigureAwait(false);
+
+        foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
+
+        await readMaxIdentifierLength(reader, existing).ConfigureAwait(false);
+
+        if (PartitionStrategy != PartitionStrategy.None)
         {
-            var builder = new DbCommandBuilder(conn);
-
-            ConfigureQueryCommand(builder);
-
-            await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
-            return await readExisting(reader).ConfigureAwait(false);
+            await readPartitions(reader, existing).ConfigureAwait(false);
         }
 
-        private async Task<Table?> readExisting(DbDataReader reader)
+        return !existing.Columns.Any()
+            ? null
+            : existing;
+    }
+
+    private static async Task readMaxIdentifierLength(DbDataReader reader, Table existing)
+    {
+        await reader.NextResultAsync().ConfigureAwait(false);
+
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
-            var existing = new Table(Identifier);
-
-            await readColumns(reader, existing).ConfigureAwait(false);
-
-            var pks = await readPrimaryKeys(reader).ConfigureAwait(false);
-            await readIndexes(reader, existing).ConfigureAwait(false);
-            await readConstraints(reader, existing).ConfigureAwait(false);
-
-            foreach (var pkColumn in pks)
+            var str = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+            if (str != null && int.TryParse(str, out var maxIdentifierLength))
             {
-                existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
+                existing.MaxIdentifierLength = maxIdentifierLength;
             }
-
-            await readMaxIdentifierLength(reader, existing).ConfigureAwait(false);
-
-            if (PartitionStrategy != PartitionStrategy.None)
-            {
-                await readPartitions(reader, existing).ConfigureAwait(false);
-            }
-
-            return !existing.Columns.Any()
-                ? null
-                : existing;
         }
+    }
 
-        private static async Task readMaxIdentifierLength(DbDataReader reader, Table existing)
+    private async Task readPartitions(DbDataReader reader, Table existing)
+    {
+        await reader.NextResultAsync().ConfigureAwait(false);
+
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
-            await reader.NextResultAsync().ConfigureAwait(false);
+            var strategy = await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false);
+            var columnOrExpression = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
 
-            while (await reader.ReadAsync().ConfigureAwait(false))
+            existing.PartitionExpressions.Add(columnOrExpression);
+
+            switch (strategy)
             {
-                var str = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
-                if (str != null && int.TryParse(str, out var maxIdentifierLength))
-                {
-                    existing.MaxIdentifierLength = maxIdentifierLength;
-                }
+                case "range":
+                    existing.PartitionStrategy = PartitionStrategy.Range;
+                    break;
             }
         }
+    }
 
-        private async Task readPartitions(DbDataReader reader, Table existing)
+    private static async Task readColumns(DbDataReader reader, Table existing)
+    {
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
-            await reader.NextResultAsync().ConfigureAwait(false);
+            var column = await readColumn(reader).ConfigureAwait(false);
 
-            while (await reader.ReadAsync().ConfigureAwait(false))
-            {
-                var strategy = await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false);
-                var columnOrExpression = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
-
-                existing.PartitionExpressions.Add(columnOrExpression);
-
-                switch (strategy)
-                {
-                    case "range":
-                        existing.PartitionStrategy = PartitionStrategy.Range;
-                        break;
-                }
-            }
+            existing._columns.Add(column);
         }
+    }
 
-        private static async Task readColumns(DbDataReader reader, Table existing)
+    private static async Task<TableColumn> readColumn(DbDataReader reader)
+    {
+        var column = new TableColumn(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
+            await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
+
+        if (column.Type.Equals("user-defined"))
         {
-            while (await reader.ReadAsync().ConfigureAwait(false))
-            {
-                var column = await readColumn(reader).ConfigureAwait(false);
-
-                existing._columns.Add(column);
-            }
+            column.Type = await reader.GetFieldValueAsync<string>(3).ConfigureAwait(false);
         }
-        private static async Task<TableColumn> readColumn(DbDataReader reader)
+
+        if (!await reader.IsDBNullAsync(2).ConfigureAwait(false))
         {
-            var column = new TableColumn(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
-                await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
-
-            if (column.Type.Equals("user-defined"))
-            {
-                column.Type = await reader.GetFieldValueAsync<string>(3).ConfigureAwait(false);
-            }
-
-            if (!await reader.IsDBNullAsync(2).ConfigureAwait(false))
-            {
-                var length = await reader.GetFieldValueAsync<int>(2).ConfigureAwait(false);
-                column.Type = $"{column.Type}({length})";
-            }
-
-            return column;
+            var length = await reader.GetFieldValueAsync<int>(2).ConfigureAwait(false);
+            column.Type = $"{column.Type}({length})";
         }
-        private async Task readConstraints(DbDataReader reader, Table existing)
+
+        return column;
+    }
+
+    private async Task readConstraints(DbDataReader reader, Table existing)
+    {
+        await reader.NextResultAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
-            await reader.NextResultAsync().ConfigureAwait(false);
-            while (await reader.ReadAsync().ConfigureAwait(false))
-            {
-                var name = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
-                var schema = await reader.GetFieldValueAsync<string>(2).ConfigureAwait(false);
-                var definition = await reader.GetFieldValueAsync<string>(5).ConfigureAwait(false);
+            var name = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+            var schema = await reader.GetFieldValueAsync<string>(2).ConfigureAwait(false);
+            var definition = await reader.GetFieldValueAsync<string>(5).ConfigureAwait(false);
 
-                var fk = new ForeignKey(name);
-                fk.Parse(definition, schema);
+            var fk = new ForeignKey(name);
+            fk.Parse(definition, schema);
 
-                existing.ForeignKeys.Add(fk);
-            }
+            existing.ForeignKeys.Add(fk);
         }
+    }
 
-        private async Task readIndexes(DbDataReader reader, Table existing)
+    private async Task readIndexes(DbDataReader reader, Table existing)
+    {
+        await reader.NextResultAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
-            await reader.NextResultAsync().ConfigureAwait(false);
-            while (await reader.ReadAsync().ConfigureAwait(false))
+            if (await reader.IsDBNullAsync(2).ConfigureAwait(false))
             {
-                if (await reader.IsDBNullAsync(2).ConfigureAwait(false))
-                    continue;
+                continue;
+            }
 
-                var isPrimary = await reader.GetFieldValueAsync<bool>(6).ConfigureAwait(false);
-                if (isPrimary)
-                {
-                    existing.PrimaryKeyName = await reader.GetFieldValueAsync<string>(3).ConfigureAwait(false);
-                    continue;
-                }
+            var isPrimary = await reader.GetFieldValueAsync<bool>(6).ConfigureAwait(false);
+            if (isPrimary)
+            {
+                existing.PrimaryKeyName = await reader.GetFieldValueAsync<string>(3).ConfigureAwait(false);
+                continue;
+            }
 
-                var schemaName = await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false);
-                var tableName = await reader.GetFieldValueAsync<string>(2).ConfigureAwait(false);
-                var ddl = await reader.GetFieldValueAsync<string>(4).ConfigureAwait(false);
+            var schemaName = await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false);
+            var tableName = await reader.GetFieldValueAsync<string>(2).ConfigureAwait(false);
+            var ddl = await reader.GetFieldValueAsync<string>(4).ConfigureAwait(false);
 
 
-                if ((Identifier.Schema == schemaName && Identifier.Name == tableName) || Identifier.QualifiedName == tableName)
-                {
-                    var index = IndexDefinition.Parse(ddl);
+            if ((Identifier.Schema == schemaName && Identifier.Name == tableName) ||
+                Identifier.QualifiedName == tableName)
+            {
+                var index = IndexDefinition.Parse(ddl);
 
-                    existing.Indexes.Add(index);
-                }
+                existing.Indexes.Add(index);
             }
         }
+    }
 
-        private static async Task<List<string>> readPrimaryKeys(DbDataReader reader)
+    private static async Task<List<string>> readPrimaryKeys(DbDataReader reader)
+    {
+        var pks = new List<string>();
+        await reader.NextResultAsync().ConfigureAwait(false);
+        while (await reader.ReadAsync().ConfigureAwait(false))
         {
-            var pks = new List<string>();
-            await reader.NextResultAsync().ConfigureAwait(false);
-            while (await reader.ReadAsync().ConfigureAwait(false))
-            {
-                pks.Add(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false));
-            }
-            return pks;
+            pks.Add(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false));
         }
+
+        return pks;
     }
 }

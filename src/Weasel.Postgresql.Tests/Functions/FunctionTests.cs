@@ -1,6 +1,6 @@
 using System.Linq;
 using System.Threading.Tasks;
-using Baseline;
+using JasperFx.Core.Reflection;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Functions;

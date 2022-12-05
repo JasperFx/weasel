@@ -1,39 +1,36 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+namespace Weasel.Core.Migrations;
 
-namespace Weasel.Core.Migrations
+internal class TimedLock
 {
-    internal class TimedLock
+    private readonly SemaphoreSlim _toLock;
+
+    public TimedLock()
     {
-        private readonly SemaphoreSlim _toLock;
+        _toLock = new SemaphoreSlim(1, 1);
+    }
 
-        public TimedLock()
+    public async Task<LockReleaser> Lock(TimeSpan timeout)
+    {
+        if (await _toLock.WaitAsync(timeout).ConfigureAwait(false))
         {
-            _toLock = new SemaphoreSlim(1, 1);
+            return new LockReleaser(_toLock);
         }
 
-        public async Task<LockReleaser> Lock(TimeSpan timeout)
+        throw new TimeoutException();
+    }
+
+    public readonly struct LockReleaser: IDisposable
+    {
+        private readonly SemaphoreSlim toRelease;
+
+        public LockReleaser(SemaphoreSlim toRelease)
         {
-            if(await _toLock.WaitAsync(timeout).ConfigureAwait(false))
-            {
-                return new LockReleaser(_toLock);
-            }
-            throw new TimeoutException();
+            this.toRelease = toRelease;
         }
 
-        public readonly struct LockReleaser : IDisposable
+        public void Dispose()
         {
-            private readonly SemaphoreSlim toRelease;
-
-            public LockReleaser(SemaphoreSlim toRelease)
-            {
-                this.toRelease = toRelease;
-            }
-            public void Dispose()
-            {
-                toRelease.Release();
-            }
+            toRelease.Release();
         }
     }
 }

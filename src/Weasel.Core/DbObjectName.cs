@@ -1,77 +1,85 @@
-using System;
+namespace Weasel.Core;
 
-namespace Weasel.Core
+/// <summary>
+///     Models a database object with both schema name and object name
+/// </summary>
+public class DbObjectName
 {
-    /// <summary>
-    /// Models a database object with both schema name and object name
-    /// </summary>
-    public class DbObjectName
+    public DbObjectName(string schema, string name)
     {
-        public string Schema { get; }
-        public string Name { get; }
-        public string QualifiedName { get; }
+        Schema = schema;
+        Name = name;
+        QualifiedName = $"{Schema}.{Name}";
+    }
 
-        public DbObjectName(string schema, string name)
+    public string Schema { get; }
+    public string Name { get; }
+    public string QualifiedName { get; }
+
+    public DbObjectName ToTempCopyTable()
+    {
+        return new DbObjectName(Schema, Name + "_temp");
+    }
+
+    public static DbObjectName Parse(IDatabaseProvider provider, string qualifiedName)
+    {
+        var parts = ParseQualifiedName(provider, qualifiedName);
+        return new DbObjectName(parts[0], parts[1]);
+    }
+
+    public override string ToString()
+    {
+        return QualifiedName;
+    }
+
+    protected bool Equals(DbObjectName other)
+    {
+        return GetType() == other.GetType() &&
+               string.Equals(QualifiedName, other.QualifiedName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(null, obj))
         {
-            Schema = schema;
-            Name = name;
-            QualifiedName = $"{Schema}.{Name}";
+            return false;
         }
 
-        public DbObjectName ToTempCopyTable()
+        if (ReferenceEquals(this, obj))
         {
-            return new DbObjectName(Schema, Name + "_temp");
+            return true;
         }
 
-        public static DbObjectName Parse(IDatabaseProvider provider, string qualifiedName)
+        if (obj.GetType() != GetType())
         {
-            var parts = ParseQualifiedName(provider, qualifiedName);
-            return new DbObjectName(parts[0], parts[1]);
+            return false;
         }
 
-        public override string ToString()
+        return Equals((DbObjectName)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        unchecked
         {
-            return QualifiedName;
+            return (GetType().GetHashCode() * 397) ^ (QualifiedName?.GetHashCode() ?? 0);
+        }
+    }
+
+    protected static string[] ParseQualifiedName(IDatabaseProvider provider, string qualifiedName)
+    {
+        var parts = qualifiedName.Split('.');
+        if (parts.Length == 1)
+        {
+            return new[] { provider.DefaultDatabaseSchemaName, qualifiedName };
         }
 
-        protected bool Equals(DbObjectName other)
+        if (parts.Length != 2)
         {
-            return GetType() == other.GetType() && string.Equals(QualifiedName, other.QualifiedName, StringComparison.OrdinalIgnoreCase);
+            throw new InvalidOperationException(
+                $"Could not parse QualifiedName: '{qualifiedName}'. Number or parts should be 2s but is {parts.Length}");
         }
 
-        public override bool Equals(object? obj)
-        {
-            if (ReferenceEquals(null, obj))
-                return false;
-            if (ReferenceEquals(this, obj))
-                return true;
-            if (obj.GetType() != this.GetType())
-                return false;
-            return Equals((DbObjectName)obj);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                return GetType().GetHashCode() * 397 ^ (QualifiedName?.GetHashCode() ?? 0);
-            }
-        }
-
-        protected static string[] ParseQualifiedName(IDatabaseProvider provider, string qualifiedName)
-        {
-            var parts = qualifiedName.Split('.');
-            if (parts.Length == 1)
-            {
-                return new string[] { provider.DefaultDatabaseSchemaName, qualifiedName };
-            }
-
-            if (parts.Length != 2)
-            {
-                throw new InvalidOperationException(
-                    $"Could not parse QualifiedName: '{qualifiedName}'. Number or parts should be 2s but is {parts.Length}");
-            }
-            return parts;
-        }
+        return parts;
     }
 }

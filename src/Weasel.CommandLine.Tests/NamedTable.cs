@@ -1,6 +1,6 @@
-﻿using Baseline;
-using Weasel.Core;
+﻿using Weasel.Core;
 using Weasel.Core.Migrations;
+using Weasel.Core.Util;
 using Weasel.Postgresql;
 using Weasel.Postgresql.Tables;
 using Weasel.Postgresql.Tests;

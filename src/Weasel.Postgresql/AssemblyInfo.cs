@@ -1,1 +1,3 @@
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Weasel.Postgresql.Tests")]
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("Weasel.Postgresql.Tests")]

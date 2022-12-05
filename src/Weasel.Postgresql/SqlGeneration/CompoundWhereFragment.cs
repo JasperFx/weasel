@@ -1,84 +1,83 @@
-using System.Collections.Generic;
-using System.Linq;
-using Baseline;
+using JasperFx.Core;
 
-namespace Weasel.Postgresql.SqlGeneration
+namespace Weasel.Postgresql.SqlGeneration;
+
+public class CompoundWhereFragment: ISqlFragment, IWhereFragmentHolder
 {
-    public class CompoundWhereFragment: ISqlFragment, IWhereFragmentHolder
+    private readonly IList<ISqlFragment> _children = new List<ISqlFragment>();
+
+    private CompoundWhereFragment(string separator, params ISqlFragment[] children)
     {
-        private readonly IList<ISqlFragment> _children = new List<ISqlFragment>();
+        Separator = separator;
+        _children.AddRange(children);
+    }
 
-        public static CompoundWhereFragment And(params ISqlFragment[] children)
-        {
-            return new CompoundWhereFragment("and ", children);
-        }
-        
-        public static CompoundWhereFragment And(IEnumerable<ISqlFragment> children)
-        {
-            return new CompoundWhereFragment(" and ", children.ToArray());
-        }
+    public string Separator { get; }
 
-        public static CompoundWhereFragment Or(params ISqlFragment[] children)
+    public IEnumerable<ISqlFragment> Children => _children;
+
+    public void Apply(CommandBuilder builder)
+    {
+        if (!_children.Any())
         {
-            return new CompoundWhereFragment(" or ", children);
-        }
-        
-        private CompoundWhereFragment(string separator, params ISqlFragment[] children)
-        {
-            Separator = separator;
-            _children.AddRange(children);
+            return;
         }
 
-        public string Separator { get; }
+        var separator = $" {Separator} ";
 
-        public void Register(ISqlFragment fragment)
+        builder.Append("(");
+        _children[0].Apply(builder);
+        for (var i = 1; i < _children.Count; i++)
         {
-            _children.Add(fragment);
+            builder.Append(separator);
+            _children[i].Apply(builder);
         }
 
-        public void Apply(CommandBuilder builder)
-        {
-            if (!_children.Any())
-                return;
+        builder.Append(")");
+    }
 
-            var separator = $" {Separator} ";
+    public bool Contains(string sqlText)
+    {
+        return _children.Any(x => x.Contains(sqlText));
+    }
 
-            builder.Append("(");
-            _children[0].Apply(builder);
-            for (var i = 1; i < _children.Count; i++)
-            {
-                builder.Append(separator);
-                _children[i].Apply(builder);
-            }
+    public void Register(ISqlFragment fragment)
+    {
+        _children.Add(fragment);
+    }
 
-            builder.Append(")");
-        }
+    public static CompoundWhereFragment And(params ISqlFragment[] children)
+    {
+        return new CompoundWhereFragment("and ", children);
+    }
 
-        public bool Contains(string sqlText)
-        {
-            return _children.Any(x => x.Contains(sqlText));
-        }
+    public static CompoundWhereFragment And(IEnumerable<ISqlFragment> children)
+    {
+        return new CompoundWhereFragment(" and ", children.ToArray());
+    }
 
-        public void Add(ISqlFragment child)
-        {
-            _children.Add(child);
-        }
+    public static CompoundWhereFragment Or(params ISqlFragment[] children)
+    {
+        return new CompoundWhereFragment(" or ", children);
+    }
 
-        public void Remove(ISqlFragment fragment)
-        {
-            _children.Remove(fragment);
-        }
+    public void Add(ISqlFragment child)
+    {
+        _children.Add(child);
+    }
 
-        public IEnumerable<ISqlFragment> Children => _children;
+    public void Remove(ISqlFragment fragment)
+    {
+        _children.Remove(fragment);
+    }
 
-        public void Add(IReadOnlyList<ISqlFragment> extras)
-        {
-            _children.AddRange(extras);
-        }
+    public void Add(IReadOnlyList<ISqlFragment> extras)
+    {
+        _children.AddRange(extras);
+    }
 
-        public static CompoundWhereFragment For(string separator)
-        {
-            return new CompoundWhereFragment(separator);
-        }
+    public static CompoundWhereFragment For(string separator)
+    {
+        return new CompoundWhereFragment(separator);
     }
 }

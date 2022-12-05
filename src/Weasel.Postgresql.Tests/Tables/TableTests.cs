@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
-using Baseline;
+using JasperFx.Core;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;

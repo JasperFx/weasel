@@ -1,9 +1,8 @@
-namespace Weasel.SqlServer.SqlGeneration
-{
-    public interface ISqlFragment
-    {
-        void Apply(CommandBuilder builder);
+namespace Weasel.SqlServer.SqlGeneration;
 
-        bool Contains(string sqlText);
-    }
+public interface ISqlFragment
+{
+    void Apply(CommandBuilder builder);
+
+    bool Contains(string sqlText);
 }
