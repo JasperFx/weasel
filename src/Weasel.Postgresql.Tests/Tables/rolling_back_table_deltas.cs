@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using Baseline.Dates;
+using JasperFx.Core;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;

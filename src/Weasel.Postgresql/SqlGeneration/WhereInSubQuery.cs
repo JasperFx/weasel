@@ -1,25 +1,24 @@
-namespace Weasel.Postgresql.SqlGeneration
+namespace Weasel.Postgresql.SqlGeneration;
+
+// TODO -- move to Weasel
+public class WhereInSubQuery: ISqlFragment
 {
-    // TODO -- move to Weasel
-    public class WhereInSubQuery: ISqlFragment
+    private readonly string _tableName;
+
+    public WhereInSubQuery(string tableName)
     {
-        private readonly string _tableName;
+        _tableName = tableName;
+    }
 
-        public WhereInSubQuery(string tableName)
-        {
-            _tableName = tableName;
-        }
+    public void Apply(CommandBuilder builder)
+    {
+        builder.Append("id in (select id from ");
+        builder.Append(_tableName);
+        builder.Append(")");
+    }
 
-        public void Apply(CommandBuilder builder)
-        {
-            builder.Append("id in (select id from ");
-            builder.Append(_tableName);
-            builder.Append(")");
-        }
-
-        public bool Contains(string sqlText)
-        {
-            return false;
-        }
+    public bool Contains(string sqlText)
+    {
+        return false;
     }
 }

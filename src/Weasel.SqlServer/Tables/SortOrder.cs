@@ -1,18 +1,17 @@
-namespace Weasel.SqlServer.Tables
+namespace Weasel.SqlServer.Tables;
+
+/// <summary>
+///     Specifies the direction used to sort items
+/// </summary>
+public enum SortOrder
 {
     /// <summary>
-    ///     Specifies the direction used to sort items
+    ///     Sorts in ascending order, from smallest to largest
     /// </summary>
-    public enum SortOrder
-    {
-        /// <summary>
-        ///     Sorts in ascending order, from smallest to largest
-        /// </summary>
-        Asc,
+    Asc,
 
-        /// <summary>
-        ///     Sorts in descending order, from largest to smallest
-        /// </summary>
-        Desc
-    }
+    /// <summary>
+    ///     Sorts in descending order, from largest to smallest
+    /// </summary>
+    Desc
 }

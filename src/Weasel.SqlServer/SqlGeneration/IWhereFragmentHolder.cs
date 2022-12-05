@@ -1,8 +1,7 @@
-namespace Weasel.SqlServer.SqlGeneration
+namespace Weasel.SqlServer.SqlGeneration;
+
+// TODO -- move to Weasel
+public interface IWhereFragmentHolder
 {
-    // TODO -- move to Weasel
-    public interface IWhereFragmentHolder
-    {
-        void Register(ISqlFragment fragment);
-    }
+    void Register(ISqlFragment fragment);
 }

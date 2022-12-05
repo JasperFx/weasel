@@ -1,39 +1,37 @@
-using System.IO;
-using System.Linq;
-using Baseline;
+using JasperFx.Core;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
 
-namespace Weasel.Postgresql.Functions
+namespace Weasel.Postgresql.Functions;
+
+/// <summary>
+///     Recipe for creating a simple upsert function based on a table structure
+/// </summary>
+public class UpsertFunction: Function
 {
-    /// <summary>
-    /// Recipe for creating a simple upsert function based on a table structure
-    /// </summary>
-    public class UpsertFunction : Function
+    private readonly string[] _columns;
+    private readonly DbObjectName _identifier;
+    private readonly Table _table;
+
+    public UpsertFunction(DbObjectName identifier, Table table, params string[] columns): base(identifier)
     {
-        private readonly DbObjectName _identifier;
-        private readonly Table _table;
-        private readonly string[] _columns;
+        _identifier = identifier;
+        _table = table;
+        _columns = columns;
+    }
 
-        public UpsertFunction(DbObjectName identifier, Table table, params string[] columns) : base(identifier)
-        {
-            _identifier = identifier;
-            _table = table;
-            _columns = columns;
-        }
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    {
+        var pkColumns = _table.PrimaryKeyColumns.Select(x => _table.ColumnFor(x)).ToArray();
 
-        public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
-        {
-            var pkColumns = _table.PrimaryKeyColumns.Select(x => _table.ColumnFor(x)).ToArray();
+        var columns = _columns.Select(x => _table.ColumnFor(x)).ToArray();
 
-            var columns = _columns.Select(x => _table.ColumnFor(x)).ToArray();
+        var inserts = _table.PrimaryKeyColumns.Concat(_columns).Join(", ");
+        var argList = pkColumns.Concat(columns).Select(x => x.ToFunctionArgumentDeclaration()).Join(", ");
+        var valueList = pkColumns.Concat(columns).Select(x => x.ToArgumentName()).Join(", ");
+        var updates = columns.Select(x => x.ToFunctionUpdate()).Join(", ");
 
-            var inserts = _table.PrimaryKeyColumns.Concat(_columns).Join(", ");
-            var argList = pkColumns.Concat(columns).Select(x => x.ToFunctionArgumentDeclaration()).Join(", ");
-            var valueList = pkColumns.Concat(columns).Select(x => x.ToArgumentName()).Join(", ");
-            var updates = columns.Select(x => x.ToFunctionUpdate()).Join(", ");
-
-            writer.WriteLine($@"
+        writer.WriteLine($@"
 CREATE OR REPLACE FUNCTION {Identifier.QualifiedName}({argList}) RETURNS void LANGUAGE plpgsql
 AS $function$
 DECLARE
@@ -45,6 +43,5 @@ INSERT INTO {_table.Identifier.QualifiedName} ({inserts}) VALUES ({valueList})
 END;
 $function$;
 ");
-        }
     }
 }

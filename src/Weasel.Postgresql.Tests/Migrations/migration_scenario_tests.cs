@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Baseline;
 using Npgsql;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Core.Migrations;
+using Weasel.Core.Util;
 using Weasel.Postgresql.Tables;
 using Xunit;
 

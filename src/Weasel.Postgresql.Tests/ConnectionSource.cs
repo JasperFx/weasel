@@ -1,5 +1,5 @@
 using System;
-using Baseline;
+using JasperFx.Core;
 
 namespace Weasel.Postgresql.Tests
 {

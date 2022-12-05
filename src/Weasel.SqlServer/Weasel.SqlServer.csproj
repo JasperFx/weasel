@@ -17,11 +17,11 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.Data.SqlClient" Version="5.0.1" />
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="5.0.1"/>
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj"/>
     </ItemGroup>
-    <Import Project="../../Analysis.Build.props" />
+    <Import Project="../../Analysis.Build.props"/>
 </Project>

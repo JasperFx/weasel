@@ -1,7 +1,7 @@
-using Baseline;
 using Oakton;
 using Spectre.Console;
 using Weasel.Core.Migrations;
+using Weasel.Core.Util;
 
 namespace Weasel.CommandLine;
 

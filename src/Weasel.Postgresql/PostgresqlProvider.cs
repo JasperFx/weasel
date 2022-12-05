@@ -1,256 +1,264 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
-using Baseline;
-using ImTools;
+using JasperFx.Core.Reflection;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
+using Weasel.Core.Util;
 
-namespace Weasel.Postgresql
+namespace Weasel.Postgresql;
+
+public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction,
+    NpgsqlDbType, NpgsqlDataReader>
 {
-    public class PostgresqlProvider : DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction, NpgsqlDbType, NpgsqlDataReader>
+    public static readonly PostgresqlProvider Instance = new();
+
+    private PostgresqlProvider(): base("public")
     {
-        public static readonly PostgresqlProvider Instance = new();
-        public List<Type> ContainmentOperatorTypes { get; } = new();
-        public List<Type> TimespanTypes { get; } = new();
-        public List<Type> TimespanZTypes { get; } = new();
+    }
 
-        private PostgresqlProvider() : base("public")
+    public List<Type> ContainmentOperatorTypes { get; } = new();
+    public List<Type> TimespanTypes { get; } = new();
+    public List<Type> TimespanZTypes { get; } = new();
+
+    protected override void storeMappings()
+    {
+        // Initialize PgTypeMemo with Types which are not available in Npgsql mappings
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(long), "bigint"));
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(Guid), "uuid"));
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(string), "varchar"));
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(float), "real"));
+
+        // Default Npgsql mapping is 'numeric' but we are using 'decimal'
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(decimal), "decimal"));
+
+        // Default Npgsql mappings is 'timestamp' but we are using 'timestamp without time zone'
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(DateTime), "timestamp without time zone"));
+
+        AddTimespanTypes(NpgsqlDbType.Timestamp, ResolveTypes(NpgsqlDbType.Timestamp));
+        AddTimespanTypes(NpgsqlDbType.TimestampTz, ResolveTypes(NpgsqlDbType.TimestampTz));
+
+        RegisterMapping(typeof(uint), "oid", NpgsqlDbType.Oid);
+    }
+
+
+    // Lazily retrieve the CLR type to NpgsqlDbType and PgTypeName mapping from exposed INpgsqlTypeMapper.Mappings.
+    // This is lazily calculated instead of precached because it allows consuming code to register
+    // custom npgsql mappings prior to execution.
+    private string? ResolveDatabaseType(Type type)
+    {
+        if (DatabaseTypeMemo.Value.TryFind(type, out var value))
         {
-
-        }
-
-        protected override void storeMappings()
-        {
-            // Initialize PgTypeMemo with Types which are not available in Npgsql mappings
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(long), "bigint"));
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(Guid), "uuid"));
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(string), "varchar"));
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(float), "real"));
-
-            // Default Npgsql mapping is 'numeric' but we are using 'decimal'
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(decimal), "decimal"));
-
-            // Default Npgsql mappings is 'timestamp' but we are using 'timestamp without time zone'
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(typeof(DateTime), "timestamp without time zone"));
-
-            AddTimespanTypes(NpgsqlDbType.Timestamp, ResolveTypes(NpgsqlDbType.Timestamp));
-            AddTimespanTypes(NpgsqlDbType.TimestampTz, ResolveTypes(NpgsqlDbType.TimestampTz));
-
-            RegisterMapping(typeof(uint), "oid", NpgsqlDbType.Oid);
-        }
-
-
-        // Lazily retrieve the CLR type to NpgsqlDbType and PgTypeName mapping from exposed INpgsqlTypeMapper.Mappings.
-        // This is lazily calculated instead of precached because it allows consuming code to register
-        // custom npgsql mappings prior to execution.
-        private string? ResolveDatabaseType(Type type)
-        {
-            if (DatabaseTypeMemo.Value.TryFind(type, out var value))
-                return value;
-
-            value = GetTypeMapping(type)?.DataTypeName;
-
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, value));
-
             return value;
         }
 
-        private NpgsqlDbType? ResolveNpgsqlDbType(Type type)
+        value = GetTypeMapping(type)?.DataTypeName;
+
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, value));
+
+        return value;
+    }
+
+    private NpgsqlDbType? ResolveNpgsqlDbType(Type type)
+    {
+        if (ParameterTypeMemo.Value.TryFind(type, out var value))
         {
-            if (ParameterTypeMemo.Value.TryFind(type, out var value))
-                return value;
-
-            value = GetTypeMapping(type)?.NpgsqlDbType;
-
-            ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, value));
-
             return value;
         }
 
-        protected override Type[] determineClrTypesForParameterType(NpgsqlDbType dbType)
+        value = GetTypeMapping(type)?.NpgsqlDbType;
+
+        ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, value));
+
+        return value;
+    }
+
+    protected override Type[] determineClrTypesForParameterType(NpgsqlDbType dbType)
+    {
+        return GetTypeMapping(dbType)?.ClrTypes ?? Type.EmptyTypes;
+    }
+
+    private static NpgsqlTypeMapping? GetTypeMapping(Type type)
+    {
+        return NpgsqlTypeMapper
+            .Mappings
+            .LastOrDefault(mapping => mapping.ClrTypes.Contains(type));
+    }
+
+    private static NpgsqlTypeMapping? GetTypeMapping(NpgsqlDbType type)
+    {
+        return NpgsqlTypeMapper
+            .Mappings
+            .LastOrDefault(mapping => mapping.NpgsqlDbType == type);
+    }
+
+    public string ConvertSynonyms(string type)
+    {
+        switch (type.ToLower())
         {
-            return GetTypeMapping(dbType)?.ClrTypes ?? Type.EmptyTypes;
+            case "character varying":
+            case "varchar":
+                return "varchar";
+
+            case "boolean":
+            case "bool":
+                return "boolean";
+
+            case "integer":
+            case "serial":
+                return "int";
+
+            case "integer[]":
+                return "int[]";
+
+            case "decimal":
+            case "numeric":
+                return "decimal";
+
+            case "timestamp without time zone":
+                return "timestamp";
+
+            case "timestamp with time zone":
+                return "timestamptz";
+
+            case "array":
+            case "character varying[]":
+            case "varchar[]":
+            case "text[]":
+                return "array";
         }
 
-        private static NpgsqlTypeMapping? GetTypeMapping(Type type)
-            => NpgsqlTypeMapper
-                .Mappings
-                .LastOrDefault(mapping => mapping.ClrTypes.Contains(type));
+        return type;
+    }
 
-        private static NpgsqlTypeMapping? GetTypeMapping(NpgsqlDbType type)
-            => NpgsqlTypeMapper
-                .Mappings
-                .LastOrDefault(mapping => mapping.NpgsqlDbType == type);
-
-        public string ConvertSynonyms(string type)
+    protected override bool determineParameterType(Type type, out NpgsqlDbType dbType)
+    {
+        var npgsqlDbType = ResolveNpgsqlDbType(type);
+        if (npgsqlDbType != null)
         {
-            switch (type.ToLower())
             {
-                case "character varying":
-                case "varchar":
-                    return "varchar";
-
-                case "boolean":
-                case "bool":
-                    return "boolean";
-
-                case "integer":
-                case "serial":
-                    return "int";
-
-                case "integer[]":
-                    return "int[]";
-
-                case "decimal":
-                case "numeric":
-                    return "decimal";
-
-                case "timestamp without time zone":
-                    return "timestamp";
-
-                case "timestamp with time zone":
-                    return "timestamptz";
-
-                case "array":
-                case "character varying[]":
-                case "varchar[]":
-                case "text[]":
-                    return "array";
+                dbType = npgsqlDbType.Value;
+                return true;
             }
-
-            return type;
         }
 
-        protected override bool determineParameterType(Type type, out NpgsqlDbType dbType)
+        if (type.IsNullable())
         {
-            var npgsqlDbType = ResolveNpgsqlDbType(type);
-            if (npgsqlDbType != null)
-            {
-                {
-                    dbType = npgsqlDbType.Value;
-                    return true;
-                }
-            }
+            dbType = ToParameterType(type.GetInnerTypeFromNullable());
+            return true;
+        }
 
-            if (type.IsNullable())
+        if (type.IsEnum)
+        {
+            dbType = NpgsqlDbType.Integer;
+            return true;
+        }
+
+        if (type.IsArray)
+        {
+            if (type == typeof(byte[]))
             {
-                dbType = ToParameterType(type.GetInnerTypeFromNullable());
+                dbType = NpgsqlDbType.Bytea;
                 return true;
             }
 
-            if (type.IsEnum)
             {
-                dbType = NpgsqlDbType.Integer;
+                dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType()!);
                 return true;
             }
+        }
 
-            if (type.IsArray)
-            {
-                if (type == typeof(byte[]))
-                {
-                    dbType = NpgsqlDbType.Bytea;
-                    return true;
-                }
+        var typeInfo = type.GetTypeInfo();
 
-                {
-                    dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType()!);
-                    return true;
-                }
-            }
+        var ilist = typeInfo.ImplementedInterfaces.FirstOrDefault(x =>
+            x.GetTypeInfo().IsGenericType && x.GetGenericTypeDefinition() == typeof(IList<>));
+        if (ilist != null)
+        {
+            dbType = NpgsqlDbType.Array | ToParameterType(ilist.GetGenericArguments()[0]);
+            return true;
+        }
 
-            var typeInfo = type.GetTypeInfo();
+        if (typeInfo.IsGenericType && type.GetGenericTypeDefinition() == typeof(NpgsqlRange<>))
+        {
+            dbType = NpgsqlDbType.Range | ToParameterType(type.GetGenericArguments()[0]);
+            return true;
+        }
 
-            var ilist = typeInfo.ImplementedInterfaces.FirstOrDefault(x =>
-                x.GetTypeInfo().IsGenericType && x.GetGenericTypeDefinition() == typeof(IList<>));
-            if (ilist != null)
-            {
-                dbType = NpgsqlDbType.Array | ToParameterType(ilist.GetGenericArguments()[0]);
-                return true;
-            }
-
-            if (typeInfo.IsGenericType && type.GetGenericTypeDefinition() == typeof(NpgsqlRange<>))
-            {
-                dbType = NpgsqlDbType.Range | ToParameterType(type.GetGenericArguments()[0]);
-                return true;
-            }
-
-            if (type == typeof(DBNull))
-            {
-                dbType = NpgsqlDbType.Unknown;
-                return true;
-            }
-
+        if (type == typeof(DBNull))
+        {
             dbType = NpgsqlDbType.Unknown;
-            return false;
+            return true;
         }
 
-        public override string GetDatabaseType(Type memberType, EnumStorage enumStyle)
+        dbType = NpgsqlDbType.Unknown;
+        return false;
+    }
+
+    public override string GetDatabaseType(Type memberType, EnumStorage enumStyle)
+    {
+        if (memberType.IsEnum)
         {
-            if (memberType.IsEnum)
-            {
-                return enumStyle == EnumStorage.AsInteger ? "integer" : "varchar";
-            }
-
-            if (memberType.IsArray)
-            {
-                return GetDatabaseType(memberType.GetElementType()!, enumStyle) + "[]";
-            }
-
-            if (memberType.IsNullable())
-            {
-                return GetDatabaseType(memberType.GetInnerTypeFromNullable(), enumStyle);
-            }
-
-            if (memberType.IsConstructedGenericType)
-            {
-                var templateType = memberType.GetGenericTypeDefinition();
-                return ResolveDatabaseType(templateType) ?? "jsonb";
-            }
-
-            return ResolveDatabaseType(memberType) ?? "jsonb";
+            return enumStyle == EnumStorage.AsInteger ? "integer" : "varchar";
         }
 
-        public override void AddParameter(NpgsqlCommand command, NpgsqlParameter parameter)
+        if (memberType.IsArray)
         {
-            command.Parameters.Add(parameter);
+            return GetDatabaseType(memberType.GetElementType()!, enumStyle) + "[]";
         }
 
-        public override void SetParameterType(NpgsqlParameter parameter, NpgsqlDbType dbType)
+        if (memberType.IsNullable())
         {
-            parameter.NpgsqlDbType = dbType;
+            return GetDatabaseType(memberType.GetInnerTypeFromNullable(), enumStyle);
         }
 
-        public bool HasTypeMapping(Type memberType)
+        if (memberType.IsConstructedGenericType)
         {
-            if (memberType.IsNullable())
-            {
-                return HasTypeMapping(memberType.GetInnerTypeFromNullable());
-            }
-
-            // more complicated later
-            return ResolveDatabaseType(memberType) != null || memberType.IsEnum;
+            var templateType = memberType.GetGenericTypeDefinition();
+            return ResolveDatabaseType(templateType) ?? "jsonb";
         }
 
-        private Type GetNullableType(Type type)
+        return ResolveDatabaseType(memberType) ?? "jsonb";
+    }
+
+    public override void AddParameter(NpgsqlCommand command, NpgsqlParameter parameter)
+    {
+        command.Parameters.Add(parameter);
+    }
+
+    public override void SetParameterType(NpgsqlParameter parameter, NpgsqlDbType dbType)
+    {
+        parameter.NpgsqlDbType = dbType;
+    }
+
+    public bool HasTypeMapping(Type memberType)
+    {
+        if (memberType.IsNullable())
         {
-            type = Nullable.GetUnderlyingType(type) ?? type;
-            if (type.IsValueType)
-                return typeof(Nullable<>).MakeGenericType(type);
-            else
-                return type;
+            return HasTypeMapping(memberType.GetInnerTypeFromNullable());
         }
 
-        public void AddTimespanTypes(NpgsqlDbType npgsqlDbType, params Type[] types)
+        // more complicated later
+        return ResolveDatabaseType(memberType) != null || memberType.IsEnum;
+    }
+
+    private Type GetNullableType(Type type)
+    {
+        type = Nullable.GetUnderlyingType(type) ?? type;
+        if (type.IsValueType)
         {
-            var timespanTypesList = (npgsqlDbType == NpgsqlDbType.Timestamp) ? TimespanTypes : TimespanZTypes;
-            var typesWithNullables = types.Union(types.Select(t => GetNullableType(t))).Where(t => !timespanTypesList.Contains(t)).ToList();
-
-            timespanTypesList.AddRange(typesWithNullables);
-
-            ContainmentOperatorTypes.AddRange(typesWithNullables);
+            return typeof(Nullable<>).MakeGenericType(type);
         }
+
+        return type;
+    }
+
+    public void AddTimespanTypes(NpgsqlDbType npgsqlDbType, params Type[] types)
+    {
+        var timespanTypesList = npgsqlDbType == NpgsqlDbType.Timestamp ? TimespanTypes : TimespanZTypes;
+        var typesWithNullables = types.Union(types.Select(t => GetNullableType(t)))
+            .Where(t => !timespanTypesList.Contains(t)).ToList();
+
+        timespanTypesList.AddRange(typesWithNullables);
+
+        ContainmentOperatorTypes.AddRange(typesWithNullables);
     }
 }

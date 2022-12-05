@@ -1,32 +1,27 @@
-using System;
-using System.IO;
+namespace Weasel.SqlServer.Tables;
 
-namespace Weasel.SqlServer.Tables
+internal static class StringWriterExtensions
 {
-    internal static class StringWriterExtensions
+    public static void WriteCascadeAction(this TextWriter writer, string prefix, CascadeAction action)
     {
-        public static void WriteCascadeAction(this TextWriter writer, string prefix, CascadeAction action)
+        switch (action)
         {
-            switch (action)
-            {
-                case CascadeAction.Cascade:
-                    writer.WriteLine($"{prefix} CASCADE");
-                    break;
-                case CascadeAction.NoAction:
-                    return;
-                case CascadeAction.SetDefault:
-                    writer.WriteLine($"{prefix} SET DEFAULT");
-                    break;
-                case CascadeAction.SetNull:
-                    writer.WriteLine($"{prefix} SET NULL");
-                    break;
-            }
+            case CascadeAction.Cascade:
+                writer.WriteLine($"{prefix} CASCADE");
+                break;
+            case CascadeAction.NoAction:
+                return;
+            case CascadeAction.SetDefault:
+                writer.WriteLine($"{prefix} SET DEFAULT");
+                break;
+            case CascadeAction.SetNull:
+                writer.WriteLine($"{prefix} SET NULL");
+                break;
         }
+    }
 
-        public static void WriteDropIndex(this TextWriter writer, Table table, IndexDefinition index)
-        {
-            writer.WriteLine($"drop index {index.Name} on {table.Identifier};");
-        }
-
+    public static void WriteDropIndex(this TextWriter writer, Table table, IndexDefinition index)
+    {
+        writer.WriteLine($"drop index {index.Name} on {table.Identifier};");
     }
 }

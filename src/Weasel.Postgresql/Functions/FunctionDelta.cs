@@ -1,73 +1,68 @@
-using System;
-using System.IO;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
 
-namespace Weasel.Postgresql.Functions
+namespace Weasel.Postgresql.Functions;
+
+public class FunctionDelta: SchemaObjectDelta<Function>
 {
-    public class FunctionDelta : SchemaObjectDelta<Function>
+    public FunctionDelta(Function expected, Function? actual): base(expected, actual)
     {
-        public FunctionDelta(Function expected, Function? actual) : base(expected, actual)
-        {
+    }
 
+    protected override SchemaPatchDifference compare(Function expected, Function? actual)
+    {
+        if (expected.IsRemoved)
+        {
+            return actual == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update;
         }
 
-        protected override SchemaPatchDifference compare(Function expected, Function? actual)
+        if (actual == null)
         {
-            if (expected.IsRemoved)
-            {
-                return actual == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update;
-            }
-
-            if (actual == null)
-            {
-                return SchemaPatchDifference.Create;
-            }
-
-            if (!expected.Body().CanonicizeSql().Equals(actual.Body().CanonicizeSql(), StringComparison.OrdinalIgnoreCase))
-            {
-                return SchemaPatchDifference.Update;
-            }
-
-            return SchemaPatchDifference.None;
+            return SchemaPatchDifference.Create;
         }
 
-        public override void WriteRollback(Migrator rules, TextWriter writer)
+        if (!expected.Body().CanonicizeSql().Equals(actual.Body().CanonicizeSql(), StringComparison.OrdinalIgnoreCase))
         {
-            if (Expected.IsRemoved)
+            return SchemaPatchDifference.Update;
+        }
+
+        return SchemaPatchDifference.None;
+    }
+
+    public override void WriteRollback(Migrator rules, TextWriter writer)
+    {
+        if (Expected.IsRemoved)
+        {
+            Actual!.WriteCreateStatement(rules, writer);
+        }
+        else
+        {
+            if (Actual != null)
             {
-                Actual!.WriteCreateStatement(rules, writer);
+                writer.WriteReplaceFunction(rules, Expected, Actual);
             }
             else
             {
-                if (Actual != null)
-                {
-                    writer.WriteReplaceFunction(rules, Expected, Actual);
-                }
-                else
-                {
-                    writer.WriteDropFunction(Expected);
-                }
+                writer.WriteDropFunction(Expected);
             }
         }
+    }
 
 
-
-        public override void WriteUpdate(Migrator rules, TextWriter writer)
+    public override void WriteUpdate(Migrator rules, TextWriter writer)
+    {
+        if (Expected.IsRemoved)
         {
-            if (Expected.IsRemoved)
-            {
-                writer.WriteDropFunction(Actual!);
-            }
-            else
-            {
-                writer.WriteReplaceFunction(rules, Actual!, Expected);
-            }
+            writer.WriteDropFunction(Actual!);
         }
-
-        public override string ToString()
+        else
         {
-            return Expected.Identifier.QualifiedName + " Diff";
+            writer.WriteReplaceFunction(rules, Actual!, Expected);
         }
+    }
+
+    public override string ToString()
+    {
+        return Expected.Identifier.QualifiedName + " Diff";
     }
 }

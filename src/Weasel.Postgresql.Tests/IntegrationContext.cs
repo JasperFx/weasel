@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Baseline;
+using JasperFx.Core.Reflection;
 using Npgsql;
 using Weasel.Core;
 using Xunit;

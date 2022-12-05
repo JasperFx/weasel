@@ -1,10 +1,9 @@
-namespace Weasel.SqlServer
+namespace Weasel.SqlServer;
+
+public enum CascadeAction
 {
-    public enum CascadeAction
-    {
-        SetNull,
-        SetDefault,
-        NoAction,
-        Cascade
-    }
+    SetNull,
+    SetDefault,
+    NoAction,
+    Cascade
 }

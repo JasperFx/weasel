@@ -1,39 +1,38 @@
-namespace Weasel.Postgresql.SqlGeneration
+namespace Weasel.Postgresql.SqlGeneration;
+
+public class NotWhereFragment: ISqlFragment, IWhereFragmentHolder
 {
-    public class NotWhereFragment: ISqlFragment, IWhereFragmentHolder
+    private readonly IWhereFragmentHolder _parent;
+
+    public NotWhereFragment(IWhereFragmentHolder parent)
     {
-        private readonly IWhereFragmentHolder _parent;
+        _parent = parent;
+    }
 
-        public NotWhereFragment(IWhereFragmentHolder parent)
+    public ISqlFragment Inner { get; set; } = null!;
+
+    public void Apply(CommandBuilder builder)
+    {
+        builder.Append("NOT(");
+        Inner.Apply(builder);
+        builder.Append(')');
+    }
+
+    public bool Contains(string sqlText)
+    {
+        return "NOT".Contains(sqlText) || Inner.Contains(sqlText);
+    }
+
+    void IWhereFragmentHolder.Register(ISqlFragment fragment)
+    {
+        if (fragment is IReversibleWhereFragment r)
         {
-            _parent = parent;
+            _parent.Register(r.Reverse());
         }
-
-        public ISqlFragment Inner { get; set; } = null!;
-
-        public void Apply(CommandBuilder builder)
+        else
         {
-            builder.Append("NOT(");
-            Inner.Apply(builder);
-            builder.Append(')');
-        }
-
-        public bool Contains(string sqlText)
-        {
-            return "NOT".Contains(sqlText) || Inner.Contains(sqlText);
-        }
-
-        void IWhereFragmentHolder.Register(ISqlFragment fragment)
-        {
-            if (fragment is IReversibleWhereFragment r)
-            {
-                _parent.Register(r.Reverse());
-            }
-            else
-            {
-                Inner = fragment;
-                _parent.Register(this);
-            }
+            Inner = fragment;
+            _parent.Register(this);
         }
     }
 }
