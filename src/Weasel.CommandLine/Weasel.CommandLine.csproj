@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Oakton" Version="6.0.0-alpha-1" />
+      <PackageReference Include="Oakton" Version="6.0.0" />
     </ItemGroup>
 
     <ItemGroup>

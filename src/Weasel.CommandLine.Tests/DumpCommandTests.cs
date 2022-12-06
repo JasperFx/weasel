@@ -15,7 +15,7 @@ public class DumpCommandTests : IntegrationContext
         var command = new DumpCommand();
         var builder = Host.CreateDefaultBuilder().ConfigureServices(services =>
         {
-            foreach (var database in Databases.GetAll())
+            foreach (var database in Databases)
             {
                 services.AddSingleton<IDatabase>(database);
             }

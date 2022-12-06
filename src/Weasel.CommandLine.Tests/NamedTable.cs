@@ -48,6 +48,6 @@ public class DatabaseWithTables: PostgresqlDatabase
 
     public override IFeatureSchema[] BuildFeatureSchemas()
     {
-        return Features.GetAll().OfType<IFeatureSchema>().ToArray();
+        return Features.OfType<IFeatureSchema>().ToArray();
     }
 }

@@ -139,10 +139,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     /// <param name="directory"></param>
     public async Task WriteScriptsByType(string directory)
     {
-        // TODO -- really time for async helpers in Baseline
-        var system = new FileSystem();
-
-        system.CleanDirectory(directory);
+        FileSystem.CleanDirectory(directory);
 
         var scriptNames = new List<string>();
 

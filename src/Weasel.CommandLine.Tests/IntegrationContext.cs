@@ -29,7 +29,7 @@ public abstract class IntegrationContext
         var command = new TCommand();
         var builder = Host.CreateDefaultBuilder().ConfigureServices(services =>
         {
-            foreach (var database in Databases.GetAll())
+            foreach (var database in Databases)
             {
                 services.AddSingleton<IDatabase>(database);
             }

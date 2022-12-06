@@ -67,7 +67,7 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
         {
             if (Directory.Exists(input.Path))
             {
-                new FileSystem().CleanDirectory(input.Path);
+                FileSystem.CleanDirectory(input.Path);
             }
         }
         catch (Exception)

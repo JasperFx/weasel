@@ -54,33 +54,22 @@ public abstract class Migrator
     ///     to serve as templates for extra DDL (GRANT's probably)
     /// </summary>
     /// <param name="directory"></param>
-    // TODO -- make this async
-    public void ReadTemplates(string directory)
+    public async Task ReadTemplates(string directory)
     {
-        var system = new FileSystem();
+        foreach (var file in FileSystem.FindFiles(directory, FileSet.Shallow("*.function")))
+        {
+            var name = Path.GetFileNameWithoutExtension(file).ToLower();
+            Templates[name].FunctionCreation = await File.ReadAllTextAsync(file).ConfigureAwait(false);
+        }
 
-        system.FindFiles(directory, FileSet.Shallow("*.function")).Each(file =>
+        foreach (var file in FileSystem.FindFiles(directory, FileSet.Shallow("*.table")))
         {
             var name = Path.GetFileNameWithoutExtension(file).ToLower();
 
-            Templates[name].FunctionCreation = system.ReadStringFromFile(file);
-        });
-
-        system.FindFiles(directory, FileSet.Shallow("*.table")).Each(file =>
-        {
-            var name = Path.GetFileNameWithoutExtension(file).ToLower();
-
-            Templates[name].TableCreation = system.ReadStringFromFile(file);
-        });
+            Templates[name].TableCreation = await File.ReadAllTextAsync(file).ConfigureAwait(false);
+        }
     }
 
-    /// <summary>
-    ///     Read DDL templates from the application base directory
-    /// </summary>
-    public void ReadTemplates()
-    {
-        ReadTemplates(AppContext.BaseDirectory);
-    }
 
     /// <summary>
     ///     Write templated SQL to the supplied file name
