@@ -513,15 +513,13 @@ public class IndexDefinition: INamed
     private static string canonicizeColumn(string expression)
     {
         expression = expression.Trim().Replace("::text", "");
-        while (expression.StartsWith("(") && expression.EndsWith(")"))
+        while (expression.StartsWith('(') && expression.EndsWith(')'))
         {
             expression = expression.Substring(1, expression.Length - 2);
         }
 
-        if (expression.StartsWith('"') && expression.EndsWith('"'))
-        {
-            expression = expression.Trim('"');
-        }
+        // If Postgres keyword are used as a column name then those are enclosed in double quotes
+        expression = expression.Trim('"');
 
         return CanonicizeCast(expression);
     }
