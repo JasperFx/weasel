@@ -472,5 +472,22 @@ namespace Weasel.Postgresql.Tests.Tables
 
             IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
         }
+
+        [Fact]
+        public void ensure_handling_of_index_def_with_column_name_using_pg_keyword()
+        {
+            var table = new Table("mt_doc_user");
+            // index does not contain using clause
+            var index1 =
+                IndexDefinition.Parse(
+                    "CREATE INDEX idx_1 ON public.mt_doc_user using btree (\"time\" desc);");
+
+            var index2 = new IndexDefinition("idx_1")
+            {
+                Columns = new[] {"time"}, Method = IndexMethod.btree, SortOrder = SortOrder.Desc
+            };
+
+            IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        }
     }
 }
