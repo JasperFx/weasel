@@ -513,10 +513,13 @@ public class IndexDefinition: INamed
     private static string canonicizeColumn(string expression)
     {
         expression = expression.Trim().Replace("::text", "");
-        while (expression.StartsWith("(") && expression.EndsWith(")"))
+        while (expression.StartsWith('(') && expression.EndsWith(')'))
         {
             expression = expression.Substring(1, expression.Length - 2);
         }
+
+        // If Postgres keyword are used as a column name then those are enclosed in double quotes
+        expression = expression.Trim('"');
 
         return CanonicizeCast(expression);
     }
@@ -528,30 +531,34 @@ public class IndexDefinition: INamed
 
         return expression switch
         {
-            var expr when expr.EndsWith($"{Descending})") =>
+            var expr when expr.EndsWith($"{Descending})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - Descending.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Desc, NullsSortOrder.None),
-            var expr when expr.EndsWith($"{DescendingNullsFirst})") =>
+            var expr when expr.EndsWith($"{DescendingNullsFirst})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0,
                         expr.Length - DescendingNullsFirst.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Desc, NullsSortOrder.First),
-            var expr when expr.EndsWith($"{DescendingNullsLast})") =>
+            var expr when expr.EndsWith($"{DescendingNullsLast})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0,
                         expr.Length - DescendingNullsLast.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Desc, NullsSortOrder.Last),
-            var expr when expr.EndsWith($"{Ascending})") =>
+            var expr when expr.EndsWith($"{Ascending})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - Ascending.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Asc, NullsSortOrder.None),
-            var expr when expr.EndsWith($"{AscendingNullsLast})") =>
+            var expr when expr.EndsWith($"{AscendingNullsLast})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - AscendingNullsLast.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Asc, NullsSortOrder.Last),
-            var expr when expr.EndsWith($"{AscendingNullsFirst})") =>
+            var expr when expr.EndsWith($"{AscendingNullsFirst})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - AscendingNullsFirst.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Asc, NullsSortOrder.First),
-            var expr when !expr.Contains(Ascending) && !expr.Contains(Descending) && expr.EndsWith($"{NullsFirst})") =>
+            var expr when !expr.Contains(Ascending, StringComparison.InvariantCultureIgnoreCase) &&
+                          !expr.Contains(Descending, StringComparison.InvariantCultureIgnoreCase) &&
+                          expr.EndsWith($"{NullsFirst})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - NullsFirst.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Asc, NullsSortOrder.First),
-            var expr when !expr.Contains(Ascending) && !expr.Contains(Descending) && expr.EndsWith($"{NullsLast})") =>
+            var expr when !expr.Contains(Ascending, StringComparison.InvariantCultureIgnoreCase) &&
+                          !expr.Contains(Descending, StringComparison.InvariantCultureIgnoreCase) &&
+                          expr.EndsWith($"{NullsLast})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - NullsLast.Length - spaceAndEndParenthesis) + ")",
                     SortOrder.Asc, NullsSortOrder.Last),
             _ => (expression.Trim(), SortOrder.Asc, NullsSortOrder.None)
