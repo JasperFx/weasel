@@ -4,17 +4,24 @@ using JasperFx.Core;
 
 namespace Weasel.Core.Migrations;
 
+public enum AttainLockResult
+{
+    Success,
+    Failure,
+    DatabaseNotAvailable
+}
+
 public interface IGlobalLock<TConnection> where TConnection : DbConnection
 {
-    Task<bool> TryAttainLock(TConnection conn);
+    Task<AttainLockResult> TryAttainLock(TConnection conn);
     Task ReleaseLock(TConnection conn);
 }
 
 internal class NulloGlobalList<TConnection>: IGlobalLock<TConnection> where TConnection : DbConnection
 {
-    public Task<bool> TryAttainLock(TConnection conn)
+    public Task<AttainLockResult> TryAttainLock(TConnection conn)
     {
-        return Task.FromResult(true);
+        return Task.FromResult(AttainLockResult.Success);
     }
 
     public Task ReleaseLock(TConnection conn)
@@ -225,7 +232,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     }
 
     public async Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
-        IGlobalLock<TConnection> globalLock, AutoCreate? @override = null)
+        IGlobalLock<TConnection> globalLock, AutoCreate? @override = null, int maxReconnectionCount = 3, int delayInMs = 50)
     {
         var autoCreate = @override ?? AutoCreate;
         if (autoCreate == AutoCreate.None)
@@ -235,28 +242,53 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         var objects = AllObjects().ToArray();
 
-        await using var conn = CreateConnection();
-        await conn.OpenAsync().ConfigureAwait(false);
-
-        if (await globalLock.TryAttainLock(conn).ConfigureAwait(false))
+        TConnection? conn = null;
+        try
         {
-            var patch = await SchemaMigration.Determine(conn, objects).ConfigureAwait(false);
+            conn = CreateConnection();
+            await conn.OpenAsync().ConfigureAwait(false);
 
-            if (patch.Difference != SchemaPatchDifference.None)
+            AttainLockResult attainLockResult;
+            var reconnectionCount = 0;
+            do
             {
-                await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
+                attainLockResult = await globalLock.TryAttainLock(conn).ConfigureAwait(false);
+
+                if (attainLockResult != AttainLockResult.DatabaseNotAvailable || ++reconnectionCount < maxReconnectionCount)
+                    continue;
+
+                conn = CreateConnection();
+
+                await Task.Delay(reconnectionCount * delayInMs).ConfigureAwait(false);
+
+            } while (attainLockResult == AttainLockResult.DatabaseNotAvailable && reconnectionCount < maxReconnectionCount);
+
+            if (attainLockResult == AttainLockResult.Success)
+            {
+                var patch = await SchemaMigration.Determine(conn, objects).ConfigureAwait(false);
+
+                if (patch.Difference != SchemaPatchDifference.None)
+                {
+                    await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
+                }
+
+                MarkAllFeaturesAsChecked();
+
+                await globalLock.ReleaseLock(conn).ConfigureAwait(false);
+
+                return patch.Difference;
             }
 
-            MarkAllFeaturesAsChecked();
+            await conn.CloseAsync().ConfigureAwait(false);
 
-            await globalLock.ReleaseLock(conn).ConfigureAwait(false);
-
-            return patch.Difference;
+            throw new InvalidOperationException(
+                "Unable to attain a global lock in time order to apply database changes");
         }
-
-        await conn.CloseAsync().ConfigureAwait(false);
-        throw new InvalidOperationException(
-            "Unable to attain a global lock in time order to apply database changes");
+        finally
+        {
+            if (conn != null)
+                await conn.DisposeAsync().ConfigureAwait(false);
+        }
     }
 
     public async Task WriteMigrationFileAsync(string filename)
