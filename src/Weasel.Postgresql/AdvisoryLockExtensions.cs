@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Npgsql;
 using Weasel.Core;
 
@@ -28,15 +29,12 @@ public static class AdvisoryLockExtensions
     /// <param name="lockId"></param>
     /// <param name="cancellation"></param>
     /// <returns></returns>
-    public static async Task<bool> TryGetGlobalTxLock(this NpgsqlTransaction tx, int lockId,
-        CancellationToken cancellation = default)
-    {
-        var c = await tx.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
-            .With("id", lockId)
-            .ExecuteScalarAsync(cancellation).ConfigureAwait(false);
-
-        return (bool)c;
-    }
+    public static Task<bool> TryGetGlobalTxLock(this NpgsqlTransaction tx, int lockId,
+        CancellationToken cancellation = default) =>
+        ExecuteGetGlobalLockWrapper(
+            tx.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
+                .With("id", lockId), cancellation
+        );
 
     /// <summary>
     ///     Attempts to attain a shared lock at the session level that will be retained until the connection is closed.
@@ -62,33 +60,27 @@ public static class AdvisoryLockExtensions
     /// <param name="lockId"></param>
     /// <param name="cancellation"></param>
     /// <returns></returns>
-    public static async Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId,
-        CancellationToken cancellation = default)
-    {
-        var c = await conn.CreateCommand("SELECT pg_try_advisory_lock(:id);")
-            .With("id", lockId)
-            .ExecuteScalarAsync(cancellation).ConfigureAwait(false);
-
-        return (bool)c;
-    }
+    public static Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId,
+        CancellationToken cancellation = default) =>
+        ExecuteGetGlobalLockWrapper(
+            conn.CreateCommand("SELECT pg_try_advisory_lock(:id);")
+                .With("id", lockId),
+            cancellation
+        );
 
     /// <summary>
-    ///     Attempts to attain a shared lock at the session level. This method
-    ///     will return a boolean designating whether or not it was able to attain
-    ///     the shared lock.
+    ///     Explicitly releases a shared lock
     /// </summary>
     /// <param name="conn"></param>
     /// <param name="lockId"></param>
     /// <param name="cancellation"></param>
+    /// <param name="tx"></param>
     /// <returns></returns>
-    public static async Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId, NpgsqlTransaction tx,
+    public static Task ReleaseGlobalLock(this NpgsqlConnection conn, int lockId,
         CancellationToken cancellation = default)
     {
-        var c = await conn.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
-            .With("id", lockId)
-            .ExecuteScalarAsync(cancellation).ConfigureAwait(false);
-
-        return (bool)c;
+        return conn.CreateCommand("SELECT pg_advisory_unlock(:id);").With("id", lockId)
+                .ExecuteNonQueryAsync(cancellation);
     }
 
     /// <summary>
@@ -99,10 +91,31 @@ public static class AdvisoryLockExtensions
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    public static Task ReleaseGlobalLock(this NpgsqlConnection conn, int lockId,
-        CancellationToken cancellation = default, NpgsqlTransaction? tx = null)
+    public static Task ReleaseGlobalLock(this NpgsqlTransaction tx, int lockId,
+        CancellationToken cancellation = default)
     {
-        return conn.CreateCommand("SELECT pg_advisory_unlock(:id);").With("id", lockId)
-            .ExecuteNonQueryAsync(cancellation);
+        return tx.CreateCommand("SELECT pg_advisory_unlock(:id);").With("id", lockId)
+                .ExecuteNonQueryAsync(cancellation);
+    }
+
+    private static async Task<bool> ExecuteGetGlobalLockWrapper(DbCommand getGlobalLock, CancellationToken cancellation)
+    {
+        try
+        {
+            var c = await getGlobalLock.ExecuteScalarAsync(cancellation).ConfigureAwait(false);
+            return (bool)c;
+        }
+        catch (PostgresException pgException)
+        {
+            // That means that database is not ready (e.g. restarting)
+            // Client should make decision if retry
+            // Check https://github.com/npgsql/npgsql/issues/2896 for more details
+            if (pgException.SqlState == PostgresErrorCodes.AdminShutdown)
+            {
+                return false;
+            }
+
+            throw;
+        }
     }
 }
