@@ -184,19 +184,19 @@ namespace Weasel.Postgresql.Tests.Migrations
 
             var result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
 
-            if (result != AttainLockResult.Failure)
+            if (result.Succeeded || result.ShouldReconnect)
                 return result;
 
             await Delay(50, ct).ConfigureAwait(false);
             result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
 
-            if (result != AttainLockResult.Failure)
+            if (result.Succeeded || result.ShouldReconnect)
                 return result;
 
             await Delay(100, ct).ConfigureAwait(false);
             result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
 
-            if (result != AttainLockResult.Failure)
+            if (result.Succeeded || result.ShouldReconnect)
                 return result;
 
             await Delay(250, ct).ConfigureAwait(false);

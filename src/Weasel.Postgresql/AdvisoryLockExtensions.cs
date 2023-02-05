@@ -105,7 +105,7 @@ public static class AdvisoryLockExtensions
         {
             var c = await getGlobalLock.ExecuteScalarAsync(cancellation).ConfigureAwait(false);
             var succeeded = (bool)c;
-            return succeeded ? AttainLockResult.Success : AttainLockResult.Failure;
+            return succeeded ? AttainLockResult.Success : AttainLockResult.Failure();
         }
         catch (PostgresException pgException)
         {
@@ -114,7 +114,7 @@ public static class AdvisoryLockExtensions
             // Check https://github.com/npgsql/npgsql/issues/2896 for more details
             if (pgException.SqlState == PostgresErrorCodes.AdminShutdown)
             {
-                return AttainLockResult.DatabaseNotAvailable;
+                return AttainLockResult.Failure(AttainLockResult.FailureReason.DatabaseNotAvailable);
             }
 
             throw;
