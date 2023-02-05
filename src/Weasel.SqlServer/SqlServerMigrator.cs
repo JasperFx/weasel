@@ -28,11 +28,15 @@ $$;
         foreach (var schemaName in schemaNames) writer.WriteLine(CreateSchemaStatementFor(schemaName));
     }
 
-    protected override async Task executeDelta(SchemaMigration migration, DbConnection conn, AutoCreate autoCreate,
-        IMigrationLogger logger)
+    protected override async Task executeDelta(
+        SchemaMigration migration,
+        DbConnection conn,
+        AutoCreate autoCreate,
+        IMigrationLogger logger,
+        CancellationToken ct = default
+    )
     {
-        await createSchemas(migration, conn, logger).ConfigureAwait(false);
-
+        await createSchemas(migration, conn, logger, ct).ConfigureAwait(false);
 
         foreach (var delta in migration.Deltas)
         {
@@ -41,7 +45,7 @@ $$;
 
             if (writer.ToString().Trim().IsNotEmpty())
             {
-                await executeCommand(conn, logger, writer).ConfigureAwait(false);
+                await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
             }
         }
     }
@@ -56,8 +60,11 @@ $$;
         // Nothing yet
     }
 
-    private async Task createSchemas(SchemaMigration migration, DbConnection conn,
-        IMigrationLogger logger)
+    private static async Task createSchemas(
+        SchemaMigration migration,
+        DbConnection conn,
+        IMigrationLogger logger,
+        CancellationToken ct = default)
     {
         var writer = new StringWriter();
 
@@ -66,12 +73,12 @@ $$;
             new SqlServerMigrator().WriteSchemaCreationSql(migration.Schemas, writer);
             if (writer.ToString().Trim().IsNotEmpty()) // Cheesy way of knowing if there is any delta
             {
-                await executeCommand(conn, logger, writer).ConfigureAwait(false);
+                await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
             }
         }
     }
 
-    private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer)
+    private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
         var cmd = conn.CreateCommand(writer.ToString());
         logger.SchemaChange(cmd.CommandText);
@@ -79,7 +86,7 @@ $$;
         try
         {
             await cmd
-                .ExecuteNonQueryAsync().ConfigureAwait(false);
+                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
         catch (Exception e)
         {

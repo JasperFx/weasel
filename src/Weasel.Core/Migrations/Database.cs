@@ -11,20 +11,20 @@ public enum AttainLockResult
     DatabaseNotAvailable
 }
 
-public interface IGlobalLock<TConnection> where TConnection : DbConnection
+public interface IGlobalLock<in TConnection> where TConnection : DbConnection
 {
-    Task<AttainLockResult> TryAttainLock(TConnection conn);
-    Task ReleaseLock(TConnection conn);
+    Task<AttainLockResult> TryAttainLock(TConnection conn, CancellationToken ct = default);
+    Task ReleaseLock(TConnection conn, CancellationToken ct = default);
 }
 
 internal class NulloGlobalList<TConnection>: IGlobalLock<TConnection> where TConnection : DbConnection
 {
-    public Task<AttainLockResult> TryAttainLock(TConnection conn)
+    public Task<AttainLockResult> TryAttainLock(TConnection conn, CancellationToken ct = default)
     {
         return Task.FromResult(AttainLockResult.Success);
     }
 
-    public Task ReleaseLock(TConnection conn)
+    public Task ReleaseLock(TConnection conn, CancellationToken ct = default)
     {
         return Task.CompletedTask;
     }
@@ -37,8 +37,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     private readonly IMigrationLogger _logger;
     private readonly TimedLock _migrateLocker = new();
 
-    public DatabaseBase(IMigrationLogger logger, AutoCreate autoCreate, Migrator migrator, string identifier,
-        string connectionString)
+    public DatabaseBase(
+        IMigrationLogger logger,
+        AutoCreate autoCreate,
+        Migrator migrator,
+        string identifier,
+        string connectionString
+    )
     {
         _logger = logger;
         _connectionSource = () =>
@@ -54,8 +59,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         Identifier = identifier;
     }
 
-    public DatabaseBase(IMigrationLogger logger, AutoCreate autoCreate, Migrator migrator, string identifier,
-        Func<TConnection> connectionSource)
+    public DatabaseBase(
+        IMigrationLogger logger,
+        AutoCreate autoCreate,
+        Migrator migrator,
+        string identifier,
+        Func<TConnection> connectionSource
+    )
     {
         _logger = logger;
         _connectionSource = connectionSource;
@@ -94,19 +104,19 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         return BuildFeatureSchemas().SelectMany(group => group.Objects);
     }
 
-    public async Task AssertConnectivity()
+    public async Task AssertConnectivityAsync(CancellationToken ct = default)
     {
         await using var conn = CreateConnection();
-        await conn.OpenAsync().ConfigureAwait(false);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
         await conn.CloseAsync().ConfigureAwait(false);
     }
 
-    public async Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group)
+    public async Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group, CancellationToken ct = default)
     {
         await using var conn = CreateConnection();
-        await conn.OpenAsync().ConfigureAwait(false);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        var migration = await SchemaMigration.Determine(conn, group.Objects).ConfigureAwait(false);
+        var migration = await SchemaMigration.Determine(conn, ct, group.Objects).ConfigureAwait(false);
 
         return migration;
     }
@@ -130,13 +140,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         return writer.ToString();
     }
 
-    public Task WriteCreationScriptToFile(string filename)
+    public Task WriteCreationScriptToFileAsync(string filename, CancellationToken ct = default)
     {
         var directory = Path.GetDirectoryName(filename);
         Directory.CreateDirectory(directory);
 
         var sql = ToDatabaseScript();
-        return File.WriteAllTextAsync(filename, sql);
+        return File.WriteAllTextAsync(filename, sql, ct);
     }
 
     /// <summary>
@@ -144,7 +154,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     ///     each feature
     /// </summary>
     /// <param name="directory"></param>
-    public async Task WriteScriptsByType(string directory)
+    public async Task WriteScriptsByTypeAsync(string directory, CancellationToken ct = default)
     {
         FileSystem.CleanDirectory(directory);
 
@@ -163,9 +173,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             await Migrator.WriteTemplatedFile(directory.AppendPath("schemas.sql"), (m, w) =>
             {
                 m.WriteSchemaCreationSql(schemaNames, w);
-            }).ConfigureAwait(false);
+            }, ct).ConfigureAwait(false);
         }
-
 
         foreach (var feature in BuildFeatureSchemas())
         {
@@ -175,7 +184,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             await Migrator.WriteTemplatedFile(directory.AppendPath(scriptName), (m, w) =>
             {
                 feature.WriteFeatureCreation(m, w);
-            }).ConfigureAwait(false);
+            }, ct).ConfigureAwait(false);
         }
 
         var writer = new StringWriter();
@@ -183,27 +192,34 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             await writer.WriteLineAsync(Migrator.ToExecuteScriptLine(scriptName)).ConfigureAwait(false);
 
         var filename = directory.AppendPath("all.sql");
-        File.WriteAllText(filename, writer.ToString());
+        await File.WriteAllTextAsync(filename, writer.ToString(), ct).ConfigureAwait(false);
     }
 
-    public async Task<SchemaMigration> CreateMigrationAsync()
+    public async Task<SchemaMigration> CreateMigrationAsync(CancellationToken ct = default)
     {
         var objects = AllObjects().ToArray();
 
         await using var conn = CreateConnection();
-        await conn.OpenAsync().ConfigureAwait(false);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        return await SchemaMigration.Determine(conn, objects).ConfigureAwait(false);
+        return await SchemaMigration.Determine(conn, ct, objects).ConfigureAwait(false);
     }
 
-    public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(AutoCreate? @override = null)
-    {
-        return ApplyAllConfiguredChangesToDatabaseAsync(new NulloGlobalList<TConnection>(), @override);
-    }
+    public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
+        AutoCreate? @override = null,
+        ReconnectionOptions? reconnectionOptions = null,
+        CancellationToken ct = default
+    ) =>
+        ApplyAllConfiguredChangesToDatabaseAsync(
+            new NulloGlobalList<TConnection>(),
+            @override,
+            reconnectionOptions,
+            ct
+        );
 
-    public async Task AssertDatabaseMatchesConfigurationAsync()
+    public async Task AssertDatabaseMatchesConfigurationAsync(CancellationToken ct = default)
     {
-        var patch = await CreateMigrationAsync().ConfigureAwait(false);
+        var patch = await CreateMigrationAsync(ct).ConfigureAwait(false);
         if (patch.Difference != SchemaPatchDifference.None)
         {
             var writer = new StringWriter();
@@ -218,21 +234,18 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         return _connectionSource();
     }
 
-    public Task<SchemaMigration> CreateMigrationAsync(Type featureType)
+    public Task<SchemaMigration> CreateMigrationAsync(Type featureType, CancellationToken ct = default)
     {
         var feature = FindFeature(featureType);
-        return CreateMigrationAsync(feature);
-    }
-
-    [Obsolete("Prefer WriteCreationScriptToFile()")]
-    public void WriteDatabaseCreationScriptFile(string filename)
-    {
-        var sql = ToDatabaseScript();
-        File.WriteAllText(filename, sql);
+        return CreateMigrationAsync(feature, ct);
     }
 
     public async Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
-        IGlobalLock<TConnection> globalLock, AutoCreate? @override = null, int maxReconnectionCount = 3, int delayInMs = 50)
+        IGlobalLock<TConnection> globalLock,
+        AutoCreate? @override = null,
+        ReconnectionOptions? reconnectionOptions = null,
+        CancellationToken ct = default
+    )
     {
         var autoCreate = @override ?? AutoCreate;
         if (autoCreate == AutoCreate.None)
@@ -246,35 +259,40 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         try
         {
             conn = CreateConnection();
-            await conn.OpenAsync().ConfigureAwait(false);
+            await conn.OpenAsync(ct).ConfigureAwait(false);
 
             AttainLockResult attainLockResult;
+
+            reconnectionOptions ??= ReconnectionOptions.Default;
+            var (maxReconnectionCount, delayInMs) = reconnectionOptions;
+
             var reconnectionCount = 0;
             do
             {
-                attainLockResult = await globalLock.TryAttainLock(conn).ConfigureAwait(false);
+                attainLockResult = await globalLock.TryAttainLock(conn, ct).ConfigureAwait(false);
 
-                if (attainLockResult != AttainLockResult.DatabaseNotAvailable || ++reconnectionCount < maxReconnectionCount)
+                if (attainLockResult != AttainLockResult.DatabaseNotAvailable ||
+                    ++reconnectionCount < maxReconnectionCount)
                     continue;
 
                 conn = CreateConnection();
 
-                await Task.Delay(reconnectionCount * delayInMs).ConfigureAwait(false);
-
-            } while (attainLockResult == AttainLockResult.DatabaseNotAvailable && reconnectionCount < maxReconnectionCount);
+                await Task.Delay(reconnectionCount * delayInMs, ct).ConfigureAwait(false);
+            } while (attainLockResult == AttainLockResult.DatabaseNotAvailable &&
+                     reconnectionCount < maxReconnectionCount);
 
             if (attainLockResult == AttainLockResult.Success)
             {
-                var patch = await SchemaMigration.Determine(conn, objects).ConfigureAwait(false);
+                var patch = await SchemaMigration.Determine(conn, ct, objects).ConfigureAwait(false);
 
                 if (patch.Difference != SchemaPatchDifference.None)
                 {
-                    await Migrator.ApplyAll(conn, patch, autoCreate, _logger).ConfigureAwait(false);
+                    await Migrator.ApplyAll(conn, patch, autoCreate, _logger, ct).ConfigureAwait(false);
                 }
 
                 MarkAllFeaturesAsChecked();
 
-                await globalLock.ReleaseLock(conn).ConfigureAwait(false);
+                await globalLock.ReleaseLock(conn, ct).ConfigureAwait(false);
 
                 return patch.Difference;
             }
@@ -291,10 +309,10 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         }
     }
 
-    public async Task WriteMigrationFileAsync(string filename)
+    public async Task WriteMigrationFileAsync(string filename, CancellationToken ct = default)
     {
-        var patch = await CreateMigrationAsync().ConfigureAwait(false);
-        await Migrator.WriteMigrationFile(filename, patch).ConfigureAwait(false);
+        var patch = await CreateMigrationAsync(ct).ConfigureAwait(false);
+        await Migrator.WriteMigrationFile(filename, patch, ct).ConfigureAwait(false);
     }
 
     public virtual void ResetSchemaExistenceChecks()
@@ -302,13 +320,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         _checks.Clear();
     }
 
+    [Obsolete("Use async version")]
     public void EnsureStorageExists(Type featureType)
     {
         if (AutoCreate == AutoCreate.None)
         {
             return;
         }
-
 
 #pragma warning disable VSTHRD002
         ensureStorageExists(new List<Type>(), featureType).AsTask().GetAwaiter().GetResult();
@@ -385,7 +403,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         foreach (var objectName in schemaObjects.SelectMany(x => x.AllNames()))
             Migrator.AssertValidIdentifier(objectName.Name);
 
-        using (await _migrateLocker.Lock(5.Seconds()).ConfigureAwait(false))
+        using (await _migrateLocker.Lock(5.Seconds(), token).ConfigureAwait(false))
         {
             if (_checks.ContainsKey(featureType))
             {
@@ -398,13 +416,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         }
     }
 
-    private async Task executeMigration(ISchemaObject[] schemaObjects, CancellationToken token = default)
+    private async Task executeMigration(ISchemaObject[] schemaObjects, CancellationToken ct = default)
     {
         await using var conn = _connectionSource();
 
-        await conn.OpenAsync(token).ConfigureAwait(false);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        var migration = await SchemaMigration.Determine(conn, schemaObjects).ConfigureAwait(false);
+        var migration = await SchemaMigration.Determine(conn, ct, schemaObjects).ConfigureAwait(false);
 
         if (migration.Difference == SchemaPatchDifference.None)
         {
@@ -413,7 +431,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         migration.AssertPatchingIsValid(AutoCreate);
 
-        await Migrator.ApplyAll(conn, migration, AutoCreate, _logger)
+        await Migrator.ApplyAll(conn, migration, AutoCreate, _logger, ct)
             .ConfigureAwait(false);
     }
 
@@ -425,4 +443,17 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             _checks[feature.StorageType] = true;
         }
     }
+}
+
+/// <summary>
+/// Reconnection policy options when the database is unavailable while applying database changes.
+/// </summary>
+/// <param name="MaxReconnectionCount">The maximum number of reconnections if the database is unavailable while applying database changes. Default is 3.</param>
+/// <param name="DelayInMs">The base delay between reconnections to perform if the database is unavailable while applying database changes. Note it'll be performed with exponential backoff. Default is 50ms.</param>
+public record ReconnectionOptions(
+    int MaxReconnectionCount = 3,
+    int DelayInMs = 50
+)
+{
+    public static ReconnectionOptions Default { get; } = new();
 }

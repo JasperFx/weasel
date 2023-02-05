@@ -18,12 +18,10 @@ namespace Weasel.Postgresql.Tests
                 .Length.ShouldBe(1);
 
             builder.ToString().ShouldBe("select data from table where foo = :p0");
-
-
         }
 
         [Fact]
-        public async Task starting_with_existing_command()
+        public void starting_with_existing_command()
         {
             var command = new NpgsqlCommand("select data from table");
             var builder = new CommandBuilder(command);

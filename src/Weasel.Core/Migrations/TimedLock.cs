@@ -9,9 +9,9 @@ internal class TimedLock
         _toLock = new SemaphoreSlim(1, 1);
     }
 
-    public async Task<LockReleaser> Lock(TimeSpan timeout)
+    public async Task<LockReleaser> Lock(TimeSpan timeout, CancellationToken ct = default)
     {
-        if (await _toLock.WaitAsync(timeout).ConfigureAwait(false))
+        if (await _toLock.WaitAsync(timeout, ct).ConfigureAwait(false))
         {
             return new LockReleaser(_toLock);
         }

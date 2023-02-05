@@ -38,7 +38,8 @@ public class NamedTableFeature: FeatureSchemaBase
 
 public class DatabaseWithTables: PostgresqlDatabase
 {
-    public DatabaseWithTables(AutoCreate autoCreate, string identifier) : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, ConnectionSource.ConnectionString)
+    public DatabaseWithTables(AutoCreate autoCreate, string identifier) :
+        base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, ConnectionSource.ConnectionString)
     {
     }
 

@@ -48,7 +48,24 @@ public class SchemaMigration
     /// <param name="conn"></param>
     /// <param name="schemaObjects"></param>
     /// <returns></returns>
-    public static async Task<SchemaMigration> Determine(DbConnection conn, params ISchemaObject[] schemaObjects)
+    public static Task<SchemaMigration> Determine(
+        DbConnection conn,
+        params ISchemaObject[] schemaObjects
+    ) =>
+        Determine(conn, default, schemaObjects);
+
+    /// <summary>
+    ///     Create a SchemaMigration for the supplied connection and array of schema
+    ///     objects
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="schemaObjects"></param>
+    /// <returns></returns>
+    public static async Task<SchemaMigration> Determine(
+        DbConnection conn,
+        CancellationToken ct,
+        params ISchemaObject[] schemaObjects
+        )
     {
         var deltas = new List<ISchemaObjectDelta>();
 
@@ -62,13 +79,13 @@ public class SchemaMigration
 
         foreach (var schemaObject in schemaObjects) schemaObject.ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
 
         deltas.Add(await schemaObjects[0].CreateDelta(reader).ConfigureAwait(false));
 
         for (var i = 1; i < schemaObjects.Length; i++)
         {
-            await reader.NextResultAsync().ConfigureAwait(false);
+            await reader.NextResultAsync(ct).ConfigureAwait(false);
             deltas.Add(await schemaObjects[i].CreateDelta(reader).ConfigureAwait(false));
         }
 

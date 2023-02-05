@@ -86,8 +86,13 @@ $$;
 ");
     }
 
-    protected override async Task executeDelta(SchemaMigration migration, DbConnection conn,
-        AutoCreate autoCreate, IMigrationLogger logger)
+    protected override async Task executeDelta(
+        SchemaMigration migration,
+        DbConnection conn,
+        AutoCreate autoCreate,
+        IMigrationLogger logger,
+        CancellationToken ct = default
+        )
     {
         var writer = new StringWriter();
 
@@ -104,7 +109,7 @@ $$;
         try
         {
             await cmd
-                .ExecuteNonQueryAsync().ConfigureAwait(false);
+                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
         catch (Exception e)
         {
