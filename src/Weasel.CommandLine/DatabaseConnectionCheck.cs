@@ -37,7 +37,7 @@ internal class DatabaseConnectionCheck : IEnvironmentCheckFactory
 
         public Task Assert(IServiceProvider services, CancellationToken cancellation)
         {
-            return _database.AssertConnectivityAsync();
+            return _database.AssertConnectivityAsync(cancellation);
         }
 
         public string Description => "Validating connectivity of Weasel database " + _database.Identifier;

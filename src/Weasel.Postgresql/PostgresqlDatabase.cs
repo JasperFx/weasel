@@ -7,21 +7,30 @@ namespace Weasel.Postgresql;
 
 public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
 {
-    protected PostgresqlDatabase(IMigrationLogger logger, AutoCreate autoCreate, PostgresqlMigrator migrator,
-        string identifier, string connectionString): base(logger, autoCreate, migrator, identifier, connectionString)
+    protected PostgresqlDatabase(
+        IMigrationLogger logger,
+        AutoCreate autoCreate,
+        PostgresqlMigrator migrator,
+        string identifier,
+        string connectionString
+    ): base(logger, autoCreate, migrator, identifier, connectionString)
     {
     }
 
-    protected PostgresqlDatabase(IMigrationLogger logger, AutoCreate autoCreate, PostgresqlMigrator migrator,
-        string identifier, Func<NpgsqlConnection> connectionSource): base(logger, autoCreate, migrator, identifier,
-        connectionSource)
+    protected PostgresqlDatabase(
+        IMigrationLogger logger,
+        AutoCreate autoCreate,
+        PostgresqlMigrator migrator,
+        string identifier,
+        Func<NpgsqlConnection> connectionSource
+    ): base(logger, autoCreate, migrator, identifier, connectionSource)
     {
     }
 
-    public async Task<Function?> DefinitionForFunction(DbObjectName function)
+    public async Task<Function?> DefinitionForFunction(DbObjectName function, CancellationToken ct = default)
     {
         await using var conn = CreateConnection();
-        await conn.OpenAsync().ConfigureAwait(false);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
 
         return await conn.FindExistingFunction(function).ConfigureAwait(false);
     }
@@ -31,13 +40,13 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
     /// </summary>
     /// <param name="database"></param>
     /// <returns></returns>
-    public async Task<IReadOnlyList<DbObjectName>> SchemaTables()
+    public async Task<IReadOnlyList<DbObjectName>> SchemaTables(CancellationToken ct = default)
     {
         var schemaNames = AllSchemaNames();
 
         await using var conn = CreateConnection();
 
-        await conn.OpenAsync().ConfigureAwait(false);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
 
         return await conn.ExistingTables(schemas: schemaNames).ConfigureAwait(false);
     }
