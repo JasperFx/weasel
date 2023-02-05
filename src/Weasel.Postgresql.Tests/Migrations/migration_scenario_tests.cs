@@ -85,26 +85,36 @@ namespace Weasel.Postgresql.Tests.Migrations
         }
 
         [Fact]
-        public async Task assert_reconnection_succeeds()
+        public async Task assert_reconnection_succeeds_on_database_not_available_once_with_default_retries()
         {
+            var connectionGlobalLock = new FlakyConnectionGlobalLock();
+
             var table = theDatabase.Features["One"].AddTable(SchemaName, "one");
-            await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync();
+            await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync(connectionGlobalLock);
 
-            // Add a new table here.
-            table.AddColumn<string>("description");
+            connectionGlobalLock.Failed.ShouldBeTrue();
+            connectionGlobalLock.Retried.ShouldBeTrue();
+        }
 
-            var migration = await theDatabase.CreateMigrationAsync();
-            migration.Difference.ShouldBe(SchemaPatchDifference.Update);
 
-            // Always good!
-            migration.AssertPatchingIsValid(AutoCreate.All);
-            migration.AssertPatchingIsValid(AutoCreate.None); // Even though nothing would ever happen
+        [Fact]
+        public async Task assert_fails_with_InvalidOperationException_on_database_not_available_with_no_retries()
+        {
+            var connectionGlobalLock = new FlakyConnectionGlobalLock();
 
-            // Also good
-            migration.AssertPatchingIsValid(AutoCreate.CreateOrUpdate);
+            var table = theDatabase.Features["One"].AddTable(SchemaName, "one");
 
-            // Not good!
-            Should.Throw<SchemaMigrationException>(() => migration.AssertPatchingIsValid(AutoCreate.CreateOnly));
+            var exception = await Should.ThrowAsync<InvalidOperationException>(async () =>
+                await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync(
+                    connectionGlobalLock,
+                    null,
+                    new ReconnectionOptions(0)
+                )
+            );
+            exception.Message.ShouldBe("Unable to attain a global lock in time order to apply database changes");
+
+            connectionGlobalLock.Failed.ShouldBeTrue();
+            connectionGlobalLock.Retried.ShouldBeFalse();
         }
     }
 
@@ -171,16 +181,30 @@ namespace Weasel.Postgresql.Tests.Migrations
 
     public class FlakyConnectionGlobalLock: IGlobalLock<NpgsqlConnection>
     {
-        public bool failedAlread = false;
-        public int ApplyChangesLockId = 4004;
+        public bool Retried { get; private set; } = false;
+        public bool Failed { get; private set; } = false;
+        private const int ApplyChangesLockId = 4004;
 
         public async Task<AttainLockResult> TryAttainLock(NpgsqlConnection conn, CancellationToken ct = default)
         {
-            if (!failedAlread)
+            if (!Failed)
             {
-                // this will make AdminShutdown exception while trying to get global lock
-                await conn.CreateCommand($"SELECT pg_terminate_backend({conn.ProcessID})").ExecuteNonQueryAsync(ct);
+                try
+                {
+                    // this will throw AdminShutdown exception while trying to get global lock
+                    await conn.CreateCommand($"SELECT pg_terminate_backend({conn.ProcessID})").ExecuteNonQueryAsync(ct);
+                }
+                catch (PostgresException pgException)
+                {
+                    if (pgException.SqlState != PostgresErrorCodes.AdminShutdown)
+                        throw;
+
+                    Failed = true;
+                    return AttainLockResult.Failure(AttainLockResult.FailureReason.DatabaseNotAvailable);
+                }
             }
+
+            Retried = true;
 
             var result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
 
@@ -205,9 +229,7 @@ namespace Weasel.Postgresql.Tests.Migrations
             return result;
         }
 
-        public Task ReleaseLock(NpgsqlConnection conn, CancellationToken ct = default)
-        {
-            throw new NotImplementedException();
-        }
+        public Task ReleaseLock(NpgsqlConnection conn, CancellationToken ct = default) =>
+            conn.ReleaseGlobalLock(ApplyChangesLockId, cancellation: ct);
     }
 }
