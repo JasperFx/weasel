@@ -52,7 +52,7 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
         {
             AnsiConsole.MarkupLine("Writing SQL file to " + input.Path);
 
-            await database.WriteCreationScriptToFile(input.Path);
+            await database.WriteCreationScriptToFileAsync(input.Path);
         }
 
         return true;
@@ -76,6 +76,6 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
         }
 
         AnsiConsole.WriteLine("Writing SQL files to " + input.Path);
-        return database.WriteScriptsByType(input.Path);
+        return database.WriteScriptsByTypeAsync(input.Path);
     }
 }

@@ -21,9 +21,9 @@ public static class SchemaObjectsExtensions
         return $"{prefix}_{name.Name}_{columnNames.Join("_")}";
     }
 
-    public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn)
+    public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn, CancellationToken ct = default)
     {
-        var migration = await SchemaMigration.Determine(conn, schemaObject).ConfigureAwait(false);
+        var migration = await SchemaMigration.Determine(conn, ct, schemaObject).ConfigureAwait(false);
 
         await new PostgresqlMigrator().ApplyAll(conn, migration, AutoCreate.CreateOrUpdate).ConfigureAwait(false);
     }

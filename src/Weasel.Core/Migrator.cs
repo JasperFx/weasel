@@ -76,14 +76,14 @@ public abstract class Migrator
     /// </summary>
     /// <param name="filename"></param>
     /// <param name="writeStep"></param>
-    public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep)
+    public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep, CancellationToken ct = default)
     {
         await using var stream = new FileStream(filename, FileMode.Create);
         var writer = new StreamWriter(stream) { AutoFlush = true };
 
         WriteScript(writer, writeStep);
 
-        await stream.FlushAsync().ConfigureAwait(false);
+        await stream.FlushAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -107,8 +107,13 @@ public abstract class Migrator
     /// <param name="migration"></param>
     /// <param name="autoCreate"></param>
     /// <param name="logger"></param>
-    public async Task ApplyAll(DbConnection conn, SchemaMigration migration, AutoCreate autoCreate,
-        IMigrationLogger? logger = null)
+    public async Task ApplyAll(
+        DbConnection conn,
+        SchemaMigration migration,
+        AutoCreate autoCreate,
+        IMigrationLogger? logger = null,
+        CancellationToken ct = default
+    )
     {
         if (autoCreate == AutoCreate.None)
         {
@@ -128,11 +133,16 @@ public abstract class Migrator
         migration.AssertPatchingIsValid(autoCreate);
 
         logger ??= new DefaultMigrationLogger();
-        await executeDelta(migration, conn, autoCreate, logger).ConfigureAwait(false);
+        await executeDelta(migration, conn, autoCreate, logger, ct).ConfigureAwait(false);
     }
 
-    protected abstract Task executeDelta(SchemaMigration migration, DbConnection conn, AutoCreate autoCreate,
-        IMigrationLogger logger);
+    protected abstract Task executeDelta(
+        SchemaMigration migration,
+        DbConnection conn,
+        AutoCreate autoCreate,
+        IMigrationLogger logger,
+        CancellationToken ct = default
+    );
 
     /// <summary>
     ///     Write the SQL updates for a single delta object to the TextWriter
@@ -177,7 +187,7 @@ public abstract class Migrator
     /// </summary>
     /// <param name="filename"></param>
     /// <param name="migration"></param>
-    public async Task WriteMigrationFile(string filename, SchemaMigration patch)
+    public async Task WriteMigrationFile(string filename, SchemaMigration patch, CancellationToken ct = default)
     {
         if (!Path.IsPathRooted(filename))
         {
@@ -187,13 +197,13 @@ public abstract class Migrator
         await WriteTemplatedFile(filename, (r, w) =>
         {
             patch.WriteAllUpdates(w, r, AutoCreate.All);
-        }).ConfigureAwait(false);
+        }, ct).ConfigureAwait(false);
 
         var dropFile = SchemaMigration.ToDropFileName(filename);
         await WriteTemplatedFile(dropFile, (r, w) =>
         {
             patch.WriteAllRollbacks(w, r);
-        }).ConfigureAwait(false);
+        }, ct).ConfigureAwait(false);
     }
 
     /// <summary>

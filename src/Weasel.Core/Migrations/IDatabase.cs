@@ -43,8 +43,9 @@ public interface IDatabase
     ///     Determine a migration for a single IFeatureSchema
     /// </summary>
     /// <param name="group"></param>
+    /// <param name="ct"> Cancellation token</param>
     /// <returns></returns>
-    Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group);
+    Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group, CancellationToken ct = default);
 
     /// <summary>
     ///     Return the SQL script for the entire database configuration as a single string
@@ -56,40 +57,51 @@ public interface IDatabase
     ///     Write the SQL creation script to the supplied filename
     /// </summary>
     /// <param name="filename"></param>
+    /// <param name="ct">Cancellation Token</param>
     /// <returns></returns>
-    Task WriteCreationScriptToFile(string filename);
+    Task WriteCreationScriptToFileAsync(string filename, CancellationToken ct = default);
 
     /// <summary>
     ///     Write the SQL creation script by feature type to the supplied directory
     /// </summary>
     /// <param name="directory"></param>
-    Task WriteScriptsByType(string directory);
+    /// <param name="ct">Cancellation Token</param>
+    Task WriteScriptsByTypeAsync(string directory, CancellationToken ct = default);
 
     /// <summary>
     ///     Determine a migration for the configured database against the actual database
     /// </summary>
+    /// <param name="ct">Cancellation Token</param>
     /// <returns></returns>
-    Task<SchemaMigration> CreateMigrationAsync();
+    Task<SchemaMigration> CreateMigrationAsync(CancellationToken ct = default);
 
     /// <summary>
     ///     Apply all detected changes between configuration and the actual database to the database
     /// </summary>
     /// <param name="override">If supplied, this overrides the AutoCreate threshold of this database</param>
+    /// <param name="reconnectionOptions">Reconnection policy options when the database is unavailable while applying database changes. If not supplied it will use default options.</param>
+    /// <param name="ct">Cancellation Token</param>
     /// <returns></returns>
-    Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(AutoCreate? @override = null);
+    Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
+        AutoCreate? @override = null,
+        ReconnectionOptions? reconnectionOptions = null,
+        CancellationToken ct = default
+    );
 
     /// <summary>
     ///     Assert that the existing database matches the configured database
     /// </summary>
+    /// <param name="ct">Cancellation Token</param>
     /// <returns></returns>
-    Task AssertDatabaseMatchesConfigurationAsync();
+    Task AssertDatabaseMatchesConfigurationAsync(CancellationToken ct = default);
 
     /// <summary>
     ///     Attempts to connect to the actual database and throws an exception
     ///     if that fails
     /// </summary>
+    /// <param name="ct">Cancellation Token</param>
     /// <returns></returns>
-    Task AssertConnectivity();
+    Task AssertConnectivityAsync(CancellationToken ct = default);
 }
 
 public static class DatabaseExtensions
@@ -99,13 +111,13 @@ public static class DatabaseExtensions
     /// </summary>
     /// <param name="database"></param>
     /// <param name="filename"></param>
-    public static async Task WriteMigrationFileAsync(this IDatabase database, string filename)
+    public static async Task WriteMigrationFileAsync(this IDatabase database, string filename, CancellationToken ct = default)
     {
         var migration = await database.CreateMigrationAsync().ConfigureAwait(false);
         await database.Migrator.WriteMigrationFile(filename, migration).ConfigureAwait(false);
     }
 
-    public static Task<SchemaMigration> CreateMigrationAsync(this IDatabase database, Type featureType)
+    public static Task<SchemaMigration> CreateMigrationAsync(this IDatabase database, Type featureType, CancellationToken ct = default)
     {
         var feature = database.BuildFeatureSchemas().FirstOrDefault(x => x.StorageType == featureType);
         if (feature == null)
