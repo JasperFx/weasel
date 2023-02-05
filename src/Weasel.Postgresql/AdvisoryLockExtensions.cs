@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Npgsql;
 using Weasel.Core;
+using Weasel.Core.Migrations;
 
 namespace Weasel.Postgresql;
 
@@ -29,7 +30,7 @@ public static class AdvisoryLockExtensions
     /// <param name="lockId"></param>
     /// <param name="cancellation"></param>
     /// <returns></returns>
-    public static Task<bool> TryGetGlobalTxLock(this NpgsqlTransaction tx, int lockId,
+    public static Task<AttainLockResult> TryGetGlobalTxLock(this NpgsqlTransaction tx, int lockId,
         CancellationToken cancellation = default) =>
         ExecuteGetGlobalLockWrapper(
             tx.CreateCommand("SELECT pg_try_advisory_xact_lock(:id);")
@@ -60,7 +61,7 @@ public static class AdvisoryLockExtensions
     /// <param name="lockId"></param>
     /// <param name="cancellation"></param>
     /// <returns></returns>
-    public static Task<bool> TryGetGlobalLock(this NpgsqlConnection conn, int lockId,
+    public static Task<AttainLockResult> TryGetGlobalLock(this NpgsqlConnection conn, int lockId,
         CancellationToken cancellation = default) =>
         ExecuteGetGlobalLockWrapper(
             conn.CreateCommand("SELECT pg_try_advisory_lock(:id);")
@@ -98,12 +99,13 @@ public static class AdvisoryLockExtensions
                 .ExecuteNonQueryAsync(cancellation);
     }
 
-    private static async Task<bool> ExecuteGetGlobalLockWrapper(DbCommand getGlobalLock, CancellationToken cancellation)
+    private static async Task<AttainLockResult> ExecuteGetGlobalLockWrapper(DbCommand getGlobalLock, CancellationToken cancellation)
     {
         try
         {
             var c = await getGlobalLock.ExecuteScalarAsync(cancellation).ConfigureAwait(false);
-            return (bool)c;
+            var succeeded = (bool)c;
+            return succeeded ? AttainLockResult.Success : AttainLockResult.Failure;
         }
         catch (PostgresException pgException)
         {
@@ -112,7 +114,7 @@ public static class AdvisoryLockExtensions
             // Check https://github.com/npgsql/npgsql/issues/2896 for more details
             if (pgException.SqlState == PostgresErrorCodes.AdminShutdown)
             {
-                return false;
+                return AttainLockResult.DatabaseNotAvailable;
             }
 
             throw;

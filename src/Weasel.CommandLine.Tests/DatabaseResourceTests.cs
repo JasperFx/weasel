@@ -51,7 +51,6 @@ public class DatabaseResourceTests
 
         await resource.DetermineStatus(cancellationToken);
 
-
         await databaseWithStatistics.Received().DetermineStatus(cancellationToken);
     }
 

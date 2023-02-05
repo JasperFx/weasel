@@ -9,6 +9,7 @@ using Weasel.Core.Migrations;
 using Weasel.Postgresql.Tables;
 using Xunit;
 using JasperFx.Core;
+using static System.Threading.Tasks.Task;
 
 namespace Weasel.Postgresql.Tests.Migrations
 {
@@ -37,8 +38,6 @@ namespace Weasel.Postgresql.Tests.Migrations
             await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync();
 
             await theDatabase.AssertDatabaseMatchesConfigurationAsync();
-
-
         }
 
         [Fact]
@@ -60,8 +59,6 @@ namespace Weasel.Postgresql.Tests.Migrations
             // Also good
             migration.AssertPatchingIsValid(AutoCreate.CreateOnly);
             migration.AssertPatchingIsValid(AutoCreate.CreateOrUpdate);
-
-
         }
 
         [Fact]
@@ -87,7 +84,28 @@ namespace Weasel.Postgresql.Tests.Migrations
             Should.Throw<SchemaMigrationException>(() => migration.AssertPatchingIsValid(AutoCreate.CreateOnly));
         }
 
+        [Fact]
+        public async Task assert_reconnection_succeeds()
+        {
+            var table = theDatabase.Features["One"].AddTable(SchemaName, "one");
+            await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync();
 
+            // Add a new table here.
+            table.AddColumn<string>("description");
+
+            var migration = await theDatabase.CreateMigrationAsync();
+            migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+            // Always good!
+            migration.AssertPatchingIsValid(AutoCreate.All);
+            migration.AssertPatchingIsValid(AutoCreate.None); // Even though nothing would ever happen
+
+            // Also good
+            migration.AssertPatchingIsValid(AutoCreate.CreateOrUpdate);
+
+            // Not good!
+            Should.Throw<SchemaMigrationException>(() => migration.AssertPatchingIsValid(AutoCreate.CreateOnly));
+        }
     }
 
     public class NamedTable: Table
@@ -131,11 +149,13 @@ namespace Weasel.Postgresql.Tests.Migrations
             return new DatabaseWithTables(identifier, connectionString);
         }
 
-        public DatabaseWithTables(AutoCreate autoCreate, string identifier) : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, ConnectionSource.ConnectionString)
+        public DatabaseWithTables(AutoCreate autoCreate, string identifier)
+            : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, ConnectionSource.ConnectionString)
         {
         }
 
-        public DatabaseWithTables(string identifier, string connectionString) : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, connectionString)
+        public DatabaseWithTables(string identifier, string connectionString)
+            : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, connectionString)
         {
         }
 
@@ -146,6 +166,48 @@ namespace Weasel.Postgresql.Tests.Migrations
         public override IFeatureSchema[] BuildFeatureSchemas()
         {
             return Features.OfType<IFeatureSchema>().ToArray();
+        }
+    }
+
+    public class FlakyConnectionGlobalLock: IGlobalLock<NpgsqlConnection>
+    {
+        public bool failedAlread = false;
+        public int ApplyChangesLockId = 4004;
+
+        public async Task<AttainLockResult> TryAttainLock(NpgsqlConnection conn, CancellationToken ct = default)
+        {
+            if (!failedAlread)
+            {
+                // this will make AdminShutdown exception while trying to get global lock
+                await conn.CreateCommand($"SELECT pg_terminate_backend({conn.ProcessID})").ExecuteNonQueryAsync(ct);
+            }
+
+            var result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
+
+            if (result != AttainLockResult.Failure)
+                return result;
+
+            await Delay(50, ct).ConfigureAwait(false);
+            result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
+
+            if (result != AttainLockResult.Failure)
+                return result;
+
+            await Delay(100, ct).ConfigureAwait(false);
+            result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
+
+            if (result != AttainLockResult.Failure)
+                return result;
+
+            await Delay(250, ct).ConfigureAwait(false);
+            result = await conn.TryGetGlobalLock(ApplyChangesLockId, cancellation: ct).ConfigureAwait(false);
+
+            return result;
+        }
+
+        public Task ReleaseLock(NpgsqlConnection conn, CancellationToken ct = default)
+        {
+            throw new NotImplementedException();
         }
     }
 }
