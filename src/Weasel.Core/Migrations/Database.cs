@@ -4,11 +4,20 @@ using JasperFx.Core;
 
 namespace Weasel.Core.Migrations;
 
-public enum AttainLockResult
+public record AttainLockResult(bool Succeeded, AttainLockResult.FailureReason Reason)
 {
-    Success,
-    Failure,
-    DatabaseNotAvailable
+    public bool ShouldReconnect => Reason == FailureReason.DatabaseNotAvailable;
+
+    public static readonly AttainLockResult Success = new(true, FailureReason.None);
+
+    public static AttainLockResult Failure(FailureReason reason = FailureReason.Failure) => new(false, reason);
+
+    public enum FailureReason
+    {
+        None,
+        Failure,
+        DatabaseNotAvailable
+    }
 }
 
 public interface IGlobalLock<in TConnection> where TConnection : DbConnection
@@ -271,15 +280,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             {
                 attainLockResult = await globalLock.TryAttainLock(conn, ct).ConfigureAwait(false);
 
-                if (attainLockResult != AttainLockResult.DatabaseNotAvailable ||
-                    ++reconnectionCount < maxReconnectionCount)
+                if (attainLockResult.ShouldReconnect || ++reconnectionCount < maxReconnectionCount)
                     continue;
 
                 conn = CreateConnection();
 
                 await Task.Delay(reconnectionCount * delayInMs, ct).ConfigureAwait(false);
-            } while (attainLockResult == AttainLockResult.DatabaseNotAvailable &&
-                     reconnectionCount < maxReconnectionCount);
+            } while (attainLockResult.ShouldReconnect && reconnectionCount < maxReconnectionCount);
 
             if (attainLockResult == AttainLockResult.Success)
             {

@@ -3,7 +3,6 @@ using System.Data.SqlClient;
 using System.Threading.Tasks;
 using Npgsql;
 using Shouldly;
-using Weasel.Core.Migrations;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests
@@ -24,13 +23,13 @@ namespace Weasel.Postgresql.Tests
             await conn1.GetGlobalLock(1);
 
             // Cannot get the lock here
-            (await conn2.TryGetGlobalLock(1)).ShouldBe(AttainLockResult.Failure);
+            (await conn2.TryGetGlobalLock(1)).Succeeded.ShouldBeFalse();
 
             await conn1.ReleaseGlobalLock(1);
 
             for (var j = 0; j < 5; j++)
             {
-                if (await conn2.TryGetGlobalLock(1) == AttainLockResult.Success) return;
+                if ((await conn2.TryGetGlobalLock(1)).Succeeded) return;
 
                 await Task.Delay(250);
             }
@@ -55,7 +54,7 @@ namespace Weasel.Postgresql.Tests
 
             // Cannot get the lock here
             var tx2 = await conn2.BeginTransactionAsync();
-            (await tx2.TryGetGlobalTxLock(2)).ShouldBe(AttainLockResult.Failure);
+            (await tx2.TryGetGlobalTxLock(2)).Succeeded.ShouldBeFalse();
 
 
             await tx1.RollbackAsync();
@@ -63,7 +62,7 @@ namespace Weasel.Postgresql.Tests
 
             for (var j = 0; j < 5; j++)
             {
-                if (await tx2.TryGetGlobalTxLock(2) == AttainLockResult.Success)
+                if ((await tx2.TryGetGlobalTxLock(2)).Succeeded)
                 {
                     await tx2.RollbackAsync();
                     return;
@@ -91,13 +90,13 @@ namespace Weasel.Postgresql.Tests
             try
             {
                 // Cannot get the lock here
-                (await conn2.TryGetGlobalLock(24)).ShouldBe(AttainLockResult.Failure);
+                (await conn2.TryGetGlobalLock(24)).Succeeded.ShouldBeFalse();
 
                 // Can get the new lock
-                (await conn3.TryGetGlobalLock(25)).ShouldBe(AttainLockResult.Success);
+                (await conn3.TryGetGlobalLock(25)).Succeeded.ShouldBeTrue();
 
                 // Cannot get the lock here
-                (await conn2.TryGetGlobalLock(25)).ShouldBe(AttainLockResult.Failure);
+                (await conn2.TryGetGlobalLock(25)).Succeeded.ShouldBeFalse();
             }
             finally
             {
@@ -123,14 +122,14 @@ namespace Weasel.Postgresql.Tests
 
             // Cannot get the lock here
             var tx2 = await conn2.BeginTransactionAsync();
-            (await tx2.TryGetGlobalTxLock(4)).ShouldBe(AttainLockResult.Failure);
+            (await tx2.TryGetGlobalTxLock(4)).Succeeded.ShouldBeFalse();
 
             // Can get the new lock
             var tx3 = await conn3.BeginTransactionAsync();
-            (await tx3.TryGetGlobalTxLock(5)).ShouldBe(AttainLockResult.Success);
+            (await tx3.TryGetGlobalTxLock(5)).Succeeded.ShouldBeTrue();
 
             // Cannot get the lock here
-            (await tx2.TryGetGlobalTxLock( 5)).ShouldBe(AttainLockResult.Failure);
+            (await tx2.TryGetGlobalTxLock(5)).Succeeded.ShouldBeFalse();
 
             await tx1.RollbackAsync();
             await tx2.RollbackAsync();
