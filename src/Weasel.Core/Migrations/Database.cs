@@ -280,10 +280,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             {
                 attainLockResult = await globalLock.TryAttainLock(conn, ct).ConfigureAwait(false);
 
-                if (attainLockResult.ShouldReconnect || ++reconnectionCount < maxReconnectionCount)
+                if (!attainLockResult.ShouldReconnect || ++reconnectionCount == maxReconnectionCount)
                     continue;
 
                 conn = CreateConnection();
+                await conn.OpenAsync(ct).ConfigureAwait(false);
 
                 await Task.Delay(reconnectionCount * delayInMs, ct).ConfigureAwait(false);
             } while (attainLockResult.ShouldReconnect && reconnectionCount < maxReconnectionCount);
