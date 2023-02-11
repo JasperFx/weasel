@@ -50,7 +50,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await Task.Delay(100.Milliseconds());
 
-            await migration.RollbackAll(theConnection, new SqlServerMigrator());
+            await migration.RollbackAllAsync(theConnection, new SqlServerMigrator());
 
             var delta2 = await initial.FindDeltaAsync(theConnection);
             delta2.Difference.ShouldBe(SchemaPatchDifference.None);

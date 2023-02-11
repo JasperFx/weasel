@@ -45,7 +45,7 @@ namespace Weasel.Postgresql.Tests.Tables
             table ??= theTable;
             await table.ApplyChangesAsync(theConnection);
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeFalse();
         }
@@ -56,7 +56,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var table = await theTable.FetchExistingAsync(theConnection);
             table.ShouldBeNull();
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
 
@@ -65,7 +65,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await CreateSchemaObjectInDatabase(theTable);
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeFalse();
 
@@ -78,7 +78,7 @@ namespace Weasel.Postgresql.Tests.Tables
             await CreateSchemaObjectInDatabase(theTable);
 
             theTable.AddColumn<DateTimeOffset>("birth_day");
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Columns.Missing.Single().Name.ShouldBe("birth_day");
@@ -111,7 +111,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             theTable.RemoveColumn("birth_day");
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Columns.Extras.Single().Name.ShouldBe("birth_day");
@@ -132,7 +132,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Indexes.Missing.Single()
@@ -151,7 +151,7 @@ namespace Weasel.Postgresql.Tests.Tables
             await CreateSchemaObjectInDatabase(theTable);
 
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeFalse();
 
             delta.Indexes.Matched.Single()
@@ -172,7 +172,7 @@ namespace Weasel.Postgresql.Tests.Tables
                 .Method = IndexMethod.hash;
             indexDefinition.IsUnique = false;
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Indexes.Different.Single()
@@ -193,7 +193,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             theTable.Indexes.Clear();
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Indexes.Extras.Single().Name
@@ -214,7 +214,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             theTable.IgnoreIndex("ignore_me");
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeFalse();
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
@@ -239,7 +239,7 @@ namespace Weasel.Postgresql.Tests.Tables
             expected.AssertMatches(actual, theTable);
 
             // And no deltas
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.Indexes.Matched.Count.ShouldBe(1);
         }
 
@@ -349,7 +349,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeTrue();
 
@@ -382,7 +382,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             table.ForeignKeys.Clear();
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeTrue();
 
@@ -414,7 +414,7 @@ namespace Weasel.Postgresql.Tests.Tables
             await CreateSchemaObjectInDatabase(table);
 
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeFalse();
 
@@ -442,7 +442,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeFalse();
             delta.ForeignKeys.Matched.Single().Name.ShouldBe("foreign_key_test_parent_id_fkey");
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
@@ -477,7 +477,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             table.ForeignKeys.Single().OnDelete = CascadeAction.Cascade;
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeTrue();
 
@@ -495,7 +495,7 @@ namespace Weasel.Postgresql.Tests.Tables
             await CreateSchemaObjectInDatabase(theTable);
 
             theTable.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValueByString("foo");
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
 
             delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
             delta.HasChanges().ShouldBeTrue();
@@ -515,7 +515,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             table.ModifyColumn("abbreviation").AsPrimaryKey();
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
             delta.HasChanges().ShouldBeTrue();
@@ -530,7 +530,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             theTable.PrimaryKeyName = "pk_newchange";
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
 
             delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
 
@@ -546,7 +546,7 @@ namespace Weasel.Postgresql.Tests.Tables
                 "pk_this_primary_key_exceeds_the_postgres_default_namedatalen_limit_of_sixtythree_chars";
             await CreateSchemaObjectInDatabase(theTable);
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeFalse();
         }
 
@@ -567,7 +567,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             dudeTable.PrimaryKeyName = "pk_newchange";
 
-            var delta = await dudeTable.FindDelta(theConnection);
+            var delta = await dudeTable.FindDeltaAsync(theConnection);
 
             delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
 
@@ -588,7 +588,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(theTable);
 
-            var delta = await table2.FindDelta(theConnection);
+            var delta = await table2.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -604,7 +604,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table2);
 
-            var delta = await table2.FindDelta(theConnection);
+            var delta = await table2.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 

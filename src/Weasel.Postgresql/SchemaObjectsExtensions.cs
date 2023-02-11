@@ -135,7 +135,7 @@ public static class SchemaObjectsExtensions
         return await reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(
+    public static async Task<IReadOnlyList<DbObjectName>> ExistingTablesAsync(
         this NpgsqlConnection conn,
         string? namePattern = null,
         string[]? schemas = null,

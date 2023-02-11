@@ -48,6 +48,6 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
 
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        return await conn.ExistingTables(schemas: schemaNames, ct: ct).ConfigureAwait(false);
+        return await conn.ExistingTablesAsync(schemas: schemaNames, ct: ct).ConfigureAwait(false);
     }
 }

@@ -44,7 +44,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await Task.Delay(100.Milliseconds());
 
-            var delta = await configured.FindDelta(theConnection);
+            var delta = await configured.FindDeltaAsync(theConnection);
 
             var migration = new SchemaMigration(new ISchemaObjectDelta[] { delta });
 
@@ -52,9 +52,9 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await Task.Delay(100.Milliseconds());
 
-            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
+            await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
 
-            var delta2 = await initial.FindDelta(theConnection);
+            var delta2 = await initial.FindDeltaAsync(theConnection);
             delta2.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
