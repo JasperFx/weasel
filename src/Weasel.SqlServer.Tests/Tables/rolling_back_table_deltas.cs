@@ -7,12 +7,12 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    public class rolling_back_table_deltas : IntegrationContext
+    public class rolling_back_table_deltas: IntegrationContext
     {
         private Table initial;
         private Table configured;
 
-        public rolling_back_table_deltas() : base("rollbacks")
+        public rolling_back_table_deltas(): base("rollbacks")
         {
             initial = new Table("rollbacks.people");
             initial.AddColumn<int>("id").AsPrimaryKey();
@@ -42,17 +42,17 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await Task.Delay(100.Milliseconds());
 
-            var delta = await configured.FindDelta(theConnection);
+            var delta = await configured.FindDeltaAsync(theConnection);
 
-            var migration = new SchemaMigration(new ISchemaObjectDelta[] {delta});
+            var migration = new SchemaMigration(new ISchemaObjectDelta[] { delta });
 
-            await new SqlServerMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new SqlServerMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
             await Task.Delay(100.Milliseconds());
 
             await migration.RollbackAll(theConnection, new SqlServerMigrator());
 
-            var delta2 = await initial.FindDelta(theConnection);
+            var delta2 = await initial.FindDeltaAsync(theConnection);
             delta2.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 

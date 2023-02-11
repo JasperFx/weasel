@@ -11,7 +11,7 @@ using Xunit;
 namespace Weasel.Postgresql.Tests.Tables
 {
     [Collection("deltas")]
-    public class detecting_table_deltas : IntegrationContext
+    public class detecting_table_deltas: IntegrationContext
     {
         private Table theTable;
 
@@ -25,7 +25,7 @@ namespace Weasel.Postgresql.Tests.Tables
          *
          */
 
-        public detecting_table_deltas() : base("deltas")
+        public detecting_table_deltas(): base("deltas")
         {
             theTable = new Table("deltas.people");
             theTable.AddColumn<int>("id").AsPrimaryKey();
@@ -43,7 +43,7 @@ namespace Weasel.Postgresql.Tests.Tables
         protected async Task AssertNoDeltasAfterPatching(Table table = null)
         {
             table ??= theTable;
-            await table.ApplyChanges(theConnection);
+            await table.ApplyChangesAsync(theConnection);
 
             var delta = await table.FindDelta(theConnection);
 
@@ -53,12 +53,11 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public async Task detect_all_new_table()
         {
-            var table = await theTable.FetchExisting(theConnection);
+            var table = await theTable.FetchExistingAsync(theConnection);
             table.ShouldBeNull();
 
             var delta = await theTable.FindDelta(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
-
         }
 
         [Fact]
@@ -230,7 +229,7 @@ namespace Weasel.Postgresql.Tests.Tables
             configure(theTable);
             await CreateSchemaObjectInDatabase(theTable);
 
-            var existing = await theTable.FetchExisting(theConnection);
+            var existing = await theTable.FetchExistingAsync(theConnection);
 
             // The index DDL should match what the database thinks it is in order to match
 
@@ -248,35 +247,37 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             foreach (var (description, action) in IndexConfigs())
             {
-                yield return new object[] {description, action};
+                yield return new object[] { description, action };
             }
         }
 
         private static IEnumerable<(string, Action<Table>)> IndexConfigs()
         {
             yield return ("Simple btree", t => t.ModifyColumn("user_name").AddIndex());
-            yield return ("Simple btree with non-zero fill factor", t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
-            yield return ("Simple btree with expression", t => t.ModifyColumn("user_name").AddIndex(i => i.Mask = "(lower(?))"));
+            yield return ("Simple btree with non-zero fill factor",
+                t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
+            yield return ("Simple btree with expression",
+                t => t.ModifyColumn("user_name").AddIndex(i => i.Mask = "(lower(?))"));
             yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
                 i.Mask = "(lower(?))";
-                i.Columns = new[] {"user_name"};
+                i.Columns = new[] { "user_name" };
                 i.Predicate = "id > 5";
             }));
 
             yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
                 i.Mask = "(lower(?))";
-                i.Columns = new[] {"user_name"};
+                i.Columns = new[] { "user_name" };
                 i.Predicate = "user_name is not null";
             }));
 
-            yield return ("Simple btree + desc", t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
+            yield return ("Simple btree + desc",
+                t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
             yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true));
             yield return ("btree + concurrent", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
                 i.IsConcurrent = true;
-
             }));
 
             yield return ("btree + concurrent + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
@@ -287,44 +288,47 @@ namespace Weasel.Postgresql.Tests.Tables
 
             yield return ("Simple brin", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.brin));
             yield return ("Simple gin", t => t.ModifyColumn("data").AddIndex(i => i.Method = IndexMethod.gin));
-            yield return ("Simple gist", t => t.AddColumn("data2", "tsvector").AddIndex(i => i.Method = IndexMethod.gist));
+            yield return ("Simple gist",
+                t => t.AddColumn("data2", "tsvector").AddIndex(i => i.Method = IndexMethod.gist));
             yield return ("Simple hash", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.hash));
 
 
-            yield return ("Simple jsonb property", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"(data ->> 'Name')"}));
+            yield return ("Simple jsonb property",
+                t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "(data ->> 'Name')" }));
             yield return ("Simple jsonb property + unique", t => t.ModifyColumn("data").AddIndex(i =>
             {
-                i.Columns = new[] {"(data ->> 'Name')"};
+                i.Columns = new[] { "(data ->> 'Name')" };
                 i.IsUnique = true;
             }));
 
-            yield return ("Jsonb property with function", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"lower(data ->> 'Name')"}));
+            yield return ("Jsonb property with function",
+                t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "lower(data ->> 'Name')" }));
             yield return ("Jsonb property with function + unique", t => t.ModifyColumn("data").AddIndex(i =>
             {
-                i.Columns = new[] {"lower(data ->> 'Name')"};
+                i.Columns = new[] { "lower(data ->> 'Name')" };
                 i.IsUnique = true;
             }));
             yield return ("Jsonb property with function as expression", t => t.ModifyColumn("data").AddIndex(i =>
             {
                 i.Mask = "lower(?)";
-                i.Columns = new[] {"(data ->> 'Name')"};
+                i.Columns = new[] { "(data ->> 'Name')" };
                 i.IsUnique = true;
             }));
 
-            yield return ("Jsonb property with cast", t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] {"CAST(data ->> 'SomeGuid' as uuid)"}));
+            yield return ("Jsonb property with cast",
+                t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)" }));
             yield return ("Jsonb property with cast + unique", t => t.ModifyColumn("data").AddIndex(i =>
             {
-                i.Columns = new[] {"CAST(data ->> 'SomeGuid' as uuid)"};
+                i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)" };
                 i.IsUnique = true;
             }));
 
 
             yield return ("Jsonb property with multiple casts + unique", t => t.ModifyColumn("data").AddIndex(i =>
             {
-                i.Columns = new[] {"CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'OtherGuid' as uuid)"};
+                i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'OtherGuid' as uuid)" };
                 i.IsUnique = true;
             }));
-
         }
 
         [Fact]
@@ -433,9 +437,7 @@ namespace Weasel.Postgresql.Tests.Tables
             // Marten uses custom class for foreign keys which is inherited from ForeignKey
             table.ForeignKeys.Add(new ForeignKeyTest("foreign_key_test_parent_id_fkey")
             {
-                LinkedTable = table.Identifier,
-                ColumnNames = new[] {"parent_id"},
-                LinkedNames = new[] {"id"}
+                LinkedTable = table.Identifier, ColumnNames = new[] { "parent_id" }, LinkedNames = new[] { "id" }
             });
 
             await CreateSchemaObjectInDatabase(table);
@@ -447,9 +449,9 @@ namespace Weasel.Postgresql.Tests.Tables
             await AssertNoDeltasAfterPatching(table);
         }
 
-        private class ForeignKeyTest : ForeignKey
+        private class ForeignKeyTest: ForeignKey
         {
-            public ForeignKeyTest(string name) : base(name)
+            public ForeignKeyTest(string name): base(name)
             {
             }
         }
@@ -540,7 +542,8 @@ namespace Weasel.Postgresql.Tests.Tables
         [Fact]
         public async Task detect_primary_key_constraint_name_change_with_key_beyond_namedatalen_limit()
         {
-            theTable.PrimaryKeyName = "pk_this_primary_key_exceeds_the_postgres_default_namedatalen_limit_of_sixtythree_chars";
+            theTable.PrimaryKeyName =
+                "pk_this_primary_key_exceeds_the_postgres_default_namedatalen_limit_of_sixtythree_chars";
             await CreateSchemaObjectInDatabase(theTable);
 
             var delta = await theTable.FindDelta(theConnection);
@@ -617,10 +620,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            table.Indexes.Add(new IndexDefinition("idx_blobs_data_name")
-            {
-                Columns = new []{"(data ->> 'Name')"}
-            });
+            table.Indexes.Add(new IndexDefinition("idx_blobs_data_name") { Columns = new[] { "(data ->> 'Name')" } });
 
             await AssertNoDeltasAfterPatching(table);
         }

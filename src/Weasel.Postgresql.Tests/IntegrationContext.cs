@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests
 {
-    public abstract class IntegrationContext : IDisposable, IAsyncLifetime
+    public abstract class IntegrationContext: IDisposable, IAsyncLifetime
     {
         protected readonly NpgsqlConnection theConnection = new NpgsqlConnection(ConnectionSource.ConnectionString);
 
@@ -17,7 +17,8 @@ namespace Weasel.Postgresql.Tests
         {
             if (!GetType().HasAttribute<CollectionAttribute>())
             {
-                throw new InvalidOperationException("You must decorate this class with a [Collection(\"schemaname\"] attribute. Preferably w/ the schema name");
+                throw new InvalidOperationException(
+                    "You must decorate this class with a [Collection(\"schemaname\"] attribute. Preferably w/ the schema name");
             }
 
             SchemaName = schemaName;
@@ -34,7 +35,7 @@ namespace Weasel.Postgresql.Tests
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema(SchemaName);
+            await theConnection.ResetSchemaAsync(SchemaName);
         }
 
         protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)

@@ -10,7 +10,7 @@ using Xunit;
 namespace Weasel.Postgresql.Tests.Functions
 {
     [Collection("functions")]
-    public class FunctionTests : IntegrationContext
+    public class FunctionTests: IntegrationContext
     {
         private readonly string theFunctionBody = @"
 CREATE OR REPLACE FUNCTION functions.mt_get_next_hi(entity varchar) RETURNS integer AS
@@ -70,7 +70,7 @@ $$ LANGUAGE plpgsql;
 
         private Table theHiloTable;
 
-        public FunctionTests() : base("functions")
+        public FunctionTests(): base("functions")
         {
             theHiloTable = new Table("functions.mt_hilo");
             theHiloTable.AddColumn<string>("entity_name").AsPrimaryKey();
@@ -80,9 +80,9 @@ $$ LANGUAGE plpgsql;
 
         protected async Task AssertNoDeltasAfterPatching(Function func)
         {
-            await func.ApplyChanges(theConnection);
+            await func.ApplyChangesAsync(theConnection);
 
-            var delta = await func.FindDelta(theConnection);
+            var delta = await func.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
@@ -135,9 +135,8 @@ $$ LANGUAGE plpgsql;
 
             next.As<int>().ShouldBe(0);
 
-            await theConnection.FunctionExists(function.Identifier);
+            await theConnection.FunctionExistsAsync(function.Identifier);
         }
-
 
 
         [Fact]
@@ -151,7 +150,7 @@ $$ LANGUAGE plpgsql;
 
             await CreateSchemaObjectInDatabase(function);
 
-            var functions = await theConnection.ExistingFunctions();
+            var functions = await theConnection.ExistingFunctionsAsync();
 
             functions.ShouldContain(function.Identifier);
 
@@ -170,10 +169,11 @@ $$ LANGUAGE plpgsql;
 
             await CreateSchemaObjectInDatabase(function);
 
-            var existing = await function.FetchExisting(theConnection);
+            var existing = await function.FetchExistingAsync(theConnection);
 
             existing.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
-            existing.DropStatements().Single().ShouldBe("DROP FUNCTION IF EXISTS functions.mt_get_next_hi(entity character varying);");
+            existing.DropStatements().Single()
+                .ShouldBe("DROP FUNCTION IF EXISTS functions.mt_get_next_hi(entity character varying);");
             existing.Body().ShouldNotBeNull();
         }
 
@@ -186,9 +186,9 @@ $$ LANGUAGE plpgsql;
 
             var function = Function.ForSql(theFunctionBody);
 
-            (await function.FetchExisting(theConnection)).ShouldBeNull();
+            (await function.FetchExistingAsync(theConnection)).ShouldBeNull();
 
-            var delta = await function.FindDelta(theConnection);
+            var delta = await function.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
@@ -206,12 +206,12 @@ $$ LANGUAGE plpgsql;
 
             var toRemove = Function.ForRemoval(function.Identifier);
 
-            var delta = await toRemove.FindDelta(theConnection);
+            var delta = await toRemove.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
             await AssertNoDeltasAfterPatching(toRemove);
 
-            (await theConnection.FunctionExists(toRemove.Identifier)).ShouldBeFalse();
+            (await theConnection.FunctionExistsAsync(toRemove.Identifier)).ShouldBeFalse();
         }
 
         [Fact]
@@ -227,16 +227,16 @@ $$ LANGUAGE plpgsql;
 
             var toRemove = Function.ForRemoval(function.Identifier);
 
-            var delta = await toRemove.FindDelta(theConnection);
+            var delta = await toRemove.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
             var migration = new SchemaMigration(delta);
 
-            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
             await migration.RollbackAll(theConnection, new PostgresqlMigrator());
 
-            (await theConnection.FunctionExists(toRemove.Identifier)).ShouldBeTrue();
+            (await theConnection.FunctionExistsAsync(toRemove.Identifier)).ShouldBeTrue();
         }
 
         [Fact]
@@ -250,7 +250,7 @@ $$ LANGUAGE plpgsql;
 
             await CreateSchemaObjectInDatabase(function);
 
-            var delta = await function.FindDelta(theConnection);
+            var delta = await function.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
@@ -267,10 +267,9 @@ $$ LANGUAGE plpgsql;
 
             var different = Function.ForSql(theDifferentBody);
 
-            var delta = await different.FindDelta(theConnection);
+            var delta = await different.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-
         }
 
         [Fact]
@@ -327,17 +326,17 @@ $$ LANGUAGE plpgsql;
 
             var different = Function.ForSql(theEvenDifferentBody);
 
-            var delta = await different.FindDelta(theConnection);
+            var delta = await different.FindDeltaAsync(theConnection);
 
             var migration = new SchemaMigration(delta);
 
-            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
             await migration.RollbackAll(theConnection, new PostgresqlMigrator());
 
             // Should be back to the original function
 
-            var lastDelta = await function.FindDelta(theConnection);
+            var lastDelta = await function.FindDeltaAsync(theConnection);
 
             lastDelta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
@@ -351,17 +350,16 @@ $$ LANGUAGE plpgsql;
 
             var function = Function.ForSql(theFunctionBody);
 
-            var delta = await function.FindDelta(theConnection);
+            var delta = await function.FindDeltaAsync(theConnection);
             var migration = new SchemaMigration(delta);
 
-            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            (await theConnection.FunctionExists(function.Identifier)).ShouldBeTrue();
+            (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeTrue();
 
             await migration.RollbackAll(theConnection, new PostgresqlMigrator());
 
-            (await theConnection.FunctionExists(function.Identifier)).ShouldBeFalse();
+            (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeFalse();
         }
     }
-
 }

@@ -9,10 +9,14 @@ namespace Weasel.Postgresql;
 
 public static class SchemaObjectsExtensions
 {
-    public static Task<Function?> FindExistingFunction(this NpgsqlConnection conn, DbObjectName functionName)
+    public static Task<Function?> FindExistingFunction(
+        this NpgsqlConnection conn,
+        DbObjectName functionName,
+        CancellationToken ct = default
+    )
     {
         var function = new Function(functionName, null);
-        return function.FetchExisting(conn);
+        return function.FetchExistingAsync(conn, ct);
     }
 
 
@@ -21,27 +25,33 @@ public static class SchemaObjectsExtensions
         return $"{prefix}_{name.Name}_{columnNames.Join("_")}";
     }
 
-    public static async Task ApplyChanges(this ISchemaObject schemaObject, NpgsqlConnection conn, CancellationToken ct = default)
+    public static async Task ApplyChangesAsync(this ISchemaObject schemaObject, NpgsqlConnection conn,
+        CancellationToken ct = default)
     {
-        var migration = await SchemaMigration.Determine(conn, ct, schemaObject).ConfigureAwait(false);
+        var migration = await SchemaMigration.DetermineAsync(conn, ct, schemaObject).ConfigureAwait(false);
 
-        await new PostgresqlMigrator().ApplyAll(conn, migration, AutoCreate.CreateOrUpdate).ConfigureAwait(false);
+        await new PostgresqlMigrator().ApplyAllAsync(conn, migration, AutoCreate.CreateOrUpdate, ct: ct)
+            .ConfigureAwait(false);
     }
 
-    public static Task Drop(this ISchemaObject schemaObject, NpgsqlConnection conn)
+    public static Task DropAsync(this ISchemaObject schemaObject, NpgsqlConnection conn, CancellationToken ct = default)
     {
         var writer = new StringWriter();
         schemaObject.WriteDropStatement(new PostgresqlMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
+        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
     }
 
-    public static Task Create(this ISchemaObject schemaObject, NpgsqlConnection conn)
+    public static Task CreateAsync(
+        this ISchemaObject schemaObject,
+        NpgsqlConnection conn,
+        CancellationToken ct = default
+    )
     {
         var writer = new StringWriter();
         schemaObject.WriteCreateStatement(new PostgresqlMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
+        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
     }
 
     public static async Task EnsureSchemaExists(this NpgsqlConnection conn, string schemaName,
@@ -69,21 +79,25 @@ public static class SchemaObjectsExtensions
         }
     }
 
-    public static Task<IReadOnlyList<string?>> ActiveSchemaNames(this NpgsqlConnection conn)
+    public static Task<IReadOnlyList<string?>> ActiveSchemaNamesAsync(
+        this NpgsqlConnection conn,
+        CancellationToken ct = default
+    )
     {
         return conn.CreateCommand("select nspname from pg_catalog.pg_namespace order by nspname")
-            .FetchList<string>();
+            .FetchListAsync<string>(cancellation: ct);
     }
 
 
-    public static async Task DropSchema(this NpgsqlConnection conn, string schemaName)
+    public static async Task DropSchemaAsync(this NpgsqlConnection conn, string schemaName,
+        CancellationToken ct = default)
     {
         if (conn.State == ConnectionState.Closed)
         {
-            await conn.OpenAsync().ConfigureAwait(false);
+            await conn.OpenAsync(ct).ConfigureAwait(false);
         }
 
-        await conn.CreateCommand(DropStatementFor(schemaName)).ExecuteNonQueryAsync().ConfigureAwait(false);
+        await conn.CreateCommand(DropStatementFor(schemaName)).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 
     public static string DropStatementFor(string schemaName, CascadeAction option = CascadeAction.Cascade)
@@ -91,17 +105,24 @@ public static class SchemaObjectsExtensions
         return $"drop schema if exists {schemaName} {option.ToString().ToUpperInvariant()};";
     }
 
-    public static Task CreateSchema(this NpgsqlConnection conn, string schemaName)
+    public static Task CreateSchemaAsync(this NpgsqlConnection conn, string schemaName, CancellationToken ct = default)
     {
-        return conn.CreateCommand(PostgresqlMigrator.CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync();
+        return conn.CreateCommand(PostgresqlMigrator.CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync(ct);
     }
 
-    public static Task ResetSchema(this NpgsqlConnection conn, string schemaName)
+    public static Task ResetSchemaAsync(this NpgsqlConnection conn, string schemaName, CancellationToken ct = default)
     {
-        return conn.RunSql(DropStatementFor(schemaName), PostgresqlMigrator.CreateSchemaStatementFor(schemaName));
+        return conn.RunSqlAsync(ct,
+            DropStatementFor(schemaName),
+            PostgresqlMigrator.CreateSchemaStatementFor(schemaName)
+        );
     }
 
-    public static async Task<bool> FunctionExists(this NpgsqlConnection conn, DbObjectName functionIdentifier)
+    public static async Task<bool> FunctionExistsAsync(
+        this NpgsqlConnection conn,
+        DbObjectName functionIdentifier,
+        CancellationToken ct = default
+    )
     {
         var sql =
             "SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger' and routine_name like :name and specific_schema = :schema;";
@@ -109,13 +130,17 @@ public static class SchemaObjectsExtensions
         await using var reader = await conn.CreateCommand(sql)
             .With("name", functionIdentifier.Name)
             .With("schema", functionIdentifier.Schema)
-            .ExecuteReaderAsync().ConfigureAwait(false);
+            .ExecuteReaderAsync(ct).ConfigureAwait(false);
 
-        return await reader.ReadAsync().ConfigureAwait(false);
+        return await reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(this NpgsqlConnection conn,
-        string? namePattern = null, string[]? schemas = null)
+    public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(
+        this NpgsqlConnection conn,
+        string? namePattern = null,
+        string[]? schemas = null,
+        CancellationToken ct = default
+    )
     {
         var builder = new CommandBuilder();
         builder.Append("SELECT schemaname, relname FROM pg_stat_user_tables");
@@ -141,11 +166,15 @@ public static class SchemaObjectsExtensions
 
         builder.Append(";");
 
-        return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
+        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
     }
 
-    public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctions(this NpgsqlConnection conn,
-        string? namePattern = null, string[]? schemas = null)
+    public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctionsAsync(
+        this NpgsqlConnection conn,
+        string? namePattern = null,
+        string[]? schemas = null,
+        CancellationToken ct = default
+    )
     {
         var builder = new CommandBuilder();
         builder.Append(
@@ -165,13 +194,15 @@ public static class SchemaObjectsExtensions
 
         builder.Append(";");
 
-        return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
+        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
     }
 
-    private static async Task<DbObjectName> ReadDbObjectName(DbDataReader reader)
+    private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        return new DbObjectName(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
-            await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
+        return new DbObjectName(
+            await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
+            await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false)
+        );
     }
 
     /// <summary>

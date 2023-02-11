@@ -5,9 +5,9 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    public class creating_tables_in_database : IntegrationContext
+    public class creating_tables_in_database: IntegrationContext
     {
-        public creating_tables_in_database() : base("tables")
+        public creating_tables_in_database(): base("tables")
         {
         }
 
@@ -16,7 +16,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -25,14 +25,13 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
 
             await theConnection.CreateCommand(
-                "insert into people (id, first_name, last_name) values (1, 'Elton', 'John')")
+                    "insert into people (id, first_name, last_name) values (1, 'Elton', 'John')")
                 .ExecuteNonQueryAsync();
         }
-
 
 
         [Fact]
@@ -40,7 +39,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -51,7 +50,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await DropSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeFalse();
         }
 
@@ -60,7 +59,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -70,7 +69,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
         }
 
@@ -80,7 +79,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var states = new Table("tables.states");
             states.AddColumn<int>("id").AsPrimaryKey();
@@ -96,9 +95,8 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
-
         }
 
         [Fact]
@@ -106,7 +104,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var states = new Table("states");
             states.AddColumn<int>("id").AsPrimaryKey();
@@ -122,9 +120,8 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
-
         }
 
         [Fact]
@@ -132,7 +129,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var states = new Table("states");
             states.AddColumn<int>("id").AsPrimaryKey();
@@ -153,9 +150,8 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
-
         }
     }
 }

@@ -6,9 +6,9 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    public class reading_existing_table_from_database : IntegrationContext
+    public class reading_existing_table_from_database: IntegrationContext
     {
-        public reading_existing_table_from_database() : base("tables")
+        public reading_existing_table_from_database(): base("tables")
         {
         }
 
@@ -17,7 +17,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -26,7 +26,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
             existing.ShouldNotBeNull();
             existing.Identifier.ShouldBe(table.Identifier);
@@ -40,7 +40,6 @@ namespace Weasel.SqlServer.Tests.Tables
 
                 SqlServerProvider.Instance.ConvertSynonyms(existingType)
                     .ShouldBe(SqlServerProvider.Instance.ConvertSynonyms(tableType));
-
             }
         }
 
@@ -49,7 +48,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -58,7 +57,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
             existing.PrimaryKeyColumns.Single()
                 .ShouldBe("id");
@@ -69,7 +68,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -79,10 +78,10 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
             existing.PrimaryKeyColumns.OrderBy(x => x)
-                .ShouldBe(new []{"id", "tenant_id"});
+                .ShouldBe(new[] { "id", "tenant_id" });
         }
 
         [Fact]
@@ -90,7 +89,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
 
             var states = new Table("tables.states");
@@ -110,7 +109,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
 
             existing.Indexes.Count.ShouldBe(2);
@@ -135,11 +134,12 @@ namespace Weasel.SqlServer.Tests.Tables
             {
             });
 
-            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id", onDelete:CascadeAction.Cascade, onUpdate:CascadeAction.SetNull);
+            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id", onDelete: CascadeAction.Cascade,
+                onUpdate: CascadeAction.SetNull);
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
 
             var fk = existing.ForeignKeys.Single();
@@ -159,7 +159,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
 
 
             var states = new Table("states");
@@ -182,23 +182,23 @@ namespace Weasel.SqlServer.Tests.Tables
             table.ForeignKeys.Add(new ForeignKey("fkey_people_state_id_tenant_id")
             {
                 LinkedTable = states.Identifier,
-                ColumnNames = new []{"state_id", "tenant_id"},
-                LinkedNames = new []{"id", "tenant_id"},
+                ColumnNames = new[] { "state_id", "tenant_id" },
+                LinkedNames = new[] { "id", "tenant_id" },
                 OnDelete = CascadeAction.Cascade,
                 OnUpdate = CascadeAction.SetNull
             });
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
 
             var fk = existing.ForeignKeys.Single();
 
             fk.Name.ShouldBe("fkey_people_state_id_tenant_id");
 
-            fk.ColumnNames.ShouldBe(new []{"state_id", "tenant_id"});
-            fk.LinkedNames.ShouldBe(new []{"id", "tenant_id"});
+            fk.ColumnNames.ShouldBe(new[] { "state_id", "tenant_id" });
+            fk.LinkedNames.ShouldBe(new[] { "id", "tenant_id" });
             fk.LinkedTable.Name.ShouldBe("states");
         }
     }

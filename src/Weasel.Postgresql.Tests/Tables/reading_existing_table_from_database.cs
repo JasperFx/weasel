@@ -18,7 +18,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
             
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -27,7 +27,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
             existing.ShouldNotBeNull();
             existing.Identifier.ShouldBe(table.Identifier);
@@ -50,7 +50,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
             
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -59,7 +59,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
             
             existing.PrimaryKeyColumns.Single()
                 .ShouldBe("id");
@@ -70,7 +70,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
             
             var table = new Table("people");
             table.AddColumn<int>("id").AsPrimaryKey();
@@ -80,7 +80,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
             
             existing.PrimaryKeyColumns.OrderBy(x => x)
                 .ShouldBe(new []{"id", "tenant_id"});
@@ -91,7 +91,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
             
             
             var states = new Table("states");
@@ -113,7 +113,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
             
             
             existing.Indexes.Count.ShouldBe(2);
@@ -124,7 +124,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
             
             
             var states = new Table("states");
@@ -146,7 +146,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
 
             var fk = existing.ForeignKeys.Single();
@@ -166,7 +166,7 @@ namespace Weasel.Postgresql.Tests.Tables
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema("tables");
+            await theConnection.ResetSchemaAsync("tables");
             
             
             var states = new Table("states");
@@ -199,7 +199,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
 
             var fk = existing.ForeignKeys.Single();

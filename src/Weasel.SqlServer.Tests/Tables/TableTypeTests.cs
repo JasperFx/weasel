@@ -7,9 +7,9 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    public class TableTypeTests : IntegrationContext
+    public class TableTypeTests: IntegrationContext
     {
-        public TableTypeTests() : base("table_types")
+        public TableTypeTests(): base("table_types")
         {
         }
 
@@ -21,7 +21,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(new DbObjectName("table_types", "EnvelopeIdList"));
             type.AddColumn<Guid>("ID");
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
         }
 
         [Fact]
@@ -33,7 +33,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            var existing = await type.FetchExisting(theConnection);
+            var existing = await type.FetchExistingAsync(theConnection);
             existing.ShouldBeNull();
         }
 
@@ -46,9 +46,9 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
-            var existing = await type.FetchExisting(theConnection);
+            var existing = await type.FetchExistingAsync(theConnection);
             existing.ShouldNotBeNull();
             existing.Columns.Count.ShouldBe(1);
             existing.Columns[0].Name.ShouldBe("ID");
@@ -63,7 +63,7 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
 
@@ -77,13 +77,11 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            await type.ApplyChanges(theConnection);
+            await type.ApplyChangesAsync(theConnection);
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
-
-
 
 
         [Fact]
@@ -95,9 +93,9 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -111,9 +109,9 @@ namespace Weasel.SqlServer.Tests.Tables
             type.AddColumn<Guid>("ID");
             type.AddColumn("name", "varchar");
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -127,11 +125,11 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
             await type.Drop(theConnection);
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
 
@@ -145,11 +143,11 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
             type.Columns[0].DatabaseType = "varchar";
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
 
@@ -163,11 +161,11 @@ namespace Weasel.SqlServer.Tests.Tables
             var type = new TableType(dbObjectName);
             type.AddColumn<Guid>("ID");
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
             type.Columns[0].AllowNulls = !type.Columns[0].AllowNulls;
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
 
@@ -182,11 +180,11 @@ namespace Weasel.SqlServer.Tests.Tables
             type.AddColumn<Guid>("ID");
 
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
             type.AddColumn<string>("name");
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
 
@@ -201,14 +199,14 @@ namespace Weasel.SqlServer.Tests.Tables
             type.AddColumn<Guid>("ID");
 
 
-            await type.Create(theConnection);
+            await type.CreateAsync(theConnection);
 
             type.AddColumn("name", "varchar");
 
 
-            await type.ApplyChanges(theConnection);
+            await type.ApplyChangesAsync(theConnection);
 
-            var delta = await type.FindDelta(theConnection);
+            var delta = await type.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }

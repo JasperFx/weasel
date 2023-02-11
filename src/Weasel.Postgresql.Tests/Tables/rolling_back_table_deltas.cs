@@ -9,12 +9,12 @@ using Xunit;
 namespace Weasel.Postgresql.Tests.Tables
 {
     [Collection("rollbacks")]
-    public class rolling_back_table_deltas : IntegrationContext
+    public class rolling_back_table_deltas: IntegrationContext
     {
         private Table initial;
         private Table configured;
 
-        public rolling_back_table_deltas() : base("rollbacks")
+        public rolling_back_table_deltas(): base("rollbacks")
         {
             initial = new Table("rollbacks.people");
             initial.AddColumn<int>("id").AsPrimaryKey();
@@ -46,9 +46,9 @@ namespace Weasel.Postgresql.Tests.Tables
 
             var delta = await configured.FindDelta(theConnection);
 
-            var migration = new SchemaMigration(new ISchemaObjectDelta[] {delta});
+            var migration = new SchemaMigration(new ISchemaObjectDelta[] { delta });
 
-            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
             await Task.Delay(100.Milliseconds());
 

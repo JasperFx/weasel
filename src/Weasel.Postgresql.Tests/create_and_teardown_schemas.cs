@@ -7,9 +7,9 @@ using Xunit;
 namespace Weasel.Postgresql.Tests
 {
     [Collection("schemas")]
-    public class create_and_teardown_schemas : IntegrationContext
+    public class create_and_teardown_schemas: IntegrationContext
     {
-        public create_and_teardown_schemas() : base("schemas")
+        public create_and_teardown_schemas(): base("schemas")
         {
         }
 
@@ -18,13 +18,13 @@ namespace Weasel.Postgresql.Tests
         {
             await theConnection.OpenAsync();
 
-            await theConnection.DropSchema("one");
+            await theConnection.DropSchemaAsync("one");
 
-            (await theConnection.ActiveSchemaNames()).ShouldNotContain("one");
+            (await theConnection.ActiveSchemaNamesAsync()).ShouldNotContain("one");
 
-            await theConnection.CreateSchema("one");
+            await theConnection.CreateSchemaAsync("one");
 
-            var schemas = await theConnection.ActiveSchemaNames();
+            var schemas = await theConnection.ActiveSchemaNamesAsync();
 
             schemas.ShouldContain("one");
         }
@@ -34,8 +34,8 @@ namespace Weasel.Postgresql.Tests
         {
             await theConnection.OpenAsync();
 
-            await theConnection.DropSchema("one");
-            await theConnection.DropSchema("two");
+            await theConnection.DropSchemaAsync("one");
+            await theConnection.DropSchemaAsync("two");
 
             var table1 = new Table("one.table1");
             table1.AddColumn<string>("name").AsPrimaryKey();
@@ -43,23 +43,24 @@ namespace Weasel.Postgresql.Tests
             var table2 = new Table("two.table2");
             table2.AddColumn<string>("name").AsPrimaryKey();
 
-            var migration = await SchemaMigration.Determine(theConnection, table1, table2);
+            var migration = await SchemaMigration.DetermineAsync(theConnection, table1, table2);
             migration.Difference.ShouldBe(SchemaPatchDifference.Create);
 
-            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            (await table1.FetchExisting(theConnection)).ShouldNotBeNull();
-            (await table2.FetchExisting(theConnection)).ShouldNotBeNull();
+            (await table1.FetchExistingAsync(theConnection)).ShouldNotBeNull();
+            (await table2.FetchExistingAsync(theConnection)).ShouldNotBeNull();
         }
 
         [Theory]
         [InlineData("public")]
         [InlineData("non_public")]
-        public async Task create_a_schema_on_the_fly_for_migrations_with_multiple_tables_in_the_same_schema(string schemaName)
+        public async Task create_a_schema_on_the_fly_for_migrations_with_multiple_tables_in_the_same_schema(
+            string schemaName)
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema(schemaName);
+            await theConnection.ResetSchemaAsync(schemaName);
 
             var table1 = new Table($"{schemaName}.table1");
             table1.AddColumn<string>("name").AsPrimaryKey();
@@ -67,15 +68,15 @@ namespace Weasel.Postgresql.Tests
             var table2 = new Table($"{schemaName}.table2");
             table2.AddColumn<string>("name").AsPrimaryKey();
 
-            var migration = await SchemaMigration.Determine(theConnection, table1, table2);
+            var migration = await SchemaMigration.DetermineAsync(theConnection, table1, table2);
             migration.Difference.ShouldBe(SchemaPatchDifference.Create);
 
-            await new PostgresqlMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            (await table1.FetchExisting(theConnection)).ShouldNotBeNull();
-            (await table2.FetchExisting(theConnection)).ShouldNotBeNull();
+            (await table1.FetchExistingAsync(theConnection)).ShouldNotBeNull();
+            (await table2.FetchExistingAsync(theConnection)).ShouldNotBeNull();
 
-            var noMigration = await SchemaMigration.Determine(theConnection, table1, table2);
+            var noMigration = await SchemaMigration.DetermineAsync(theConnection, table1, table2);
             noMigration.Difference.ShouldBe(SchemaPatchDifference.None);
         }
     }

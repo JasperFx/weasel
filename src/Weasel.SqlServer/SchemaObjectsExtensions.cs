@@ -13,27 +13,32 @@ public static class SchemaObjectsExtensions
         return $"{prefix}_{name.Name}_{columnNames.Join("_")}";
     }
 
-    public static async Task ApplyChanges(this ISchemaObject schemaObject, SqlConnection conn)
+    public static async Task ApplyChangesAsync(
+        this ISchemaObject schemaObject,
+        SqlConnection conn,
+        CancellationToken ct = default
+    )
     {
-        var migration = await SchemaMigration.Determine(conn, schemaObject).ConfigureAwait(false);
+        var migration = await SchemaMigration.DetermineAsync(conn, ct, schemaObject).ConfigureAwait(false);
 
-        await new SqlServerMigrator().ApplyAll(conn, migration, AutoCreate.CreateOrUpdate).ConfigureAwait(false);
+        await new SqlServerMigrator().ApplyAllAsync(conn, migration, AutoCreate.CreateOrUpdate, ct: ct)
+            .ConfigureAwait(false);
     }
 
-    public static Task Drop(this ISchemaObject schemaObject, SqlConnection conn)
+    public static Task Drop(this ISchemaObject schemaObject, SqlConnection conn, CancellationToken ct = default)
     {
         var writer = new StringWriter();
         schemaObject.WriteDropStatement(new SqlServerMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
+        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
     }
 
-    public static Task Create(this ISchemaObject schemaObject, SqlConnection conn)
+    public static Task CreateAsync(this ISchemaObject schemaObject, SqlConnection conn, CancellationToken ct = default)
     {
         var writer = new StringWriter();
         schemaObject.WriteCreateStatement(new SqlServerMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
+        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
     }
 
     public static async Task EnsureSchemaExists(this SqlConnection conn, string schemaName,
@@ -69,44 +74,47 @@ IF NOT EXISTS ( SELECT  *
         }
     }
 
-    public static Task<IReadOnlyList<string?>> ActiveSchemaNames(this SqlConnection conn)
+    public static Task<IReadOnlyList<string?>> ActiveSchemaNamesAsync(
+        this SqlConnection conn,
+        CancellationToken ct = default
+    )
     {
         return conn.CreateCommand("select name from sys.schemas order by name")
-            .FetchList<string>();
+            .FetchListAsync<string>(cancellation: ct);
     }
 
 
-    public static async Task DropSchema(this SqlConnection conn, string schemaName)
+    public static async Task DropSchemaAsync(this SqlConnection conn, string schemaName, CancellationToken ct = default)
     {
         var procedures = await conn
             .CreateCommand(
                 $"select routine_name from information_schema.routines where routine_schema = '{schemaName}';")
-            .FetchList<string>().ConfigureAwait(false);
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var constraints = await conn
             .CreateCommand(
                 $"select table_name, constraint_name from information_schema.table_constraints where table_schema = '{schemaName}' order by constraint_type")
-            .FetchList<string>(async r =>
+            .FetchListAsync<string>(async r =>
             {
-                var tableName = await r.GetFieldValueAsync<string>(0).ConfigureAwait(false);
-                var constraintName = await r.GetFieldValueAsync<string>(1).ConfigureAwait(false);
+                var tableName = await r.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+                var constraintName = await r.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
 
                 return $"alter table {schemaName}.{tableName} drop constraint {constraintName};";
-            }).ConfigureAwait(false);
+            }, cancellation: ct).ConfigureAwait(false);
 
         var tables = await conn
             .CreateCommand($"select table_name from information_schema.tables where table_schema = '{schemaName}'")
-            .FetchList<string>().ConfigureAwait(false);
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var sequences = await conn
             .CreateCommand(
                 $"select sequence_name from information_schema.sequences where sequence_schema = '{schemaName}'")
-            .FetchList<string>().ConfigureAwait(false);
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var tableTypes = await conn
             .CreateCommand(
                 $"select sys.table_types.name from sys.table_types inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id where sys.schemas.name = '{schemaName}'")
-            .FetchList<string>().ConfigureAwait(false);
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var drops = new List<string>();
         drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
@@ -116,34 +124,35 @@ IF NOT EXISTS ( SELECT  *
         drops.AddRange(tableTypes.Select(x => $"DROP TYPE {schemaName}.{x};"));
 
 
-        foreach (var drop in drops) await conn.CreateCommand(drop).ExecuteNonQueryAsync().ConfigureAwait(false);
+        foreach (var drop in drops) await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
 
         if (!schemaName.EqualsIgnoreCase(SqlServerProvider.Instance.DefaultDatabaseSchemaName))
         {
             var sql = $"drop schema if exists {schemaName};";
-            await conn.CreateCommand(sql).ExecuteNonQueryAsync().ConfigureAwait(false);
+            await conn.CreateCommand(sql).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
     }
 
-    public static Task CreateSchema(this SqlConnection conn, string schemaName)
+    public static Task CreateSchemaAsync(this SqlConnection conn, string schemaName, CancellationToken ct = default)
     {
-        return conn.CreateCommand(SqlServerMigrator.CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync();
+        return conn.CreateCommand(SqlServerMigrator.CreateSchemaStatementFor(schemaName)).ExecuteNonQueryAsync(ct);
     }
 
-    public static async Task ResetSchema(this SqlConnection conn, string schemaName)
+    public static async Task ResetSchemaAsync(this SqlConnection conn, string schemaName,
+        CancellationToken ct = default)
     {
         try
         {
-            await conn.DropSchema(schemaName).ConfigureAwait(false);
+            await conn.DropSchemaAsync(schemaName, ct: ct).ConfigureAwait(false);
         }
         catch (SqlException e)
         {
             if (e.Message.Contains("deadlocked"))
             {
-                await Task.Delay(100).ConfigureAwait(false);
+                await Task.Delay(100, ct).ConfigureAwait(false);
                 await conn.CloseAsync().ConfigureAwait(false);
-                await conn.OpenAsync().ConfigureAwait(false);
-                await conn.DropSchema(schemaName).ConfigureAwait(false);
+                await conn.OpenAsync(ct).ConfigureAwait(false);
+                await conn.DropSchemaAsync(schemaName, ct: ct).ConfigureAwait(false);
             }
             else
             {
@@ -151,10 +160,14 @@ IF NOT EXISTS ( SELECT  *
             }
         }
 
-        await conn.RunSql(SqlServerMigrator.CreateSchemaStatementFor(schemaName)).ConfigureAwait(false);
+        await conn.RunSqlAsync(ct, SqlServerMigrator.CreateSchemaStatementFor(schemaName)).ConfigureAwait(false);
     }
 
-    public static async Task<bool> FunctionExists(this SqlConnection conn, DbObjectName functionIdentifier)
+    public static async Task<bool> FunctionExistsAsync(
+        this SqlConnection conn,
+        DbObjectName functionIdentifier,
+        CancellationToken ct = default
+    )
     {
         var sql =
             "SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger' and routine_name like :name and specific_schema = :schema;";
@@ -162,13 +175,16 @@ IF NOT EXISTS ( SELECT  *
         await using var reader = await conn.CreateCommand(sql)
             .With("name", functionIdentifier.Name)
             .With("schema", functionIdentifier.Schema)
-            .ExecuteReaderAsync().ConfigureAwait(false);
+            .ExecuteReaderAsync(ct).ConfigureAwait(false);
 
-        return await reader.ReadAsync().ConfigureAwait(false);
+        return await reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(this SqlConnection conn,
-        string? namePattern = null)
+    public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(
+        this SqlConnection conn,
+        string? namePattern = null,
+        CancellationToken ct = default
+    )
     {
         var builder = new CommandBuilder();
         builder.Append("SELECT table_schema, table_name FROM information_schema.tables");
@@ -182,11 +198,15 @@ IF NOT EXISTS ( SELECT  *
 
         builder.Append(";");
 
-        return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
+        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
     }
 
-    public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctions(this SqlConnection conn,
-        string? namePattern = null, string[]? schemas = null)
+    public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctionsAsync(
+        this SqlConnection conn,
+        string? namePattern = null,
+        string[]? schemas = null,
+        CancellationToken ct = default
+    )
     {
         var builder = new CommandBuilder();
         builder.Append(
@@ -206,13 +226,15 @@ IF NOT EXISTS ( SELECT  *
 
         builder.Append(";");
 
-        return await builder.FetchList(conn, ReadDbObjectName).ConfigureAwait(false);
+        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
     }
 
-    private static async Task<DbObjectName> ReadDbObjectName(DbDataReader reader)
+    private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        return new DbObjectName(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
-            await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
+        return new DbObjectName(
+            await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
+            await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false)
+        );
     }
 
     /// <summary>

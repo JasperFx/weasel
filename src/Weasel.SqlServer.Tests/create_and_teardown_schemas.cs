@@ -6,9 +6,9 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
-    public class create_and_teardown_schemas : IntegrationContext
+    public class create_and_teardown_schemas: IntegrationContext
     {
-        public create_and_teardown_schemas() : base("schemas")
+        public create_and_teardown_schemas(): base("schemas")
         {
         }
 
@@ -17,13 +17,13 @@ namespace Weasel.SqlServer.Tests
         {
             await theConnection.OpenAsync();
 
-            await theConnection.DropSchema("one");
+            await theConnection.DropSchemaAsync("one");
 
-            (await theConnection.ActiveSchemaNames()).ShouldNotContain("one");
+            (await theConnection.ActiveSchemaNamesAsync()).ShouldNotContain("one");
 
-            await theConnection.CreateSchema("one");
+            await theConnection.CreateSchemaAsync("one");
 
-            var schemas = await theConnection.ActiveSchemaNames();
+            var schemas = await theConnection.ActiveSchemaNamesAsync();
 
             schemas.ShouldContain("one");
         }
@@ -33,8 +33,8 @@ namespace Weasel.SqlServer.Tests
         {
             await theConnection.OpenAsync();
 
-            await theConnection.DropSchema("one");
-            await theConnection.DropSchema("two");
+            await theConnection.DropSchemaAsync("one");
+            await theConnection.DropSchemaAsync("two");
 
             var table1 = new Table("one.table1");
             table1.AddColumn<string>("name").AsPrimaryKey();
@@ -42,14 +42,13 @@ namespace Weasel.SqlServer.Tests
             var table2 = new Table("two.table2");
             table2.AddColumn<string>("name").AsPrimaryKey();
 
-            var migration = await SchemaMigration.Determine(theConnection, new ISchemaObject[] {table1, table2});
+            var migration = await SchemaMigration.DetermineAsync(theConnection, new ISchemaObject[] { table1, table2 });
             migration.Difference.ShouldBe(SchemaPatchDifference.Create);
 
-            await new SqlServerMigrator().ApplyAll(theConnection, migration, AutoCreate.CreateOrUpdate);
+            await new SqlServerMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            (await table1.FetchExisting(theConnection)).ShouldNotBeNull();
-            (await table2.FetchExisting(theConnection)).ShouldNotBeNull();
-
+            (await table1.FetchExistingAsync(theConnection)).ShouldNotBeNull();
+            (await table2.FetchExistingAsync(theConnection)).ShouldNotBeNull();
         }
     }
 }

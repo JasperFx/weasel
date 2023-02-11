@@ -54,19 +54,19 @@ public abstract class Migrator
     ///     to serve as templates for extra DDL (GRANT's probably)
     /// </summary>
     /// <param name="directory"></param>
-    public async Task ReadTemplates(string directory)
+    public async Task ReadTemplatesAsync(string directory, CancellationToken ct = default)
     {
         foreach (var file in FileSystem.FindFiles(directory, FileSet.Shallow("*.function")))
         {
             var name = Path.GetFileNameWithoutExtension(file).ToLower();
-            Templates[name].FunctionCreation = await File.ReadAllTextAsync(file).ConfigureAwait(false);
+            Templates[name].FunctionCreation = await File.ReadAllTextAsync(file, ct).ConfigureAwait(false);
         }
 
         foreach (var file in FileSystem.FindFiles(directory, FileSet.Shallow("*.table")))
         {
             var name = Path.GetFileNameWithoutExtension(file).ToLower();
 
-            Templates[name].TableCreation = await File.ReadAllTextAsync(file).ConfigureAwait(false);
+            Templates[name].TableCreation = await File.ReadAllTextAsync(file, ct).ConfigureAwait(false);
         }
     }
 
@@ -76,7 +76,8 @@ public abstract class Migrator
     /// </summary>
     /// <param name="filename"></param>
     /// <param name="writeStep"></param>
-    public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep, CancellationToken ct = default)
+    public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep,
+        CancellationToken ct = default)
     {
         await using var stream = new FileStream(filename, FileMode.Create);
         var writer = new StreamWriter(stream) { AutoFlush = true };
@@ -107,7 +108,7 @@ public abstract class Migrator
     /// <param name="migration"></param>
     /// <param name="autoCreate"></param>
     /// <param name="logger"></param>
-    public async Task ApplyAll(
+    public async Task ApplyAllAsync(
         DbConnection conn,
         SchemaMigration migration,
         AutoCreate autoCreate,
@@ -187,7 +188,7 @@ public abstract class Migrator
     /// </summary>
     /// <param name="filename"></param>
     /// <param name="migration"></param>
-    public async Task WriteMigrationFile(string filename, SchemaMigration patch, CancellationToken ct = default)
+    public async Task WriteMigrationFileAsync(string filename, SchemaMigration patch, CancellationToken ct = default)
     {
         if (!Path.IsPathRooted(filename))
         {

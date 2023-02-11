@@ -9,9 +9,9 @@ using Xunit;
 namespace Weasel.Postgresql.Tests.Tables
 {
     [Collection("partitions")]
-    public class table_partitioning : IntegrationContext
+    public class table_partitioning: IntegrationContext
     {
-        public table_partitioning() : base("partitions")
+        public table_partitioning(): base("partitions")
         {
         }
 
@@ -33,7 +33,6 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<string>("last_name");
 
 
-
             table.PartitionExpressions.Single().ShouldBe("id");
             table.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
 
@@ -42,7 +41,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
         }
 
@@ -63,8 +62,6 @@ namespace Weasel.Postgresql.Tests.Tables
             var delta = await table.FindDelta(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
-
-
         }
 
 
@@ -85,11 +82,7 @@ namespace Weasel.Postgresql.Tests.Tables
             var delta = await table.FindDelta(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
-
-
         }
-
-
 
 
         [Fact]
@@ -104,7 +97,6 @@ namespace Weasel.Postgresql.Tests.Tables
             table.AddColumn<string>("last_name");
 
 
-
             table.PartitionExpressions.ShouldContain("modified");
             table.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
             table.PrimaryKeyColumns.ShouldContain("modified");
@@ -112,7 +104,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
         }
 
@@ -130,7 +122,6 @@ namespace Weasel.Postgresql.Tests.Tables
             table.PartitionByRange("id");
 
 
-
             table.PartitionExpressions.Single().ShouldBe("id");
             table.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
 
@@ -139,7 +130,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            (await table.ExistsInDatabase(theConnection))
+            (await table.ExistsInDatabaseAsync(theConnection))
                 .ShouldBeTrue();
         }
 
@@ -157,13 +148,11 @@ namespace Weasel.Postgresql.Tests.Tables
 
             await CreateSchemaObjectInDatabase(table);
 
-            var existing = await table.FetchExisting(theConnection);
+            var existing = await table.FetchExistingAsync(theConnection);
 
             existing.PartitionExpressions.Count.ShouldBe(1);
             existing.PartitionExpressions.ShouldContain("id");
             existing.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
         }
-
-
     }
 }

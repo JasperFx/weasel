@@ -97,32 +97,39 @@ public static class CommandExtensions
     /// <param name="conn"></param>
     /// <param name="databaseName"></param>
     /// <returns></returns>
-    public static Task KillIdleSessions(this NpgsqlConnection conn, string databaseName)
+    public static Task KillIdleSessions(this NpgsqlConnection conn, string databaseName, CancellationToken ct = default)
     {
         return conn.CreateCommand(
                 "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = :db AND pid <> pg_backend_pid();")
             .With("db", databaseName)
-            .ExecuteNonQueryAsync();
+            .ExecuteNonQueryAsync(ct);
     }
 
-    public static Task DropDatabase(this NpgsqlConnection conn, string databaseName)
+    public static Task DropDatabase(this NpgsqlConnection conn, string databaseName, CancellationToken ct = default)
     {
         return conn.CreateCommand($"DROP DATABASE IF EXISTS {databaseName}")
-            .ExecuteNonQueryAsync();
+            .ExecuteNonQueryAsync(ct);
     }
 
-    public static async Task<bool> DatabaseExists(this NpgsqlConnection conn, string databaseName)
+    public static async Task<bool> DatabaseExists(
+        this NpgsqlConnection conn,
+        string databaseName,
+        CancellationToken ct = default
+    )
     {
         var name = await conn.CreateCommand("SELECT datname FROM pg_database where datname = :db")
-            .With("db", databaseName).ExecuteScalarAsync().ConfigureAwait(false);
+            .With("db", databaseName).ExecuteScalarAsync(ct).ConfigureAwait(false);
 
         return name != null;
     }
 
-    public static Task<IReadOnlyList<string>> AllDatabaseNames(this NpgsqlConnection conn)
+    public static Task<IReadOnlyList<string>> AllDatabaseNames(
+        this NpgsqlConnection conn,
+        CancellationToken ct = default
+    )
     {
         return conn
-            .CreateCommand("SELECT datname FROM pg_database").FetchList<string>();
+            .CreateCommand("SELECT datname FROM pg_database").FetchListAsync<string>(cancellation: ct);
     }
 
     /// <summary>

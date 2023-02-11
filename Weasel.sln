@@ -29,6 +29,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{28703D10
 		Analysis.Build.props = Analysis.Build.props
 		Directory.Build.props = Directory.Build.props
 		docker-compose.yml = docker-compose.yml
+		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CommandLine", "CommandLine", "{341239AE-ABB0-4728-9C05-875E7053CAB6}"

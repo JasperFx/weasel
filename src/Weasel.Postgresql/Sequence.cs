@@ -58,10 +58,10 @@ public class Sequence: ISchemaObject
             $"select count(*) from information_schema.sequences where sequence_schema = :{schemaParam} and sequence_name = :{nameParam};");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        if (!await reader.ReadAsync().ConfigureAwait(false) ||
-            await reader.GetFieldValueAsync<int>(0).ConfigureAwait(false) == 0)
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false) ||
+            await reader.GetFieldValueAsync<int>(0, ct).ConfigureAwait(false) == 0)
         {
             return new SchemaObjectDelta(this, SchemaPatchDifference.Create);
         }
@@ -69,14 +69,14 @@ public class Sequence: ISchemaObject
         return new SchemaObjectDelta(this, SchemaPatchDifference.None);
     }
 
-    public async Task<ISchemaObjectDelta> FindDelta(NpgsqlConnection conn)
+    public async Task<ISchemaObjectDelta> FindDeltaAsync(NpgsqlConnection conn, CancellationToken ct = default)
     {
         var builder = new DbCommandBuilder(conn);
 
         ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
+        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
 
-        return await CreateDelta(reader).ConfigureAwait(false);
+        return await CreateDeltaAsync(reader, ct).ConfigureAwait(false);
     }
 }

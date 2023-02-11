@@ -32,7 +32,7 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        return await conn.FindExistingFunction(function).ConfigureAwait(false);
+        return await conn.FindExistingFunction(function, ct: ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -48,6 +48,6 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
 
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        return await conn.ExistingTables(schemas: schemaNames).ConfigureAwait(false);
+        return await conn.ExistingTables(schemas: schemaNames, ct: ct).ConfigureAwait(false);
     }
 }

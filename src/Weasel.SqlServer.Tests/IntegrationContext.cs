@@ -28,7 +28,7 @@ namespace Weasel.SqlServer.Tests
         {
             await theConnection.OpenAsync();
 
-            await theConnection.ResetSchema(_schemaName);
+            await theConnection.ResetSchemaAsync(_schemaName);
         }
 
         protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)

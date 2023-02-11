@@ -125,7 +125,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        var migration = await SchemaMigration.Determine(conn, ct, group.Objects).ConfigureAwait(false);
+        var migration = await SchemaMigration.DetermineAsync(conn, ct, group.Objects).ConfigureAwait(false);
 
         return migration;
     }
@@ -211,7 +211,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        return await SchemaMigration.Determine(conn, ct, objects).ConfigureAwait(false);
+        return await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
     }
 
     public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
@@ -291,11 +291,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
             if (attainLockResult == AttainLockResult.Success)
             {
-                var patch = await SchemaMigration.Determine(conn, ct, objects).ConfigureAwait(false);
+                var patch = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
 
                 if (patch.Difference != SchemaPatchDifference.None)
                 {
-                    await Migrator.ApplyAll(conn, patch, autoCreate, _logger, ct).ConfigureAwait(false);
+                    await Migrator.ApplyAllAsync(conn, patch, autoCreate, _logger, ct).ConfigureAwait(false);
                 }
 
                 MarkAllFeaturesAsChecked();
@@ -320,7 +320,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     public async Task WriteMigrationFileAsync(string filename, CancellationToken ct = default)
     {
         var patch = await CreateMigrationAsync(ct).ConfigureAwait(false);
-        await Migrator.WriteMigrationFile(filename, patch, ct).ConfigureAwait(false);
+        await Migrator.WriteMigrationFileAsync(filename, patch, ct).ConfigureAwait(false);
     }
 
     public virtual void ResetSchemaExistenceChecks()
@@ -329,7 +329,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     }
 
     [Obsolete("Use async version")]
-    public void EnsureStorageExists(Type featureType)
+    public void EnsureStorageExists(Type featureType, CancellationToken ct = default)
     {
         if (AutoCreate == AutoCreate.None)
         {
@@ -337,7 +337,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         }
 
 #pragma warning disable VSTHRD002
-        ensureStorageExists(new List<Type>(), featureType).AsTask().GetAwaiter().GetResult();
+        ensureStorageExistsAsync(new List<Type>(), featureType, ct).AsTask().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
     }
 
@@ -348,7 +348,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             return new ValueTask();
         }
 
-        return ensureStorageExists(new List<Type>(), featureType, token);
+        return ensureStorageExistsAsync(new List<Type>(), featureType, token);
     }
 
 
@@ -362,7 +362,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         foreach (var feature in BuildFeatureSchemas()) _checks[feature.StorageType] = true;
     }
 
-    private async ValueTask ensureStorageExists(IList<Type> types, Type featureType, CancellationToken token = default)
+    private async ValueTask ensureStorageExistsAsync(
+        IList<Type> types,
+        Type featureType,
+        CancellationToken token = default
+    )
     {
         if (_checks.ContainsKey(featureType))
         {
@@ -392,7 +396,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         types.Fill(featureType);
 
         foreach (var dependentType in feature.DependentTypes())
-            await ensureStorageExists(types, dependentType, token).ConfigureAwait(false);
+            await ensureStorageExistsAsync(types, dependentType, token).ConfigureAwait(false);
 
         await generateOrUpdateFeature(featureType, feature, token).ConfigureAwait(false);
     }
@@ -430,7 +434,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        var migration = await SchemaMigration.Determine(conn, ct, schemaObjects).ConfigureAwait(false);
+        var migration = await SchemaMigration.DetermineAsync(conn, ct, schemaObjects).ConfigureAwait(false);
 
         if (migration.Difference == SchemaPatchDifference.None)
         {
@@ -439,7 +443,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         migration.AssertPatchingIsValid(AutoCreate);
 
-        await Migrator.ApplyAll(conn, migration, AutoCreate, _logger, ct)
+        await Migrator.ApplyAllAsync(conn, migration, AutoCreate, _logger, ct)
             .ConfigureAwait(false);
     }
 

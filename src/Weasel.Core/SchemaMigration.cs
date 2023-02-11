@@ -48,11 +48,11 @@ public class SchemaMigration
     /// <param name="conn"></param>
     /// <param name="schemaObjects"></param>
     /// <returns></returns>
-    public static Task<SchemaMigration> Determine(
+    public static Task<SchemaMigration> DetermineAsync(
         DbConnection conn,
         params ISchemaObject[] schemaObjects
     ) =>
-        Determine(conn, default, schemaObjects);
+        DetermineAsync(conn, default, schemaObjects);
 
     /// <summary>
     ///     Create a SchemaMigration for the supplied connection and array of schema
@@ -61,11 +61,11 @@ public class SchemaMigration
     /// <param name="conn"></param>
     /// <param name="schemaObjects"></param>
     /// <returns></returns>
-    public static async Task<SchemaMigration> Determine(
+    public static async Task<SchemaMigration> DetermineAsync(
         DbConnection conn,
         CancellationToken ct,
         params ISchemaObject[] schemaObjects
-        )
+    )
     {
         var deltas = new List<ISchemaObjectDelta>();
 
@@ -81,12 +81,12 @@ public class SchemaMigration
 
         await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
 
-        deltas.Add(await schemaObjects[0].CreateDelta(reader).ConfigureAwait(false));
+        deltas.Add(await schemaObjects[0].CreateDeltaAsync(reader, ct).ConfigureAwait(false));
 
         for (var i = 1; i < schemaObjects.Length; i++)
         {
             await reader.NextResultAsync(ct).ConfigureAwait(false);
-            deltas.Add(await schemaObjects[i].CreateDelta(reader).ConfigureAwait(false));
+            deltas.Add(await schemaObjects[i].CreateDeltaAsync(reader, ct).ConfigureAwait(false));
         }
 
         return new SchemaMigration(deltas);
@@ -214,13 +214,13 @@ public class SchemaMigration
     /// <param name="conn"></param>
     /// <param name="rules"></param>
     /// <returns></returns>
-    public Task RollbackAll(DbConnection conn, Migrator rules)
+    public Task RollbackAllAsync(DbConnection conn, Migrator rules, CancellationToken ct = default)
     {
         var writer = new StringWriter();
         WriteAllRollbacks(writer, rules);
 
         return conn
             .CreateCommand(writer.ToString())
-            .ExecuteNonQueryAsync();
+            .ExecuteNonQueryAsync(ct);
     }
 }

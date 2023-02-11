@@ -66,9 +66,9 @@ AND    n.nspname = :{schemaParam};
 ");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        var existing = await readExisting(reader).ConfigureAwait(false);
+        var existing = await readExistingAsync(reader, ct).ConfigureAwait(false);
         return new FunctionDelta(this, existing);
     }
 
@@ -103,36 +103,36 @@ AND    n.nspname = :{schemaParam};
         return DbObjectName.Parse(PostgresqlProvider.Instance, signature.Substring(0, open));
     }
 
-    public async Task<Function?> FetchExisting(NpgsqlConnection conn)
+    public async Task<Function?> FetchExistingAsync(NpgsqlConnection conn, CancellationToken ct = default)
     {
         var builder = new DbCommandBuilder(conn);
 
         ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
-        return await readExisting(reader).ConfigureAwait(false);
+        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
+        return await readExistingAsync(reader, ct).ConfigureAwait(false);
     }
 
-    private async Task<Function?> readExisting(DbDataReader reader)
+    private async Task<Function?> readExistingAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        if (!await reader.ReadAsync().ConfigureAwait(false))
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            await reader.NextResultAsync().ConfigureAwait(false);
+            await reader.NextResultAsync(ct).ConfigureAwait(false);
             return null;
         }
 
-        var existingFunction = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+        var existingFunction = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
 
         if (string.IsNullOrEmpty(existingFunction))
         {
             return null;
         }
 
-        await reader.NextResultAsync().ConfigureAwait(false);
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
         var drops = new List<string>();
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            drops.Add(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false));
+            drops.Add(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false));
         }
 
         return new Function(Identifier, existingFunction.TrimEnd() + ";", drops.ToArray());
@@ -173,9 +173,9 @@ AND    n.nspname = :{schemaParam};
         return new Function(identifier, sql);
     }
 
-    public async Task<FunctionDelta> FindDelta(NpgsqlConnection conn)
+    public async Task<FunctionDelta> FindDeltaAsync(NpgsqlConnection conn, CancellationToken ct = default)
     {
-        var existing = await FetchExisting(conn).ConfigureAwait(false);
+        var existing = await FetchExistingAsync(conn, ct).ConfigureAwait(false);
         return new FunctionDelta(this, existing);
     }
 
