@@ -4,7 +4,7 @@ using Weasel.Core.Migrations;
 
 namespace Weasel.CommandLine;
 
-public class AssertAllWeaselDatabasesCheck : IEnvironmentCheckFactory
+public class AssertAllWeaselDatabasesCheck: IEnvironmentCheckFactory
 {
     private readonly IEnumerable<IDatabase> _databases;
     private readonly IEnumerable<IDatabaseSource> _sources;
@@ -37,10 +37,8 @@ public class AssertAllWeaselDatabasesCheck : IEnvironmentCheckFactory
             Description = $"Assert the expected configuration of database '{database.Identifier}'";
         }
 
-        public Task Assert(IServiceProvider services, CancellationToken cancellation)
-        {
-            return _database.AssertDatabaseMatchesConfigurationAsync();
-        }
+        public Task Assert(IServiceProvider services, CancellationToken cancellation) =>
+            _database.AssertDatabaseMatchesConfigurationAsync(cancellation);
 
         public string Description { get; }
     }

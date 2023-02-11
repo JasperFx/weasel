@@ -54,9 +54,9 @@ where
 ");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        var existing = await readExisting(reader).ConfigureAwait(false);
+        var existing = await readExistingAsync(reader, ct).ConfigureAwait(false);
         return new StoredProcedureDelta(this, existing);
     }
 
@@ -90,11 +90,11 @@ where
         writer.WriteLine(body);
     }
 
-    private async Task<StoredProcedure?> readExisting(DbDataReader reader)
+    private async Task<StoredProcedure?> readExistingAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        if (await reader.ReadAsync().ConfigureAwait(false))
+        if (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            var body = await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false);
+            var body = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
             return new StoredProcedure(Identifier, body);
         }
 
@@ -116,20 +116,20 @@ where
             .Select(x => x.Replace("   ", " ")).Join(Environment.NewLine);
     }
 
-    public async Task<StoredProcedure?> FetchExisting(SqlConnection conn)
+    public async Task<StoredProcedure?> FetchExistingAsync(SqlConnection conn, CancellationToken ct = default)
     {
         var builder = new DbCommandBuilder(conn);
 
         ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
-        return await readExisting(reader).ConfigureAwait(false);
+        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
+        return await readExistingAsync(reader, ct).ConfigureAwait(false);
     }
 
 
-    public async Task<StoredProcedureDelta> FindDelta(SqlConnection conn)
+    public async Task<StoredProcedureDelta> FindDeltaAsync(SqlConnection conn, CancellationToken ct = default)
     {
-        var actual = await FetchExisting(conn).ConfigureAwait(false);
+        var actual = await FetchExistingAsync(conn, ct).ConfigureAwait(false);
         return new StoredProcedureDelta(this, actual);
     }
 }

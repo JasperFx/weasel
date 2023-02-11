@@ -35,9 +35,9 @@ public class Extension: ISchemaObject
         builder.Append(";");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        var exists = await reader.ReadAsync().ConfigureAwait(false);
+        var exists = await reader.ReadAsync(ct).ConfigureAwait(false);
 
         return new SchemaObjectDelta(this, exists ? SchemaPatchDifference.None : SchemaPatchDifference.Create);
     }

@@ -23,7 +23,7 @@ namespace Weasel.Postgresql.Tests
             await theConnection.CreateCommand($"drop schema if exists two cascade").ExecuteNonQueryAsync();
             await theConnection.CreateCommand($"drop schema if exists three cascade").ExecuteNonQueryAsync();
 
-            var schemaNames = await theConnection.ActiveSchemaNames();
+            var schemaNames = await theConnection.ActiveSchemaNamesAsync();
             
             schemaNames.ShouldNotContain("one");
             schemaNames.ShouldNotContain("two");
@@ -33,7 +33,7 @@ namespace Weasel.Postgresql.Tests
             await theConnection.EnsureSchemaExists("one");
             await theConnection.EnsureSchemaExists("one");
             
-            (await theConnection.ActiveSchemaNames()).ShouldContain("one");
+            (await theConnection.ActiveSchemaNamesAsync()).ShouldContain("one");
         }
 
         [Fact]
@@ -55,14 +55,14 @@ namespace Weasel.Postgresql.Tests
             await CreateSchemaObjectInDatabase(table3);
             await CreateSchemaObjectInDatabase(table4);
 
-            var tables = await theConnection.ExistingTables();
+            var tables = await theConnection.ExistingTablesAsync();
             
             tables.ShouldContain(table1.Identifier);
             tables.ShouldContain(table2.Identifier);
             tables.ShouldContain(table3.Identifier);
             tables.ShouldContain(table4.Identifier);
             
-            (await theConnection.ExistingTables(schemas:new string[]{"extensions"})).Count.ShouldBe(4);
+            (await theConnection.ExistingTablesAsync(schemas:new string[]{"extensions"})).Count.ShouldBe(4);
         }
         
         [Fact]
@@ -84,14 +84,14 @@ namespace Weasel.Postgresql.Tests
             await CreateSchemaObjectInDatabase(table3);
             await CreateSchemaObjectInDatabase(table4);
 
-            var tables = await theConnection.ExistingTables(schemas:new string[]{"extensions"});
+            var tables = await theConnection.ExistingTablesAsync(schemas:new string[]{"extensions"});
             
             tables.ShouldContain(table1.Identifier);
             tables.ShouldContain(table2.Identifier);
             tables.ShouldContain(table3.Identifier);
             tables.ShouldContain(table4.Identifier);
             
-            (await theConnection.ExistingTables(schemas:new string[]{"extensions"})).Count.ShouldBe(4);
+            (await theConnection.ExistingTablesAsync(schemas:new string[]{"extensions"})).Count.ShouldBe(4);
         }
         
                 
@@ -114,7 +114,7 @@ namespace Weasel.Postgresql.Tests
             await CreateSchemaObjectInDatabase(table3);
             await CreateSchemaObjectInDatabase(table4);
 
-            var tables = await theConnection.ExistingTables("mt_%",schemas:new string[]{"extensions"});
+            var tables = await theConnection.ExistingTablesAsync("mt_%",schemas:new string[]{"extensions"});
             
             tables.ShouldContain(table1.Identifier);
             tables.ShouldContain(table3.Identifier);

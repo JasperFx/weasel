@@ -6,9 +6,10 @@ using Weasel.Core;
 namespace Weasel.CommandLine;
 
 [Description(
-    "Evaluates the current configuration against the database and writes a patch and drop file if there are any differences", Name = "db-patch"
+    "Evaluates the current configuration against the database and writes a patch and drop file if there are any differences",
+    Name = "db-patch"
 )]
-public class PatchCommand : OaktonAsyncCommand<PatchInput>
+public class PatchCommand: OaktonAsyncCommand<PatchInput>
 {
     public PatchCommand()
     {
@@ -25,7 +26,8 @@ public class PatchCommand : OaktonAsyncCommand<PatchInput>
         var migration = await database.CreateMigrationAsync();
         if (migration.Difference == SchemaPatchDifference.None)
         {
-            AnsiConsole.MarkupLine("[green]No differences were detected between the configuration and the actual database[/]");
+            AnsiConsole.MarkupLine(
+                "[green]No differences were detected between the configuration and the actual database[/]");
             return true;
         }
 
@@ -37,7 +39,7 @@ public class PatchCommand : OaktonAsyncCommand<PatchInput>
         }
 
         var fullPathToFile = input.FileName.ToFullPath();
-        await database.Migrator.WriteMigrationFile(fullPathToFile, migration);
+        await database.Migrator.WriteMigrationFileAsync(fullPathToFile, migration);
         AnsiConsole.MarkupLine($"[green]Wrote migration file to {fullPathToFile}[/]");
 
         return true;

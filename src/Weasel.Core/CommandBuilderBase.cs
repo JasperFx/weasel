@@ -122,12 +122,16 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// </summary>
     /// <param name="conn"></param>
     /// <param name="transform"></param>
-    /// <param name="cancellation"></param>
+    /// <param name="ct"></param>
     /// <param name="tx"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public async Task<IReadOnlyList<T>> FetchList<T>(TConnection conn, Func<DbDataReader, Task<T>> transform,
-        CancellationToken cancellation = default, TTransaction? tx = null)
+    public async Task<IReadOnlyList<T>> FetchListAsync<T>(
+        TConnection conn,
+        Func<DbDataReader, CancellationToken, Task<T>> transform,
+        CancellationToken ct = default,
+        TTransaction? tx = null
+    )
     {
         var cmd = Compile();
         cmd.Connection = conn;
@@ -135,10 +139,10 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
 
         var list = new List<T>();
 
-        await using var reader = await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
-        while (await reader.ReadAsync(cancellation).ConfigureAwait(false))
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            list.Add(await transform(reader).ConfigureAwait(false));
+            list.Add(await transform(reader, ct).ConfigureAwait(false));
         }
 
         return list;

@@ -34,14 +34,14 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
 
     protected abstract T buildDatabase(string databaseName, string connectionString);
 
-    public virtual async ValueTask<T> FindOrCreateDatabase(string databaseName)
+    public virtual async ValueTask<T> FindOrCreateDatabase(string databaseName, CancellationToken ct = default)
     {
         if (_databases.TryFind(databaseName, out var database))
         {
             return database;
         }
 
-        using (await _lock.Lock(5.Seconds()).ConfigureAwait(false))
+        using (await _lock.Lock(5.Seconds(), ct).ConfigureAwait(false))
         {
             if (_databases.TryFind(databaseName, out database))
             {
@@ -49,16 +49,16 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
             }
 
             await using var conn = new NpgsqlConnection(_masterConnectionString);
-            await conn.OpenAsync().ConfigureAwait(false);
+            await conn.OpenAsync(ct).ConfigureAwait(false);
 
             if (DropAndRecreate)
             {
-                await conn.KillIdleSessions(databaseName).ConfigureAwait(false);
-                await conn.DropDatabase(databaseName).ConfigureAwait(false);
+                await conn.KillIdleSessions(databaseName, ct: ct).ConfigureAwait(false);
+                await conn.DropDatabase(databaseName, ct: ct).ConfigureAwait(false);
             }
-            else if (!await conn.DatabaseExists(databaseName).ConfigureAwait(false))
+            else if (!await conn.DatabaseExists(databaseName, ct: ct).ConfigureAwait(false))
             {
-                await Specification.BuildDatabase(conn, databaseName).ConfigureAwait(false);
+                await Specification.BuildDatabase(conn, databaseName, ct).ConfigureAwait(false);
             }
 
             var builder = new NpgsqlConnectionStringBuilder(_masterConnectionString) { Database = databaseName };

@@ -5,11 +5,11 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
-    public class SequenceTester : IntegrationContext
+    public class SequenceTester: IntegrationContext
     {
         private readonly Sequence theSequence = new(new DbObjectName("sequences", "mysequence"));
 
-        public SequenceTester() : base("sequences")
+        public SequenceTester(): base("sequences")
         {
         }
 
@@ -19,7 +19,7 @@ namespace Weasel.SqlServer.Tests
         {
             await ResetSchema();
 
-            await theSequence.Create(theConnection);
+            await theSequence.CreateAsync(theConnection);
         }
 
 
@@ -30,7 +30,7 @@ namespace Weasel.SqlServer.Tests
 
             await ResetSchema();
 
-            await sequence.Create(theConnection);
+            await sequence.CreateAsync(theConnection);
         }
 
 
@@ -39,7 +39,7 @@ namespace Weasel.SqlServer.Tests
         {
             await ResetSchema();
 
-            var delta = await theSequence.FindDelta(theConnection);
+            var delta = await theSequence.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
@@ -49,7 +49,7 @@ namespace Weasel.SqlServer.Tests
         {
             await can_create_sequence_without_blowing_up();
 
-            var delta = await theSequence.FindDelta(theConnection);
+            var delta = await theSequence.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
@@ -59,17 +59,16 @@ namespace Weasel.SqlServer.Tests
         {
             await ResetSchema();
 
-            await theSequence.Create(theConnection);
+            await theSequence.CreateAsync(theConnection);
 
-            var delta = await theSequence.FindDelta(theConnection);
+            var delta = await theSequence.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
 
             await theSequence.Drop(theConnection);
 
-            delta = await theSequence.FindDelta(theConnection);
+            delta = await theSequence.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
-
     }
 }

@@ -109,7 +109,7 @@ namespace Weasel.SqlServer.Tests
             var builder = new CommandBuilder();
             builder.Append("select id, tag from integration.thing order by id");
 
-            var things = await builder.FetchList(theConnection, async r =>
+            var things = await builder.FetchListAsync(theConnection, async r =>
             {
                 var thing = new Thing
                 {
@@ -158,7 +158,7 @@ namespace Weasel.SqlServer.Tests
             var builder = new DbCommandBuilder(theConnection);
             builder.Append("select id, tag from integration.thing order by id");
 
-            var things = await builder.FetchList(theConnection, async r =>
+            var things = await builder.FetchListAsync(theConnection, async r =>
             {
                 var thing = new Thing
                 {

@@ -57,9 +57,9 @@ public class DatabaseSpecification
         return builder.ToString();
     }
 
-    public Task BuildDatabase(NpgsqlConnection conn, string databaseName)
+    public Task BuildDatabase(NpgsqlConnection conn, string databaseName, CancellationToken ct = default)
     {
         return conn.CreateCommand(ToCreateDatabaseStatement(databaseName))
-            .ExecuteNonQueryAsync();
+            .ExecuteNonQueryAsync(ct);
     }
 }

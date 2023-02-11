@@ -15,7 +15,7 @@ namespace Weasel.Postgresql.Tests.Functions
         private Table theHiloTable;
         private readonly UpsertFunction theFunction;
 
-        public UpsertFunctionTests() : base("functions")
+        public UpsertFunctionTests(): base("functions")
         {
             theHiloTable = new Table("functions.mt_hilo");
             theHiloTable.AddColumn("entity_name", "varchar(200)").AsPrimaryKey();
@@ -48,7 +48,6 @@ namespace Weasel.Postgresql.Tests.Functions
                 Next = next;
                 High = high;
             }
-
         }
 
         private async Task<HiloEntity> readEntity(string entityName)
@@ -56,7 +55,7 @@ namespace Weasel.Postgresql.Tests.Functions
             var entities = await theConnection
                 .CreateCommand("select next_value, hi_value from functions.mt_hilo where entity_name = :name")
                 .With("name", entityName)
-                .FetchList(async reader =>
+                .FetchListAsync(async reader =>
                 {
                     var next = await reader.GetFieldValueAsync<int>(0);
                     var high = await reader.GetFieldValueAsync<int>(1);

@@ -6,24 +6,23 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests
 {
-    public class SchemaObjectExtensionsTests : IntegrationContext
+    public class SchemaObjectExtensionsTests: IntegrationContext
     {
-        public SchemaObjectExtensionsTests() : base("extensions")
+        public SchemaObjectExtensionsTests(): base("extensions")
         {
         }
 
         [Fact]
         public async Task ensure_schema_exists()
         {
-
             await ResetSchema();
 
-            await theConnection.DropSchema("one");
-            await theConnection.DropSchema("two");
-            await theConnection.DropSchema("three");
+            await theConnection.DropSchemaAsync("one");
+            await theConnection.DropSchemaAsync("two");
+            await theConnection.DropSchemaAsync("three");
 
 
-            var schemaNames = await theConnection.ActiveSchemaNames();
+            var schemaNames = await theConnection.ActiveSchemaNamesAsync();
 
             schemaNames.ShouldNotContain("one");
             schemaNames.ShouldNotContain("two");
@@ -33,7 +32,7 @@ namespace Weasel.SqlServer.Tests
             await theConnection.EnsureSchemaExists("one");
             await theConnection.EnsureSchemaExists("one");
 
-            (await theConnection.ActiveSchemaNames()).ShouldContain("one");
+            (await theConnection.ActiveSchemaNamesAsync()).ShouldContain("one");
         }
 
         [Fact]

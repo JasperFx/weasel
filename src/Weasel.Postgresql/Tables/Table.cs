@@ -238,7 +238,7 @@ public partial class Table: ISchemaObject
         return AddColumn(columnName, type);
     }
 
-    public async Task<bool> ExistsInDatabase(NpgsqlConnection conn)
+    public async Task<bool> ExistsInDatabaseAsync(NpgsqlConnection conn, CancellationToken ct = default)
     {
         var cmd = conn
             .CreateCommand(
@@ -246,8 +246,8 @@ public partial class Table: ISchemaObject
             .With("table", Identifier.Name)
             .With("schema", Identifier.Schema);
 
-        await using var reader = await cmd.ExecuteReaderAsync().ConfigureAwait(false);
-        var any = await reader.ReadAsync().ConfigureAwait(false);
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        var any = await reader.ReadAsync(ct).ConfigureAwait(false);
         return any;
     }
 

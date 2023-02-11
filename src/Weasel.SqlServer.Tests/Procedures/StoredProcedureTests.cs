@@ -8,11 +8,11 @@ using Xunit;
 
 namespace Weasel.SqlServer.Tests.Procedures
 {
-    internal class OutgoingEnvelopeTable : Table
+    internal class OutgoingEnvelopeTable: Table
     {
         public static readonly string TableName = "jasper_outgoing_envelopes";
 
-        public OutgoingEnvelopeTable(string schemaName) : base(new DbObjectName(schemaName, TableName))
+        public OutgoingEnvelopeTable(string schemaName): base(new DbObjectName(schemaName, TableName))
         {
             AddColumn<Guid>("id").AsPrimaryKey();
             AddColumn<int>("owner_id").NotNull();
@@ -22,11 +22,11 @@ namespace Weasel.SqlServer.Tests.Procedures
         }
     }
 
-    internal class IncomingEnvelopeTable : Table
+    internal class IncomingEnvelopeTable: Table
     {
         public static readonly string TableName = "jasper_incoming_envelopes";
 
-        public IncomingEnvelopeTable(string schemaName) : base(new DbObjectName(schemaName, TableName))
+        public IncomingEnvelopeTable(string schemaName): base(new DbObjectName(schemaName, TableName))
         {
             AddColumn<Guid>("id").AsPrimaryKey();
             AddColumn<string>("status").NotNull();
@@ -37,11 +37,11 @@ namespace Weasel.SqlServer.Tests.Procedures
         }
     }
 
-    internal class DeadLettersTable : Table
+    internal class DeadLettersTable: Table
     {
         public static readonly string TableName = "jasper_dead_letters";
 
-        public DeadLettersTable(string schemaName) : base(new DbObjectName(schemaName, TableName))
+        public DeadLettersTable(string schemaName): base(new DbObjectName(schemaName, TableName))
         {
             AddColumn<Guid>("id").AsPrimaryKey();
             AddColumn<string>("source");
@@ -55,11 +55,11 @@ namespace Weasel.SqlServer.Tests.Procedures
     }
 
 
-    public class StoredProcedureTests : IntegrationContext
+    public class StoredProcedureTests: IntegrationContext
     {
         private StoredProcedure theProcedure;
 
-        public StoredProcedureTests() : base("procs")
+        public StoredProcedureTests(): base("procs")
         {
             theProcedure = new StoredProcedure(new DbObjectName("procs", "uspDeleteIncomingEnvelopes"), @"
 CREATE PROCEDURE procs.uspDeleteIncomingEnvelopes
@@ -75,12 +75,12 @@ AS
             await ResetSchema();
 
             var table = new IncomingEnvelopeTable("procs");
-            await table.Create(theConnection);
+            await table.CreateAsync(theConnection);
 
             var type = new TableType(new DbObjectName("procs", "EnvelopeIdList"));
             type.AddColumn<Guid>("ID");
 
-            await type.ApplyChanges(theConnection);
+            await type.ApplyChangesAsync(theConnection);
         }
 
         private void afterChangingTheProcedure()
@@ -98,15 +98,15 @@ AS
         [Fact]
         public async Task can_create_a_function()
         {
-            await theProcedure.Create(theConnection);
+            await theProcedure.CreateAsync(theConnection);
         }
 
         [Fact]
         public async Task fetch_existing()
         {
-            await theProcedure.Create(theConnection);
+            await theProcedure.CreateAsync(theConnection);
 
-            var existing = await theProcedure.FetchExisting(theConnection);
+            var existing = await theProcedure.FetchExistingAsync(theConnection);
             existing.ShouldNotBeNull();
         }
 
@@ -114,29 +114,28 @@ AS
         [Fact]
         public async Task fetch_existing_when_it_does_not_exist()
         {
-            var existing = await theProcedure.FetchExisting(theConnection);
+            var existing = await theProcedure.FetchExistingAsync(theConnection);
             existing.ShouldBeNull();
         }
 
         [Fact]
         public async Task fetch_delta_when_does_not_exist()
         {
-            var delta = await theProcedure.FindDelta(theConnection);
+            var delta = await theProcedure.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
-
 
 
         [Fact]
         public async Task apply_new_delta()
         {
-            await theProcedure.Create(theConnection);
+            await theProcedure.CreateAsync(theConnection);
 
             afterChangingTheProcedure();
 
-            await theProcedure.ApplyChanges(theConnection);
+            await theProcedure.ApplyChangesAsync(theConnection);
 
-            var delta = await theProcedure.FindDelta(theConnection);
+            var delta = await theProcedure.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
@@ -144,25 +143,24 @@ AS
         [Fact]
         public async Task fetch_delta_with_different_body()
         {
-            await theProcedure.Create(theConnection);
+            await theProcedure.CreateAsync(theConnection);
 
             afterChangingTheProcedure();
 
-            var delta = await theProcedure.FindDelta(theConnection);
+            var delta = await theProcedure.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
         }
 
         [Fact]
         public async Task apply_update_delta()
         {
-
-            await theProcedure.Create(theConnection);
+            await theProcedure.CreateAsync(theConnection);
 
             afterChangingTheProcedure();
 
-            await theProcedure.ApplyChanges(theConnection);
+            await theProcedure.ApplyChangesAsync(theConnection);
 
-            var delta = await theProcedure.FindDelta(theConnection);
+            var delta = await theProcedure.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
@@ -171,22 +169,21 @@ AS
         [Fact]
         public async Task fetch_delta_with_no_differences()
         {
-            await theProcedure.Create(theConnection);
+            await theProcedure.CreateAsync(theConnection);
 
-            var delta = await theProcedure.FindDelta(theConnection);
+            var delta = await theProcedure.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
 
         [Fact]
         public async Task drop_procedure()
         {
-            await theProcedure.Create(theConnection);
+            await theProcedure.CreateAsync(theConnection);
 
             await theProcedure.Drop(theConnection);
 
-            var delta = await theProcedure.FindDelta(theConnection);
+            var delta = await theProcedure.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
         }
-
     }
 }

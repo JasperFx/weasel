@@ -13,11 +13,11 @@ using SortOrder = Weasel.SqlServer.Tables.SortOrder;
 
 namespace Weasel.SqlServer.Tests.Tables
 {
-    public class detecting_table_deltas : IntegrationContext
+    public class detecting_table_deltas: IntegrationContext
     {
         private Table theTable;
 
-        public detecting_table_deltas() : base("deltas")
+        public detecting_table_deltas(): base("deltas")
         {
             theTable = new Table("deltas.people");
             theTable.AddColumn<int>("id").AsPrimaryKey();
@@ -37,7 +37,7 @@ namespace Weasel.SqlServer.Tests.Tables
             table ??= theTable;
             try
             {
-                await table.ApplyChanges(theConnection);
+                await table.ApplyChangesAsync(theConnection);
             }
             catch (SqlException e)
             {
@@ -46,7 +46,7 @@ namespace Weasel.SqlServer.Tests.Tables
                     await Task.Delay(100);
                     await theConnection.CloseAsync();
                     await theConnection.OpenAsync();
-                    await table.ApplyChanges(theConnection);
+                    await table.ApplyChangesAsync(theConnection);
                 }
                 else
                 {
@@ -57,7 +57,7 @@ namespace Weasel.SqlServer.Tests.Tables
             TableDelta delta;
             try
             {
-                delta = await table.FindDelta(theConnection);
+                delta = await table.FindDeltaAsync(theConnection);
             }
             catch (SqlException e)
             {
@@ -66,7 +66,7 @@ namespace Weasel.SqlServer.Tests.Tables
                     await Task.Delay(100);
                     await theConnection.CloseAsync();
                     await theConnection.OpenAsync();
-                    delta = await table.FindDelta(theConnection);
+                    delta = await table.FindDeltaAsync(theConnection);
                 }
                 else
                 {
@@ -87,12 +87,11 @@ namespace Weasel.SqlServer.Tests.Tables
         [Fact]
         public async Task detect_all_new_table()
         {
-            var table = await theTable.FetchExisting(theConnection);
+            var table = await theTable.FetchExistingAsync(theConnection);
             table.ShouldBeNull();
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.Difference.ShouldBe(SchemaPatchDifference.Create);
-
         }
 
         [Fact]
@@ -100,7 +99,7 @@ namespace Weasel.SqlServer.Tests.Tables
         {
             await CreateSchemaObjectInDatabase(theTable);
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeFalse();
 
@@ -113,7 +112,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(theTable);
 
             theTable.AddColumn<DateTimeOffset>("birth_day");
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Columns.Missing.Single().Name.ShouldBe("birth_day");
@@ -146,7 +145,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             theTable.RemoveColumn("birth_day");
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Columns.Extras.Single().Name.ShouldBe("birth_day");
@@ -167,7 +166,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Indexes.Missing.Single()
@@ -176,7 +175,6 @@ namespace Weasel.SqlServer.Tests.Tables
             delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
             await AssertNoDeltasAfterPatching();
-
         }
 
         [Fact]
@@ -187,7 +185,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(theTable);
 
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeFalse();
 
             delta.Indexes.Matched.Single()
@@ -207,7 +205,7 @@ namespace Weasel.SqlServer.Tests.Tables
             indexDefinition.SortOrder = SortOrder.Desc;
             indexDefinition.IsUnique = false;
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Indexes.Different.Single()
@@ -223,13 +221,12 @@ namespace Weasel.SqlServer.Tests.Tables
         [Fact]
         public async Task detect_extra_index()
         {
-
             theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
             await CreateSchemaObjectInDatabase(theTable);
 
             theTable.Indexes.Clear();
 
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeTrue();
 
             delta.Indexes.Extras.Single().Name
@@ -248,7 +245,7 @@ namespace Weasel.SqlServer.Tests.Tables
             configure(theTable);
             await CreateSchemaObjectInDatabase(theTable);
 
-            var existing = await theTable.FetchExisting(theConnection);
+            var existing = await theTable.FetchExistingAsync(theConnection);
 
             // The index DDL should match what the database thinks it is in order to match
 
@@ -259,44 +256,41 @@ namespace Weasel.SqlServer.Tests.Tables
             expected.AssertMatches(actual, theTable);
 
             // And no deltas
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
             delta.Indexes.Matched.Count.ShouldBe(1);
-
         }
 
         public static IEnumerable<object[]> IndexTestData()
         {
             foreach (var (description, action) in IndexConfigs())
             {
-                yield return new object[] {description, action};
+                yield return new object[] { description, action };
             }
         }
 
         private static IEnumerable<(string, Action<Table>)> IndexConfigs()
         {
             yield return ("Simple btree", t => t.ModifyColumn("user_name").AddIndex());
-            yield return ("Simple btree with non-zero fill factor", t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
+            yield return ("Simple btree with non-zero fill factor",
+                t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
             yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
-                i.Columns = new[] {"user_name"};
+                i.Columns = new[] { "user_name" };
                 i.Predicate = "[id]>5";
             }));
 
 
-
-            yield return ("Simple btree + desc", t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
+            yield return ("Simple btree + desc",
+                t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
             yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true));
             yield return ("btree", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
-
             }));
 
             yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
             {
                 i.IsUnique = true;
             }));
-
-
         }
 
 
@@ -318,7 +312,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeTrue();
 
@@ -351,7 +345,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             table.ForeignKeys.Clear();
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeTrue();
 
@@ -384,7 +378,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(table);
 
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeFalse();
 
@@ -408,23 +402,21 @@ namespace Weasel.SqlServer.Tests.Tables
             // Marten uses custom class for foreign keys which is inherited from ForeignKey
             table.ForeignKeys.Add(new ForeignKeyTest("foreign_key_test_parent_id_fkey")
             {
-                LinkedTable = table.Identifier,
-                ColumnNames = new[] {"parent_id"},
-                LinkedNames = new[] {"id"}
+                LinkedTable = table.Identifier, ColumnNames = new[] { "parent_id" }, LinkedNames = new[] { "id" }
             });
 
             await CreateSchemaObjectInDatabase(table);
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
             delta.HasChanges().ShouldBeFalse();
             delta.ForeignKeys.Matched.Single().Name.ShouldBe("foreign_key_test_parent_id_fkey");
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
             await AssertNoDeltasAfterPatching(table);
         }
 
-        private class ForeignKeyTest : ForeignKey
+        private class ForeignKeyTest: ForeignKey
         {
-            public ForeignKeyTest(string name) : base(name)
+            public ForeignKeyTest(string name): base(name)
             {
             }
         }
@@ -450,7 +442,7 @@ namespace Weasel.SqlServer.Tests.Tables
 
             table.ForeignKeys.Single().OnDelete = CascadeAction.Cascade;
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.HasChanges().ShouldBeTrue();
 
@@ -468,7 +460,7 @@ namespace Weasel.SqlServer.Tests.Tables
             await CreateSchemaObjectInDatabase(theTable);
 
             theTable.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValueByString("foo");
-            var delta = await theTable.FindDelta(theConnection);
+            var delta = await theTable.FindDeltaAsync(theConnection);
 
             delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
             delta.HasChanges().ShouldBeTrue();
@@ -489,14 +481,12 @@ namespace Weasel.SqlServer.Tests.Tables
 
             table.ModifyColumn("abbreviation").AsPrimaryKey();
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
             delta.HasChanges().ShouldBeTrue();
 
             await AssertNoDeltasAfterPatching(theTable);
         }
-
-
     }
 }

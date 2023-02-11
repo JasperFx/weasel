@@ -21,7 +21,7 @@ public abstract class IntegrationContext
     internal async Task DropSchema(string schemaName)
     {
         await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
-        await conn.DropSchema(schemaName);
+        await conn.DropSchemaAsync(schemaName);
     }
 
     internal Task<bool> ExecuteCommand<TCommand>() where TCommand : OaktonAsyncCommand<WeaselInput>, new()

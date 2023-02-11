@@ -47,9 +47,9 @@ order by
 ");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader)
+    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        var existing = await readExisting(reader).ConfigureAwait(false);
+        var existing = await readExistingAsync(reader, ct).ConfigureAwait(false);
         return new TableTypeDelta(this, existing);
     }
 
@@ -85,30 +85,30 @@ order by
         return column;
     }
 
-    public async Task<TableType?> FetchExisting(SqlConnection conn)
+    public async Task<TableType?> FetchExistingAsync(SqlConnection conn, CancellationToken ct = default)
     {
         var builder = new DbCommandBuilder(conn);
 
         ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn).ConfigureAwait(false);
-        return await readExisting(reader).ConfigureAwait(false);
+        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
+        return await readExistingAsync(reader, ct).ConfigureAwait(false);
     }
 
-    public async Task<TableTypeDelta> FindDelta(SqlConnection conn)
+    public async Task<TableTypeDelta> FindDeltaAsync(SqlConnection conn, CancellationToken ct = default)
     {
-        var actual = await FetchExisting(conn).ConfigureAwait(false);
+        var actual = await FetchExistingAsync(conn, ct).ConfigureAwait(false);
         return new TableTypeDelta(this, actual);
     }
 
-    private async Task<TableType?> readExisting(DbDataReader reader)
+    private async Task<TableType?> readExistingAsync(DbDataReader reader, CancellationToken ct = default)
     {
         var existing = new TableType(Identifier);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            var column = new TableTypeColumn(await reader.GetFieldValueAsync<string>(0).ConfigureAwait(false),
-                await reader.GetFieldValueAsync<string>(1).ConfigureAwait(false));
-            column.AllowNulls = await reader.GetFieldValueAsync<bool>(2).ConfigureAwait(false);
+            var column = new TableTypeColumn(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
+                await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false));
+            column.AllowNulls = await reader.GetFieldValueAsync<bool>(2, ct).ConfigureAwait(false);
 
             existing._columns.Add(column);
         }

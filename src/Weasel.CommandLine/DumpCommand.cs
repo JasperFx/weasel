@@ -17,9 +17,6 @@ public class DumpInput: WeaselInput
     [Description("Option to create scripts as transactional script")]
     [FlagAlias("transactional-script")]
     public bool TransactionalScriptFlag { get; set; } = false;
-
-
-
 }
 
 [Description("Dumps the entire DDL for the configured Marten database", Name = "db-dump")]
@@ -56,10 +53,9 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
         }
 
         return true;
-
     }
 
-    private static Task writeByType(DumpInput input, IDatabase? database)
+    private static Task writeByType(DumpInput input, IDatabase? database, CancellationToken ct = default)
     {
         // You only need to clean out the existing folder when dumping
         // by type
@@ -76,6 +72,6 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
         }
 
         AnsiConsole.WriteLine("Writing SQL files to " + input.Path);
-        return database.WriteScriptsByTypeAsync(input.Path);
+        return database.WriteScriptsByTypeAsync(input.Path, ct);
     }
 }

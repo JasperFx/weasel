@@ -68,10 +68,20 @@ public static class CommandExtensions
     /// <param name="conn"></param>
     /// <param name="sqls"></param>
     /// <returns></returns>
-    public static Task<int> RunSql(this DbConnection conn, params string[] sqls)
+    public static Task<int> RunSqlAsync(this DbConnection conn, params string[] sqls) =>
+        conn.RunSqlAsync(default, sqls);
+
+    /// <summary>
+    ///     Execute all of the SQL statements against the supplied DbConnection. This assumes
+    ///     that the connection is already open
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="sqls"></param>
+    /// <returns></returns>
+    public static Task<int> RunSqlAsync(this DbConnection conn, CancellationToken ct, params string[] sqls)
     {
         var sql = sqls.Join(";");
-        return conn.CreateCommand(sql).ExecuteNonQueryAsync();
+        return conn.CreateCommand(sql).ExecuteNonQueryAsync(ct);
     }
 
     /// <summary>
@@ -112,8 +122,11 @@ public static class CommandExtensions
     /// <param name="cancellation"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static async Task<IReadOnlyList<T>> FetchList<T>(this DbCommand cmd, Func<DbDataReader, Task<T>> transform,
-        CancellationToken cancellation = default)
+    public static async Task<IReadOnlyList<T>> FetchListAsync<T>(
+        this DbCommand cmd,
+        Func<DbDataReader, Task<T>> transform,
+        CancellationToken cancellation = default
+    )
     {
         var list = new List<T>();
 
@@ -133,9 +146,10 @@ public static class CommandExtensions
     /// <param name="cancellation"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static Task<IReadOnlyList<T?>> FetchList<T>(this DbCommand cmd, CancellationToken cancellation = default)
+    public static Task<IReadOnlyList<T?>> FetchListAsync<T>(this DbCommand cmd,
+        CancellationToken cancellation = default)
     {
-        return cmd.FetchList(async reader =>
+        return cmd.FetchListAsync(async reader =>
         {
             if (await reader.IsDBNullAsync(0, cancellation).ConfigureAwait(false))
             {

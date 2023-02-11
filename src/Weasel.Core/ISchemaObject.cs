@@ -58,7 +58,7 @@ public interface ISchemaObject
     /// </summary>
     /// <param name="reader"></param>
     /// <returns></returns>
-    Task<ISchemaObjectDelta> CreateDelta(DbDataReader reader);
+    Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default);
 
     /// <summary>
     ///     Returns all the database object names created by this ISchemaObject. Most of the

@@ -37,7 +37,7 @@ internal class DatabaseResource: IStatefulResource
 
     public Task Check(CancellationToken token)
     {
-        return _database.AssertDatabaseMatchesConfigurationAsync();
+        return _database.AssertDatabaseMatchesConfigurationAsync(token);
     }
 
     public Task ClearState(CancellationToken token)
@@ -53,14 +53,14 @@ internal class DatabaseResource: IStatefulResource
 
     public Task Setup(CancellationToken token)
     {
-        return _database.ApplyAllConfiguredChangesToDatabaseAsync();
+        return _database.ApplyAllConfiguredChangesToDatabaseAsync(ct: token);
     }
 
     public async Task<IRenderable> DetermineStatus(CancellationToken token)
     {
         if (_database is IDatabaseWithStatistics d) return await d.DetermineStatus(token).ConfigureAwait(false);
 
-        var migration = await _database.CreateMigrationAsync();
+        var migration = await _database.CreateMigrationAsync(token);
         switch (migration.Difference)
         {
             case SchemaPatchDifference.None:

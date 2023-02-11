@@ -34,14 +34,18 @@ public static class ConnectionSourceExtensions
     /// <param name="source"></param>
     /// <param name="sql"></param>
     /// <typeparam name="T"></typeparam>
-    public static async Task RunSqlAsync<T>(this IConnectionSource<T> source, string sql) where T : DbConnection
+    public static async Task RunSqlAsync<T>(
+        this IConnectionSource<T> source,
+        string sql,
+        CancellationToken ct = default
+    ) where T : DbConnection
     {
         await using var conn = source.CreateConnection();
-        await conn.OpenAsync().ConfigureAwait(false);
+        await conn.OpenAsync(ct).ConfigureAwait(false);
 
         try
         {
-            await conn.CreateCommand(sql).ExecuteNonQueryAsync().ConfigureAwait(false);
+            await conn.CreateCommand(sql).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
         finally
         {

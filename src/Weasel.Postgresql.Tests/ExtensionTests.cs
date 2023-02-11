@@ -6,9 +6,9 @@ using Xunit;
 namespace Weasel.Postgresql.Tests
 {
     [Collection("extensions")]
-    public class ExtensionTests : IntegrationContext
+    public class ExtensionTests: IntegrationContext
     {
-        public ExtensionTests() : base("extensions")
+        public ExtensionTests(): base("extensions")
         {
         }
 
@@ -20,14 +20,14 @@ namespace Weasel.Postgresql.Tests
             await DropSchemaObjectInDatabase(extension);
 
 
-            var migration = await SchemaMigration.Determine(theConnection, extension);
+            var migration = await SchemaMigration.DetermineAsync(theConnection, extension);
 
             migration.Difference.ShouldBe(SchemaPatchDifference.Create);
 
             await this.CreateSchemaObjectInDatabase(extension);
 
 
-            migration = await SchemaMigration.Determine(theConnection, extension);
+            migration = await SchemaMigration.DetermineAsync(theConnection, extension);
             migration.Difference.ShouldBe(SchemaPatchDifference.None);
         }
     }

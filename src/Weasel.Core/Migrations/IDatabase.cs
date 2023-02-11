@@ -111,13 +111,21 @@ public static class DatabaseExtensions
     /// </summary>
     /// <param name="database"></param>
     /// <param name="filename"></param>
-    public static async Task WriteMigrationFileAsync(this IDatabase database, string filename, CancellationToken ct = default)
+    public static async Task WriteMigrationFileAsync(
+        this IDatabase database,
+        string filename,
+        CancellationToken ct = default
+    )
     {
-        var migration = await database.CreateMigrationAsync().ConfigureAwait(false);
-        await database.Migrator.WriteMigrationFile(filename, migration).ConfigureAwait(false);
+        var migration = await database.CreateMigrationAsync(ct).ConfigureAwait(false);
+        await database.Migrator.WriteMigrationFileAsync(filename, migration, ct).ConfigureAwait(false);
     }
 
-    public static Task<SchemaMigration> CreateMigrationAsync(this IDatabase database, Type featureType, CancellationToken ct = default)
+    public static Task<SchemaMigration> CreateMigrationAsync(
+        this IDatabase database,
+        Type featureType,
+        CancellationToken ct = default
+    )
     {
         var feature = database.BuildFeatureSchemas().FirstOrDefault(x => x.StorageType == featureType);
         if (feature == null)
@@ -126,7 +134,7 @@ public static class DatabaseExtensions
                 $"Type '{featureType.FullName}' is an unknown storage type");
         }
 
-        return database.CreateMigrationAsync(feature);
+        return database.CreateMigrationAsync(feature, ct);
     }
 }
 
