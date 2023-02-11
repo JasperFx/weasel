@@ -59,7 +59,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             table.PartitionByRange("id");
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.None);
         }
@@ -79,7 +79,7 @@ namespace Weasel.Postgresql.Tests.Tables
 
             table.PartitionByRange("id");
 
-            var delta = await table.FindDelta(theConnection);
+            var delta = await table.FindDeltaAsync(theConnection);
 
             delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
         }

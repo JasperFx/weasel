@@ -234,7 +234,7 @@ $$ LANGUAGE plpgsql;
 
             await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
+            await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
 
             (await theConnection.FunctionExistsAsync(toRemove.Identifier)).ShouldBeTrue();
         }
@@ -332,7 +332,7 @@ $$ LANGUAGE plpgsql;
 
             await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
+            await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
 
             // Should be back to the original function
 
@@ -357,7 +357,7 @@ $$ LANGUAGE plpgsql;
 
             (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeTrue();
 
-            await migration.RollbackAll(theConnection, new PostgresqlMigrator());
+            await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
 
             (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeFalse();
         }

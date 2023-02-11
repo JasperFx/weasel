@@ -12,7 +12,7 @@ public partial class Table
         return new TableDelta(this, existing);
     }
 
-    public async Task<TableDelta> FindDelta(NpgsqlConnection conn, CancellationToken ct = default)
+    public async Task<TableDelta> FindDeltaAsync(NpgsqlConnection conn, CancellationToken ct = default)
     {
         var actual = await FetchExistingAsync(conn, ct).ConfigureAwait(false);
         return new TableDelta(this, actual);

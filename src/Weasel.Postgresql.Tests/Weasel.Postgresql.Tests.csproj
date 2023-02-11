@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
+        <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
     </ItemGroup>
 
 </Project>

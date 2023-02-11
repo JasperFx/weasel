@@ -8,9 +8,9 @@ using Xunit;
 namespace Weasel.Postgresql.Tests
 {
     [Collection("integration")]
-    public class CommandBuilderIntegrationTests : IntegrationContext
+    public class CommandBuilderIntegrationTests: IntegrationContext
     {
-        public CommandBuilderIntegrationTests() : base("integration")
+        public CommandBuilderIntegrationTests(): base("integration")
         {
         }
 
@@ -28,12 +28,7 @@ namespace Weasel.Postgresql.Tests
 
             var builder = new CommandBuilder();
             builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
-            builder.AddParameters(new
-            {
-                id = 3,
-                tag = "Toodles",
-                age = 5
-            });
+            builder.AddParameters(new { id = 3, tag = "Toodles", age = 5 });
 
             await builder.ExecuteNonQueryAsync(theConnection);
 
@@ -41,12 +36,12 @@ namespace Weasel.Postgresql.Tests
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
-            
+
             (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
             (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
             (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
         }
-        
+
         [Fact]
         public async Task use_parameters_to_query_by_anonymous_type_by_generic_command_builder()
         {
@@ -61,12 +56,7 @@ namespace Weasel.Postgresql.Tests
 
             var builder = new DbCommandBuilder(theConnection);
             builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
-            builder.AddParameters(new
-            {
-                id = 3,
-                tag = "Toodles",
-                age = 5
-            });
+            builder.AddParameters(new { id = 3, tag = "Toodles", age = 5 });
 
             await builder.ExecuteNonQueryAsync(theConnection);
 
@@ -74,12 +64,12 @@ namespace Weasel.Postgresql.Tests
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
-            
+
             (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
             (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
             (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
         }
-        
+
         [Fact]
         public async Task fetch_list()
         {
@@ -95,31 +85,29 @@ namespace Weasel.Postgresql.Tests
                 .With("id", 1)
                 .With("tag", "one")
                 .ExecuteNonQueryAsync();
-            
+
             await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
                 .With("id", 2)
                 .With("tag", "two")
                 .ExecuteNonQueryAsync();
-            
+
             await theConnection.CreateCommand("insert into integration.thing (id, tag) values (:id, :tag)")
                 .With("id", 3)
                 .With("tag", "three")
                 .ExecuteNonQueryAsync();
-                
+
 
             var builder = new CommandBuilder();
             builder.Append("select id, tag from integration.thing order by id");
 
-            var things = await builder.FetchListAsync(theConnection, async r =>
+            var things = await builder.FetchListAsync(theConnection, async (r, ct) =>
             {
                 var thing = new Thing
                 {
-                    id = await r.GetFieldValueAsync<int>(0), 
-                    tag = await r.GetFieldValueAsync<string>(1)
+                    id = await r.GetFieldValueAsync<int>(0), tag = await r.GetFieldValueAsync<string>(1)
                 };
 
                 return thing;
-
             });
 
             things.ElementAt(0).tag.ShouldBe("one");
@@ -134,7 +122,7 @@ namespace Weasel.Postgresql.Tests
             public int id { get; set; }
             public string tag { get; set; }
         }
-        
+
         [Fact]
         public async Task add_named_parameter()
         {
@@ -151,22 +139,24 @@ namespace Weasel.Postgresql.Tests
             await CreateSchemaObjectInDatabase(table);
 
             var builder = new CommandBuilder();
-            builder.Append("insert into integration.thing (id, tag, age, rate, sequence, is_done) values (:id, :tag, :age, :rate, :sequence, :done)");
+            builder.Append(
+                "insert into integration.thing (id, tag, age, rate, sequence, is_done) values (:id, :tag, :age, :rate, :sequence, :done)");
             builder.AddNamedParameter("id", 3);
             builder.AddNamedParameter("tag", "toodles");
             builder.AddNamedParameter("age", 5);
             builder.AddNamedParameter("rate", 1.1);
             builder.AddNamedParameter("sequence", 100L);
             builder.AddNamedParameter("done", true);
-            
+
 
             await builder.ExecuteNonQueryAsync(theConnection);
 
-            await using var reader = await theConnection.CreateCommand("select id, tag, age, rate, sequence, is_done from integration.thing")
+            await using var reader = await theConnection
+                .CreateCommand("select id, tag, age, rate, sequence, is_done from integration.thing")
                 .ExecuteReaderAsync();
 
             await reader.ReadAsync();
-            
+
             (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
             (await reader.GetFieldValueAsync<string>(1)).ShouldBe("toodles");
             (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
