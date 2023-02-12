@@ -329,7 +329,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     }
 
     [Obsolete("Use async version")]
-    public void EnsureStorageExists(Type featureType, CancellationToken ct = default)
+    public void EnsureStorageExists(Type featureType)
     {
         if (AutoCreate == AutoCreate.None)
         {
@@ -337,7 +337,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         }
 
 #pragma warning disable VSTHRD002
-        ensureStorageExistsAsync(new List<Type>(), featureType, ct).AsTask().GetAwaiter().GetResult();
+        ensureStorageExistsAsync(new List<Type>(), featureType, default).AsTask().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002
     }
 
