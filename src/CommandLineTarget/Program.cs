@@ -1,8 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
 using CommandLineTarget;
-using Npgsql;
-using Weasel.Postgresql.Tests;
 
 // using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
 // Console.WriteLine("STart");

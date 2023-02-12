@@ -7,30 +7,28 @@ using Weasel.Core;
 using Weasel.Core.Migrations;
 using Weasel.Postgresql;
 
-namespace CommandLineTarget
+namespace CommandLineTarget;
+
+public class DatabaseCollection
 {
-    public class DatabaseCollection
+    internal readonly LightweightCache<string, DatabaseWithTables> Databases
+        = new(name =>
+            new DatabaseWithTables(AutoCreate.CreateOrUpdate, name));
+
+    public void AddTable(string databaseName, string featureName, string tableName)
     {
-        internal readonly LightweightCache<string, DatabaseWithTables> Databases
-            = new(name =>
-                new DatabaseWithTables(AutoCreate.CreateOrUpdate, name));
+        var name = DbObjectName.Parse(PostgresqlProvider.Instance, tableName);
+        Databases[databaseName].Features[featureName].AddTable(name.Schema, name.Name);
+    }
 
-        public void AddTable(string databaseName, string featureName, string tableName)
+    public Task<int> Execute(string[] args)
+    {
+        return Host.CreateDefaultBuilder().ConfigureServices(services =>
         {
-            var name = DbObjectName.Parse(PostgresqlProvider.Instance, tableName);
-            Databases[databaseName].Features[featureName].AddTable(name.Schema, name.Name);
-        }
-
-        public Task<int> Execute(string[] args)
-        {
-            return Host.CreateDefaultBuilder().ConfigureServices(services =>
+            foreach (var database in Databases)
             {
-                foreach (var database in Databases)
-                {
-                    services.AddSingleton<IDatabase>(database);
-                }
-
-            }).RunOaktonCommands(args);
-        }
+                services.AddSingleton<IDatabase>(database);
+            }
+        }).RunOaktonCommands(args);
     }
 }

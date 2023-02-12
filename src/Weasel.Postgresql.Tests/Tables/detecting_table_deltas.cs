@@ -1,628 +1,623 @@
 using Shouldly;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using JasperFx.Core.Reflection;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
-namespace Weasel.Postgresql.Tests.Tables
+namespace Weasel.Postgresql.Tests.Tables;
+
+[Collection("deltas")]
+public class detecting_table_deltas: IntegrationContext
 {
-    [Collection("deltas")]
-    public class detecting_table_deltas: IntegrationContext
+    private Table theTable;
+
+    /*
+     * TODO
+     * 1. Column constraints, to find deltas
+     * 5. Table constraints?
+     * 6. Partitions?
+     *
+     *
+     *
+     */
+
+    public detecting_table_deltas(): base("deltas")
     {
-        private Table theTable;
+        theTable = new Table("deltas.people");
+        theTable.AddColumn<int>("id").AsPrimaryKey();
+        theTable.AddColumn<string>("first_name");
+        theTable.AddColumn<string>("last_name");
+        theTable.AddColumn<string>("user_name");
+        theTable.AddColumn("data", "jsonb");
+    }
 
-        /*
-         * TODO
-         * 1. Column constraints, to find deltas
-         * 5. Table constraints?
-         * 6. Partitions?
-         *
-         *
-         *
-         */
+    public override async Task InitializeAsync()
+    {
+        await ResetSchema();
+    }
 
-        public detecting_table_deltas(): base("deltas")
+    protected async Task AssertNoDeltasAfterPatching(Table table = null)
+    {
+        table ??= theTable;
+        await table.ApplyChangesAsync(theConnection);
+
+        var delta = await table.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task detect_all_new_table()
+    {
+        var table = await theTable.FetchExistingAsync(theConnection);
+        table.ShouldBeNull();
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Create);
+    }
+
+    [Fact]
+    public async Task no_delta()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeFalse();
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task missing_column()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.AddColumn<DateTimeOffset>("birth_day");
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeTrue();
+
+        delta.Columns.Missing.Single().Name.ShouldBe("birth_day");
+
+        delta.Columns.Extras.Any().ShouldBeFalse();
+        delta.Columns.Different.Any().ShouldBeFalse();
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task using_reserved_keywords_for_columns()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.AddColumn<string>("trim").AddIndex();
+        theTable.AddColumn<string>("lower");
+        theTable.AddColumn<string>("upper");
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task extra_column()
+    {
+        theTable.AddColumn<DateTime>("birth_day");
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.RemoveColumn("birth_day");
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeTrue();
+
+        delta.Columns.Extras.Single().Name.ShouldBe("birth_day");
+
+        delta.Columns.Missing.Any().ShouldBeFalse();
+        delta.Columns.Different.Any().ShouldBeFalse();
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+
+    [Fact]
+    public async Task detect_new_index()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeTrue();
+
+        delta.Indexes.Missing.Single()
+            .Name.ShouldBe("idx_people_user_name");
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task detect_matched_index()
+    {
+        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+
+        await CreateSchemaObjectInDatabase(theTable);
+
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeFalse();
+
+        delta.Indexes.Matched.Single()
+            .Name.ShouldBe("idx_people_user_name");
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task detect_different_index()
+    {
+        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+
+        await CreateSchemaObjectInDatabase(theTable);
+
+        var indexDefinition = theTable.Indexes.Single().As<IndexDefinition>();
+        indexDefinition
+            .Method = IndexMethod.hash;
+        indexDefinition.IsUnique = false;
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeTrue();
+
+        delta.Indexes.Different.Single()
+            .Expected
+            .Name.ShouldBe("idx_people_user_name");
+
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task detect_extra_index()
+    {
+        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.Indexes.Clear();
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeTrue();
+
+        delta.Indexes.Extras.Single().Name
+            .ShouldBe("idx_people_user_name");
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task ignore_new_index_that_is_ignored()
+    {
+        var existing = new detecting_table_deltas().theTable;
+        existing.ModifyColumn("user_name").AddIndex(idx => idx.Name = "ignore_me");
+
+        await CreateSchemaObjectInDatabase(existing);
+
+        theTable.IgnoreIndex("ignore_me");
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeFalse();
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Theory]
+    [MemberData(nameof(IndexTestData))]
+    public async Task matching_index_ddl(string description, Action<Table> configure)
+    {
+        configure(theTable);
+        await CreateSchemaObjectInDatabase(theTable);
+
+        var existing = await theTable.FetchExistingAsync(theConnection);
+
+        // The index DDL should match what the database thinks it is in order to match
+
+        var expected = existing!.Indexes.Single();
+        var actual = theTable.Indexes.Single();
+
+        expected.AssertMatches(actual, theTable);
+
+        // And no deltas
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.Indexes.Matched.Count.ShouldBe(1);
+    }
+
+    public static IEnumerable<object[]> IndexTestData()
+    {
+        foreach (var (description, action) in IndexConfigs())
         {
-            theTable = new Table("deltas.people");
-            theTable.AddColumn<int>("id").AsPrimaryKey();
-            theTable.AddColumn<string>("first_name");
-            theTable.AddColumn<string>("last_name");
-            theTable.AddColumn<string>("user_name");
-            theTable.AddColumn("data", "jsonb");
+            yield return new object[] { description, action };
         }
+    }
 
-        public override async Task InitializeAsync()
+    private static IEnumerable<(string, Action<Table>)> IndexConfigs()
+    {
+        yield return ("Simple btree", t => t.ModifyColumn("user_name").AddIndex());
+        yield return ("Simple btree with non-zero fill factor",
+            t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
+        yield return ("Simple btree with expression",
+            t => t.ModifyColumn("user_name").AddIndex(i => i.Mask = "(lower(?))"));
+        yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
         {
-            await ResetSchema();
-        }
+            i.Mask = "(lower(?))";
+            i.Columns = new[] { "user_name" };
+            i.Predicate = "id > 5";
+        }));
 
-        protected async Task AssertNoDeltasAfterPatching(Table table = null)
+        yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
         {
-            table ??= theTable;
-            await table.ApplyChangesAsync(theConnection);
+            i.Mask = "(lower(?))";
+            i.Columns = new[] { "user_name" };
+            i.Predicate = "user_name is not null";
+        }));
 
-            var delta = await table.FindDeltaAsync(theConnection);
-
-            delta.HasChanges().ShouldBeFalse();
-        }
-
-        [Fact]
-        public async Task detect_all_new_table()
+        yield return ("Simple btree + desc",
+            t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
+        yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true));
+        yield return ("btree + concurrent", t => t.ModifyColumn("user_name").AddIndex(i =>
         {
-            var table = await theTable.FetchExistingAsync(theConnection);
-            table.ShouldBeNull();
+            i.IsConcurrent = true;
+        }));
 
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.Create);
-        }
-
-        [Fact]
-        public async Task no_delta()
+        yield return ("btree + concurrent + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
         {
-            await CreateSchemaObjectInDatabase(theTable);
+            i.IsUnique = true;
+            i.IsConcurrent = true;
+        }));
 
-            var delta = await theTable.FindDeltaAsync(theConnection);
+        yield return ("Simple brin", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.brin));
+        yield return ("Simple gin", t => t.ModifyColumn("data").AddIndex(i => i.Method = IndexMethod.gin));
+        yield return ("Simple gist",
+            t => t.AddColumn("data2", "tsvector").AddIndex(i => i.Method = IndexMethod.gist));
+        yield return ("Simple hash", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.hash));
 
-            delta.HasChanges().ShouldBeFalse();
 
-            await AssertNoDeltasAfterPatching();
-        }
-
-        [Fact]
-        public async Task missing_column()
+        yield return ("Simple jsonb property",
+            t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "(data ->> 'Name')" }));
+        yield return ("Simple jsonb property + unique", t => t.ModifyColumn("data").AddIndex(i =>
         {
-            await CreateSchemaObjectInDatabase(theTable);
+            i.Columns = new[] { "(data ->> 'Name')" };
+            i.IsUnique = true;
+        }));
 
-            theTable.AddColumn<DateTimeOffset>("birth_day");
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeTrue();
-
-            delta.Columns.Missing.Single().Name.ShouldBe("birth_day");
-
-            delta.Columns.Extras.Any().ShouldBeFalse();
-            delta.Columns.Different.Any().ShouldBeFalse();
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-
-            await AssertNoDeltasAfterPatching();
-        }
-
-        [Fact]
-        public async Task using_reserved_keywords_for_columns()
+        yield return ("Jsonb property with function",
+            t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "lower(data ->> 'Name')" }));
+        yield return ("Jsonb property with function + unique", t => t.ModifyColumn("data").AddIndex(i =>
         {
-            await CreateSchemaObjectInDatabase(theTable);
-
-            theTable.AddColumn<string>("trim").AddIndex();
-            theTable.AddColumn<string>("lower");
-            theTable.AddColumn<string>("upper");
-
-            await AssertNoDeltasAfterPatching();
-        }
-
-        [Fact]
-        public async Task extra_column()
+            i.Columns = new[] { "lower(data ->> 'Name')" };
+            i.IsUnique = true;
+        }));
+        yield return ("Jsonb property with function as expression", t => t.ModifyColumn("data").AddIndex(i =>
         {
-            theTable.AddColumn<DateTime>("birth_day");
-            await CreateSchemaObjectInDatabase(theTable);
+            i.Mask = "lower(?)";
+            i.Columns = new[] { "(data ->> 'Name')" };
+            i.IsUnique = true;
+        }));
 
-            theTable.RemoveColumn("birth_day");
-
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeTrue();
-
-            delta.Columns.Extras.Single().Name.ShouldBe("birth_day");
-
-            delta.Columns.Missing.Any().ShouldBeFalse();
-            delta.Columns.Different.Any().ShouldBeFalse();
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-
-            await AssertNoDeltasAfterPatching();
-        }
-
-
-        [Fact]
-        public async Task detect_new_index()
+        yield return ("Jsonb property with cast",
+            t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)" }));
+        yield return ("Jsonb property with cast + unique", t => t.ModifyColumn("data").AddIndex(i =>
         {
-            await CreateSchemaObjectInDatabase(theTable);
+            i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)" };
+            i.IsUnique = true;
+        }));
 
-            theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
 
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeTrue();
-
-            delta.Indexes.Missing.Single()
-                .Name.ShouldBe("idx_people_user_name");
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-
-            await AssertNoDeltasAfterPatching();
-        }
-
-        [Fact]
-        public async Task detect_matched_index()
+        yield return ("Jsonb property with multiple casts + unique", t => t.ModifyColumn("data").AddIndex(i =>
         {
-            theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+            i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'OtherGuid' as uuid)" };
+            i.IsUnique = true;
+        }));
+    }
 
-            await CreateSchemaObjectInDatabase(theTable);
+    [Fact]
+    public async Task detect_all_new_foreign_key()
+    {
+        var states = new Table("deltas.states");
+        states.AddColumn<int>("id").AsPrimaryKey();
+
+        await CreateSchemaObjectInDatabase(states);
 
 
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeFalse();
+        var table = new Table("deltas.people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
 
-            delta.Indexes.Matched.Single()
-                .Name.ShouldBe("idx_people_user_name");
+        await CreateSchemaObjectInDatabase(table);
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
+        table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
-        [Fact]
-        public async Task detect_different_index()
+        var delta = await table.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeTrue();
+
+        delta.ForeignKeys.Missing.Single()
+            .ShouldBeSameAs(table.ForeignKeys.Single());
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    [Fact]
+    public async Task detect_extra_foreign_key()
+    {
+        var states = new Table("deltas.states");
+        states.AddColumn<int>("id").AsPrimaryKey();
+
+        await CreateSchemaObjectInDatabase(states);
+
+
+        var table = new Table("deltas.people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+
+        table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+
+        await CreateSchemaObjectInDatabase(table);
+
+        table.ForeignKeys.Clear();
+
+        var delta = await table.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeTrue();
+
+        delta.ForeignKeys.Extras.Single().Name
+            .ShouldBe("fkey_people_state_id");
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    [Fact]
+    public async Task match_foreign_key()
+    {
+        var states = new Table("deltas.states");
+        states.AddColumn<int>("id").AsPrimaryKey();
+
+        await CreateSchemaObjectInDatabase(states);
+
+
+        var table = new Table("deltas.people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+
+        table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+
+
+        await CreateSchemaObjectInDatabase(table);
+
+
+        var delta = await table.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeFalse();
+
+        delta.ForeignKeys.Matched.Single().Name
+            .ShouldBe("fkey_people_state_id");
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    [Fact]
+    public async Task match_foreign_key_with_inherited_foreign_key_class()
+    {
+        var table = new Table("deltas.foreign_key_test");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("name");
+        table.AddColumn<int?>("parent_id");
+
+        // Marten uses custom class for foreign keys which is inherited from ForeignKey
+        table.ForeignKeys.Add(new ForeignKeyTest("foreign_key_test_parent_id_fkey")
         {
-            theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+            LinkedTable = table.Identifier, ColumnNames = new[] { "parent_id" }, LinkedNames = new[] { "id" }
+        });
 
-            await CreateSchemaObjectInDatabase(theTable);
+        await CreateSchemaObjectInDatabase(table);
 
-            var indexDefinition = theTable.Indexes.Single().As<IndexDefinition>();
-            indexDefinition
-                .Method = IndexMethod.hash;
-            indexDefinition.IsUnique = false;
+        var delta = await table.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeFalse();
+        delta.ForeignKeys.Matched.Single().Name.ShouldBe("foreign_key_test_parent_id_fkey");
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+        await AssertNoDeltasAfterPatching(table);
+    }
 
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeTrue();
-
-            delta.Indexes.Different.Single()
-                .Expected
-                .Name.ShouldBe("idx_people_user_name");
-
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-
-            await AssertNoDeltasAfterPatching();
-        }
-
-        [Fact]
-        public async Task detect_extra_index()
+    private class ForeignKeyTest: ForeignKey
+    {
+        public ForeignKeyTest(string name): base(name)
         {
-            theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
-            await CreateSchemaObjectInDatabase(theTable);
-
-            theTable.Indexes.Clear();
-
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeTrue();
-
-            delta.Indexes.Extras.Single().Name
-                .ShouldBe("idx_people_user_name");
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-
-            await AssertNoDeltasAfterPatching();
         }
+    }
 
-        [Fact]
-        public async Task ignore_new_index_that_is_ignored()
-        {
-            var existing = new detecting_table_deltas().theTable;
-            existing.ModifyColumn("user_name").AddIndex(idx => idx.Name = "ignore_me");
-
-            await CreateSchemaObjectInDatabase(existing);
-
-            theTable.IgnoreIndex("ignore_me");
-
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeFalse();
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-
-            await AssertNoDeltasAfterPatching();
-        }
-
-        [Theory]
-        [MemberData(nameof(IndexTestData))]
-        public async Task matching_index_ddl(string description, Action<Table> configure)
-        {
-            configure(theTable);
-            await CreateSchemaObjectInDatabase(theTable);
-
-            var existing = await theTable.FetchExistingAsync(theConnection);
-
-            // The index DDL should match what the database thinks it is in order to match
-
-            var expected = existing!.Indexes.Single();
-            var actual = theTable.Indexes.Single();
-
-            expected.AssertMatches(actual, theTable);
-
-            // And no deltas
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.Indexes.Matched.Count.ShouldBe(1);
-        }
-
-        public static IEnumerable<object[]> IndexTestData()
-        {
-            foreach (var (description, action) in IndexConfigs())
-            {
-                yield return new object[] { description, action };
-            }
-        }
-
-        private static IEnumerable<(string, Action<Table>)> IndexConfigs()
-        {
-            yield return ("Simple btree", t => t.ModifyColumn("user_name").AddIndex());
-            yield return ("Simple btree with non-zero fill factor",
-                t => t.ModifyColumn("user_name").AddIndex(i => i.FillFactor = 50));
-            yield return ("Simple btree with expression",
-                t => t.ModifyColumn("user_name").AddIndex(i => i.Mask = "(lower(?))"));
-            yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
-            {
-                i.Mask = "(lower(?))";
-                i.Columns = new[] { "user_name" };
-                i.Predicate = "id > 5";
-            }));
-
-            yield return ("Simple btree with expression and predicate", t => t.ModifyColumn("user_name").AddIndex(i =>
-            {
-                i.Mask = "(lower(?))";
-                i.Columns = new[] { "user_name" };
-                i.Predicate = "user_name is not null";
-            }));
-
-            yield return ("Simple btree + desc",
-                t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
-            yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true));
-            yield return ("btree + concurrent", t => t.ModifyColumn("user_name").AddIndex(i =>
-            {
-                i.IsConcurrent = true;
-            }));
-
-            yield return ("btree + concurrent + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
-            {
-                i.IsUnique = true;
-                i.IsConcurrent = true;
-            }));
-
-            yield return ("Simple brin", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.brin));
-            yield return ("Simple gin", t => t.ModifyColumn("data").AddIndex(i => i.Method = IndexMethod.gin));
-            yield return ("Simple gist",
-                t => t.AddColumn("data2", "tsvector").AddIndex(i => i.Method = IndexMethod.gist));
-            yield return ("Simple hash", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.hash));
+    [Fact]
+    public async Task different_foreign_key()
+    {
+        var states = new Table("deltas.states");
+        states.AddColumn<int>("id").AsPrimaryKey();
 
+        await CreateSchemaObjectInDatabase(states);
 
-            yield return ("Simple jsonb property",
-                t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "(data ->> 'Name')" }));
-            yield return ("Simple jsonb property + unique", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Columns = new[] { "(data ->> 'Name')" };
-                i.IsUnique = true;
-            }));
 
-            yield return ("Jsonb property with function",
-                t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "lower(data ->> 'Name')" }));
-            yield return ("Jsonb property with function + unique", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Columns = new[] { "lower(data ->> 'Name')" };
-                i.IsUnique = true;
-            }));
-            yield return ("Jsonb property with function as expression", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Mask = "lower(?)";
-                i.Columns = new[] { "(data ->> 'Name')" };
-                i.IsUnique = true;
-            }));
+        var table = new Table("deltas.people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
 
-            yield return ("Jsonb property with cast",
-                t => t.ModifyColumn("data").AddIndex(i => i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)" }));
-            yield return ("Jsonb property with cast + unique", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)" };
-                i.IsUnique = true;
-            }));
+        table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
 
-            yield return ("Jsonb property with multiple casts + unique", t => t.ModifyColumn("data").AddIndex(i =>
-            {
-                i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'OtherGuid' as uuid)" };
-                i.IsUnique = true;
-            }));
-        }
+        await CreateSchemaObjectInDatabase(table);
 
-        [Fact]
-        public async Task detect_all_new_foreign_key()
-        {
-            var states = new Table("deltas.states");
-            states.AddColumn<int>("id").AsPrimaryKey();
+        table.ForeignKeys.Single().OnDelete = CascadeAction.Cascade;
 
-            await CreateSchemaObjectInDatabase(states);
+        var delta = await table.FindDeltaAsync(theConnection);
 
+        delta.HasChanges().ShouldBeTrue();
 
-            var table = new Table("deltas.people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
+        delta.ForeignKeys.Different.Single().Actual.Name
+            .ShouldBe("fkey_people_state_id");
 
-            await CreateSchemaObjectInDatabase(table);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
-            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+        await AssertNoDeltasAfterPatching(table);
+    }
 
-            var delta = await table.FindDeltaAsync(theConnection);
+    [Fact]
+    public async Task detect_primary_key_change()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
 
-            delta.HasChanges().ShouldBeTrue();
+        theTable.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValueByString("foo");
+        var delta = await theTable.FindDeltaAsync(theConnection);
 
-            delta.ForeignKeys.Missing.Single()
-                .ShouldBeSameAs(table.ForeignKeys.Single());
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+        delta.HasChanges().ShouldBeTrue();
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        await AssertNoDeltasAfterPatching(theTable);
+    }
 
-            await AssertNoDeltasAfterPatching(table);
-        }
+    [Fact]
+    public async Task detect_new_primary_key_change()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
 
-        [Fact]
-        public async Task detect_extra_foreign_key()
-        {
-            var states = new Table("deltas.states");
-            states.AddColumn<int>("id").AsPrimaryKey();
+        var table = new Table("deltas.states");
+        table.AddColumn<string>("abbreviation");
 
-            await CreateSchemaObjectInDatabase(states);
+        await CreateSchemaObjectInDatabase(table);
 
+        table.ModifyColumn("abbreviation").AsPrimaryKey();
 
-            var table = new Table("deltas.people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
+        var delta = await table.FindDeltaAsync(theConnection);
 
-            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+        delta.HasChanges().ShouldBeTrue();
 
+        await AssertNoDeltasAfterPatching(theTable);
+    }
 
-            await CreateSchemaObjectInDatabase(table);
+    [Fact]
+    public async Task detect_new_primary_key_constraint_name_change()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
 
-            table.ForeignKeys.Clear();
+        theTable.PrimaryKeyName = "pk_newchange";
 
-            var delta = await table.FindDeltaAsync(theConnection);
+        var delta = await theTable.FindDeltaAsync(theConnection);
 
-            delta.HasChanges().ShouldBeTrue();
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
 
-            delta.ForeignKeys.Extras.Single().Name
-                .ShouldBe("fkey_people_state_id");
+        delta.HasChanges().ShouldBeTrue();
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        await AssertNoDeltasAfterPatching(theTable);
+    }
 
-            await AssertNoDeltasAfterPatching(table);
-        }
+    [Fact]
+    public async Task detect_primary_key_constraint_name_change_with_key_beyond_namedatalen_limit()
+    {
+        theTable.PrimaryKeyName =
+            "pk_this_primary_key_exceeds_the_postgres_default_namedatalen_limit_of_sixtythree_chars";
+        await CreateSchemaObjectInDatabase(theTable);
 
-        [Fact]
-        public async Task match_foreign_key()
-        {
-            var states = new Table("deltas.states");
-            states.AddColumn<int>("id").AsPrimaryKey();
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeFalse();
+    }
 
-            await CreateSchemaObjectInDatabase(states);
+    [Fact]
+    public async Task detect_new_primary_key_constraint_name_change_when_also_used_as_foreign_key()
+    {
+        var dudeTable = new Table("deltas.dudes");
+        dudeTable.AddColumn<int>("id").AsPrimaryKey();
+        dudeTable.AddColumn<string>("first_name");
 
+        await CreateSchemaObjectInDatabase(dudeTable);
 
-            var table = new Table("deltas.people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
+        var carTable = new Table("deltas.cars");
+        carTable.AddColumn<int>("id").AsPrimaryKey();
+        carTable.AddColumn<int>("dude_id").ForeignKeyTo(dudeTable, "id");
 
-            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+        await CreateSchemaObjectInDatabase(carTable);
 
+        dudeTable.PrimaryKeyName = "pk_newchange";
 
-            await CreateSchemaObjectInDatabase(table);
+        var delta = await dudeTable.FindDeltaAsync(theConnection);
 
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
 
-            var delta = await table.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeTrue();
 
-            delta.HasChanges().ShouldBeFalse();
+        await AssertNoDeltasAfterPatching(dudeTable);
+    }
 
-            delta.ForeignKeys.Matched.Single().Name
-                .ShouldBe("fkey_people_state_id");
+    [Fact]
+    public async Task equivalency_with_the_postgres_synonym_issue()
+    {
+        var table2 = new Table("deltas.people");
+        table2.AddColumn<int>("id").AsPrimaryKey();
+        table2.AddColumn("first_name", "character varying");
+        table2.AddColumn("last_name", "character varying");
+        table2.AddColumn("user_name", "character varying");
+        table2.AddColumn("data", "jsonb");
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
+        await CreateSchemaObjectInDatabase(theTable);
 
-            await AssertNoDeltasAfterPatching(table);
-        }
+        var delta = await table2.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
 
-        [Fact]
-        public async Task match_foreign_key_with_inherited_foreign_key_class()
-        {
-            var table = new Table("deltas.foreign_key_test");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("name");
-            table.AddColumn<int?>("parent_id");
+    [Fact]
+    public async Task no_change_with_jsonb_path_ops()
+    {
+        var table2 = new Table("deltas.people");
+        table2.AddColumn<int>("id").AsPrimaryKey();
+        table2.AddColumn("first_name", "character varying");
+        table2.AddColumn("last_name", "character varying");
+        table2.AddColumn("user_name", "character varying");
+        table2.AddColumn("data", "jsonb").AddIndex(i => i.ToGinWithJsonbPathOps());
 
-            // Marten uses custom class for foreign keys which is inherited from ForeignKey
-            table.ForeignKeys.Add(new ForeignKeyTest("foreign_key_test_parent_id_fkey")
-            {
-                LinkedTable = table.Identifier, ColumnNames = new[] { "parent_id" }, LinkedNames = new[] { "id" }
-            });
+        await CreateSchemaObjectInDatabase(table2);
 
-            await CreateSchemaObjectInDatabase(table);
+        var delta = await table2.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
 
-            var delta = await table.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeFalse();
-            delta.ForeignKeys.Matched.Single().Name.ShouldBe("foreign_key_test_parent_id_fkey");
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-            await AssertNoDeltasAfterPatching(table);
-        }
+    [Fact]
+    public async Task patching_and_detecting_deltas_with_computed_indexes()
+    {
+        // CREATE INDEX idx_blobs_data ON deltas.blobs USING btree (data ->> 'Name');
+        // CREATE INDEX mt_doc_testdocument_idx_name ON bugs.mt_doc_testdocument USING btree ( (data ->> 'Name'));
 
-        private class ForeignKeyTest: ForeignKey
-        {
-            public ForeignKeyTest(string name): base(name)
-            {
-            }
-        }
+        var table = new Table("deltas.blobs");
+        table.AddColumn<string>("key").AsPrimaryKey();
+        table.AddColumn("data", "jsonb");
 
-        [Fact]
-        public async Task different_foreign_key()
-        {
-            var states = new Table("deltas.states");
-            states.AddColumn<int>("id").AsPrimaryKey();
+        await CreateSchemaObjectInDatabase(table);
 
-            await CreateSchemaObjectInDatabase(states);
+        table.Indexes.Add(new IndexDefinition("idx_blobs_data_name") { Columns = new[] { "(data ->> 'Name')" } });
 
-
-            var table = new Table("deltas.people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
-
-            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
-
-
-            await CreateSchemaObjectInDatabase(table);
-
-            table.ForeignKeys.Single().OnDelete = CascadeAction.Cascade;
-
-            var delta = await table.FindDeltaAsync(theConnection);
-
-            delta.HasChanges().ShouldBeTrue();
-
-            delta.ForeignKeys.Different.Single().Actual.Name
-                .ShouldBe("fkey_people_state_id");
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-
-            await AssertNoDeltasAfterPatching(table);
-        }
-
-        [Fact]
-        public async Task detect_primary_key_change()
-        {
-            await CreateSchemaObjectInDatabase(theTable);
-
-            theTable.AddColumn<string>("tenant_id").AsPrimaryKey().DefaultValueByString("foo");
-            var delta = await theTable.FindDeltaAsync(theConnection);
-
-            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
-            delta.HasChanges().ShouldBeTrue();
-
-            await AssertNoDeltasAfterPatching(theTable);
-        }
-
-        [Fact]
-        public async Task detect_new_primary_key_change()
-        {
-            await CreateSchemaObjectInDatabase(theTable);
-
-            var table = new Table("deltas.states");
-            table.AddColumn<string>("abbreviation");
-
-            await CreateSchemaObjectInDatabase(table);
-
-            table.ModifyColumn("abbreviation").AsPrimaryKey();
-
-            var delta = await table.FindDeltaAsync(theConnection);
-
-            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
-            delta.HasChanges().ShouldBeTrue();
-
-            await AssertNoDeltasAfterPatching(theTable);
-        }
-
-        [Fact]
-        public async Task detect_new_primary_key_constraint_name_change()
-        {
-            await CreateSchemaObjectInDatabase(theTable);
-
-            theTable.PrimaryKeyName = "pk_newchange";
-
-            var delta = await theTable.FindDeltaAsync(theConnection);
-
-            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
-
-            delta.HasChanges().ShouldBeTrue();
-
-            await AssertNoDeltasAfterPatching(theTable);
-        }
-
-        [Fact]
-        public async Task detect_primary_key_constraint_name_change_with_key_beyond_namedatalen_limit()
-        {
-            theTable.PrimaryKeyName =
-                "pk_this_primary_key_exceeds_the_postgres_default_namedatalen_limit_of_sixtythree_chars";
-            await CreateSchemaObjectInDatabase(theTable);
-
-            var delta = await theTable.FindDeltaAsync(theConnection);
-            delta.HasChanges().ShouldBeFalse();
-        }
-
-        [Fact]
-        public async Task detect_new_primary_key_constraint_name_change_when_also_used_as_foreign_key()
-        {
-            var dudeTable = new Table("deltas.dudes");
-            dudeTable.AddColumn<int>("id").AsPrimaryKey();
-            dudeTable.AddColumn<string>("first_name");
-
-            await CreateSchemaObjectInDatabase(dudeTable);
-
-            var carTable = new Table("deltas.cars");
-            carTable.AddColumn<int>("id").AsPrimaryKey();
-            carTable.AddColumn<int>("dude_id").ForeignKeyTo(dudeTable, "id");
-
-            await CreateSchemaObjectInDatabase(carTable);
-
-            dudeTable.PrimaryKeyName = "pk_newchange";
-
-            var delta = await dudeTable.FindDeltaAsync(theConnection);
-
-            delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
-
-            delta.HasChanges().ShouldBeTrue();
-
-            await AssertNoDeltasAfterPatching(dudeTable);
-        }
-
-        [Fact]
-        public async Task equivalency_with_the_postgres_synonym_issue()
-        {
-            var table2 = new Table("deltas.people");
-            table2.AddColumn<int>("id").AsPrimaryKey();
-            table2.AddColumn("first_name", "character varying");
-            table2.AddColumn("last_name", "character varying");
-            table2.AddColumn("user_name", "character varying");
-            table2.AddColumn("data", "jsonb");
-
-            await CreateSchemaObjectInDatabase(theTable);
-
-            var delta = await table2.FindDeltaAsync(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
-
-        [Fact]
-        public async Task no_change_with_jsonb_path_ops()
-        {
-            var table2 = new Table("deltas.people");
-            table2.AddColumn<int>("id").AsPrimaryKey();
-            table2.AddColumn("first_name", "character varying");
-            table2.AddColumn("last_name", "character varying");
-            table2.AddColumn("user_name", "character varying");
-            table2.AddColumn("data", "jsonb").AddIndex(i => i.ToGinWithJsonbPathOps());
-
-            await CreateSchemaObjectInDatabase(table2);
-
-            var delta = await table2.FindDeltaAsync(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
-
-        [Fact]
-        public async Task patching_and_detecting_deltas_with_computed_indexes()
-        {
-            // CREATE INDEX idx_blobs_data ON deltas.blobs USING btree (data ->> 'Name');
-            // CREATE INDEX mt_doc_testdocument_idx_name ON bugs.mt_doc_testdocument USING btree ( (data ->> 'Name'));
-
-            var table = new Table("deltas.blobs");
-            table.AddColumn<string>("key").AsPrimaryKey();
-            table.AddColumn("data", "jsonb");
-
-            await CreateSchemaObjectInDatabase(table);
-
-            table.Indexes.Add(new IndexDefinition("idx_blobs_data_name") { Columns = new[] { "(data ->> 'Name')" } });
-
-            await AssertNoDeltasAfterPatching(table);
-        }
+        await AssertNoDeltasAfterPatching(table);
     }
 }

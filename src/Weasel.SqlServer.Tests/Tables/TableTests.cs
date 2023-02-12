@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-using System.Linq;
 using Baseline;
 using Shouldly;
 using Weasel.Core;
@@ -8,274 +5,262 @@ using Weasel.SqlServer.Tables;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Weasel.SqlServer.Tests.Tables
+namespace Weasel.SqlServer.Tests.Tables;
+
+public class TableTests
 {
-    public class TableTests
+    private readonly ITestOutputHelper _output;
+
+    public TableTests(ITestOutputHelper output)
     {
-        private readonly ITestOutputHelper _output;
+        _output = output;
+    }
 
-        public TableTests(ITestOutputHelper output)
-        {
-            _output = output;
-        }
+    [Fact]
+    public void build_table_by_name_only_puts_it_in_dbo()
+    {
+        var table = new Table("mytable");
+        table.Identifier.Schema.ShouldBe("dbo");
+        table.Identifier.Name.ShouldBe("mytable");
+    }
 
-        [Fact]
-        public void build_table_by_name_only_puts_it_in_dbo()
-        {
-            var table = new Table("mytable");
-            table.Identifier.Schema.ShouldBe("dbo");
-            table.Identifier.Name.ShouldBe("mytable");
-        }
+    [Fact]
+    public void add_column_by_name_and_type()
+    {
+        var table = new Table("mytable");
+        table.AddColumn("col1", "varchar");
+        var column = table.Columns.Single();
 
-        [Fact]
-        public void add_column_by_name_and_type()
-        {
-            var table = new Table("mytable");
-            table.AddColumn("col1", "varchar");
-            var column = table.Columns.Single();
-            
-            column.Name.ShouldBe("col1");
-            column.Type.ShouldBe("varchar");
-            
-            table.Columns.ShouldContain(column);
-        }
+        column.Name.ShouldBe("col1");
+        column.Type.ShouldBe("varchar");
 
-        [Fact]
-        public void has_column()
-        {
-            var table = new Table("mytable");
-            table.AddColumn("col1", "varchar");
-            
-            table.HasColumn("col1").ShouldBeTrue();
-            table.HasColumn("doesnotexist").ShouldBeFalse();
-        }
+        table.Columns.ShouldContain(column);
+    }
 
-        [Fact]
-        public void add_column_directly_sets_the_parent()
-        {
-            var table = new Table("mytable");
-            var column = new TableColumn("col1", "varchar");
+    [Fact]
+    public void has_column()
+    {
+        var table = new Table("mytable");
+        table.AddColumn("col1", "varchar");
 
-            table.AddColumn(column);
-            
-            table.Columns.ShouldContain(column);
-            column.Parent.ShouldBe(table);
-        }
+        table.HasColumn("col1").ShouldBeTrue();
+        table.HasColumn("doesnotexist").ShouldBeFalse();
+    }
 
-        [Fact]
-        public void set_the_parent_on_add_column()
-        {
-            var table = new Table("mytable");
-            table.AddColumn("col1", "varchar");
-            var column = table.Columns.Single();
-            
-            column.Parent.ShouldBe(table);
-        }
+    [Fact]
+    public void add_column_directly_sets_the_parent()
+    {
+        var table = new Table("mytable");
+        var column = new TableColumn("col1", "varchar");
 
-        [Fact]
-        public void cannot_specify_column_by_enum_automatically()
-        {
-            Should.Throw<InvalidOperationException>(() =>
-            {
-                var table = new Table("mytable");
-                table.AddColumn<AutoCreate>("foo");
-            });
-        }
+        table.AddColumn(column);
 
-        [Fact]
-        public void add_type_by_dotnet_type_and_name()
+        table.Columns.ShouldContain(column);
+        column.Parent.ShouldBe(table);
+    }
+
+    [Fact]
+    public void set_the_parent_on_add_column()
+    {
+        var table = new Table("mytable");
+        table.AddColumn("col1", "varchar");
+        var column = table.Columns.Single();
+
+        column.Parent.ShouldBe(table);
+    }
+
+    [Fact]
+    public void cannot_specify_column_by_enum_automatically()
+    {
+        Should.Throw<InvalidOperationException>(() =>
         {
             var table = new Table("mytable");
-            table.AddColumn<int>("number");
-            var column = table.Columns.Single();
-            column
-                .Type.ShouldBe(SqlServerProvider.Instance.GetDatabaseType(typeof(int), EnumStorage.AsInteger));
-            
-            table.Columns.ShouldContain(column);
-        }
+            table.AddColumn<AutoCreate>("foo");
+        });
+    }
 
-        [Fact]
-        public void smoke_test_writing_table_code_with_columns()
-        {
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
+    [Fact]
+    public void add_type_by_dotnet_type_and_name()
+    {
+        var table = new Table("mytable");
+        table.AddColumn<int>("number");
+        var column = table.Columns.Single();
+        column
+            .Type.ShouldBe(SqlServerProvider.Instance.GetDatabaseType(typeof(int), EnumStorage.AsInteger));
 
-            var rules = new SqlServerMigrator
-            {
-                TableCreation = CreationStyle.DropThenCreate
-            };
+        table.Columns.ShouldContain(column);
+    }
 
-            var writer = new StringWriter();
-            table.WriteCreateStatement(rules, writer);
+    [Fact]
+    public void smoke_test_writing_table_code_with_columns()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
 
-            var ddl = writer.ToString();
-            
-            _output.WriteLine(ddl);
-            
-            var lines = ddl.ReadLines().ToArray();
-            
-            lines.ShouldContain("DROP TABLE IF EXISTS dbo.people;");
-            lines.ShouldContain("CREATE TABLE dbo.people (");
+        var rules = new SqlServerMigrator { TableCreation = CreationStyle.DropThenCreate };
 
-        }
+        var writer = new StringWriter();
+        table.WriteCreateStatement(rules, writer);
 
-        [Fact]
-        public void write_table_with_if_exists_semantics()
-        {
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
+        var ddl = writer.ToString();
 
-            var rules = new SqlServerMigrator
-            {
-                TableCreation = CreationStyle.CreateIfNotExists
-            };
+        _output.WriteLine(ddl);
 
-            var writer = new StringWriter();
-            table.WriteCreateStatement(rules, writer);
+        var lines = ddl.ReadLines().ToArray();
 
-            var ddl = writer.ToString();
-            
-            _output.WriteLine(ddl);
-            
-            var lines = ddl.ReadLines().ToArray();
-            
-            lines.ShouldContain("CREATE TABLE IF NOT EXISTS dbo.people (");
-        }
+        lines.ShouldContain("DROP TABLE IF EXISTS dbo.people;");
+        lines.ShouldContain("CREATE TABLE dbo.people (");
+    }
 
-        [Fact]
-        public void add_foreign_key_to_table_with_fluent_interface()
-        {
-            var states = new Table("states");
-            states.AddColumn<int>("id").AsPrimaryKey();
+    [Fact]
+    public void write_table_with_if_exists_semantics()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
 
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
+        var rules = new SqlServerMigrator { TableCreation = CreationStyle.CreateIfNotExists };
 
-            var fk = table.ForeignKeys.Single();
-            
-            fk.Name.ShouldBe("fkey_people_state_id");
-        }
-        
-        
-        [Fact]
-        public void add_foreign_key_to__external_table_by_name_with_fluent_interface()
-        {
-            var states = new Table("states");
-            states.AddColumn<int>("id").AsPrimaryKey();
+        var writer = new StringWriter();
+        table.WriteCreateStatement(rules, writer);
 
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").ForeignKeyTo("states", "id");
+        var ddl = writer.ToString();
 
-            var fk = table.ForeignKeys.Single();
-            
-            fk.Name.ShouldBe("fkey_people_state_id");
-        }
-        
-        
-        [Fact]
-        public void add_index_to_table_with_fluent_interface()
-        {
+        _output.WriteLine(ddl);
 
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex();
+        var lines = ddl.ReadLines().ToArray();
 
-            var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
-            
-            index.Name.ShouldBe("idx_people_state_id");
-            index.Columns.Single().ShouldBe("state_id");
-        }
-        
-                
-        
-        [Fact]
-        public void add_index_to_table_with_fluent_interface_with_customization()
-        {
+        lines.ShouldContain("CREATE TABLE IF NOT EXISTS dbo.people (");
+    }
 
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex();
+    [Fact]
+    public void add_foreign_key_to_table_with_fluent_interface()
+    {
+        var states = new Table("states");
+        states.AddColumn<int>("id").AsPrimaryKey();
 
-            var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
-            
-            index.Name.ShouldBe("idx_people_state_id");
-            index.Columns.Single().ShouldBe("state_id");
-        }
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
-        [Fact]
-        public void default_primary_key_name()
-        {
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name");
-            table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex();
+        var fk = table.ForeignKeys.Single();
 
-            table.PrimaryKeyName.ShouldBe("pkey_people_id");
-        }
-
-        [Fact]
-        public void multi_column_primary_key()
-        {
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name").AsPrimaryKey();
-            table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex();
-
-            table.PrimaryKeyName.ShouldBe("pkey_people_id_first_name");
-        }
-        
-        [Fact]
-        public void override_primary_key_name()
-        {
-            var table = new Table("people");
-            table.AddColumn<int>("id").AsPrimaryKey();
-            table.AddColumn<string>("first_name").AsPrimaryKey();
-            table.AddColumn<string>("last_name");
-            table.AddColumn<int>("state_id").AddIndex();
-
-            table.PrimaryKeyName = "pk_people";
-            table.PrimaryKeyName.ShouldBe("pk_people");
-        }
-        
-        
-        [Fact]
-        public void is_primary_key_mechanics()
-        {
-            var states = new Table("states");
-            states.AddColumn<int>("id").AsPrimaryKey();
-            states.AddColumn<string>("abbreviation");
-            
-            states.Columns.First().IsPrimaryKey.ShouldBeTrue();
-            states.Columns.Last().IsPrimaryKey.ShouldBeFalse();
-        }
-
-        [Fact]
-        public void add_serial_as_default_value()
-        {
-            var states = new Table("states");
-            states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+        fk.Name.ShouldBe("fkey_people_state_id");
+    }
 
 
-            var sql = states.ToBasicCreateTableSql();
-            
-            sql.ShouldContain("id int NOT NULL IDENTITY");
-        }
+    [Fact]
+    public void add_foreign_key_to__external_table_by_name_with_fluent_interface()
+    {
+        var states = new Table("states");
+        states.AddColumn<int>("id").AsPrimaryKey();
 
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("state_id").ForeignKeyTo("states", "id");
+
+        var fk = table.ForeignKeys.Single();
+
+        fk.Name.ShouldBe("fkey_people_state_id");
+    }
+
+
+    [Fact]
+    public void add_index_to_table_with_fluent_interface()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("state_id").AddIndex();
+
+        var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
+
+        index.Name.ShouldBe("idx_people_state_id");
+        index.Columns.Single().ShouldBe("state_id");
+    }
+
+
+    [Fact]
+    public void add_index_to_table_with_fluent_interface_with_customization()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("state_id").AddIndex();
+
+        var index = table.Indexes.Single().ShouldBeOfType<IndexDefinition>();
+
+        index.Name.ShouldBe("idx_people_state_id");
+        index.Columns.Single().ShouldBe("state_id");
+    }
+
+    [Fact]
+    public void default_primary_key_name()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("state_id").AddIndex();
+
+        table.PrimaryKeyName.ShouldBe("pkey_people_id");
+    }
+
+    [Fact]
+    public void multi_column_primary_key()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name").AsPrimaryKey();
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("state_id").AddIndex();
+
+        table.PrimaryKeyName.ShouldBe("pkey_people_id_first_name");
+    }
+
+    [Fact]
+    public void override_primary_key_name()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name").AsPrimaryKey();
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("state_id").AddIndex();
+
+        table.PrimaryKeyName = "pk_people";
+        table.PrimaryKeyName.ShouldBe("pk_people");
+    }
+
+
+    [Fact]
+    public void is_primary_key_mechanics()
+    {
+        var states = new Table("states");
+        states.AddColumn<int>("id").AsPrimaryKey();
+        states.AddColumn<string>("abbreviation");
+
+        states.Columns.First().IsPrimaryKey.ShouldBeTrue();
+        states.Columns.Last().IsPrimaryKey.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void add_serial_as_default_value()
+    {
+        var states = new Table("states");
+        states.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+
+
+        var sql = states.ToBasicCreateTableSql();
+
+        sql.ShouldContain("id int NOT NULL IDENTITY");
     }
 }
