@@ -3,57 +3,56 @@ using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
-namespace Weasel.Postgresql.Tests.Tables
+namespace Weasel.Postgresql.Tests.Tables;
+
+public class TableDeltaTests
 {
-    public class TableDeltaTests
+    [Fact]
+    public void invalid_if_any_new_columns_cannot_be_added()
     {
-        [Fact]
-        public void invalid_if_any_new_columns_cannot_be_added()
+        var expected = new Table("people");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn(new CannotAddColumn("foo", "varchar"));
+
+        var actual = new Table("people");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
+    }
+
+    [Fact]
+    public void invalid_if_any_new_columns_cannot_be_modified()
+    {
+        var expected = new Table("people");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn(new CannotAddColumn("foo", "varchar"));
+
+        var actual = new Table("people");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn(new CannotAddColumn("foo", "int"));
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
+    }
+
+    public class CannotAddColumn: TableColumn
+    {
+        public CannotAddColumn(string name, string type): base(name, type)
         {
-            var expected = new Table("people");
-            expected.AddColumn<int>("id").AsPrimaryKey();
-            expected.AddColumn(new CannotAddColumn("foo", "varchar"));
-
-            var actual = new Table("people");
-            actual.AddColumn<int>("id").AsPrimaryKey();
-
-            var delta = new TableDelta(expected, actual);
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
         }
 
-        [Fact]
-        public void invalid_if_any_new_columns_cannot_be_modified()
+
+        public override bool CanAdd()
         {
-            var expected = new Table("people");
-            expected.AddColumn<int>("id").AsPrimaryKey();
-            expected.AddColumn(new CannotAddColumn("foo", "varchar"));
-
-            var actual = new Table("people");
-            actual.AddColumn<int>("id").AsPrimaryKey();
-            actual.AddColumn(new CannotAddColumn("foo", "int"));
-
-            var delta = new TableDelta(expected, actual);
-
-            delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
+            return false;
         }
 
-        public class CannotAddColumn : TableColumn
+        public override bool CanAlter(TableColumn actual)
         {
-            public CannotAddColumn(string name, string type) : base(name, type)
-            {
-            }
-
-
-            public override bool CanAdd()
-            {
-                return false;
-            }
-
-            public override bool CanAlter(TableColumn actual)
-            {
-                return false;
-            }
+            return false;
         }
     }
 }

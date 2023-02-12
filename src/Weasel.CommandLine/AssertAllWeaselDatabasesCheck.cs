@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Oakton.Environment;
 using Weasel.Core.Migrations;
 

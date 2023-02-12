@@ -3,11 +3,11 @@ using Weasel.Core;
 using Weasel.Postgresql.Functions;
 using Xunit;
 
-namespace Weasel.Postgresql.Tests.Functions
+namespace Weasel.Postgresql.Tests.Functions;
+
+public class FunctionBodyTests
 {
-    public class FunctionBodyTests
-    {
-        private string theFunctionBody = @"
+    private string theFunctionBody = @"
 CREATE OR REPLACE FUNCTION public.mt_upsert_target(
     doc jsonb,
     docdotnettype character varying,
@@ -29,24 +29,21 @@ $BODY$
 
 ";
 
-        [Fact]
-        public void derive_the_function_signature_from_the_body()
-        {
+    [Fact]
+    public void derive_the_function_signature_from_the_body()
+    {
+        var func = new FunctionBody(new DbObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
 
+        Function.ParseSignature(func.Body).ShouldBe("public.mt_upsert_target(jsonb, character varying, uuid, uuid)");
+    }
 
-            var func = new FunctionBody(new DbObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
+    [Fact]
+    public void do_substitutions()
+    {
+        var func = new FunctionBody(new DbObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
 
-            Function.ParseSignature(func.Body).ShouldBe("public.mt_upsert_target(jsonb, character varying, uuid, uuid)");
-        }
-
-        [Fact]
-        public void do_substitutions()
-        {
-            var func = new FunctionBody(new DbObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
-
-            func.BuildTemplate($"*{PostgresqlMigrator.SCHEMA}*").ShouldBe("*public*");
-            func.BuildTemplate($"*{PostgresqlMigrator.FUNCTION}*").ShouldBe("*mt_upsert_target*");
-            func.BuildTemplate($"*{PostgresqlMigrator.SIGNATURE}*").ShouldBe($"*{Function.ParseSignature(func.Body)}*");
-        }
+        func.BuildTemplate($"*{PostgresqlMigrator.SCHEMA}*").ShouldBe("*public*");
+        func.BuildTemplate($"*{PostgresqlMigrator.FUNCTION}*").ShouldBe("*mt_upsert_target*");
+        func.BuildTemplate($"*{PostgresqlMigrator.SIGNATURE}*").ShouldBe($"*{Function.ParseSignature(func.Body)}*");
     }
 }

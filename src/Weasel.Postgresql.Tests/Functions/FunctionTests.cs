@@ -1,5 +1,3 @@
-using System.Linq;
-using System.Threading.Tasks;
 using JasperFx.Core.Reflection;
 using Shouldly;
 using Weasel.Core;
@@ -7,12 +5,12 @@ using Weasel.Postgresql.Functions;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
-namespace Weasel.Postgresql.Tests.Functions
+namespace Weasel.Postgresql.Tests.Functions;
+
+[Collection("functions")]
+public class FunctionTests: IntegrationContext
 {
-    [Collection("functions")]
-    public class FunctionTests: IntegrationContext
-    {
-        private readonly string theFunctionBody = @"
+    private readonly string theFunctionBody = @"
 CREATE OR REPLACE FUNCTION functions.mt_get_next_hi(entity varchar) RETURNS integer AS
 $$
 DECLARE
@@ -38,7 +36,7 @@ END
 $$ LANGUAGE plpgsql;
 ";
 
-        private readonly string theDifferentBody = @"
+    private readonly string theDifferentBody = @"
 CREATE OR REPLACE FUNCTION functions.mt_get_next_hi(entity varchar) RETURNS integer AS
 $$
 DECLARE
@@ -53,7 +51,7 @@ END
 $$ LANGUAGE plpgsql;
 ";
 
-        private readonly string theEvenDifferentBody = @"
+    private readonly string theEvenDifferentBody = @"
 CREATE OR REPLACE FUNCTION functions.mt_get_next_hi(entity varchar, name varchar) RETURNS integer AS
 $$
 DECLARE
@@ -68,298 +66,297 @@ END
 $$ LANGUAGE plpgsql;
 ";
 
-        private Table theHiloTable;
+    private Table theHiloTable;
 
-        public FunctionTests(): base("functions")
-        {
-            theHiloTable = new Table("functions.mt_hilo");
-            theHiloTable.AddColumn<string>("entity_name").AsPrimaryKey();
-            theHiloTable.AddColumn<int>("next_value");
-            theHiloTable.AddColumn<int>("hi_value");
-        }
+    public FunctionTests(): base("functions")
+    {
+        theHiloTable = new Table("functions.mt_hilo");
+        theHiloTable.AddColumn<string>("entity_name").AsPrimaryKey();
+        theHiloTable.AddColumn<int>("next_value");
+        theHiloTable.AddColumn<int>("hi_value");
+    }
 
-        protected async Task AssertNoDeltasAfterPatching(Function func)
-        {
-            await func.ApplyChangesAsync(theConnection);
+    protected async Task AssertNoDeltasAfterPatching(Function func)
+    {
+        await func.ApplyChangesAsync(theConnection);
 
-            var delta = await func.FindDeltaAsync(theConnection);
+        var delta = await func.FindDeltaAsync(theConnection);
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
 
-        [Fact]
-        public void for_removal()
-        {
-            var function = Function.ForRemoval("functions.mt_hilo");
-            function.IsRemoved.ShouldBeTrue();
-            function.Identifier.QualifiedName.ShouldBe("functions.mt_hilo");
-        }
+    [Fact]
+    public void for_removal()
+    {
+        var function = Function.ForRemoval("functions.mt_hilo");
+        function.IsRemoved.ShouldBeTrue();
+        function.Identifier.QualifiedName.ShouldBe("functions.mt_hilo");
+    }
 
-        [Fact]
-        public void can_read_the_function_identifier_from_a_function_body()
-        {
-            Function.ParseIdentifier(theFunctionBody)
-                .ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
-        }
+    [Fact]
+    public void can_read_the_function_identifier_from_a_function_body()
+    {
+        Function.ParseIdentifier(theFunctionBody)
+            .ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
+    }
 
-        [Fact]
-        public void can_derive_the_drop_statement_from_the_body()
-        {
-            var function = new Function(new DbObjectName("functions", "mt_get_next_hi"), theFunctionBody);
-            function.DropStatements().Single().ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
-        }
+    [Fact]
+    public void can_derive_the_drop_statement_from_the_body()
+    {
+        var function = new Function(new DbObjectName("functions", "mt_get_next_hi"), theFunctionBody);
+        function.DropStatements().Single().ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
+    }
 
-        [Fact]
-        public void can_build_function_object_from_body()
-        {
-            var function = Function.ForSql(theFunctionBody);
-            function.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
+    [Fact]
+    public void can_build_function_object_from_body()
+    {
+        var function = Function.ForSql(theFunctionBody);
+        function.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
 
-            function.DropStatements().Single()
-                .ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
-        }
+        function.DropStatements().Single()
+            .ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
+    }
 
-        [Fact]
-        public async Task can_build_function_in_database()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_build_function_in_database()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            await CreateSchemaObjectInDatabase(function);
+        await CreateSchemaObjectInDatabase(function);
 
-            var next = await theConnection.CreateCommand("select functions.mt_get_next_hi('foo');")
-                .ExecuteScalarAsync();
+        var next = await theConnection.CreateCommand("select functions.mt_get_next_hi('foo');")
+            .ExecuteScalarAsync();
 
-            next.As<int>().ShouldBe(0);
+        next.As<int>().ShouldBe(0);
 
-            await theConnection.FunctionExistsAsync(function.Identifier);
-        }
+        await theConnection.FunctionExistsAsync(function.Identifier);
+    }
 
 
-        [Fact]
-        public async Task existing_functions_extension_method()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task existing_functions_extension_method()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            await CreateSchemaObjectInDatabase(function);
+        await CreateSchemaObjectInDatabase(function);
 
-            var functions = await theConnection.ExistingFunctionsAsync();
+        var functions = await theConnection.ExistingFunctionsAsync();
 
-            functions.ShouldContain(function.Identifier);
+        functions.ShouldContain(function.Identifier);
 
-            var existing = await theConnection.FindExistingFunction(function.Identifier);
-            existing.ShouldNotBeNull();
-        }
+        var existing = await theConnection.FindExistingFunction(function.Identifier);
+        existing.ShouldNotBeNull();
+    }
 
-        [Fact]
-        public async Task can_fetch_the_existing()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_fetch_the_existing()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            await CreateSchemaObjectInDatabase(function);
+        await CreateSchemaObjectInDatabase(function);
 
-            var existing = await function.FetchExistingAsync(theConnection);
+        var existing = await function.FetchExistingAsync(theConnection);
 
-            existing.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
-            existing.DropStatements().Single()
-                .ShouldBe("DROP FUNCTION IF EXISTS functions.mt_get_next_hi(entity character varying);");
-            existing.Body().ShouldNotBeNull();
-        }
+        existing.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
+        existing.DropStatements().Single()
+            .ShouldBe("DROP FUNCTION IF EXISTS functions.mt_get_next_hi(entity character varying);");
+        existing.Body().ShouldNotBeNull();
+    }
 
-        [Fact]
-        public async Task can_fetch_the_delta_when_the_existing_does_not_exist()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_fetch_the_delta_when_the_existing_does_not_exist()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            (await function.FetchExistingAsync(theConnection)).ShouldBeNull();
+        (await function.FetchExistingAsync(theConnection)).ShouldBeNull();
 
-            var delta = await function.FindDeltaAsync(theConnection);
+        var delta = await function.FindDeltaAsync(theConnection);
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.Create);
-        }
+        delta.Difference.ShouldBe(SchemaPatchDifference.Create);
+    }
 
-        [Fact]
-        public async Task for_removal_mechanics()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task for_removal_mechanics()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            await CreateSchemaObjectInDatabase(function);
+        await CreateSchemaObjectInDatabase(function);
 
-            var toRemove = Function.ForRemoval(function.Identifier);
+        var toRemove = Function.ForRemoval(function.Identifier);
 
-            var delta = await toRemove.FindDeltaAsync(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        var delta = await toRemove.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
-            await AssertNoDeltasAfterPatching(toRemove);
+        await AssertNoDeltasAfterPatching(toRemove);
 
-            (await theConnection.FunctionExistsAsync(toRemove.Identifier)).ShouldBeFalse();
-        }
+        (await theConnection.FunctionExistsAsync(toRemove.Identifier)).ShouldBeFalse();
+    }
 
-        [Fact]
-        public async Task rollback_existing()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task rollback_existing()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            await CreateSchemaObjectInDatabase(function);
+        await CreateSchemaObjectInDatabase(function);
 
-            var toRemove = Function.ForRemoval(function.Identifier);
+        var toRemove = Function.ForRemoval(function.Identifier);
 
-            var delta = await toRemove.FindDeltaAsync(theConnection);
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        var delta = await toRemove.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
-            var migration = new SchemaMigration(delta);
+        var migration = new SchemaMigration(delta);
 
-            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
+        await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
+        await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
 
-            (await theConnection.FunctionExistsAsync(toRemove.Identifier)).ShouldBeTrue();
-        }
+        (await theConnection.FunctionExistsAsync(toRemove.Identifier)).ShouldBeTrue();
+    }
 
-        [Fact]
-        public async Task can_fetch_the_delta_when_the_existing_matches()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_fetch_the_delta_when_the_existing_matches()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            await CreateSchemaObjectInDatabase(function);
+        await CreateSchemaObjectInDatabase(function);
 
-            var delta = await function.FindDeltaAsync(theConnection);
+        var delta = await function.FindDeltaAsync(theConnection);
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
 
-        [Fact]
-        public async Task can_detect_a_change_in_body()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_detect_a_change_in_body()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
-            await CreateSchemaObjectInDatabase(function);
+        var function = Function.ForSql(theFunctionBody);
+        await CreateSchemaObjectInDatabase(function);
 
-            var different = Function.ForSql(theDifferentBody);
+        var different = Function.ForSql(theDifferentBody);
 
-            var delta = await different.FindDeltaAsync(theConnection);
+        var delta = await different.FindDeltaAsync(theConnection);
 
-            delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-        }
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+    }
 
-        [Fact]
-        public async Task can_apply_the_creation_delta()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_apply_the_creation_delta()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            await AssertNoDeltasAfterPatching(function);
-        }
+        await AssertNoDeltasAfterPatching(function);
+    }
 
-        [Fact]
-        public async Task can_apply_a_changed_delta()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_apply_a_changed_delta()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
-            await CreateSchemaObjectInDatabase(function);
+        var function = Function.ForSql(theFunctionBody);
+        await CreateSchemaObjectInDatabase(function);
 
-            var different = Function.ForSql(theDifferentBody);
+        var different = Function.ForSql(theDifferentBody);
 
-            await AssertNoDeltasAfterPatching(different);
-        }
+        await AssertNoDeltasAfterPatching(different);
+    }
 
-        [Fact]
-        public async Task can_apply_a_changed_delta_with_different_signature()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_apply_a_changed_delta_with_different_signature()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
-            await CreateSchemaObjectInDatabase(function);
+        var function = Function.ForSql(theFunctionBody);
+        await CreateSchemaObjectInDatabase(function);
 
-            var different = Function.ForSql(theEvenDifferentBody);
+        var different = Function.ForSql(theEvenDifferentBody);
 
-            await AssertNoDeltasAfterPatching(different);
-        }
+        await AssertNoDeltasAfterPatching(different);
+    }
 
-        [Fact]
-        public async Task can_rollback_a_function_change()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task can_rollback_a_function_change()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
-            await CreateSchemaObjectInDatabase(function);
+        var function = Function.ForSql(theFunctionBody);
+        await CreateSchemaObjectInDatabase(function);
 
-            var different = Function.ForSql(theEvenDifferentBody);
+        var different = Function.ForSql(theEvenDifferentBody);
 
-            var delta = await different.FindDeltaAsync(theConnection);
+        var delta = await different.FindDeltaAsync(theConnection);
 
-            var migration = new SchemaMigration(delta);
+        var migration = new SchemaMigration(delta);
 
-            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
+        await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
+        await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
 
-            // Should be back to the original function
+        // Should be back to the original function
 
-            var lastDelta = await function.FindDeltaAsync(theConnection);
+        var lastDelta = await function.FindDeltaAsync(theConnection);
 
-            lastDelta.Difference.ShouldBe(SchemaPatchDifference.None);
-        }
+        lastDelta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
 
-        [Fact]
-        public async Task rollback_a_function_creation()
-        {
-            await ResetSchema();
+    [Fact]
+    public async Task rollback_a_function_creation()
+    {
+        await ResetSchema();
 
-            await CreateSchemaObjectInDatabase(theHiloTable);
+        await CreateSchemaObjectInDatabase(theHiloTable);
 
-            var function = Function.ForSql(theFunctionBody);
+        var function = Function.ForSql(theFunctionBody);
 
-            var delta = await function.FindDeltaAsync(theConnection);
-            var migration = new SchemaMigration(delta);
+        var delta = await function.FindDeltaAsync(theConnection);
+        var migration = new SchemaMigration(delta);
 
-            await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
+        await new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
 
-            (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeTrue();
+        (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeTrue();
 
-            await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
+        await migration.RollbackAllAsync(theConnection, new PostgresqlMigrator());
 
-            (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeFalse();
-        }
+        (await theConnection.FunctionExistsAsync(function.Identifier)).ShouldBeFalse();
     }
 }

@@ -1,13 +1,12 @@
-using Microsoft.Extensions.DependencyInjection;
 using Oakton;
 using Spectre.Console;
 using Weasel.Core;
-using Weasel.Core.Migrations;
 
 namespace Weasel.CommandLine;
 
-[Description("Applies all outstanding changes to the database(s) based on the current configuration", Name = "db-apply")]
-public class ApplyCommand : OaktonAsyncCommand<WeaselInput>
+[Description("Applies all outstanding changes to the database(s) based on the current configuration",
+    Name = "db-apply")]
+public class ApplyCommand: OaktonAsyncCommand<WeaselInput>
 {
     public override async Task<bool> Execute(WeaselInput input)
     {
@@ -27,9 +26,9 @@ public class ApplyCommand : OaktonAsyncCommand<WeaselInput>
 
                 case SchemaPatchDifference.Create:
                 case SchemaPatchDifference.Update:
-                    AnsiConsole.MarkupLine($"[bold green]Successfully applied migrations for '{database.Identifier}'.[/]");
+                    AnsiConsole.MarkupLine(
+                        $"[bold green]Successfully applied migrations for '{database.Identifier}'.[/]");
                     break;
-
             }
         }
 

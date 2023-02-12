@@ -1,9 +1,7 @@
 using JasperFx.Core.Reflection;
 using NSubstitute;
-using NSubstitute.Core.Arguments;
 using Shouldly;
 using Spectre.Console;
-using Spectre.Console.Rendering;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 using Xunit;
