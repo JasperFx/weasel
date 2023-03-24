@@ -20,12 +20,13 @@ public class PostgresqlProviderTests
     [Fact]
     public void execute_to_db_custom_mappings_resolve()
     {
-        NpgsqlTypeMapper.Mappings.Add(new NpgsqlTypeMapping(
-            NpgsqlDbType.Varchar,
-            DbType.String,
-            "varchar",
-            typeof(MappedTarget)
-        ));
+        NpgsqlTypeMapper.Mappings[NpgsqlDbType.Varchar] =
+            new NpgsqlTypeMapping(
+                NpgsqlDbType.Varchar,
+                DbType.String,
+                "varchar",
+                typeof(MappedTarget)
+            );
 
         PostgresqlProvider.Instance.ToParameterType(typeof(MappedTarget)).ShouldBe(NpgsqlDbType.Varchar);
         ShouldThrowExtensions.ShouldThrow<Exception>(() =>
