@@ -267,9 +267,30 @@ public class TableTests
         var states = new Table("states");
         states.AddColumn<int>("id").AsPrimaryKey().Serial();
 
-
         var sql = states.ToBasicCreateTableSql();
 
         sql.ShouldContain("id SERIAL");
+    }
+
+    [Fact]
+    public void add_bigserial_as_default_value()
+    {
+        var states = new Table("states");
+        states.AddColumn<int>("id").AsPrimaryKey().BigSerial();
+
+        var sql = states.ToBasicCreateTableSql();
+
+        sql.ShouldContain("id BIGSERIAL");
+    }
+
+    [Fact]
+    public void add_smallserial_as_default_value()
+    {
+        var states = new Table("states");
+        states.AddColumn<int>("id").AsPrimaryKey().SmallSerial();
+
+        var sql = states.ToBasicCreateTableSql();
+
+        sql.ShouldContain("id SMALLSERIAL");
     }
 }
