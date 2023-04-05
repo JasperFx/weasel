@@ -35,7 +35,7 @@ public class ViewTests
     [Fact]
     public void smoke_test_writing_view_code()
     {
-        var view = new View("people", "SELECT 1 AS id");
+        var view = new View("people_view", "SELECT 1 AS id");
 
         var rules = new PostgresqlMigrator();
 
@@ -48,7 +48,7 @@ public class ViewTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain("DROP VIEW IF EXISTS public.people;");
-        lines.ShouldContain("CREATE VIEW public.people AS SELECT 1 AS id;");
+        lines.ShouldContain("DROP VIEW IF EXISTS public.people_view;");
+        lines.ShouldContain("CREATE VIEW public.people_view AS SELECT 1 AS id;");
     }
 }
