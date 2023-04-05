@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Views;
 using Xunit;
 
@@ -18,7 +19,7 @@ public class creating_views_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("views");
 
-        var view = new View("people_view", "SELECT 1 AS id");
+        var view = new View("views.people_view", "SELECT 1 AS id");
         await CreateSchemaObjectInDatabase(view);
 
         (await view.ExistsInDatabaseAsync(theConnection))
@@ -37,7 +38,7 @@ public class creating_views_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("views");
 
-        var view = new View("people_view", "SELECT 1 AS id");
+        var view = new View("views.people_view", "SELECT 1 AS id");
         await CreateSchemaObjectInDatabase(view);
         await DropSchemaObjectInDatabase(view);
 
