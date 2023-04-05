@@ -20,8 +20,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CI", "CI", "{4E257542-CA6B-4B84-BA33-78A3AF2D6922}"
 	ProjectSection(SolutionItems) = preProject
 		.github\workflows\ci-build-mssql.yml = .github\workflows\ci-build-mssql.yml
-		.github\workflows\dotnet.yml = .github\workflows\dotnet.yml
 		.github\workflows\publish_nuget.yml = .github\workflows\publish_nuget.yml
+		.github\workflows\ci-build-postgres.yml = .github\workflows\ci-build-postgres.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{28703D10-2FA5-4526-8B0A-4FD7EABD6375}"
