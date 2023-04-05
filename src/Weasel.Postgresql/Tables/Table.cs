@@ -394,6 +394,18 @@ public partial class Table: ISchemaObject
             return this;
         }
 
+        public ColumnExpression BigSerial()
+        {
+            Column.Type = "BIGSERIAL";
+            return this;
+        }
+
+        public ColumnExpression SmallSerial()
+        {
+            Column.Type = "SMALLSERIAL";
+            return this;
+        }
+
         public ColumnExpression DefaultValueByString(string value)
         {
             return DefaultValueByExpression($"'{value}'");
