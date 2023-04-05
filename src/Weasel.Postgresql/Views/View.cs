@@ -58,7 +58,14 @@ public class View: ISchemaObject
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         WriteDropStatement(migrator, writer);
-        writer.WriteLine($"CREATE {ViewType} {Identifier.QualifiedName} {GetCreationOptions()} AS {viewSql};");
+
+        var viewIdentifier = Identifier.QualifiedName;
+        var creationOptions = GetCreationOptions();
+
+        var viewIdentifierWithCreationOptions = string.IsNullOrWhiteSpace(creationOptions)
+            ? viewIdentifier
+            : $"{viewIdentifier} {GetCreationOptions()}";
+        writer.WriteLine($"CREATE {ViewType} {viewIdentifierWithCreationOptions} AS {viewSql};");
     }
 
     public void WriteDropStatement(Migrator rules, TextWriter writer)
@@ -104,4 +111,3 @@ public class View: ISchemaObject
         return any;
     }
 }
-

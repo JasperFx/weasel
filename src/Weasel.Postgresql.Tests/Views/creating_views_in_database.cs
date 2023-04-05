@@ -18,14 +18,14 @@ public class creating_views_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("views");
 
-        var view = new View("people", "SELECT 1 AS id");
+        var view = new View("people_view", "SELECT 1 AS id");
         await CreateSchemaObjectInDatabase(view);
 
         (await view.ExistsInDatabaseAsync(theConnection))
             .ShouldBeTrue();
 
         await theConnection.CreateCommand(
-                "SELECT * FROM views.people")
+                "SELECT * FROM views.people_view")
             .ExecuteNonQueryAsync();
     }
 
@@ -37,7 +37,7 @@ public class creating_views_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("views");
 
-        var view = new View("people", "SELECT 1 AS id");
+        var view = new View("people_view", "SELECT 1 AS id");
         await CreateSchemaObjectInDatabase(view);
         await DropSchemaObjectInDatabase(view);
 
