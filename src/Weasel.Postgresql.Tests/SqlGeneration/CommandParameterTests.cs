@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Linq.Expressions;
 using Npgsql;
 using NpgsqlTypes;
@@ -37,7 +38,7 @@ public class CommandParameterTests
         parameter.AddParameter(builder);
 
         command.Parameters[0].Value.ShouldBe(parameter.Value);
-        command.Parameters[0].NpgsqlDbType.ShouldBe(parameter.DbType);
+        command.Parameters[0].NpgsqlDbType.ShouldBe(parameter.DbType!.Value);
     }
 
     [Fact]
@@ -51,8 +52,39 @@ public class CommandParameterTests
 
         var dbParameter = command.Parameters[0];
         dbParameter.Value.ShouldBe(parameter.Value);
-        dbParameter.NpgsqlDbType.ShouldBe(parameter.DbType);
+        dbParameter.NpgsqlDbType.ShouldBe(parameter.DbType!.Value);
 
         builder.ToString().ShouldEndWith(":" + dbParameter.ParameterName);
     }
+
+    [Theory]
+    [MemberData(nameof(Enumerables))]
+    public void handles_IEnumerable_as_array(IEnumerable<string> enumerable)
+    {
+        var parameter = new CommandParameter(enumerable);
+
+        parameter.DbType.ShouldBe(NpgsqlDbType.Array | NpgsqlDbType.Text);
+    }
+
+    public static TheoryData<IEnumerable<string>> Enumerables =>
+        new()
+        {
+            new[] { Guid.NewGuid().ToString() },
+            new List<string> { Guid.NewGuid().ToString() },
+            new HashSet<string> { Guid.NewGuid().ToString() },
+            new Collection<string> { Guid.NewGuid().ToString() }
+        };
+
+    [Fact]
+    public void falls_back_to_npgsql_mapping_for_unknown_type()
+    {
+        var unknown = new UnknownType();
+        var parameter = new CommandParameter(unknown);
+
+        parameter.DbType.ShouldBe(null);
+    }
+}
+
+class UnknownType
+{
 }

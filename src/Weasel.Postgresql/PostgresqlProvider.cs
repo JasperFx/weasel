@@ -170,7 +170,9 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         var typeInfo = type.GetTypeInfo();
 
         var ilist = typeInfo.ImplementedInterfaces.FirstOrDefault(x =>
-            x.GetTypeInfo().IsGenericType && x.GetGenericTypeDefinition() == typeof(IList<>));
+            x.GetTypeInfo().IsGenericType && x.IsGenericEnumerable()
+        );
+
         if (ilist != null)
         {
             dbType = NpgsqlDbType.Array | ToParameterType(ilist.GetGenericArguments()[0]);

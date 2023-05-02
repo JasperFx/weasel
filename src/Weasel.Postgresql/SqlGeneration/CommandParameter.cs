@@ -21,10 +21,16 @@ public class CommandParameter: ISqlFragment
     public CommandParameter(object? value)
     {
         Value = value;
-        if (value != null)
-        {
-            DbType = PostgresqlProvider.Instance.TryGetDbType(value.GetType())!.Value;
-        }
+        if (value == null) return;
+
+        var valueType = value.GetType();
+
+        var dbType = PostgresqlProvider.Instance.TryGetDbType(valueType);
+
+        if (!dbType.HasValue)
+            return;
+
+        DbType = dbType.Value;
     }
 
     public CommandParameter(object value, NpgsqlDbType npgsqlDbType)
@@ -34,7 +40,7 @@ public class CommandParameter: ISqlFragment
     }
 
     public object? Value { get; }
-    public NpgsqlDbType DbType { get; }
+    public NpgsqlDbType? DbType { get; }
 
     public void Apply(CommandBuilder builder)
     {
