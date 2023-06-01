@@ -527,4 +527,34 @@ public class IndexDefinitionTests
 
         IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
     }
+
+    [Fact]
+    public void nulls_not_distinct_should_generate_correct_index()
+    {
+        var index = new IndexDefinition("index")
+        {
+            Columns = new[]
+            {
+                "column1",
+                "column2"
+            },
+            IsUnique = true,
+            NullsNotDistinct = true
+        };
+
+        var ddl = index.ToDDL(new Table("table"));
+        ddl.ShouldBe("CREATE UNIQUE INDEX index ON public.table USING btree (column1, column2) NULLS NOT DISTINCT ;");
+    }
+
+    [Fact]
+    public void should_be_able_to_parse_index_with_nulls_not_distinct()
+    {
+        var index = IndexDefinition.Parse("CREATE UNIQUE INDEX index ON public.table USING btree (column1, column2) NULLS NOT DISTINCT;");
+        index.IsUnique.ShouldBeTrue();
+        index.NullsNotDistinct.ShouldBeTrue();
+
+        index = IndexDefinition.Parse("CREATE UNIQUE INDEX index ON public.table USING btree (column1, column2) NULLS DISTINCT;");
+        index.IsUnique.ShouldBeTrue();
+        index.NullsNotDistinct.ShouldBeFalse();
+    }
 }

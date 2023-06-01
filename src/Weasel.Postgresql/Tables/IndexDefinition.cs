@@ -65,6 +65,11 @@ public class IndexDefinition: INamed
     public bool IsUnique { get; set; }
 
     /// <summary>
+    ///     Should unique index consider nulls non distinct. Requires PostgreSQL version 15
+    /// </summary>
+    public bool NullsNotDistinct { get; set; }
+
+    /// <summary>
     ///     Option to build index without taking any locks that prevent concurrent inserts, updates or deletes in table
     /// </summary>
     /// <remarks>
@@ -187,6 +192,16 @@ public class IndexDefinition: INamed
         builder.Append(Method == IndexMethod.custom ? CustomMethod : Method);
         builder.Append(" ");
         builder.Append(correctedExpression());
+
+        if (NullsNotDistinct)
+        {
+            if (!IsUnique)
+            {
+                throw new NotSupportedException("Cannot use NullsNotDistinct with non unique index");
+            }
+
+            builder.Append(" NULLS NOT DISTINCT ");
+        }
 
         if (TableSpace.IsNotEmpty())
         {
@@ -428,6 +443,28 @@ public class IndexDefinition: INamed
 
                 case "TABLESPACE":
                     index.TableSpace = tokens.Dequeue();
+                    break;
+
+                case "NULLS":
+                    var nextToken = tokens.Dequeue();
+                    if (nextToken.Equals("DISTINCT", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        // Not interested in NULLS DISTINCT
+                        break;
+                    }
+
+                    if (!nextToken.Contains("NOT", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        throw new NotImplementedException($"Unsupported index definition. Received 'NULLS {nextToken}'");
+                    }
+
+                    if (!tokens.Peek().Contains("DISTINCT", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        throw new NotImplementedException($"Unsupported index definition. Received 'NULLS NOT {tokens.Peek()}'");
+                    }
+
+                    tokens.Dequeue();
+                    index.NullsNotDistinct = true;
                     break;
 
                 default:
