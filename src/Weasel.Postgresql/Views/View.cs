@@ -70,7 +70,7 @@ public class View: ISchemaObject
 
     public void WriteDropStatement(Migrator rules, TextWriter writer)
     {
-        writer.WriteLine($"DROP VIEW IF EXISTS {Identifier.QualifiedName};");
+        writer.WriteLine($"DROP {ViewType} IF EXISTS {Identifier.QualifiedName};");
     }
 
     public void ConfigureQueryCommand(Core.DbCommandBuilder builder)
