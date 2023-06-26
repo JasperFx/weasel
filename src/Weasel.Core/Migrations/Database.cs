@@ -152,7 +152,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     public Task WriteCreationScriptToFileAsync(string filename, CancellationToken ct = default)
     {
         var directory = Path.GetDirectoryName(filename);
-        Directory.CreateDirectory(directory);
+        FileSystem.CreateDirectoryIfNotExists(directory);
 
         var sql = ToDatabaseScript();
         return File.WriteAllTextAsync(filename, sql, ct);
