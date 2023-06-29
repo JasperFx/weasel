@@ -152,4 +152,30 @@ public class creating_tables_in_database: IntegrationContext
         (await table.ExistsInDatabaseAsync(theConnection))
             .ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task create_tables_with_indexes_and_included_columns()
+    {
+        await theConnection.OpenAsync();
+
+        await theConnection.ResetSchemaAsync("tables");
+
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name").AddIndex(x =>
+        {
+            x.IsUnique = true;
+            x.SortOrder = SortOrder.Desc;
+            x.IncludedColumns = new[]
+            {
+                "last_name"
+            };
+        });
+        table.AddColumn<string>("last_name").AddIndex();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        (await table.ExistsInDatabaseAsync(theConnection))
+            .ShouldBeTrue();
+    }
 }

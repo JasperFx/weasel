@@ -483,4 +483,18 @@ public class detecting_table_deltas: IntegrationContext
 
         await AssertNoDeltasAfterPatching(theTable);
     }
+
+    [Fact]
+    public async Task create_table_with_index_and_no_pk()
+    {
+        var table = new Table("deltas.people");
+        table.AddColumn<int>("id").NotNull().AddIndex(x =>
+        {
+            x.AgainstColumns("id", "first_name", "last_name");
+            x.IsUnique = true;
+        });
+        table.AddColumn<string>("first_name").NotNull();
+        table.AddColumn<string>("last_name").NotNull();
+        await AssertNoDeltasAfterPatching(table);
+    }
 }

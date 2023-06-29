@@ -5,10 +5,8 @@ namespace Weasel.SqlServer.Tables;
 
 public class IndexDefinition: INamed
 {
-    private const string JsonbPathOps = "jsonb_path_ops";
-    private static readonly string[] _reserved_words = { "trim", "lower", "upper" };
-
     private readonly IList<string> _columns = new List<string>();
+    private readonly IList<string> _includedColumns = new List<string>();
 
     private string? _indexName;
 
@@ -32,6 +30,16 @@ public class IndexDefinition: INamed
         {
             _columns.Clear();
             _columns.AddRange(value);
+        }
+    }
+
+    public string[] IncludedColumns
+    {
+        get => _includedColumns.ToArray();
+        set
+        {
+            _includedColumns.Clear();
+            _includedColumns.AddRange(value);
         }
     }
 
@@ -85,6 +93,11 @@ public class IndexDefinition: INamed
 
         builder.Append("CREATE ");
 
+        if (IsClustered)
+        {
+            builder.Append("CLUSTERED ");
+        }
+
         if (IsUnique)
         {
             builder.Append("UNIQUE ");
@@ -110,6 +123,13 @@ public class IndexDefinition: INamed
         if (FillFactor.HasValue && FillFactor > 0)
         {
             builder.Append($" WITH (fillfactor={FillFactor})");
+        }
+
+        if (_includedColumns.Any())
+        {
+            builder.Append(" INCLUDE (");
+            builder.Append(_includedColumns.Join(", "));
+            builder.Append(')');
         }
 
         builder.Append(";");

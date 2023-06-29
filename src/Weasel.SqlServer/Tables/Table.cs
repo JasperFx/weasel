@@ -64,6 +64,7 @@ public partial class Table: ISchemaObject
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
+            writer.WriteLine("EXEC sp_MSdropconstraints '{0}', '{1}';", Identifier.Name, Identifier.Schema);
             writer.WriteLine("DROP TABLE IF EXISTS {0};", Identifier);
             writer.WriteLine("CREATE TABLE {0} (", Identifier);
         }
