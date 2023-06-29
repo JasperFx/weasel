@@ -79,4 +79,16 @@ public class IndexDefinitionTests
         theIndex.ToDDL(parent)
             .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1 DESC);");
     }
+
+    [Fact]
+    public void include_additional_columns()
+    {
+        theIndex.IncludedColumns = new[]
+        {
+            "column2"
+        };
+
+        theIndex.ToDDL(parent)
+            .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1) INCLUDE (column2);");
+    }
 }

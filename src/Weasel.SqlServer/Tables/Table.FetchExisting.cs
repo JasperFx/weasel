@@ -186,11 +186,10 @@ order by
             var id = await reader.GetFieldValueAsync<int>(0, ct).ConfigureAwait(false);
 
             // This is an odd Sql Server centric quirk I think, this is really detecting
-            // no indexes
+            // no primary keys
             if (await reader.IsDBNullAsync(1, ct).ConfigureAwait(false))
             {
-                hasResults = false;
-                break;
+                continue;
             }
 
             var name = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);

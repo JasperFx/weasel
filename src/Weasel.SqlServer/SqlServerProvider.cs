@@ -154,10 +154,10 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlCo
         if (memberType.IsConstructedGenericType)
         {
             var templateType = memberType.GetGenericTypeDefinition();
-            return ResolveDatabaseType(templateType) ?? "json";
+            return ResolveDatabaseType(templateType) ?? "nvarchar(max)";
         }
 
-        return ResolveDatabaseType(memberType) ?? "json";
+        return ResolveDatabaseType(memberType) ?? "nvarchar(max)";
     }
 
     public override void AddParameter(SqlCommand command, SqlParameter parameter)

@@ -88,7 +88,12 @@ IF NOT EXISTS ( SELECT  *
     {
         var procedures = await conn
             .CreateCommand(
-                $"select routine_name from information_schema.routines where routine_schema = '{schemaName}';")
+                $"select routine_name from information_schema.routines where routine_schema = '{schemaName}' and routine_type = 'PROCEDURE';")
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+
+        var functions = await conn
+            .CreateCommand(
+                $"select routine_name from information_schema.routines where routine_schema = '{schemaName}' and routine_type = 'FUNCTION';")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var constraints = await conn
@@ -118,6 +123,7 @@ IF NOT EXISTS ( SELECT  *
 
         var drops = new List<string>();
         drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
+        drops.AddRange(functions.Select(name => $"drop function {schemaName}.{name};"));
         drops.AddRange(constraints);
         drops.AddRange(tables.Select(name => $"drop table {schemaName}.{name};"));
         drops.AddRange(sequences.Select(name => $"drop sequence {schemaName}.{name};"));
@@ -169,9 +175,7 @@ IF NOT EXISTS ( SELECT  *
         CancellationToken ct = default
     )
     {
-        var sql =
-            "SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger' and routine_name like :name and specific_schema = :schema;";
-
+        var sql = "SELECT 1 FROM information_schema.routines WHERE routine_name = @name and specific_schema = @schema;";
         await using var reader = await conn.CreateCommand(sql)
             .With("name", functionIdentifier.Name)
             .With("schema", functionIdentifier.Schema)
@@ -210,18 +214,18 @@ IF NOT EXISTS ( SELECT  *
     {
         var builder = new CommandBuilder();
         builder.Append(
-            "SELECT specific_schema, routine_name FROM information_schema.routines WHERE type_udt_name != 'trigger'");
+            "SELECT specific_schema, routine_name FROM information_schema.routines WHERE routine_type = 'FUNCTION'");
 
         if (namePattern.IsNotEmpty())
         {
-            builder.Append(" and routine_name like :name");
-            builder.AddNamedParameter("name", namePattern);
+            builder.Append(" and routine_name like @name");
+            builder.AddNamedParameter("@name", namePattern);
         }
 
-        if (schemas != null)
+        if (schemas != null && schemas.Any())
         {
-            builder.Append(" and specific_schema = ANY(:schemas)");
-            builder.AddNamedParameter("schemas", schemas);
+            builder.Append(" and specific_schema = @schemas");
+            builder.AddNamedParameter("schemas", schemas[0]);
         }
 
         builder.Append(";");
