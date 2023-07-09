@@ -99,7 +99,7 @@ public class TableTests
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
 
-        var rules = new SqlServerMigrator { TableCreation = CreationStyle.DropThenCreate };
+        var rules = new SqlServerMigrator { TableCreation = CreationStyle.CreateIfNotExists };
 
         var writer = new StringWriter();
         table.WriteCreateStatement(rules, writer);
@@ -110,8 +110,7 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain("DROP TABLE IF EXISTS dbo.people;");
-        lines.ShouldContain("CREATE TABLE dbo.people (");
+        lines.ShouldContain("CREATE TABLE IF NOT EXISTS dbo.people (");
     }
 
     [Fact]
