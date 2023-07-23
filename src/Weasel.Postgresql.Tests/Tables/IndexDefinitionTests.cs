@@ -237,8 +237,8 @@ public class IndexDefinitionTests
         // full text index as fetched from db schema
         // note that the value from db has some differences
         // 1) it has `::regconfig`
-        // 2)right number of brackets
-        // 3)right spacing between terms
+        // 2) right number of brackets
+        // 3) right spacing between terms
         var index1 =
             IndexDefinition.Parse(
                 "CREATE INDEX mt_doc_user_idx_fts ON fulltext.mt_doc_user USING gin (to_tsvector('english'::regconfig, data))");
@@ -250,6 +250,32 @@ public class IndexDefinitionTests
         var index2 =
             IndexDefinition.Parse(
                 "CREATE INDEX mt_doc_user_idx_fts ON fulltext.mt_doc_user USING gin (( to_tsvector('english', data) ))");
+
+        IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+    }
+
+
+    [Fact]
+    public void ensure_proper_delta_check_for_full_text_index_definition_with_multiple_columns_between_db_and_instance()
+    {
+        var table = new Table("mt_doc_user");
+        // full text index as fetched from db schema
+        // note that the value from db has some differences
+        // 1) it has `::regconfig`
+        // 2) right number of brackets
+        // 3) right spacing between terms
+        // 4) has casting to text for columns
+        var index1 =
+            IndexDefinition.Parse(
+                "CREATE INDEX mt_doc_user_idx_fts ON full_text_index.mt_doc_user USING gin (to_tsvector('english'::regconfig, (((data ->> 'FirstName'::text) || ' '::text) || (data ->> 'LastName'::text))))");
+
+        // full text index created by our system
+        // system generated has the following
+        // does not contain ::regconfig
+        // has more brackets and additional spacing between terms
+        var index2 =
+            IndexDefinition.Parse(
+                "CREATE INDEX mt_doc_user_idx_fts ON full_text_index.mt_doc_user USING gin (to_tsvector('english',((data ->> 'FirstName') || ' ' || (data ->> 'LastName'))))");
 
         IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
     }
