@@ -28,6 +28,8 @@ public class detecting_table_deltas: IntegrationContext
         theTable.AddColumn<string>("first_name");
         theTable.AddColumn<string>("last_name");
         theTable.AddColumn<string>("user_name");
+        theTable.AddColumn<DateTime>("created_datetime");
+        theTable.AddColumn<DateTimeOffset>("created_datetime_offset");
         theTable.AddColumn("data", "jsonb");
     }
 
@@ -36,7 +38,7 @@ public class detecting_table_deltas: IntegrationContext
         await ResetSchema();
     }
 
-    protected async Task AssertNoDeltasAfterPatching(Table table = null)
+    protected async Task AssertNoDeltasAfterPatching(Table? table = null)
     {
         table ??= theTable;
         await table.ApplyChangesAsync(theConnection);
@@ -319,11 +321,16 @@ public class detecting_table_deltas: IntegrationContext
             i.IsUnique = true;
         }));
 
-
         yield return ("Jsonb property with multiple casts + unique", t => t.ModifyColumn("data").AddIndex(i =>
         {
             i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'OtherGuid' as uuid)" };
             i.IsUnique = true;
+        }));
+
+        yield return ("Jsonb property with fulll text search on multiple columns", t => t.ModifyColumn("data").AddIndex(i =>
+        {
+            i.Columns = new[] { "to_tsvector('english',((data ->> 'FirstName') || ' ' || (data ->> 'LastName')))" };
+            i.Method = IndexMethod.gin;
         }));
     }
 
@@ -468,7 +475,6 @@ public class detecting_table_deltas: IntegrationContext
 
         table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
-
         await CreateSchemaObjectInDatabase(table);
 
         table.ForeignKeys.Single().OnDelete = CascadeAction.Cascade;
@@ -580,6 +586,8 @@ public class detecting_table_deltas: IntegrationContext
         table2.AddColumn("first_name", "character varying");
         table2.AddColumn("last_name", "character varying");
         table2.AddColumn("user_name", "character varying");
+        table2.AddColumn("created_datetime", "timestamp without time zone");
+        table2.AddColumn("created_datetime_offset", "timestamp with time zone");
         table2.AddColumn("data", "jsonb");
 
         await CreateSchemaObjectInDatabase(theTable);
@@ -596,6 +604,8 @@ public class detecting_table_deltas: IntegrationContext
         table2.AddColumn("first_name", "character varying");
         table2.AddColumn("last_name", "character varying");
         table2.AddColumn("user_name", "character varying");
+        table2.AddColumn("created_datetime", "timestamp without time zone");
+        table2.AddColumn("created_datetime_offset", "timestamp with time zone");
         table2.AddColumn("data", "jsonb").AddIndex(i => i.ToGinWithJsonbPathOps());
 
         await CreateSchemaObjectInDatabase(table2);

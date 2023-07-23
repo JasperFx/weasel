@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Specialized;
 using System.Text;
+using System.Text.RegularExpressions;
 using JasperFx.Core;
 
 namespace Weasel.Postgresql.Tables;
@@ -379,8 +380,11 @@ public class IndexDefinition: INamed
                         // Overall, we are normalizing the expression here to deal with the above differences
                         // `CanonicizeDdl` method already deals with normalizing brackets so not dealing with it here
                         expression = expression
-                            .Replace("::regconfig", "")
-                            .Replace(" ", "");
+                            .Replace("::regconfig", "");
+                        // Trim redundant spaces, but not those that come in the text.
+                        // Index with multiple column can look like:
+                        // to_tsvector('english',((data ->> 'FirstName') || ' ' || (data ->> 'LastName')))
+                        expression = Regex.Replace(expression, @"('[^'\\]*(?:\\.[^'\\]*)*')|\s+", "$1");
                     }
 
                     break;
@@ -575,7 +579,6 @@ public class IndexDefinition: INamed
     {
         var expectedExpression = correctedExpression();
 
-
         if (actual.Mask == expectedExpression)
         {
             (actual.Mask, _, _) = removeSortOrderFromExpression(expectedExpression);
@@ -629,6 +632,7 @@ public class IndexDefinition: INamed
                 .Replace("  ", " ")
                 .Replace("(", "")
                 .Replace(")", "")
+                .Replace(" || ", "||")
                 .Replace("IS NOT NULL", "is not null")
                 .Replace("INDEX CONCURRENTLY", "INDEX")
                 .Replace("::text", "")
