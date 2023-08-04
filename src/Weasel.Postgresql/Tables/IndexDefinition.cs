@@ -626,19 +626,23 @@ public class IndexDefinition: INamed
     /// <returns></returns>
     public static string CanonicizeDdl(IndexDefinition index, Table parent)
     {
-        return index.ToDDL(parent)
-                .Replace("\"\"", "\"")
-                .Replace("!=", "<>")
-                .Replace("  ", " ")
-                .Replace("(", "")
-                .Replace(")", "")
-                .Replace(" || ", "||")
-                .Replace("IS NOT NULL", "is not null")
-                .Replace("INDEX CONCURRENTLY", "INDEX")
-                .Replace("::text", "")
-                .Replace(" ->> ", "->>")
-                .Replace(" -> ", "->").TrimEnd(new[] { ';' })
-                .ToLowerInvariant()
-            ;
+        var canonicizedStr = index.ToDDL(parent);
+        // replace multiple spaces with single space
+        canonicizedStr = Regex.Replace(canonicizedStr, @"\s+", " ");
+        // replace open parenthesis followed by one or more spaces to just open parenthesis
+        canonicizedStr = Regex.Replace(canonicizedStr, @"\(\s+", "(");
+        // replace one or more spaces followed by closed parenthesis to closed parenthesis
+        canonicizedStr = Regex.Replace(canonicizedStr, @"\s+\)", ")");
+        return canonicizedStr.Replace("\"\"", "\"")
+            .Replace("!=", "<>")
+            .Replace("(", "")
+            .Replace(")", "")
+            .Replace(" || ", "||")
+            .Replace("IS NOT NULL", "is not null")
+            .Replace("INDEX CONCURRENTLY", "INDEX")
+            .Replace("::text", "")
+            .Replace(" ->> ", "->>")
+            .Replace(" -> ", "->").TrimEnd(new[] {';'})
+            .ToLowerInvariant();
     }
 }

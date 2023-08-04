@@ -512,4 +512,19 @@ public class IndexDefinitionTests
 
         IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
     }
+
+    [Theory]
+    [InlineData("((  data->'RoleIds') jsonb_path_ops)", "((data->'RoleIds') jsonb_path_ops)")]
+    [InlineData("((data->'RoleIds'  ) jsonb_path_ops)", "((data->'RoleIds') jsonb_path_ops)")]
+    [InlineData("( (  data->'RoleIds'  ) jsonb_path_ops  )", "((data->'RoleIds') jsonb_path_ops)")]
+    public void ensure_proper_delta_check_for_parentheses_with_spaces(string exprParenthesesWithSpaces, string exprParenthesesWithoutSpaces)
+    {
+        var table = new Table("mt_doc_user");
+        var index1 = IndexDefinition.Parse(
+            $"CREATE INDEX idx_1 ON public.mt_doc_user USING gin {exprParenthesesWithSpaces}");
+        var index2 = IndexDefinition.Parse(
+            $"CREATE INDEX idx_1 ON public.mt_doc_user USING gin {exprParenthesesWithoutSpaces}");
+
+        IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+    }
 }
