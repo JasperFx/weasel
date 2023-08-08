@@ -21,9 +21,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    strategy:
+    # define the test matrix
+        matrix:
+            postgres-image:
+                - oskardudycz/postgres-plv8:12-2
+
     services:
       postgres:
-        image: oskardudycz/postgres-plv8:12-2
+        image: ${{ matrix.postgres-image }}
         ports:
           - 5432:5432
         env:
