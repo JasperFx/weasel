@@ -15,7 +15,7 @@ public class ExtensionTests: IntegrationContext
     public async Task can_create_extension()
     {
         await ResetSchema();
-        var extension = new Extension("plpgsql");
+        var extension = new Extension("hstore");
         await DropSchemaObjectInDatabase(extension);
 
         var migration = await SchemaMigration.DetermineAsync(theConnection, extension);
