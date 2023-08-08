@@ -99,8 +99,15 @@ public class creating_tables_in_database: IntegrationContext
             .ShouldBeTrue();
     }
 
+    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    public Task create_tables_with_indexes_concurrently_too_in_the_database() =>
+        create_tables_with_indexes_too_in_the_database(true);
+
     [Fact]
-    public async Task create_tables_with_indexes_too_in_the_database()
+    public Task create_tables_with_indexes_not_concurrently_too_in_the_database() =>
+        create_tables_with_indexes_too_in_the_database(false);
+
+    private async Task create_tables_with_indexes_too_in_the_database(bool withConcurrentIndexIndex)
     {
         await theConnection.OpenAsync();
 
@@ -111,10 +118,9 @@ public class creating_tables_in_database: IntegrationContext
 
         await CreateSchemaObjectInDatabase(states);
 
-
         var table = new Table("people");
         table.AddColumn<int>("id").AsPrimaryKey();
-        table.AddColumn<string>("first_name").NotNull().AddIndex(x => x.IsConcurrent = true);
+        table.AddColumn<string>("first_name").NotNull().AddIndex(x => x.IsConcurrent = withConcurrentIndexIndex);
         table.AddColumn<string>("last_name").NotNull().AddIndex();
         table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
@@ -124,8 +130,18 @@ public class creating_tables_in_database: IntegrationContext
             .ShouldBeTrue();
     }
 
+
+    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    public Task create_tables_with_indexes_concurrently_too_in_the_database_with_different_methods() =>
+        create_tables_with_indexes_too_in_the_database_with_different_methods(true);
+
     [Fact]
-    public async Task create_tables_with_indexes_too_in_the_database_with_different_methods()
+    public Task create_tables_with_indexes_not_concurrently_too_in_the_database_with_different_methods() =>
+        create_tables_with_indexes_too_in_the_database_with_different_methods(false);
+
+    public async Task create_tables_with_indexes_too_in_the_database_with_different_methods(
+        bool withConcurrentIndexIndex
+    )
     {
         await theConnection.OpenAsync();
 
@@ -136,12 +152,11 @@ public class creating_tables_in_database: IntegrationContext
 
         await CreateSchemaObjectInDatabase(states);
 
-
         var table = new Table("people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex(x =>
         {
-            x.IsConcurrent = true;
+            x.IsConcurrent = withConcurrentIndexIndex;
             x.IsUnique = true;
             x.SortOrder = SortOrder.Desc;
             x.Predicate = "id > 3";
