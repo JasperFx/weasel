@@ -21,6 +21,7 @@ public class IndexDefinition: INamed
     private string? _customIndexMethod;
 
     private string? _indexName;
+    private bool _isUnique;
 
     public IndexDefinition(string indexName)
     {
@@ -62,7 +63,17 @@ public class IndexDefinition: INamed
     /// <summary>
     ///     Option to create unique index
     /// </summary>
-    public bool IsUnique { get; set; }
+    public bool IsUnique
+    {
+        get => _isUnique;
+        set
+        {
+            _isUnique = value;
+
+            if (_isUnique == false)
+                NullsNotDistinct = false;
+        }
+    }
 
     /// <summary>
     ///     Should unique index consider nulls non distinct.
