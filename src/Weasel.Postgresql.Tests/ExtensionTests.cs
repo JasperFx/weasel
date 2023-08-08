@@ -15,7 +15,7 @@ public class ExtensionTests: IntegrationContext
     public async Task can_create_extension()
     {
         await ResetSchema();
-        var extension = new Extension("hstore");
+        var extension = new Extension("pgcrypto");
         await DropSchemaObjectInDatabase(extension);
 
         var migration = await SchemaMigration.DetermineAsync(theConnection, extension);

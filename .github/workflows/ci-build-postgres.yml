@@ -25,7 +25,7 @@ jobs:
     # define the test matrix
         matrix:
             postgres-image:
-                - oskardudycz/postgres-plv8:12-2
+                - ionx/postgres-plv8:12.2
                 - postgres:15.3-alpine
 
     services:
