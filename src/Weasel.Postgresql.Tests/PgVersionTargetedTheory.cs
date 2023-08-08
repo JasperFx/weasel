@@ -10,7 +10,7 @@ namespace Weasel.Postgresql.Tests;
 /// Allows targeting test at specified minimum and/or maximum version of PG
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-[XunitTestCaseDiscoverer("Marten.Testing.Harness.PgVersionTargetedTheoryDiscoverer", "Marten.Testing")]
+[XunitTestCaseDiscoverer("Weasel.Postgresql.Tests.PgVersionTargetedTheoryDiscoverer", "Weasel.Postgresql.Tests")]
 public sealed class PgVersionTargetedTheory: TheoryAttribute
 {
     public string MinimumVersion { get; set; }
