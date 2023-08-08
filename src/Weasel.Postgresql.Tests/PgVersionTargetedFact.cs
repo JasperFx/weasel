@@ -10,7 +10,7 @@ namespace Weasel.Postgresql.Tests;
 /// Allows targeting test at specified minimum and/or maximum version of PG
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-[XunitTestCaseDiscoverer("Marten.Testing.Harness.PgVersionTargetedFactDiscoverer", "Marten.Testing")]
+[XunitTestCaseDiscoverer("Weasel.Postgresql.Tests.PgVersionTargetedFactDiscoverer", "Weasel.Postgresql.Tests")]
 public sealed class PgVersionTargetedFact: FactAttribute
 {
     public string MinimumVersion { get; set; }
@@ -23,6 +23,13 @@ public sealed class PgVersionTargetedFactDiscoverer: FactDiscoverer
 
     static PgVersionTargetedFactDiscoverer()
     {
+        var versionFromEnv = Environment.GetEnvironmentVariable("postgresql_version");
+        if (!string.IsNullOrEmpty(versionFromEnv))
+        {
+            Version = Version.Parse(versionFromEnv);
+            return;
+        }
+
         // PG version does not change during test run so we can do static ctor
         using var c = new NpgsqlConnection(ConnectionSource.ConnectionString);
         c.Open();
