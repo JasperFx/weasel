@@ -67,6 +67,15 @@ public class IndexDefinition: INamed
     /// <summary>
     ///     Option to build index without taking any locks that prevent concurrent inserts, updates or deletes in table
     /// </summary>
+    /// <remarks>
+    ///     From Postgresql 14, you cannot create indexes concurrently within a transaction.
+    ///     Npgsql applies batches of statements automatically as implicit transactions.
+    ///     Thus, concurrent indexes creation or update will only work if you apply them separately.
+    ///     <br/><br/>
+    ///     Read more in:<br/>
+    ///     - https://github.com/npgsql/npgsql/issues/462#issuecomment-925054226<br/>
+    ///     - https://www.migops.com/blog/important-postgresql-14-update-to-avoid-silent-corruption-of-indexes/
+    /// </remarks>
     public bool IsConcurrent { get; set; }
 
     // Define the columns part of the index definition

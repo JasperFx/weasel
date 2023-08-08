@@ -83,26 +83,32 @@ public class reading_existing_table_from_database: IntegrationContext
             .ShouldBe(new[] { "id", "tenant_id" });
     }
 
+    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    public Task read_indexes_with_concurrent_index()=>
+        read_indexes(true);
+
     [Fact]
-    public async Task read_indexes()
+    public Task read_indexes_without_concurrent_index() =>
+        read_indexes(false);
+
+
+    public async Task read_indexes(bool withConcurrentIndex)
     {
         await theConnection.OpenAsync();
 
         await theConnection.ResetSchemaAsync("tables");
-
 
         var states = new Table("states");
         states.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
 
-
         var table = new Table("people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex();
         table.AddColumn<string>("last_name").AddIndex(i =>
         {
-            i.IsConcurrent = true;
+            i.IsConcurrent = withConcurrentIndex;
             i.Method = IndexMethod.hash;
         });
 
@@ -112,30 +118,34 @@ public class reading_existing_table_from_database: IntegrationContext
 
         var existing = await table.FetchExistingAsync(theConnection);
 
-
         existing.Indexes.Count.ShouldBe(2);
     }
 
+    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    public Task read_fk_with_concurrent_index()=>
+        read_fk(true);
+
     [Fact]
-    public async Task read_fk()
+    public Task read_fk_without_concurrent_index() =>
+        read_fk(false);
+
+    public async Task read_fk(bool withConcurrentIndex)
     {
         await theConnection.OpenAsync();
 
         await theConnection.ResetSchemaAsync("tables");
-
 
         var states = new Table("states");
         states.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
 
-
         var table = new Table("people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex();
         table.AddColumn<string>("last_name").AddIndex(i =>
         {
-            i.IsConcurrent = true;
+            i.IsConcurrent = withConcurrentIndex;
             i.Method = IndexMethod.hash;
         });
 
@@ -145,7 +155,6 @@ public class reading_existing_table_from_database: IntegrationContext
         await CreateSchemaObjectInDatabase(table);
 
         var existing = await table.FetchExistingAsync(theConnection);
-
 
         var fk = existing.ForeignKeys.Single();
 
@@ -159,13 +168,19 @@ public class reading_existing_table_from_database: IntegrationContext
         fk.OnUpdate.ShouldBe(CascadeAction.Restrict);
     }
 
+    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    public Task read_fk_with_multiple_columns_with_concurrent_index()=>
+        read_fk_with_multiple_columns(true);
+
     [Fact]
-    public async Task read_fk_with_multiple_columns()
+    public Task read_fk_with_multiple_columns_without_concurrent_index() =>
+        read_fk_with_multiple_columns(false);
+
+    public async Task read_fk_with_multiple_columns(bool withConcurrentIndex)
     {
         await theConnection.OpenAsync();
 
         await theConnection.ResetSchemaAsync("tables");
-
 
         var states = new Table("states");
         states.AddColumn<int>("id").AsPrimaryKey();
@@ -173,13 +188,12 @@ public class reading_existing_table_from_database: IntegrationContext
 
         await CreateSchemaObjectInDatabase(states);
 
-
         var table = new Table("people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex();
         table.AddColumn<string>("last_name").AddIndex(i =>
         {
-            i.IsConcurrent = true;
+            i.IsConcurrent = withConcurrentIndex;
             i.Method = IndexMethod.hash;
         });
 
@@ -198,7 +212,6 @@ public class reading_existing_table_from_database: IntegrationContext
         await CreateSchemaObjectInDatabase(table);
 
         var existing = await table.FetchExistingAsync(theConnection);
-
 
         var fk = existing.ForeignKeys.Single();
 

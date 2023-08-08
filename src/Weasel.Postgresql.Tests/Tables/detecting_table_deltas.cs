@@ -220,9 +220,18 @@ public class detecting_table_deltas: IntegrationContext
         await AssertNoDeltasAfterPatching();
     }
 
+
+    [PgVersionTargetedTheory(MinimumVersion = "13.0")]
+    [MemberData(nameof(ConcurrentIndexTestData))]
+    public Task matching_index_ddl_concurrent(string description, Action<Table> configure) =>
+        matching_index_ddl(description, configure);
+
     [Theory]
     [MemberData(nameof(IndexTestData))]
-    public async Task matching_index_ddl(string description, Action<Table> configure)
+    public Task matching_index_ddl_not_concurrent(string description, Action<Table> configure) =>
+        matching_index_ddl(description, configure);
+
+    private async Task matching_index_ddl(string description, Action<Table> configure)
     {
         configure(theTable);
         await CreateSchemaObjectInDatabase(theTable);
@@ -244,6 +253,14 @@ public class detecting_table_deltas: IntegrationContext
     public static IEnumerable<object[]> IndexTestData()
     {
         foreach (var (description, action) in IndexConfigs())
+        {
+            yield return new object[] { description, action };
+        }
+    }
+
+    public static IEnumerable<object[]> ConcurrentIndexTestData()
+    {
+        foreach (var (description, action) in ConcurrentIndexConfigs())
         {
             yield return new object[] { description, action };
         }
@@ -273,16 +290,6 @@ public class detecting_table_deltas: IntegrationContext
         yield return ("Simple btree + desc",
             t => t.ModifyColumn("user_name").AddIndex(i => i.SortOrder = SortOrder.Desc));
         yield return ("btree + unique", t => t.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true));
-        yield return ("btree + concurrent", t => t.ModifyColumn("user_name").AddIndex(i =>
-        {
-            i.IsConcurrent = true;
-        }));
-
-        yield return ("btree + concurrent + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
-        {
-            i.IsUnique = true;
-            i.IsConcurrent = true;
-        }));
 
         yield return ("Simple brin", t => t.ModifyColumn("user_name").AddIndex(i => i.Method = IndexMethod.brin));
         yield return ("Simple gin", t => t.ModifyColumn("data").AddIndex(i => i.Method = IndexMethod.gin));
@@ -331,6 +338,20 @@ public class detecting_table_deltas: IntegrationContext
         {
             i.Columns = new[] { "to_tsvector('english',((data ->> 'FirstName') || ' ' || (data ->> 'LastName')))" };
             i.Method = IndexMethod.gin;
+        }));
+    }
+
+    private static IEnumerable<(string, Action<Table>)> ConcurrentIndexConfigs()
+    {
+        yield return ("btree + concurrent", t => t.ModifyColumn("user_name").AddIndex(i =>
+        {
+            i.IsConcurrent = true;
+        }));
+
+        yield return ("btree + concurrent + unique", t => t.ModifyColumn("user_name").AddIndex(i =>
+        {
+            i.IsUnique = true;
+            i.IsConcurrent = true;
         }));
     }
 
