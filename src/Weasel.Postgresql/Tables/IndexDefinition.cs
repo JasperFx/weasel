@@ -65,8 +65,11 @@ public class IndexDefinition: INamed
     public bool IsUnique { get; set; }
 
     /// <summary>
-    ///     Should unique index consider nulls non distinct. Requires PostgreSQL version 15
+    ///     Should unique index consider nulls non distinct.
     /// </summary>
+    /// <remarks>
+    ///     Requires PostgreSQL version 15
+    /// </remarks>
     public bool NullsNotDistinct { get; set; }
 
     /// <summary>
