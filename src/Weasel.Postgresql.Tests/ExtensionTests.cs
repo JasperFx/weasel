@@ -15,16 +15,14 @@ public class ExtensionTests: IntegrationContext
     public async Task can_create_extension()
     {
         await ResetSchema();
-        var extension = new Extension("plv8");
+        var extension = new Extension("plpgsql");
         await DropSchemaObjectInDatabase(extension);
-
 
         var migration = await SchemaMigration.DetermineAsync(theConnection, extension);
 
         migration.Difference.ShouldBe(SchemaPatchDifference.Create);
 
-        await this.CreateSchemaObjectInDatabase(extension);
-
+        await CreateSchemaObjectInDatabase(extension);
 
         migration = await SchemaMigration.DetermineAsync(theConnection, extension);
         migration.Difference.ShouldBe(SchemaPatchDifference.None);
