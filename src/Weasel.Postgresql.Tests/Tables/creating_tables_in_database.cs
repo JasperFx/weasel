@@ -133,14 +133,19 @@ public class creating_tables_in_database: IntegrationContext
 
     [PgVersionTargetedFact(MaximumVersion = "13.0")]
     public Task create_tables_with_indexes_concurrently_too_in_the_database_with_different_methods() =>
-        create_tables_with_indexes_too_in_the_database_with_different_methods(true);
+        create_tables_with_indexes_too_in_the_database_with_different_methods(true, false);
 
     [Fact]
     public Task create_tables_with_indexes_not_concurrently_too_in_the_database_with_different_methods() =>
-        create_tables_with_indexes_too_in_the_database_with_different_methods(false);
+        create_tables_with_indexes_too_in_the_database_with_different_methods(false, false);
+
+    [PgVersionTargetedFact(MinimumVersion = "15.0")]
+    public Task create_tables_with_indexes_not_concurrently_and_distinct_nulls_too_in_the_database_with_different_methods() =>
+        create_tables_with_indexes_too_in_the_database_with_different_methods(false, true);
 
     public async Task create_tables_with_indexes_too_in_the_database_with_different_methods(
-        bool withConcurrentIndexIndex
+        bool withConcurrentIndexIndex,
+        bool withDistinctNulls
     )
     {
         await theConnection.OpenAsync();
@@ -156,6 +161,7 @@ public class creating_tables_in_database: IntegrationContext
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex(x =>
         {
+            x.NullsNotDistinct = withDistinctNulls;
             x.IsConcurrent = withConcurrentIndexIndex;
             x.IsUnique = true;
             x.SortOrder = SortOrder.Desc;

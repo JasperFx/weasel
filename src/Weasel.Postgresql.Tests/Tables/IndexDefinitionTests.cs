@@ -96,6 +96,17 @@ public class IndexDefinitionTests
     }
 
     [Fact]
+    public void write_unique_and_concurrent_index_with_distinct_nulls()
+    {
+        theIndex.IsUnique = true;
+        theIndex.NullsNotDistinct = true;
+        theIndex.IsConcurrent = true;
+
+        theIndex.ToDDL(parent)
+            .ShouldBe("CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1) NULLS NOT DISTINCT ;");
+    }
+
+    [Fact]
     public void write_desc()
     {
         theIndex.SortOrder = SortOrder.Desc;
@@ -162,6 +173,7 @@ public class IndexDefinitionTests
         yield return new[] { new IndexDefinition("idx_1").AgainstColumns("name") };
         yield return new[] { new IndexDefinition("idx_1").AgainstColumns("name", "age") };
         yield return new[] { new IndexDefinition("idx_1") { IsUnique = true }.AgainstColumns("name", "age") };
+        yield return new[] { new IndexDefinition("idx_1") { IsUnique = true, NullsNotDistinct = true}.AgainstColumns("name", "age") };
 
         yield return new[] { new IndexDefinition("idx_1") { SortOrder = SortOrder.Desc }.AgainstColumns("name") };
     }

@@ -123,12 +123,23 @@ public class detecting_table_deltas: IntegrationContext
     }
 
 
+    [PgVersionTargetedFact(MinimumVersion = "15.0")]
+    public Task detect_new_index_with_distinct_nulls() =>
+        detect_new_index(true);
+
     [Fact]
-    public async Task detect_new_index()
+    public Task detect_new_index_without_distinct_nulls() =>
+        detect_new_index(false);
+
+    private async Task detect_new_index(bool withDistinctNulls)
     {
         await CreateSchemaObjectInDatabase(theTable);
 
-        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+        theTable.ModifyColumn("user_name").AddIndex(i =>
+        {
+            i.IsUnique = true;
+            i.NullsNotDistinct = withDistinctNulls;
+        });
 
         var delta = await theTable.FindDeltaAsync(theConnection);
         delta.HasChanges().ShouldBeTrue();
@@ -141,13 +152,23 @@ public class detecting_table_deltas: IntegrationContext
         await AssertNoDeltasAfterPatching();
     }
 
+    [PgVersionTargetedFact(MinimumVersion = "15.0")]
+    public Task detect_matched_index_with_distinct_nulls() =>
+        detect_matched_index(true);
+
     [Fact]
-    public async Task detect_matched_index()
+    public Task detect_matched_index_without_distinct_nulls() =>
+        detect_matched_index(false);
+
+    private async Task detect_matched_index(bool withDistinctNulls)
     {
-        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+        theTable.ModifyColumn("user_name").AddIndex(i =>
+        {
+            i.IsUnique = true;
+            i.NullsNotDistinct = withDistinctNulls;
+        });
 
         await CreateSchemaObjectInDatabase(theTable);
-
 
         var delta = await theTable.FindDeltaAsync(theConnection);
         delta.HasChanges().ShouldBeFalse();
@@ -158,10 +179,21 @@ public class detecting_table_deltas: IntegrationContext
         delta.Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
+    [PgVersionTargetedFact(MinimumVersion = "15.0")]
+    public Task detect_different_index_with_distinct_nulls() =>
+        detect_different_index(true);
+
     [Fact]
-    public async Task detect_different_index()
+    public Task detect_different_index_without_distinct_nulls() =>
+        detect_different_index(false);
+
+    private async Task detect_different_index(bool withDistinctNulls)
     {
-        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+        theTable.ModifyColumn("user_name").AddIndex(i =>
+        {
+            i.IsUnique = true;
+            i.NullsNotDistinct = withDistinctNulls;
+        });
 
         await CreateSchemaObjectInDatabase(theTable);
 
@@ -177,16 +209,27 @@ public class detecting_table_deltas: IntegrationContext
             .Expected
             .Name.ShouldBe("idx_people_user_name");
 
-
         delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
         await AssertNoDeltasAfterPatching();
     }
 
+
+    [PgVersionTargetedFact(MinimumVersion = "15.0")]
+    public Task detect_extra_index_with_distinct_nulls() =>
+        detect_extra_index(true);
+
     [Fact]
-    public async Task detect_extra_index()
+    public Task detect_extra_index_without_distinct_nulls() =>
+        detect_extra_index(false);
+
+    public async Task detect_extra_index(bool withDistinctNulls)
     {
-        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+        theTable.ModifyColumn("user_name").AddIndex(i =>
+        {
+            i.IsUnique = true;
+            i.NullsNotDistinct = withDistinctNulls;
+        });
         await CreateSchemaObjectInDatabase(theTable);
 
         theTable.Indexes.Clear();
@@ -220,10 +263,14 @@ public class detecting_table_deltas: IntegrationContext
         await AssertNoDeltasAfterPatching();
     }
 
-
-    [PgVersionTargetedTheory(MinimumVersion = "13.0")]
+    [PgVersionTargetedTheory(MaximumVersion = "13.0")]
     [MemberData(nameof(ConcurrentIndexTestData))]
     public Task matching_index_ddl_concurrent(string description, Action<Table> configure) =>
+        matching_index_ddl(description, configure);
+
+    [PgVersionTargetedTheory(MinimumVersion = "15.0")]
+    [MemberData(nameof(UniqueIndexWithNullsNotDistinctTestData))]
+    public Task matching_index_ddl_unique_with_null_not_distinct(string description, Action<Table> configure) =>
         matching_index_ddl(description, configure);
 
     [Theory]
@@ -264,6 +311,56 @@ public class detecting_table_deltas: IntegrationContext
         {
             yield return new object[] { description, action };
         }
+    }
+
+    public static IEnumerable<object[]> UniqueIndexWithNullsNotDistinctTestData()
+    {
+        foreach (var (description, action) in IndexConfigs())
+        {
+            yield return new object[] { description, action };
+        }
+    }
+
+    private static IEnumerable<(string, Action<Table>)> UniqueIndexConfigsWithNullsNotDistinct()
+    {
+        yield return ("Simple jsonb property + unique + nulls not distinct", t => t.ModifyColumn("data").AddIndex(i =>
+        {
+            i.Columns = new[] { "(data ->> 'Name')" };
+            i.IsUnique = true;
+            i.NullsNotDistinct = true;
+        }));
+
+        yield return ("Jsonb property with function + unique + nulls not distinct", t => t.ModifyColumn("data")
+            .AddIndex(i =>
+            {
+                i.Columns = new[] { "lower(data ->> 'Name')" };
+                i.IsUnique = true;
+                i.NullsNotDistinct = true;
+            }));
+        yield return ("Jsonb property with function as expression + nulls not distinct", t => t.ModifyColumn("data")
+            .AddIndex(i =>
+            {
+                i.Mask = "lower(?)";
+                i.Columns = new[] { "(data ->> 'Name')" };
+                i.IsUnique = true;
+                i.NullsNotDistinct = true;
+            }));
+
+        yield return ("Jsonb property with cast + unique + nulls not distinct", t => t.ModifyColumn("data")
+            .AddIndex(i =>
+            {
+                i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)" };
+                i.IsUnique = true;
+                i.NullsNotDistinct = true;
+            }));
+
+        yield return ("Jsonb property with multiple casts + unique + nulls not distinct", t => t.ModifyColumn("data")
+            .AddIndex(i =>
+            {
+                i.Columns = new[] { "CAST(data ->> 'SomeGuid' as uuid)", "CAST(data ->> 'OtherGuid' as uuid)" };
+                i.IsUnique = true;
+                i.NullsNotDistinct = true;
+            }));
     }
 
     private static IEnumerable<(string, Action<Table>)> IndexConfigs()
@@ -334,11 +431,12 @@ public class detecting_table_deltas: IntegrationContext
             i.IsUnique = true;
         }));
 
-        yield return ("Jsonb property with fulll text search on multiple columns", t => t.ModifyColumn("data").AddIndex(i =>
-        {
-            i.Columns = new[] { "to_tsvector('english',((data ->> 'FirstName') || ' ' || (data ->> 'LastName')))" };
-            i.Method = IndexMethod.gin;
-        }));
+        yield return ("Jsonb property with fulll text search on multiple columns", t => t.ModifyColumn("data")
+            .AddIndex(i =>
+            {
+                i.Columns = new[] { "to_tsvector('english',((data ->> 'FirstName') || ' ' || (data ->> 'LastName')))" };
+                i.Method = IndexMethod.gin;
+            }));
     }
 
     private static IEnumerable<(string, Action<Table>)> ConcurrentIndexConfigs()
