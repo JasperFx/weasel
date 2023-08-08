@@ -26,6 +26,7 @@ jobs:
         matrix:
             postgres-image:
                 - oskardudycz/postgres-plv8:12-2
+                - postgres:15.3-alpine
 
     services:
       postgres:
