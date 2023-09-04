@@ -82,7 +82,9 @@ public class IndexDefinitionTests
         theIndex.IsConcurrent = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe("CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);");
+            .ShouldBe("--WEASEL_INDEX_CREATION_BEGIN\n" +
+                      "CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);\n" +
+                      "--WEASEL_INDEX_CREATION_END");
     }
 
     [Fact]
@@ -92,7 +94,9 @@ public class IndexDefinitionTests
         theIndex.IsConcurrent = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe("CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);");
+            .ShouldBe("--WEASEL_INDEX_CREATION_BEGIN\n" +
+                      "CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);\n" +
+                      "--WEASEL_INDEX_CREATION_END");
     }
 
     [Fact]

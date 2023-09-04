@@ -2,6 +2,7 @@ using System.Data.Common;
 using JasperFx.Core;
 using Weasel.Core;
 using Weasel.Core.Migrations;
+using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql;
 
@@ -103,22 +104,29 @@ $$;
 
         migration.WriteAllUpdates(writer, this, autoCreate);
 
-        var cmd = conn.CreateCommand(writer.ToString());
-        logger.SchemaChange(cmd.CommandText);
+        var sqlCommands = writer
+            .ToString()
+            .Split(new[] { IndexDefinition.IndexCreationBeginComment, IndexDefinition.IndexCreationEndComment },
+                StringSplitOptions.RemoveEmptyEntries);
+        foreach (var sql in sqlCommands)
+        {
+            var cmd = conn.CreateCommand(sql);
+            logger.SchemaChange(cmd.CommandText);
 
-        try
-        {
-            await cmd
-                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            if (logger is DefaultMigrationLogger)
+            try
             {
-                throw;
+                await cmd
+                    .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
+            catch (Exception e)
+            {
+                if (logger is DefaultMigrationLogger)
+                {
+                    throw;
+                }
 
-            logger.OnFailure(cmd, e);
+                logger.OnFailure(cmd, e);
+            }
         }
     }
 
