@@ -8,6 +8,8 @@ namespace Weasel.Postgresql.Tables;
 
 public class IndexDefinition: INamed
 {
+    public const string IndexCreationBeginComment = "--WEASEL_INDEX_CREATION_BEGIN";
+    public const string IndexCreationEndComment = "--WEASEL_INDEX_CREATION_END";
     private const string JsonbPathOps = "jsonb_path_ops";
     private const string Ascending = "ASC";
     private const string Descending = "DESC";
@@ -184,6 +186,11 @@ public class IndexDefinition: INamed
     {
         var builder = new StringBuilder();
 
+        if (IsConcurrent)
+        {
+            builder.AppendLine(IndexCreationBeginComment);
+        }
+
         builder.Append("CREATE ");
 
         if (IsUnique)
@@ -255,6 +262,11 @@ public class IndexDefinition: INamed
         }
 
         builder.Append(";");
+        if (IsConcurrent)
+        {
+            builder.AppendLine();
+            builder.Append(IndexCreationEndComment);
+        }
 
 
         return builder.ToString();
@@ -333,7 +345,12 @@ public class IndexDefinition: INamed
 
     public static IndexDefinition Parse(string definition)
     {
-        var tokens = new Queue<string>(StringTokenizer.Tokenize(definition.TrimEnd(';')));
+        var trimmedDefinition = definition
+            .Replace(IndexCreationBeginComment, "")
+            .Replace(IndexCreationEndComment, "")
+            .Trim()
+            .TrimEnd(';');
+        var tokens = new Queue<string>(StringTokenizer.Tokenize(trimmedDefinition));
 
         IndexDefinition index = null!;
 
@@ -348,6 +365,8 @@ public class IndexDefinition: INamed
             {
                 case "CREATE":
                 case "CONCURRENTLY":
+                case IndexCreationBeginComment:
+                case IndexCreationEndComment:
                     continue;
 
                 case "INDEX":
@@ -702,7 +721,11 @@ public class IndexDefinition: INamed
             .Replace("INDEX CONCURRENTLY", "INDEX")
             .Replace("::text", "")
             .Replace(" ->> ", "->>")
-            .Replace(" -> ", "->").TrimEnd(new[] {';'})
+            .Replace(" -> ", "->")
+            .Replace(IndexCreationBeginComment, "")
+            .Replace(IndexCreationEndComment, "")
+            .Trim()
+            .TrimEnd(new[] { ';' })
             .ToLowerInvariant();
     }
 }
