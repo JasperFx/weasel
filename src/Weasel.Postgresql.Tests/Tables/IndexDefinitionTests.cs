@@ -107,7 +107,9 @@ public class IndexDefinitionTests
         theIndex.IsConcurrent = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe("CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1) NULLS NOT DISTINCT ;");
+            .ShouldBe("--WEASEL_INDEX_CREATION_BEGIN\n" +
+                      "CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1) NULLS NOT DISTINCT ;\n" +
+                      "--WEASEL_INDEX_CREATION_END");
     }
 
     [Fact]
