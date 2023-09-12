@@ -145,7 +145,11 @@ public class detecting_table_deltas: IntegrationContext
     public Task detect_new_index_without_distinct_nulls() =>
         detect_new_index(false);
 
-    private async Task detect_new_index(bool withDistinctNulls)
+    [Fact]
+    public Task detect_new_index_with_concurrent_creation() =>
+        detect_new_index(false, true);
+
+    private async Task detect_new_index(bool withDistinctNulls, bool isConcurrent = false)
     {
         await CreateSchemaObjectInDatabase(theTable);
 
@@ -153,6 +157,7 @@ public class detecting_table_deltas: IntegrationContext
         {
             i.IsUnique = true;
             i.NullsNotDistinct = withDistinctNulls;
+            i.IsConcurrent = isConcurrent;
         });
 
         var delta = await theTable.FindDeltaAsync(theConnection);
@@ -174,12 +179,17 @@ public class detecting_table_deltas: IntegrationContext
     public Task detect_matched_index_without_distinct_nulls() =>
         detect_matched_index(false);
 
-    private async Task detect_matched_index(bool withDistinctNulls)
+    [Fact]
+    public Task detect_matched_index_with_concurrent_creation() =>
+        detect_matched_index(false, true);
+
+    private async Task detect_matched_index(bool withDistinctNulls, bool isConcurrent = false)
     {
         theTable.ModifyColumn("user_name").AddIndex(i =>
         {
             i.IsUnique = true;
             i.NullsNotDistinct = withDistinctNulls;
+            i.IsConcurrent = isConcurrent;
         });
 
         await CreateSchemaObjectInDatabase(theTable);
@@ -201,12 +211,17 @@ public class detecting_table_deltas: IntegrationContext
     public Task detect_different_index_without_distinct_nulls() =>
         detect_different_index(false);
 
-    private async Task detect_different_index(bool withDistinctNulls)
+    [Fact]
+    public Task detect_different_index_with_concurrent_creation() =>
+        detect_different_index(false, true);
+
+    private async Task detect_different_index(bool withDistinctNulls, bool isConcurrent = false)
     {
         theTable.ModifyColumn("user_name").AddIndex(i =>
         {
             i.IsUnique = true;
             i.NullsNotDistinct = withDistinctNulls;
+            i.IsConcurrent = isConcurrent;
         });
 
         await CreateSchemaObjectInDatabase(theTable);
@@ -237,12 +252,17 @@ public class detecting_table_deltas: IntegrationContext
     public Task detect_extra_index_without_distinct_nulls() =>
         detect_extra_index(false);
 
-    public async Task detect_extra_index(bool withDistinctNulls)
+    [Fact]
+    public Task detect_extra_index_with_concurrent_creation() =>
+        detect_extra_index(false, true);
+
+    private async Task detect_extra_index(bool withDistinctNulls, bool isConcurrent = false)
     {
         theTable.ModifyColumn("user_name").AddIndex(i =>
         {
             i.IsUnique = true;
             i.NullsNotDistinct = withDistinctNulls;
+            i.IsConcurrent = isConcurrent;
         });
         await CreateSchemaObjectInDatabase(theTable);
 
