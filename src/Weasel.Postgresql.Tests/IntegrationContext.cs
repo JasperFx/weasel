@@ -37,17 +37,19 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
     protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
     {
         var rules = new PostgresqlMigrator();
-        var writer = new StringWriter();
-        schemaObject.WriteCreateStatement(rules, writer);
+        var builder = new DbCommandBuilder(theConnection);
+        schemaObject.ConfigureQueryCommand(builder);
+        await using var reader = await builder.ExecuteReaderAsync(theConnection);
+        var schemaMigration = new SchemaMigration(await schemaObject.CreateDeltaAsync(reader));
+        await reader.CloseAsync();
 
         try
         {
-            await theConnection.CreateCommand(writer.ToString())
-                .ExecuteNonQueryAsync();
+            await rules.ApplyAllAsync(theConnection, schemaMigration, AutoCreate.All);
         }
         catch (Exception e)
         {
-            throw new Exception("DDL Execution Failure.\n" + writer, e);
+            throw new Exception("DDL Execution Failure.\n", e);
         }
     }
 
