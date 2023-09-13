@@ -92,9 +92,15 @@ public class TableDelta: SchemaObjectDelta<Table>
         // Different indexes
         foreach (var change in Indexes.Different) writer.WriteLine(change.Expected.ToDDL(Expected));
 
+        // Need to make Primary key changes before dropping extra columns
+        writePrimaryKeyChanges(writer);
+
         // Extra columns
         foreach (var column in Columns.Extras) writer.WriteLine(column.DropColumnSql(Expected));
+    }
 
+    private void writePrimaryKeyChanges(TextWriter writer)
+    {
         switch (PrimaryKeyDifference)
         {
             case SchemaPatchDifference.Invalid:
