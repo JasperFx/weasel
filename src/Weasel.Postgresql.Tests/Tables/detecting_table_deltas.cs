@@ -122,6 +122,20 @@ public class detecting_table_deltas: IntegrationContext
         await AssertNoDeltasAfterPatching();
     }
 
+    [Fact]
+    public async Task when_a_table_drops_column_that_was_part_of_the_primary_key()
+    {
+        theTable.AddColumn<string>("tenant_id").AsPrimaryKey();
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.RemoveColumn("tenant_id");
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeTrue();
+
+        await AssertNoDeltasAfterPatching();
+    }
+
 
     [PgVersionTargetedFact(MinimumVersion = "15.0")]
     public Task detect_new_index_with_distinct_nulls() =>
@@ -749,4 +763,6 @@ public class detecting_table_deltas: IntegrationContext
 
         await AssertNoDeltasAfterPatching(table);
     }
+
+
 }
