@@ -19,9 +19,9 @@ public class DdlRulesTester
     }
 
     [Fact]
-    public void table_creation_is_drop_then_create_by_default()
+    public void table_creation_is_create_if_not_exists_by_default()
     {
-        new SqlServerMigrator().TableCreation.ShouldBe(CreationStyle.DropThenCreate);
+        new SqlServerMigrator().TableCreation.ShouldBe(CreationStyle.CreateIfNotExists);
     }
 
     [Fact]

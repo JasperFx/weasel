@@ -107,7 +107,7 @@ public class TableTests
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
 
-        var rules = new PostgresqlMigrator { TableCreation = CreationStyle.DropThenCreate };
+        var rules = new PostgresqlMigrator { TableCreation = CreationStyle.CreateIfNotExists };
 
         var writer = new StringWriter();
         table.WriteCreateStatement(rules, writer);
@@ -118,8 +118,7 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain("DROP TABLE IF EXISTS public.people CASCADE;");
-        lines.ShouldContain("CREATE TABLE public.people (");
+        lines.ShouldContain("CREATE TABLE IF NOT EXISTS public.people (");
     }
 
     [Fact]
