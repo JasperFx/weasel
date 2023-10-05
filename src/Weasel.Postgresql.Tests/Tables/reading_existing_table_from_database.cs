@@ -83,7 +83,7 @@ public class reading_existing_table_from_database: IntegrationContext
             .ShouldBe(new[] { "id", "tenant_id" });
     }
 
-    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    [Fact]
     public Task read_indexes_with_concurrent_index()=>
         read_indexes(true);
 
@@ -121,7 +121,7 @@ public class reading_existing_table_from_database: IntegrationContext
         existing.Indexes.Count.ShouldBe(2);
     }
 
-    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    [Fact]
     public Task read_fk_with_concurrent_index()=>
         read_fk(true);
 
@@ -168,7 +168,7 @@ public class reading_existing_table_from_database: IntegrationContext
         fk.OnUpdate.ShouldBe(CascadeAction.Restrict);
     }
 
-    [PgVersionTargetedFact(MaximumVersion = "13.0")]
+    [Fact]
     public Task read_fk_with_multiple_columns_with_concurrent_index()=>
         read_fk_with_multiple_columns(true);
 
