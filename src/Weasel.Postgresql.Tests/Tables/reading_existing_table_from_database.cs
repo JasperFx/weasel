@@ -75,6 +75,7 @@ public class reading_existing_table_from_database: IntegrationContext
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
 
+        await DropSchemaObjectInDatabase(table);
         await CreateSchemaObjectInDatabase(table);
 
         var existing = await table.FetchExistingAsync(theConnection);
@@ -138,6 +139,7 @@ public class reading_existing_table_from_database: IntegrationContext
         var states = new Table("states");
         states.AddColumn<int>("id").AsPrimaryKey();
 
+        await DropSchemaObjectInDatabase(states);
         await CreateSchemaObjectInDatabase(states);
 
         var table = new Table("people");
