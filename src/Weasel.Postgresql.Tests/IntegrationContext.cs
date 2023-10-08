@@ -45,7 +45,7 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
 
         try
         {
-            await rules.ApplyAllAsync(theConnection, schemaMigration, AutoCreate.CreateOrUpdate);
+            await rules.ApplyAllAsync(theConnection, schemaMigration, AutoCreate.All);
         }
         catch (Exception e)
         {

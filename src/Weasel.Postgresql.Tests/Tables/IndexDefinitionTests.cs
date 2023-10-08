@@ -82,8 +82,8 @@ public class IndexDefinitionTests
         theIndex.IsConcurrent = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe("--WEASEL_INDEX_CREATION_BEGIN\n" +
-                      "CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);\n" +
+            .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
+                      $"CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -94,8 +94,8 @@ public class IndexDefinitionTests
         theIndex.IsConcurrent = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe("--WEASEL_INDEX_CREATION_BEGIN\n" +
-                      "CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);\n" +
+            .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
+                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -107,8 +107,8 @@ public class IndexDefinitionTests
         theIndex.IsConcurrent = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe("--WEASEL_INDEX_CREATION_BEGIN\n" +
-                      "CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1) NULLS NOT DISTINCT ;\n" +
+            .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
+                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1) NULLS NOT DISTINCT ;{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
