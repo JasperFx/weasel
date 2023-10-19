@@ -18,7 +18,7 @@ public class reading_existing_table_from_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
@@ -49,7 +49,7 @@ public class reading_existing_table_from_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
@@ -69,7 +69,7 @@ public class reading_existing_table_from_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("tenant_id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
@@ -98,12 +98,12 @@ public class reading_existing_table_from_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var states = new Table("states");
+        var states = new Table("tables.states");
         states.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex();
         table.AddColumn<string>("last_name").AddIndex(i =>
@@ -135,12 +135,12 @@ public class reading_existing_table_from_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var states = new Table("states");
+        var states = new Table("tables.states");
         states.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex();
         table.AddColumn<string>("last_name").AddIndex(i =>
@@ -182,13 +182,13 @@ public class reading_existing_table_from_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var states = new Table("states");
+        var states = new Table("tables.states");
         states.AddColumn<int>("id").AsPrimaryKey();
         states.AddColumn<string>("tenant_id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex();
         table.AddColumn<string>("last_name").AddIndex(i =>
