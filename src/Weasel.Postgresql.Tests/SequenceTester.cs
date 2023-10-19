@@ -7,7 +7,7 @@ namespace Weasel.Postgresql.Tests;
 [Collection("sequences")]
 public class SequenceTester: IntegrationContext
 {
-    private readonly Sequence theSequence = new(PostgresqlProvider.ToDbObjectName("sequences", "mysequence"));//mySeQuEnCe
+    private readonly Sequence theSequence = new(PostgresqlProvider.ToDbObjectName("sequences", "mysequence"));
 
     public SequenceTester(): base("sequences")
     {

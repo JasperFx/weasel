@@ -36,3 +36,9 @@ Some of our tests are run against a particular PostgreSQL version. Tests explore
 ```shell
 postgresql_version=15.3
 ```
+
+By default Postgres tests are run with case insensitive names. To run tests against case sensitive, set environment variable:
+
+```
+USE_CASE_SENSITIVE_QUALIFIED_NAMES=true
+```
