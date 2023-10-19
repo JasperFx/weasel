@@ -7,6 +7,8 @@ using Xunit.Abstractions;
 
 namespace Weasel.Postgresql.Tests.Tables;
 
+using static PostgresqlProvider;
+
 public class TableTests
 {
     private readonly ITestOutputHelper _output;
@@ -118,8 +120,8 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain("DROP TABLE IF EXISTS public.people CASCADE;");
-        lines.ShouldContain("CREATE TABLE public.people (");
+        lines.ShouldContain($"DROP TABLE IF EXISTS {ToDbObjectName("public.people")} CASCADE;");
+        lines.ShouldContain($"CREATE TABLE {ToDbObjectName("public.people")} (");
     }
 
     [Fact]
@@ -141,7 +143,7 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain("CREATE TABLE IF NOT EXISTS public.people (");
+        lines.ShouldContain($"CREATE TABLE IF NOT EXISTS {ToDbObjectName("public.people")} (");
     }
 
     [Fact]

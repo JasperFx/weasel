@@ -5,6 +5,8 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables;
 
+using static PostgresqlProvider;
+
 public class ForeignKeyTests
 {
     [Fact]
@@ -13,7 +15,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("public", "states"),
+            LinkedTable = ToDbObjectName("public", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" }
         };
@@ -22,9 +24,9 @@ public class ForeignKeyTests
         ddl.ShouldNotContain("ON DELETE");
         ddl.ShouldNotContain("ON UPDATE");
 
-        ddl.ShouldContain("ALTER TABLE public.people");
+        ddl.ShouldContain($"ALTER TABLE {ToDbObjectName("public.people")}");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
-        ddl.ShouldContain("REFERENCES public.states(id)");
+        ddl.ShouldContain($"REFERENCES {ToDbObjectName("public.states")}(id)");
     }
 
     [Fact]
@@ -33,7 +35,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("public", "states"),
+            LinkedTable = PostgresqlProvider.ToDbObjectName("public", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" },
             OnDelete = CascadeAction.Restrict
@@ -51,7 +53,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("public", "states"),
+            LinkedTable = PostgresqlProvider.ToDbObjectName("public", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" },
             OnUpdate = CascadeAction.Cascade
@@ -69,7 +71,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("public", "states"),
+            LinkedTable = PostgresqlProvider.ToDbObjectName("public", "states"),
             ColumnNames = new[] { "state_id", "tenant_id" },
             LinkedNames = new[] { "id", "tenant_id" }
         };
@@ -77,9 +79,9 @@ public class ForeignKeyTests
         var ddl = fk.ToDDL(table);
 
 
-        ddl.ShouldContain("ALTER TABLE public.people");
+        ddl.ShouldContain($"ALTER TABLE {ToDbObjectName("public.people")}");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id, tenant_id)");
-        ddl.ShouldContain("REFERENCES public.states(id, tenant_id)");
+        ddl.ShouldContain($"REFERENCES {ToDbObjectName("public.states")}(id, tenant_id)");
     }
 
     [Theory]
@@ -120,7 +122,7 @@ public class ForeignKeyTests
 
         fk.ColumnNames.Single().ShouldBe("state_id");
         fk.LinkedNames.Single().ShouldBe("id");
-        fk.LinkedTable.ShouldBe(new DbObjectName("public", "states"));
+        fk.LinkedTable.ShouldBe(PostgresqlProvider.ToDbObjectName("public", "states"));
     }
 
     [Fact]
@@ -132,7 +134,7 @@ public class ForeignKeyTests
 
         fk.ColumnNames.ShouldBe(new string[] { "state_id", "tenant_id" });
         fk.LinkedNames.ShouldBe(new string[] { "id", "tenant_id" });
-        fk.LinkedTable.ShouldBe(new DbObjectName("public", "states"));
+        fk.LinkedTable.ShouldBe(PostgresqlProvider.ToDbObjectName("public", "states"));
     }
 
     [Fact]
@@ -146,7 +148,7 @@ public class ForeignKeyTests
 
         foreignKey.ColumnNames.Single().ShouldBe("state_id");
         foreignKey.LinkedNames.Single().ShouldBe("id");
-        var expectedLinkedTable = new DbObjectName(schema, "states");
+        var expectedLinkedTable = PostgresqlProvider.ToDbObjectName(schema, "states");
         foreignKey.LinkedTable.ShouldBe(expectedLinkedTable);
     }
 }

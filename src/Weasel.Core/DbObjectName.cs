@@ -5,11 +5,18 @@ namespace Weasel.Core;
 /// </summary>
 public class DbObjectName
 {
-    public DbObjectName(string schema, string name)
+    [Obsolete("Use Parse method with IDatabaseProvider instead.")]
+    public DbObjectName(string schema, string name): this(schema, name, $"{schema}.{name}")
     {
         Schema = schema;
         Name = name;
-        QualifiedName = $"{Schema}.{Name}";
+    }
+
+    private DbObjectName(string schema, string name, string qualifiedName)
+    {
+        Schema = schema;
+        Name = name;
+        QualifiedName = qualifiedName;
     }
 
     public string Schema { get; }
@@ -24,8 +31,12 @@ public class DbObjectName
     public static DbObjectName Parse(IDatabaseProvider provider, string qualifiedName)
     {
         var parts = ParseQualifiedName(provider, qualifiedName);
-        return new DbObjectName(parts[0], parts[1]);
+
+        return Parse(provider, parts[0], parts[1]);
     }
+
+    public static DbObjectName Parse(IDatabaseProvider provider, string schemaName, string objectName) =>
+        new (schemaName, objectName, provider.ToQualifiedName(schemaName, objectName));
 
     public override string ToString()
     {

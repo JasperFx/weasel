@@ -199,7 +199,8 @@ public static class SchemaObjectsExtensions
 
     private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        return new DbObjectName(
+        return DbObjectName.Parse(
+            PostgresqlProvider.Instance,
             await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
             await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false)
         );

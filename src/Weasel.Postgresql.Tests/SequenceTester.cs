@@ -7,32 +7,35 @@ namespace Weasel.Postgresql.Tests;
 [Collection("sequences")]
 public class SequenceTester: IntegrationContext
 {
-    private readonly Sequence theSequence = new(new DbObjectName("sequences", "mysequence"));
+    private readonly Sequence theSequence = new(PostgresqlProvider.ToDbObjectName("sequences", "mysequence"));//mySeQuEnCe
 
     public SequenceTester(): base("sequences")
     {
     }
 
-
-    [Fact]
-    public async Task can_create_sequence_without_blowing_up()
+    [InlineData("seq1")]
+    [InlineData("seq1UpErCaSe")]
+    [Theory]
+    public async Task can_create_sequence_without_blowing_up(string sequenceName)
     {
-        await ResetSchema();
-
-        await theSequence.CreateAsync(theConnection);
-    }
-
-
-    [Fact]
-    public async Task can_create_with_startup_sequence_without_blowing_up()
-    {
-        var sequence = new Sequence(new DbObjectName("sequences", "seq1"), 5);
+        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName));
 
         await ResetSchema();
 
         await sequence.CreateAsync(theConnection);
     }
 
+    [InlineData("seq1")]
+    [InlineData("seq1UpErCaSe")]
+    [Theory]
+    public async Task can_create_with_startup_sequence_without_blowing_up(string sequenceName)
+    {
+        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName), 5);
+
+        await ResetSchema();
+
+        await sequence.CreateAsync(theConnection);
+    }
 
     [Fact]
     public async Task determine_that_it_is_missing()
@@ -44,12 +47,37 @@ public class SequenceTester: IntegrationContext
         delta.Difference.ShouldBe(SchemaPatchDifference.Create);
     }
 
-    [Fact]
-    public async Task determine_that_it_is_already_there()
+    [InlineData("seq1", false)]
+    [InlineData("seq1UpErCaSe", true)]
+    [Theory]
+    public async Task determine_that_it_is_already_there(string sequenceName, bool isCaseSensitive)
     {
-        await can_create_sequence_without_blowing_up();
+        if (PostgresqlProvider.Instance.UseCaseSensitiveQualifiedNames != isCaseSensitive)
+            return;
 
-        var delta = await theSequence.FindDeltaAsync(theConnection);
+        await can_create_sequence_without_blowing_up(sequenceName);
+
+        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName));
+
+        var delta = await sequence.FindDeltaAsync(theConnection);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+
+    }
+
+    [InlineData("seq1", false)]
+    [InlineData("seq1UpErCaSe", true)]
+    [Theory]
+    public async Task determine_that_it_is_already_there_when_contain_uppercase(string sequenceName, bool isCaseSensitive)
+    {
+        if (PostgresqlProvider.Instance.UseCaseSensitiveQualifiedNames != isCaseSensitive)
+            return;
+
+        await can_create_sequence_without_blowing_up(sequenceName);
+
+        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName));
+
+        var delta = await sequence.FindDeltaAsync(theConnection);
 
         delta.Difference.ShouldBe(SchemaPatchDifference.None);
     }

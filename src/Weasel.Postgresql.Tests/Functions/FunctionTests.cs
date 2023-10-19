@@ -90,20 +90,20 @@ $$ LANGUAGE plpgsql;
     {
         var function = Function.ForRemoval("functions.mt_hilo");
         function.IsRemoved.ShouldBeTrue();
-        function.Identifier.QualifiedName.ShouldBe("functions.mt_hilo");
+        function.Identifier.QualifiedName.ShouldBe(PostgresqlProvider.ToDbObjectName("functions.mt_hilo").QualifiedName);
     }
 
     [Fact]
     public void can_read_the_function_identifier_from_a_function_body()
     {
         Function.ParseIdentifier(theFunctionBody)
-            .ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
+            .ShouldBe(PostgresqlProvider.ToDbObjectName( "functions", "mt_get_next_hi"));
     }
 
     [Fact]
     public void can_derive_the_drop_statement_from_the_body()
     {
-        var function = new Function(new DbObjectName("functions", "mt_get_next_hi"), theFunctionBody);
+        var function = new Function(PostgresqlProvider.ToDbObjectName("functions", "mt_get_next_hi"), theFunctionBody);
         function.DropStatements().Single().ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
     }
 
@@ -111,7 +111,7 @@ $$ LANGUAGE plpgsql;
     public void can_build_function_object_from_body()
     {
         var function = Function.ForSql(theFunctionBody);
-        function.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
+        function.Identifier.ShouldBe(PostgresqlProvider.ToDbObjectName("functions", "mt_get_next_hi"));
 
         function.DropStatements().Single()
             .ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
@@ -169,7 +169,7 @@ $$ LANGUAGE plpgsql;
 
         var existing = await function.FetchExistingAsync(theConnection);
 
-        existing.Identifier.ShouldBe(new DbObjectName("functions", "mt_get_next_hi"));
+        existing.Identifier.ShouldBe(PostgresqlProvider.ToDbObjectName("functions", "mt_get_next_hi"));
         existing.DropStatements().Single()
             .ShouldBe("DROP FUNCTION IF EXISTS functions.mt_get_next_hi(entity character varying);");
         existing.Body().ShouldNotBeNull();

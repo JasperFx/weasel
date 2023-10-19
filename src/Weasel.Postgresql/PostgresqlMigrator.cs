@@ -75,16 +75,18 @@ $$;
 
     private static void WriteSql(string databaseSchemaName, TextWriter writer)
     {
-        writer.WriteLine($@"
-    IF NOT EXISTS(
-        SELECT schema_name
-          FROM information_schema.schemata
-          WHERE schema_name = '{databaseSchemaName}'
-      )
-    THEN
-      EXECUTE 'CREATE SCHEMA {databaseSchemaName}';
-    END IF;
-");
+        writer.WriteLine(
+            $"""
+                 IF NOT EXISTS(
+                     SELECT schema_name
+                       FROM information_schema.schemata
+                       WHERE schema_name = '{databaseSchemaName}'
+                   )
+                 THEN
+                   EXECUTE 'CREATE SCHEMA {PostgresqlProvider.Instance.ToQualifiedName(databaseSchemaName)}';
+                 END IF;
+
+             """);
     }
 
     protected override async Task executeDelta(
@@ -93,7 +95,7 @@ $$;
         AutoCreate autoCreate,
         IMigrationLogger logger,
         CancellationToken ct = default
-        )
+    )
     {
         var writer = new StringWriter();
 
