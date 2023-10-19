@@ -27,6 +27,9 @@ jobs:
             postgres-image:
                 - ionx/postgres-plv8:12.2
                 - postgres:15.3-alpine
+            useCaseSensitiveQualifiedNames:
+                - true
+                - false
 
     services:
       postgres:
@@ -37,6 +40,7 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: ${{ env.db_name }}
           POSTGRES_USER: ${{ env.db_user }}
+          USE_CASE_SENSITIVE_QUALIFIED_NAMES:  ${{ matrix.useCaseSensitiveQualifiedNames }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
