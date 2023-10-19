@@ -31,6 +31,8 @@ jobs:
                 - true
                 - false
 
+    name: Postgres ${{ matrix.postgres-image }} Case Sensitive ${{ matrix.useCaseSensitiveQualifiedNames }}
+
     services:
       postgres:
         image: ${{ matrix.postgres-image }}
