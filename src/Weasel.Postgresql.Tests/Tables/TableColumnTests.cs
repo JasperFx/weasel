@@ -3,6 +3,7 @@ using Weasel.Postgresql.Tables;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables;
+using static PostgresqlProvider;
 
 public class TableColumnTests
 {
@@ -116,6 +117,6 @@ public class TableColumnTests
         var column = table.AddColumn<string>("name1").NotNull().Column;
 
         column.AddColumnSql(table)
-            .ShouldBe("alter table public.people add column name1 varchar NOT NULL;");
+            .ShouldBe($"alter table {ToDbObjectName("public.people")} add column name1 varchar NOT NULL;");
     }
 }

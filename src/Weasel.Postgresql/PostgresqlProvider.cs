@@ -20,6 +20,8 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
     public List<Type> TimespanTypes { get; } = new();
     public List<Type> TimespanZTypes { get; } = new();
 
+    public bool UseCaseSensitiveQualifiedNames { get; set; } = false;
+
     protected override void storeMappings()
     {
         // Initialize PgTypeMemo with Types which are not available in Npgsql mappings
@@ -256,11 +258,22 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
     public void AddTimespanTypes(NpgsqlDbType npgsqlDbType, params Type[] types)
     {
         var timespanTypesList = npgsqlDbType == NpgsqlDbType.Timestamp ? TimespanTypes : TimespanZTypes;
-        var typesWithNullables = types.Union(types.Select(t => GetNullableType(t)))
+        var typesWithNullables = types.Union(types.Select(GetNullableType))
             .Where(t => !timespanTypesList.Contains(t)).ToList();
 
         timespanTypesList.AddRange(typesWithNullables);
 
         ContainmentOperatorTypes.AddRange(typesWithNullables);
     }
+
+    public override string ToQualifiedName(string objectName) =>
+        !UseCaseSensitiveQualifiedNames || string.IsNullOrEmpty(objectName) || objectName[0] == '"' || objectName[^1] == '"'
+            ? objectName
+            : $"\"{objectName}\"";
+
+    public static DbObjectName ToDbObjectName(string qualifiedName) =>
+        DbObjectName.Parse(Instance, qualifiedName);
+
+    public static DbObjectName ToDbObjectName(string schema, string table) =>
+        DbObjectName.Parse(Instance, schema, table);
 }

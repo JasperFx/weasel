@@ -1,5 +1,6 @@
 using System.Data.Common;
 using Npgsql;
+using Weasel.Core;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql.Tables;
@@ -10,7 +11,7 @@ public partial class Table
     {
         var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
-        var nameWithSchemaParam = builder.AddParameter(Identifier.QualifiedName).ParameterName;
+        var nameWithSchemaParam = builder.AddParameter($"{Identifier.Schema}.{Identifier.Name}").ParameterName;
 
         builder.Append($@"
 select column_name, data_type, character_maximum_length, udt_name
@@ -254,7 +255,7 @@ order by column_index;
 
 
             if ((Identifier.Schema == schemaName && Identifier.Name == tableName) ||
-                Identifier.QualifiedName == tableName)
+                Equals(Identifier, DbObjectName.Parse(PostgresqlProvider.Instance, tableName)))
             {
                 var index = IndexDefinition.Parse(ddl);
 

@@ -9,6 +9,15 @@ namespace Weasel.Core;
 public interface IDatabaseProvider
 {
     string DefaultDatabaseSchemaName { get; }
+    /// <summary>
+    /// Maps databaseObjectName to include local conventions around case sensitivity etc.
+    /// </summary>
+    /// <param name="objectName">database object name (e.g. table, sequence)</param>
+    /// <returns></returns>
+    string ToQualifiedName(string objectName) => objectName;
+
+    string ToQualifiedName(string schemaName, string objectName) =>
+        $"{ToQualifiedName(schemaName)}.{ToQualifiedName(objectName)}";
 }
 
 /// <summary>
@@ -84,6 +93,8 @@ public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTrans
     }
 
     public string DefaultDatabaseSchemaName { get; }
+
+    public virtual string ToQualifiedName(string objectName) => objectName;
 
     public TParameterType? TryGetDbType(Type? type)
     {

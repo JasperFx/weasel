@@ -155,9 +155,9 @@ public partial class Table: ISchemaObject
     {
         yield return Identifier;
 
-        foreach (var index in Indexes) yield return new DbObjectName(Identifier.Schema, index.Name);
+        foreach (var index in Indexes) yield return DbObjectName.Parse(PostgresqlProvider.Instance, Identifier.Schema, index.Name);
 
-        foreach (var fk in ForeignKeys) yield return new DbObjectName(Identifier.Schema, fk.Name);
+        foreach (var fk in ForeignKeys) yield return DbObjectName.Parse(PostgresqlProvider.Instance, Identifier.Schema, fk.Name);
     }
 
     /// <summary>
@@ -166,7 +166,7 @@ public partial class Table: ISchemaObject
     /// <param name="schemaName"></param>
     public void MoveToSchema(string schemaName)
     {
-        var identifier = new DbObjectName(schemaName, Identifier.Name);
+        var identifier = DbObjectName.Parse(PostgresqlProvider.Instance, schemaName, Identifier.Name);
         Identifier = identifier;
     }
 

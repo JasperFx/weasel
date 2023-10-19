@@ -7,6 +7,8 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests;
 
+using static PostgresqlProvider;
+
 public class CommandExtensionsTests
 {
     [Fact]
@@ -48,9 +50,9 @@ public class CommandExtensionsTests
     public void CallsSproc_extension_method()
     {
         var command = new NpgsqlCommand();
-        command.CallsSproc(new DbObjectName("foo", "proc")).ShouldBeSameAs(command);
+        command.CallsSproc(PostgresqlProvider.ToDbObjectName("foo", "proc")).ShouldBeSameAs(command);
         command.CommandType.ShouldBe(CommandType.StoredProcedure);
-        command.CommandText.ShouldBe("foo.proc");
+        command.CommandText.ShouldBe(ToDbObjectName("foo.proc").QualifiedName);
     }
 
     [Fact]

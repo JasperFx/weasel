@@ -137,7 +137,7 @@ public class NamedTableFeature: FeatureSchemaBase
 
     public Table AddTable(string schemaName, string tableName)
     {
-        var table = new NamedTable(new DbObjectName(schemaName, tableName));
+        var table = new NamedTable(PostgresqlProvider.ToDbObjectName(schemaName, tableName));
         Tables[table.Identifier.QualifiedName] = table;
 
         return table;
