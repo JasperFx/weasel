@@ -25,6 +25,9 @@ jobs:
             mssql-image:
                 - mcr.microsoft.com/mssql/server:2019-latest
                 - mcr.microsoft.com/mssql/server:2022-latest
+
+    name: MSSQL ${{ matrix.mssql-image }}
+
     services:
       sqlserver:
         image: ${{ matrix.mssql-image }}
