@@ -1,7 +1,7 @@
 version: '3'
 services:
   postgresql:
-    image: "ionx/postgres-plv8:12.2"
+    image: ${POSTGRES_IMAGE:-ionx/postgres-plv8:12.2}
     #image: "postgres:15.3-alpine"
     ports:
      - "5432:5432"
@@ -11,7 +11,7 @@ services:
       POSTGRES_DB: marten_testing
       NAMEDATALEN: 100
   sqlserver:
-    image: "mcr.microsoft.com/mssql/server:2019-latest"
+    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2019-latest}
     ports:
       - "1433:1433"
     environment:
