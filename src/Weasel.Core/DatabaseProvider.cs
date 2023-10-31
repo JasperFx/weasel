@@ -1,5 +1,6 @@
 using System.Data.Common;
 using JasperFx.Core;
+using Weasel.Core.Names;
 
 namespace Weasel.Core;
 
@@ -18,6 +19,15 @@ public interface IDatabaseProvider
 
     string ToQualifiedName(string schemaName, string objectName) =>
         $"{ToQualifiedName(schemaName)}.{ToQualifiedName(objectName)}";
+
+    public DbObjectName Parse(string qualifiedName)
+    {
+        var parts = QualifiedNameParser.Parse(this, qualifiedName);
+
+        return Parse(parts[0], parts[1]);
+    }
+
+    DbObjectName Parse(string schemaName, string objectName);
 }
 
 /// <summary>
@@ -93,8 +103,6 @@ public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTrans
     }
 
     public string DefaultDatabaseSchemaName { get; }
-
-    public virtual string ToQualifiedName(string objectName) => objectName;
 
     public TParameterType? TryGetDbType(Type? type)
     {
@@ -246,4 +254,11 @@ public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTrans
     {
         return AddNamedParameter(command, name, value, BoolParameterType);
     }
+
+    public virtual string ToQualifiedName(string objectName) => objectName;
+
+    public string ToQualifiedName(string schemaName, string objectName) =>
+        $"{ToQualifiedName(schemaName)}.{ToQualifiedName(objectName)}";
+
+    public abstract DbObjectName Parse(string schemaName, string objectName);
 }

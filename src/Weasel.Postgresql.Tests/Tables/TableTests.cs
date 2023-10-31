@@ -120,8 +120,8 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain($"DROP TABLE IF EXISTS {ToDbObjectName("public.people")} CASCADE;");
-        lines.ShouldContain($"CREATE TABLE {ToDbObjectName("public.people")} (");
+        lines.ShouldContain($"DROP TABLE IF EXISTS {Instance.ToQualifiedName("public.people")} CASCADE;");
+        lines.ShouldContain($"CREATE TABLE {Instance.ToQualifiedName("public.people")} (");
     }
 
     [Fact]
@@ -143,7 +143,7 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain($"CREATE TABLE IF NOT EXISTS {ToDbObjectName("public.people")} (");
+        lines.ShouldContain($"CREATE TABLE IF NOT EXISTS {Instance.ToQualifiedName("public.people")} (");
     }
 
     [Fact]

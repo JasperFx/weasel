@@ -271,9 +271,6 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             ? objectName
             : $"\"{objectName}\"";
 
-    public static DbObjectName ToDbObjectName(string qualifiedName) =>
-        DbObjectName.Parse(Instance, qualifiedName);
-
-    public static DbObjectName ToDbObjectName(string schema, string table) =>
-        DbObjectName.Parse(Instance, schema, table);
+    public override DbObjectName Parse(string schemaName, string objectName) =>
+        new PostgresqlObjectName(schemaName, objectName, ToQualifiedName(schemaName, objectName));
 }

@@ -1,5 +1,4 @@
 using Shouldly;
-using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -15,7 +14,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = ToDbObjectName("public", "states"),
+            LinkedTable = new PostgresqlObjectName("public", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" }
         };
@@ -24,9 +23,9 @@ public class ForeignKeyTests
         ddl.ShouldNotContain("ON DELETE");
         ddl.ShouldNotContain("ON UPDATE");
 
-        ddl.ShouldContain($"ALTER TABLE {ToDbObjectName("public.people")}");
+        ddl.ShouldContain($"ALTER TABLE {Instance.ToQualifiedName("public.people")}");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
-        ddl.ShouldContain($"REFERENCES {ToDbObjectName("public.states")}(id)");
+        ddl.ShouldContain($"REFERENCES {Instance.ToQualifiedName("public.states")}(id)");
     }
 
     [Fact]
@@ -35,7 +34,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = PostgresqlProvider.ToDbObjectName("public", "states"),
+            LinkedTable = new PostgresqlObjectName("public", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" },
             OnDelete = CascadeAction.Restrict
@@ -53,7 +52,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = PostgresqlProvider.ToDbObjectName("public", "states"),
+            LinkedTable = new PostgresqlObjectName("public", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" },
             OnUpdate = CascadeAction.Cascade
@@ -71,7 +70,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = PostgresqlProvider.ToDbObjectName("public", "states"),
+            LinkedTable = new PostgresqlObjectName("public", "states"),
             ColumnNames = new[] { "state_id", "tenant_id" },
             LinkedNames = new[] { "id", "tenant_id" }
         };
@@ -79,9 +78,9 @@ public class ForeignKeyTests
         var ddl = fk.ToDDL(table);
 
 
-        ddl.ShouldContain($"ALTER TABLE {ToDbObjectName("public.people")}");
+        ddl.ShouldContain($"ALTER TABLE {Instance.ToQualifiedName("public.people")}");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id, tenant_id)");
-        ddl.ShouldContain($"REFERENCES {ToDbObjectName("public.states")}(id, tenant_id)");
+        ddl.ShouldContain($"REFERENCES {Instance.ToQualifiedName("public.states")}(id, tenant_id)");
     }
 
     [Theory]
@@ -106,7 +105,7 @@ public class ForeignKeyTests
         CascadeAction.NoAction)]
     public void read_on_delete_and_on_update(string definition, CascadeAction onDelete, CascadeAction onUpdate)
     {
-        var fk = new ForeignKey("fk_people_state_id") { };
+        var fk = new ForeignKey("fk_people_state_id");
 
         fk.Parse(definition);
         fk.OnDelete.ShouldBe(onDelete);
@@ -116,25 +115,25 @@ public class ForeignKeyTests
     [Fact]
     public void parse_single_column_fk_definition()
     {
-        var fk = new ForeignKey("fk_people_state_id") { };
+        var fk = new ForeignKey("fk_people_state_id");
 
         fk.Parse("FOREIGN KEY (state_id) REFERENCES states(id)");
 
         fk.ColumnNames.Single().ShouldBe("state_id");
         fk.LinkedNames.Single().ShouldBe("id");
-        fk.LinkedTable.ShouldBe(PostgresqlProvider.ToDbObjectName("public", "states"));
+        fk.LinkedTable.ShouldBe(new PostgresqlObjectName("public", "states"));
     }
 
     [Fact]
     public void parse_multiple_column_fk_definition()
     {
-        var fk = new ForeignKey("fk_people_state_id") { };
+        var fk = new ForeignKey("fk_people_state_id");
 
         fk.Parse("FOREIGN KEY (state_id, tenant_id) REFERENCES states(id, tenant_id)");
 
-        fk.ColumnNames.ShouldBe(new string[] { "state_id", "tenant_id" });
-        fk.LinkedNames.ShouldBe(new string[] { "id", "tenant_id" });
-        fk.LinkedTable.ShouldBe(PostgresqlProvider.ToDbObjectName("public", "states"));
+        fk.ColumnNames.ShouldBe(new[] { "state_id", "tenant_id" });
+        fk.LinkedNames.ShouldBe(new[] { "id", "tenant_id" });
+        fk.LinkedTable.ShouldBe(new PostgresqlObjectName("public", "states"));
     }
 
     [Fact]
@@ -148,7 +147,7 @@ public class ForeignKeyTests
 
         foreignKey.ColumnNames.Single().ShouldBe("state_id");
         foreignKey.LinkedNames.Single().ShouldBe("id");
-        var expectedLinkedTable = PostgresqlProvider.ToDbObjectName(schema, "states");
+        var expectedLinkedTable = new PostgresqlObjectName(schema, "states");
         foreignKey.LinkedTable.ShouldBe(expectedLinkedTable);
     }
 }

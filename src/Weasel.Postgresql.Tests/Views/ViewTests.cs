@@ -50,7 +50,7 @@ public class ViewTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain($"DROP VIEW IF EXISTS {ToDbObjectName("public.people_view")};");
-        lines.ShouldContain($"CREATE VIEW {ToDbObjectName("public.people_view")} AS SELECT 1 AS id;");
+        lines.ShouldContain($"DROP VIEW IF EXISTS {Instance.ToQualifiedName("public.people_view")};");
+        lines.ShouldContain($"CREATE VIEW {Instance.ToQualifiedName("public.people_view")} AS SELECT 1 AS id;");
     }
 }

@@ -32,7 +32,7 @@ public class View: ISchemaObject
     /// <param name="schemaName"></param>
     public void MoveToSchema(string schemaName)
     {
-        var identifier = DbObjectName.Parse(PostgresqlProvider.Instance, schemaName, Identifier.Name);
+        var identifier = new PostgresqlObjectName(schemaName, Identifier.Name);
         Identifier = identifier;
     }
 

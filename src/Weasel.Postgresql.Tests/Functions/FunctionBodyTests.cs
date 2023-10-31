@@ -32,7 +32,7 @@ $BODY$
     [Fact]
     public void derive_the_function_signature_from_the_body()
     {
-        var func = new FunctionBody(PostgresqlProvider.ToDbObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
+        var func = new FunctionBody(new PostgresqlObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
 
         Function.ParseSignature(func.Body).ShouldBe("public.mt_upsert_target(jsonb, character varying, uuid, uuid)");
     }
@@ -40,7 +40,7 @@ $BODY$
     [Fact]
     public void do_substitutions()
     {
-        var func = new FunctionBody(PostgresqlProvider.ToDbObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
+        var func = new FunctionBody(new PostgresqlObjectName("public", "mt_upsert_target"), new string[0], theFunctionBody);
 
         func.BuildTemplate($"*{PostgresqlMigrator.SCHEMA}*").ShouldBe("*public*");
         func.BuildTemplate($"*{PostgresqlMigrator.FUNCTION}*").ShouldBe("*mt_upsert_target*");

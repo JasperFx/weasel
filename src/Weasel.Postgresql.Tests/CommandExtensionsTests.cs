@@ -50,9 +50,9 @@ public class CommandExtensionsTests
     public void CallsSproc_extension_method()
     {
         var command = new NpgsqlCommand();
-        command.CallsSproc(PostgresqlProvider.ToDbObjectName("foo", "proc")).ShouldBeSameAs(command);
+        command.CallsSproc(new PostgresqlObjectName("foo", "proc")).ShouldBeSameAs(command);
         command.CommandType.ShouldBe(CommandType.StoredProcedure);
-        command.CommandText.ShouldBe(ToDbObjectName("foo.proc").QualifiedName);
+        command.CommandText.ShouldBe(Instance.UseCaseSensitiveQualifiedNames ? "\"foo\".\"proc\"" : "foo.proc");
     }
 
     [Fact]

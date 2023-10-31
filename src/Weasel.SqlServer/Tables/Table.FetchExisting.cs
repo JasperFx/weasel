@@ -136,7 +136,7 @@ order by
             var onUpdate = await reader.GetFieldValueAsync<string>(6, ct).ConfigureAwait(false);
 
             var fk = existing.FindOrCreateForeignKey(fkName);
-            fk.LinkedTable = new DbObjectName(schemaName, tableName);
+            fk.LinkedTable = new SqlServerObjectName(schemaName, tableName);
             fk.ReadReferentialActions(onDelete, onUpdate);
 
             fk.LinkColumns(columnName, referencedName);

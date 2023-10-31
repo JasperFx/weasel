@@ -18,7 +18,7 @@ END;";
     [Fact]
     public void derive_the_function_identifier_from_the_body()
     {
-        var func = new FunctionBody(new DbObjectName("public", "sample"), new string[0], theFunctionBody);
-        Function.ParseIdentifier(func.Body).ShouldBe(new DbObjectName("public", "sample"));
+        var func = new FunctionBody(new SqlServerObjectName("public", "sample"), new string[0], theFunctionBody);
+        Function.ParseIdentifier(func.Body).ShouldBe(new SqlServerObjectName("public", "sample"));
     }
 }
