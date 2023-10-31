@@ -19,6 +19,19 @@ public class CommandBuilderTests
     }
 
     [Fact]
+    public void preview_last_appended_parameter()
+    {
+        var builder = new CommandBuilder(new NpgsqlCommand());
+        builder.LastParameterName.ShouldBeNull();
+
+        builder.Append("select data from table where ");
+        builder.AppendWithParameters("foo = ?")
+            .Length.ShouldBe(1);
+
+        builder.LastParameterName.ShouldBe("p0");
+    }
+
+    [Fact]
     public void starting_with_existing_command()
     {
         var command = new NpgsqlCommand("select data from table");

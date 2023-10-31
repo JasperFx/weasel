@@ -46,6 +46,13 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     }
 
     /// <summary>
+    /// Preview the parameter name of the last appended parameter
+    /// </summary>
+    public string? LastParameterName => _command.Parameters.Count == 0
+        ? null
+        : _command.Parameters[^1].ParameterName;
+
+    /// <summary>
     ///     Add text to the batched command SQL string
     /// </summary>
     /// <param name="text"></param>
