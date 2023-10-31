@@ -154,9 +154,9 @@ public partial class Table: ISchemaObject
     {
         yield return Identifier;
 
-        foreach (var index in Indexes) yield return new DbObjectName(Identifier.Schema, index.Name);
+        foreach (var index in Indexes) yield return new SqlServerObjectName(Identifier.Schema, index.Name);
 
-        foreach (var fk in ForeignKeys) yield return new DbObjectName(Identifier.Schema, fk.Name);
+        foreach (var fk in ForeignKeys) yield return new SqlServerObjectName(Identifier.Schema, fk.Name);
     }
 
     /// <summary>

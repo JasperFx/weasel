@@ -9,7 +9,8 @@ public class DbObjectNameTests
     {
         public string DefaultDatabaseSchemaName => "stub";
 
-        public string ToQualifiedName(string objectName) => objectName;
+        public DbObjectName Parse(string schemaName, string objectName) =>
+            new DbObjectName(schemaName, objectName);
     }
 
     private readonly IDatabaseProvider theProvider = new StubProvider();

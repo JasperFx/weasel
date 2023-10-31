@@ -6,7 +6,7 @@ namespace Weasel.SqlServer.Tests;
 
 public class SequenceTester: IntegrationContext
 {
-    private readonly Sequence theSequence = new(new DbObjectName("sequences", "mysequence"));
+    private readonly Sequence theSequence = new(new SqlServerObjectName("sequences", "mysequence"));
 
     public SequenceTester(): base("sequences")
     {
@@ -25,7 +25,7 @@ public class SequenceTester: IntegrationContext
     [Fact]
     public async Task can_create_with_startup_sequence_without_blowing_up()
     {
-        var sequence = new Sequence(new DbObjectName("sequences", "seq1"), 5);
+        var sequence = new Sequence(new SqlServerObjectName("sequences", "seq1"), 5);
 
         await ResetSchema();
 

@@ -7,6 +7,8 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests.Functions;
 
+using static PostgresqlProvider;
+
 [Collection("functions")]
 public class FunctionTests: IntegrationContext
 {
@@ -90,20 +92,20 @@ $$ LANGUAGE plpgsql;
     {
         var function = Function.ForRemoval("functions.mt_hilo");
         function.IsRemoved.ShouldBeTrue();
-        function.Identifier.QualifiedName.ShouldBe(PostgresqlProvider.ToDbObjectName("functions.mt_hilo").QualifiedName);
+        function.Identifier.QualifiedName.ShouldBe(Instance.ToQualifiedName("functions.mt_hilo"));
     }
 
     [Fact]
     public void can_read_the_function_identifier_from_a_function_body()
     {
         Function.ParseIdentifier(theFunctionBody)
-            .ShouldBe(PostgresqlProvider.ToDbObjectName( "functions", "mt_get_next_hi"));
+            .ShouldBe(new PostgresqlObjectName( "functions", "mt_get_next_hi"));
     }
 
     [Fact]
     public void can_derive_the_drop_statement_from_the_body()
     {
-        var function = new Function(PostgresqlProvider.ToDbObjectName("functions", "mt_get_next_hi"), theFunctionBody);
+        var function = new Function(new PostgresqlObjectName("functions", "mt_get_next_hi"), theFunctionBody);
         function.DropStatements().Single().ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
     }
 
@@ -111,7 +113,7 @@ $$ LANGUAGE plpgsql;
     public void can_build_function_object_from_body()
     {
         var function = Function.ForSql(theFunctionBody);
-        function.Identifier.ShouldBe(PostgresqlProvider.ToDbObjectName("functions", "mt_get_next_hi"));
+        function.Identifier.ShouldBe(new PostgresqlObjectName("functions", "mt_get_next_hi"));
 
         function.DropStatements().Single()
             .ShouldBe("drop function if exists functions.mt_get_next_hi(varchar);");
@@ -169,7 +171,7 @@ $$ LANGUAGE plpgsql;
 
         var existing = await function.FetchExistingAsync(theConnection);
 
-        existing.Identifier.ShouldBe(PostgresqlProvider.ToDbObjectName("functions", "mt_get_next_hi"));
+        existing.Identifier.ShouldBe(new PostgresqlObjectName("functions", "mt_get_next_hi"));
         existing.DropStatements().Single()
             .ShouldBe("DROP FUNCTION IF EXISTS functions.mt_get_next_hi(entity character varying);");
         existing.Body().ShouldNotBeNull();

@@ -75,6 +75,8 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlCo
         return Type.EmptyTypes;
     }
 
+    public override DbObjectName Parse(string schemaName, string objectName) =>
+        new SqlServerObjectName(schemaName, objectName);
 
     public string ConvertSynonyms(string type)
     {

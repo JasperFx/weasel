@@ -5,14 +5,14 @@ namespace Weasel.Core;
 /// </summary>
 public class DbObjectName
 {
-    [Obsolete("Use Parse method with IDatabaseProvider instead.")]
+    [Obsolete("Use PostgresqlObjectName, SqlServerObjectName, or Parse method with IDatabaseProvider instead.")]
     public DbObjectName(string schema, string name): this(schema, name, $"{schema}.{name}")
     {
         Schema = schema;
         Name = name;
     }
 
-    private DbObjectName(string schema, string name, string qualifiedName)
+    protected DbObjectName(string schema, string name, string qualifiedName)
     {
         Schema = schema;
         Name = name;
@@ -28,15 +28,13 @@ public class DbObjectName
         return new DbObjectName(Schema, Name + "_temp");
     }
 
-    public static DbObjectName Parse(IDatabaseProvider provider, string qualifiedName)
-    {
-        var parts = ParseQualifiedName(provider, qualifiedName);
+    [Obsolete("Use method from database provider")]
+    public static DbObjectName Parse(IDatabaseProvider provider, string qualifiedName) =>
+        provider.Parse(qualifiedName);
 
-        return Parse(provider, parts[0], parts[1]);
-    }
-
+    [Obsolete("Use method from database provider")]
     public static DbObjectName Parse(IDatabaseProvider provider, string schemaName, string objectName) =>
-        new (schemaName, objectName, provider.ToQualifiedName(schemaName, objectName));
+        provider.Parse(schemaName, objectName);
 
     public override string ToString()
     {
@@ -75,22 +73,5 @@ public class DbObjectName
         {
             return (GetType().GetHashCode() * 397) ^ (QualifiedName?.GetHashCode() ?? 0);
         }
-    }
-
-    protected static string[] ParseQualifiedName(IDatabaseProvider provider, string qualifiedName)
-    {
-        var parts = qualifiedName.Split('.');
-        if (parts.Length == 1)
-        {
-            return new[] { provider.DefaultDatabaseSchemaName, qualifiedName };
-        }
-
-        if (parts.Length != 2)
-        {
-            throw new InvalidOperationException(
-                $"Could not parse QualifiedName: '{qualifiedName}'. Number or parts should be 2s but is {parts.Length}");
-        }
-
-        return parts;
     }
 }

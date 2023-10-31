@@ -159,4 +159,7 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbCo
     {
         parameter.DbType = dbType;
     }
+
+    public override DbObjectName Parse(string schemaName, string objectName) =>
+        new DbObjectName(schemaName, objectName);
 }

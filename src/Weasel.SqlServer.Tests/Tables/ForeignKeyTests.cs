@@ -13,7 +13,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("dbo", "states"),
+            LinkedTable = new SqlServerObjectName("dbo", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" }
         };
@@ -33,7 +33,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("dbo", "states"),
+            LinkedTable = new SqlServerObjectName("dbo", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" },
             OnDelete = CascadeAction.Cascade
@@ -51,7 +51,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("dbo", "states"),
+            LinkedTable = new SqlServerObjectName("dbo", "states"),
             ColumnNames = new[] { "state_id" },
             LinkedNames = new[] { "id" },
             OnUpdate = CascadeAction.Cascade
@@ -69,7 +69,7 @@ public class ForeignKeyTests
         var table = new Table("people");
         var fk = new ForeignKey("fk_state")
         {
-            LinkedTable = new DbObjectName("dbo", "states"),
+            LinkedTable = new SqlServerObjectName("dbo", "states"),
             ColumnNames = new[] { "state_id", "tenant_id" },
             LinkedNames = new[] { "id", "tenant_id" }
         };
@@ -116,7 +116,7 @@ public class ForeignKeyTests
 
         fk.ColumnNames.Single().ShouldBe("state_id");
         fk.LinkedNames.Single().ShouldBe("id");
-        fk.LinkedTable.ShouldBe(new DbObjectName("dbo", "states"));
+        fk.LinkedTable.ShouldBe(new SqlServerObjectName("dbo", "states"));
     }
 
     [Fact]
@@ -128,6 +128,6 @@ public class ForeignKeyTests
 
         fk.ColumnNames.ShouldBe(new string[] { "state_id", "tenant_id" });
         fk.LinkedNames.ShouldBe(new string[] { "id", "tenant_id" });
-        fk.LinkedTable.ShouldBe(new DbObjectName("dbo", "states"));
+        fk.LinkedTable.ShouldBe(new SqlServerObjectName("dbo", "states"));
     }
 }

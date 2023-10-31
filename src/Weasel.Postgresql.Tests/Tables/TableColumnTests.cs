@@ -117,6 +117,6 @@ public class TableColumnTests
         var column = table.AddColumn<string>("name1").NotNull().Column;
 
         column.AddColumnSql(table)
-            .ShouldBe($"alter table {ToDbObjectName("public.people")} add column name1 varchar NOT NULL;");
+            .ShouldBe($"alter table {Instance.ToQualifiedName("public.people")} add column name1 varchar NOT NULL;");
     }
 }

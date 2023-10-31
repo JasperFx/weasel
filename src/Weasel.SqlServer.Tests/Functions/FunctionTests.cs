@@ -52,13 +52,13 @@ END;";
     public void can_read_the_function_identifier_from_a_function_body()
     {
         Function.ParseIdentifier(theFunctionBody)
-            .ShouldBe(new DbObjectName("functions", "add_10"));
+            .ShouldBe(new SqlServerObjectName("functions", "add_10"));
     }
 
     [Fact]
     public void can_derive_the_drop_statement_from_the_body()
     {
-        var function = new Function(new DbObjectName("functions", "add_10"), theFunctionBody);
+        var function = new Function(new SqlServerObjectName("functions", "add_10"), theFunctionBody);
         function.DropStatements().Single().ShouldBe("drop function if exists functions.add_10;");
     }
 
@@ -66,7 +66,7 @@ END;";
     public void can_build_function_object_from_body()
     {
         var function = Function.ForSql(theFunctionBody);
-        function.Identifier.ShouldBe(new DbObjectName("functions", "add_10"));
+        function.Identifier.ShouldBe(new SqlServerObjectName("functions", "add_10"));
 
         function.DropStatements().Single()
             .ShouldBe("drop function if exists functions.add_10;");
@@ -118,7 +118,7 @@ END;";
 
         var existing = await function.FetchExistingAsync(theConnection);
 
-        existing!.Identifier.ShouldBe(new DbObjectName("functions", "add_10"));
+        existing!.Identifier.ShouldBe(new SqlServerObjectName("functions", "add_10"));
         existing.DropStatements().Single()
             .ShouldBe("drop function if exists functions.add_10;");
         existing.Body().ShouldNotBeNull();

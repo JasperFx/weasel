@@ -7,7 +7,7 @@ namespace Weasel.Postgresql.Tests;
 [Collection("sequences")]
 public class SequenceTester: IntegrationContext
 {
-    private readonly Sequence theSequence = new(PostgresqlProvider.ToDbObjectName("sequences", "mysequence"));
+    private readonly Sequence theSequence = new(new PostgresqlObjectName("sequences", "mysequence"));
 
     public SequenceTester(): base("sequences")
     {
@@ -18,7 +18,7 @@ public class SequenceTester: IntegrationContext
     [Theory]
     public async Task can_create_sequence_without_blowing_up(string sequenceName)
     {
-        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName));
+        var sequence = new Sequence(new PostgresqlObjectName("sequences", sequenceName));
 
         await ResetSchema();
 
@@ -30,7 +30,7 @@ public class SequenceTester: IntegrationContext
     [Theory]
     public async Task can_create_with_startup_sequence_without_blowing_up(string sequenceName)
     {
-        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName), 5);
+        var sequence = new Sequence(new PostgresqlObjectName("sequences", sequenceName), 5);
 
         await ResetSchema();
 
@@ -57,7 +57,7 @@ public class SequenceTester: IntegrationContext
 
         await can_create_sequence_without_blowing_up(sequenceName);
 
-        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName));
+        var sequence = new Sequence(new PostgresqlObjectName("sequences", sequenceName));
 
         var delta = await sequence.FindDeltaAsync(theConnection);
 
@@ -75,7 +75,7 @@ public class SequenceTester: IntegrationContext
 
         await can_create_sequence_without_blowing_up(sequenceName);
 
-        var sequence = new Sequence(PostgresqlProvider.ToDbObjectName("sequences", sequenceName));
+        var sequence = new Sequence(new PostgresqlObjectName("sequences", sequenceName));
 
         var delta = await sequence.FindDeltaAsync(theConnection);
 

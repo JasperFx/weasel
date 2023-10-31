@@ -16,7 +16,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var type = new TableType(new DbObjectName("table_types", "EnvelopeIdList"));
+        var type = new TableType(new SqlServerObjectName("table_types", "EnvelopeIdList"));
         type.AddColumn<Guid>("ID");
 
         await type.CreateAsync(theConnection);
@@ -27,7 +27,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -40,7 +40,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -57,7 +57,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -71,7 +71,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -87,7 +87,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -102,7 +102,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
         type.AddColumn("name", "varchar");
@@ -119,7 +119,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -137,7 +137,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -155,7 +155,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -173,7 +173,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 
@@ -192,7 +192,7 @@ public class TableTypeTests: IntegrationContext
     {
         await ResetSchema();
 
-        var dbObjectName = new DbObjectName("table_types", "EnvelopeIdList");
+        var dbObjectName = new SqlServerObjectName("table_types", "EnvelopeIdList");
         var type = new TableType(dbObjectName);
         type.AddColumn<Guid>("ID");
 

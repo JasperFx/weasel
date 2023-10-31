@@ -10,7 +10,7 @@ internal class OutgoingEnvelopeTable: Table
 {
     public static readonly string TableName = "jasper_outgoing_envelopes";
 
-    public OutgoingEnvelopeTable(string schemaName): base(new DbObjectName(schemaName, TableName))
+    public OutgoingEnvelopeTable(string schemaName): base(new SqlServerObjectName(schemaName, TableName))
     {
         AddColumn<Guid>("id").AsPrimaryKey();
         AddColumn<int>("owner_id").NotNull();
@@ -24,7 +24,7 @@ internal class IncomingEnvelopeTable: Table
 {
     public static readonly string TableName = "jasper_incoming_envelopes";
 
-    public IncomingEnvelopeTable(string schemaName): base(new DbObjectName(schemaName, TableName))
+    public IncomingEnvelopeTable(string schemaName): base(new SqlServerObjectName(schemaName, TableName))
     {
         AddColumn<Guid>("id").AsPrimaryKey();
         AddColumn<string>("status").NotNull();
@@ -39,7 +39,7 @@ internal class DeadLettersTable: Table
 {
     public static readonly string TableName = "jasper_dead_letters";
 
-    public DeadLettersTable(string schemaName): base(new DbObjectName(schemaName, TableName))
+    public DeadLettersTable(string schemaName): base(new SqlServerObjectName(schemaName, TableName))
     {
         AddColumn<Guid>("id").AsPrimaryKey();
         AddColumn<string>("source");
@@ -58,7 +58,7 @@ public class StoredProcedureTests: IntegrationContext
 
     public StoredProcedureTests(): base("procs")
     {
-        theProcedure = new StoredProcedure(new DbObjectName("procs", "uspDeleteIncomingEnvelopes"), @"
+        theProcedure = new StoredProcedure(new SqlServerObjectName("procs", "uspDeleteIncomingEnvelopes"), @"
 CREATE PROCEDURE procs.uspDeleteIncomingEnvelopes
     @IDLIST procs.EnvelopeIdList READONLY
 AS
@@ -74,7 +74,7 @@ AS
         var table = new IncomingEnvelopeTable("procs");
         await table.CreateAsync(theConnection);
 
-        var type = new TableType(new DbObjectName("procs", "EnvelopeIdList"));
+        var type = new TableType(new SqlServerObjectName("procs", "EnvelopeIdList"));
         type.AddColumn<Guid>("ID");
 
         await type.ApplyChangesAsync(theConnection);
@@ -82,7 +82,7 @@ AS
 
     private void afterChangingTheProcedure()
     {
-        theProcedure = new StoredProcedure(new DbObjectName("procs", "uspDeleteIncomingEnvelopes"), @"
+        theProcedure = new StoredProcedure(new SqlServerObjectName("procs", "uspDeleteIncomingEnvelopes"), @"
 CREATE PROCEDURE procs.uspDeleteIncomingEnvelopes
     @IDLIST procs.EnvelopeIdList READONLY
 AS

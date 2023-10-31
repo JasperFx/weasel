@@ -19,7 +19,7 @@ public class UpsertFunctionTests: IntegrationContext
         theHiloTable.AddColumn<int>("next_value");
         theHiloTable.AddColumn<int>("hi_value");
 
-        theFunction = new UpsertFunction(PostgresqlProvider.ToDbObjectName("functions", "upsert_mt_hilo"), theHiloTable,
+        theFunction = new UpsertFunction(new PostgresqlObjectName("functions", "upsert_mt_hilo"), theHiloTable,
             "next_value", "hi_value");
     }
 
