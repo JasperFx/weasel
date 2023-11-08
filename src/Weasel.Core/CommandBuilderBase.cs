@@ -361,7 +361,20 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// <returns></returns>
     public TParameter[] AppendWithParameters(string text)
     {
-        var split = text.Split('?');
+        var separator = '?';
+        return AppendWithParameters(text, separator);
+    }
+
+    /// <summary>
+    ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
+    ///     array of the newly created parameters
+    /// </summary>
+    /// <param name="text"></param>
+    /// <param name="separator"></param>
+    /// <returns></returns>
+    public TParameter[] AppendWithParameters(string text, char separator)
+    {
+        var split = text.Split(separator);
         var parameters = new TParameter[split.Length - 1];
 
         _sql.Append(split[0]);
