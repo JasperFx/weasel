@@ -109,6 +109,12 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             case "serial":
                 return "int";
 
+            case "bigserial":
+                return "bigint";
+
+            case "smallserial":
+                return "smallint";
+
             case "integer[]":
                 return "int[]";
 

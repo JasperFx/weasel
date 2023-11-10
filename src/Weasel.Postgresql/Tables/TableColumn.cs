@@ -181,12 +181,19 @@ public abstract class ColumnCheck
     }
 }
 
-public class SerialValue: ColumnCheck
+public class SerialValue : ColumnCheck
 {
-    public override string Declaration()
-    {
-        return "SERIAL";
-    }
+    public override string Declaration() => "SERIAL";
+}
+
+public class BigSerialValue : ColumnCheck
+{
+    public override string Declaration() => "BIGSERIAL";
+}
+
+public class SmallSerialValue: ColumnCheck
+{
+    public override string Declaration() => "SMALLSERIAL";
 }
 
 /*

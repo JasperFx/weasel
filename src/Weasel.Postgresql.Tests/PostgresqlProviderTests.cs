@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using Npgsql;
 using NpgsqlTypes;
 using Shouldly;
@@ -94,6 +94,12 @@ public class PostgresqlProviderTests
         var serialAsInt = new TableColumn("id", "serial");
         serialAsInt.ShouldBe(new TableColumn("id", "int"));
 
+        var bigserialAsBigint = new TableColumn("id", "bigserial");
+        bigserialAsBigint.ShouldBe(new TableColumn("id", "bigint"));
+
+        var smallserialAsSmallint = new TableColumn("id", "smallserial");
+        smallserialAsSmallint.ShouldBe(new TableColumn("id", "smallint"));
+
         var varchararrAsArray = new TableColumn("comments", "varchar[]");
         varchararrAsArray.ShouldBe(new TableColumn("comments", "array"));
 
@@ -111,6 +117,8 @@ public class PostgresqlProviderTests
     [InlineData("bool", "boolean")]
     [InlineData("integer", "int")]
     [InlineData("serial", "int")]
+    [InlineData("bigserial", "bigint")]
+    [InlineData("smallserial", "smallint")]
     [InlineData("integer[]", "int[]")]
     [InlineData("decimal", "decimal")]
     [InlineData("numeric", "decimal")]
