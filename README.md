@@ -7,6 +7,15 @@ Weasel is a library for low level database development with Postgresql and Sql S
 
 Read also more in [Introducing Weasel for Database Development](https://jeremydmiller.com/2023/08/15/introducing-weasel-for-database-development/) by [Jeremy D. Miller](https://github.com/jeremydmiller).
 
+## Support Plans
+
+<div align="center">
+    <img src="https://www.jasperfx.net/wp-content/uploads/2023/07/logo-alt-min.png" alt="JasperFx logo" width="70%">
+</div>
+
+While Weasel is open source, [JasperFx Software offers paid support and consulting contracts](https://bit.ly/3szhwT2) for Weasel. 
+
+
 ## Running tests locally
 
 To run tests, you need to set up databases locally. The easiest option is to do it by running Docker images. You can use [predefined Docker Compose setup](./docker-compose.yml) by calling in your terminal:
