@@ -144,8 +144,8 @@ public class ForeignKey: INamed
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier}");
-        writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
-        writer.Write($"REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
+        writer.WriteLine($"ADD CONSTRAINT {PostgresqlProvider.Instance.ToQualifiedName(Name)} FOREIGN KEY({ColumnNames.Select(PostgresqlProvider.Instance.ToQualifiedName).Join(", ")})");
+        writer.Write($"REFERENCES {LinkedTable}({LinkedNames.Select(PostgresqlProvider.Instance.ToQualifiedName).Join(", ")})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
         writer.WriteCascadeAction("ON UPDATE", OnUpdate);
         writer.Write(";");
@@ -154,6 +154,6 @@ public class ForeignKey: INamed
 
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
-        writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
+        writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {PostgresqlProvider.Instance.ToQualifiedName(Name)};");
     }
 }

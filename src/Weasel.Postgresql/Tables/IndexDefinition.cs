@@ -205,7 +205,7 @@ public class IndexDefinition: INamed
             builder.Append("CONCURRENTLY ");
         }
 
-        builder.Append(Name);
+        builder.Append(PostgresqlProvider.Instance.ToQualifiedName(Name));
 
         builder.Append(" ON ");
         builder.Append(parent.Identifier);

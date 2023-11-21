@@ -97,8 +97,8 @@ public class TableColumn: INamed
         var declaration = Declaration();
 
         return declaration.IsEmpty()
-            ? $"{Name} {Type}"
-            : $"{Name} {Type} {declaration}";
+            ? $"{PostgresqlProvider.Instance.ToQualifiedName(Name)} {Type}"
+            : $"{PostgresqlProvider.Instance.ToQualifiedName(Name)} {Type} {declaration}";
     }
 
     public override string ToString()
@@ -109,12 +109,12 @@ public class TableColumn: INamed
 
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
-        return $"alter table {table.Identifier} alter column {Name.PadRight(Name.Length)} type {Type};";
+        return $"alter table {table.Identifier} alter column {PostgresqlProvider.Instance.ToQualifiedName(Name).PadRight(Name.Length)} type {Type};";
     }
 
     public string DropColumnSql(Table table)
     {
-        return $"alter table {table.Identifier} drop column {Name};";
+        return $"alter table {table.Identifier} drop column {PostgresqlProvider.Instance.ToQualifiedName(Name)};";
     }
 
 
@@ -157,7 +157,7 @@ public class TableColumn: INamed
 
     public string ToFunctionUpdate()
     {
-        return $"{Name} = {ToArgumentName()}";
+        return $"{PostgresqlProvider.Instance.ToQualifiedName(Name)} = {ToArgumentName()}";
     }
 }
 
@@ -177,7 +177,7 @@ public abstract class ColumnCheck
             return Declaration();
         }
 
-        return $"CONSTRAINT {Name} {Declaration()}";
+        return $"CONSTRAINT {PostgresqlProvider.Instance.ToQualifiedName(Name)} {Declaration()}";
     }
 }
 

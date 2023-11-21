@@ -187,7 +187,7 @@ public partial class Table: ISchemaObject
 
     internal string PrimaryKeyDeclaration()
     {
-        return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
+        return $"CONSTRAINT {PostgresqlProvider.Instance.ToQualifiedName(PrimaryKeyName)} PRIMARY KEY ({PrimaryKeyColumns.Select(PostgresqlProvider.Instance.ToQualifiedName).Join(", ")})";
     }
 
     public TableColumn? ColumnFor(string columnName)
