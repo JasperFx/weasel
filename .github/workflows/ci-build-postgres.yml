@@ -50,7 +50,7 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Optimize Postgres database for running tests faster
       run: |
@@ -68,6 +68,11 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v3
+      with:
+          dotnet-version: 8.0.x
 
     - name: Restore dependencies
       run: dotnet restore

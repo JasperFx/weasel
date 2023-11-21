@@ -38,7 +38,7 @@ jobs:
           SA_PASSWORD: ${{ env.db_pwd }}
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Setup .NET 6
       uses: actions/setup-dotnet@v3
@@ -49,6 +49,11 @@ jobs:
       uses: actions/setup-dotnet@v3
       with:
         dotnet-version: 7.0.x
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v3
+      with:
+          dotnet-version: 8.0.x
 
     - name: Restore dependencies
       run: dotnet restore
