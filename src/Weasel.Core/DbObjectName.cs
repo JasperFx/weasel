@@ -43,8 +43,7 @@ public class DbObjectName
 
     protected bool Equals(DbObjectName other)
     {
-        return GetType() == other.GetType() &&
-               string.Equals(QualifiedName, other.QualifiedName, StringComparison.OrdinalIgnoreCase);
+        return string.Equals(QualifiedName, other.QualifiedName, StringComparison.OrdinalIgnoreCase);
     }
 
     public override bool Equals(object? obj)
@@ -59,12 +58,12 @@ public class DbObjectName
             return true;
         }
 
-        if (obj.GetType() != GetType())
+        if (obj is not DbObjectName name)
         {
             return false;
         }
 
-        return Equals((DbObjectName)obj);
+        return Equals(name);
     }
 
     public override int GetHashCode()
