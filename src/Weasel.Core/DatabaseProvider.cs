@@ -1,5 +1,6 @@
 using System.Data.Common;
 using JasperFx.Core;
+using JasperFx.Core.Reflection;
 using Weasel.Core.Names;
 
 namespace Weasel.Core;
@@ -253,6 +254,13 @@ public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTrans
     public TParameter AddNamedParameter(TCommand command, string name, bool value)
     {
         return AddNamedParameter(command, name, value, BoolParameterType);
+    }
+
+    public DbObjectName Parse(string qualifiedName)
+    {
+        var parts = QualifiedNameParser.Parse(this, qualifiedName);
+
+        return Parse(parts[0], parts[1]);
     }
 
     public virtual string ToQualifiedName(string objectName) => objectName;

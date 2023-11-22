@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -23,9 +24,53 @@ public class ForeignKeyTests
         ddl.ShouldNotContain("ON DELETE");
         ddl.ShouldNotContain("ON UPDATE");
 
-        ddl.ShouldContain($"ALTER TABLE {Instance.ToQualifiedName("public.people")}");
+        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
-        ddl.ShouldContain($"REFERENCES {Instance.ToQualifiedName("public.states")}(id)");
+        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id)");
+    }
+
+    [Fact]
+    public void write_fk_ddl_with_rawDBObjectName()
+    {
+        var table = new Table("people");
+        var fk = table.AddColumn("state_id", "integer")
+            .ForeignKeyTo(
+                new DbObjectName("public", "states"),
+                "id",
+                "fk_state"
+            );
+
+        table.ForeignKeys.ShouldHaveSingleItem();
+
+        var ddl = table.ForeignKeys.Single().ToDDL(table);
+        ddl.ShouldNotContain("ON DELETE");
+        ddl.ShouldNotContain("ON UPDATE");
+
+        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
+        ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
+        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id)");
+    }
+
+    [Fact]
+    public void write_fk_ddl_with_PostgresqlObjectName()
+    {
+        var table = new Table("people");
+        var fk = table.AddColumn("state_id", "integer")
+            .ForeignKeyTo(
+                new PostgresqlObjectName("public", "states"),
+                "id",
+                "fk_state"
+            );
+
+        table.ForeignKeys.ShouldHaveSingleItem();
+
+        var ddl = table.ForeignKeys.Single().ToDDL(table);
+        ddl.ShouldNotContain("ON DELETE");
+        ddl.ShouldNotContain("ON UPDATE");
+
+        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
+        ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
+        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id)");
     }
 
     [Fact]
@@ -39,7 +84,6 @@ public class ForeignKeyTests
             LinkedNames = new[] { "id" },
             OnDelete = CascadeAction.Restrict
         };
-
 
         var ddl = fk.ToDDL(table);
         ddl.ShouldContain("ON DELETE RESTRICT");
@@ -57,7 +101,6 @@ public class ForeignKeyTests
             LinkedNames = new[] { "id" },
             OnUpdate = CascadeAction.Cascade
         };
-
 
         var ddl = fk.ToDDL(table);
         ddl.ShouldNotContain("ON DELETE");
@@ -77,10 +120,9 @@ public class ForeignKeyTests
 
         var ddl = fk.ToDDL(table);
 
-
-        ddl.ShouldContain($"ALTER TABLE {Instance.ToQualifiedName("public.people")}");
+        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id, tenant_id)");
-        ddl.ShouldContain($"REFERENCES {Instance.ToQualifiedName("public.states")}(id, tenant_id)");
+        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id, tenant_id)");
     }
 
     [Theory]

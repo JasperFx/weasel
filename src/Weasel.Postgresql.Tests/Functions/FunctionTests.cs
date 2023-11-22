@@ -92,7 +92,7 @@ $$ LANGUAGE plpgsql;
     {
         var function = Function.ForRemoval("functions.mt_hilo");
         function.IsRemoved.ShouldBeTrue();
-        function.Identifier.QualifiedName.ShouldBe(Instance.ToQualifiedName("functions.mt_hilo"));
+        function.Identifier.QualifiedName.ShouldBe(Instance.Parse("functions.mt_hilo").QualifiedName);
     }
 
     [Fact]

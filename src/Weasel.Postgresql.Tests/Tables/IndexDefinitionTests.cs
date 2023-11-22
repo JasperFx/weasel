@@ -66,7 +66,7 @@ public class IndexDefinitionTests
     public void write_basic_index()
     {
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING btree (column1);");
+            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1);");
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class IndexDefinitionTests
         theIndex.IsUnique = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE UNIQUE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING btree (column1);");
+            .ShouldBe($"CREATE UNIQUE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1);");
     }
 
     [Fact]
@@ -85,7 +85,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
-                      $"CREATE INDEX CONCURRENTLY idx_1 ON {Instance.ToQualifiedName("public.people")} USING btree (column1);{Environment.NewLine}" +
+                      $"CREATE INDEX CONCURRENTLY idx_1 ON {Instance.Parse("public.people")} USING btree (column1);{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -97,7 +97,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
-                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON {Instance.ToQualifiedName("public.people")} USING btree (column1);{Environment.NewLine}" +
+                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON {Instance.Parse("public.people")} USING btree (column1);{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -110,7 +110,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
-                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON {Instance.ToQualifiedName("public.people")} USING btree (column1) NULLS NOT DISTINCT ;{Environment.NewLine}" +
+                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON {Instance.Parse("public.people")} USING btree (column1) NULLS NOT DISTINCT ;{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -120,7 +120,7 @@ public class IndexDefinitionTests
         theIndex.SortOrder = SortOrder.Desc;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING btree (column1 DESC);");
+            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1 DESC);");
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public class IndexDefinitionTests
         theIndex.Method = IndexMethod.gin;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING gin (column1);");
+            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1);");
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public class IndexDefinitionTests
         theIndex.Method = IndexMethod.gin;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING gin (column1) TABLESPACE green;");
+            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green;");
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public class IndexDefinitionTests
         theIndex.Predicate = "foo > 1";
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1);");
+            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1);");
     }
 
     [Fact]
@@ -163,7 +163,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe(
-                $"CREATE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor='70');");
+                $"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor='70');");
     }
 
     [Fact]
@@ -172,7 +172,7 @@ public class IndexDefinitionTests
         theIndex.SortOrder = SortOrder.Desc;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.ToQualifiedName("public.people")} USING btree (column1 DESC);");
+            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1 DESC);");
     }
 
 
@@ -563,13 +563,13 @@ public class IndexDefinitionTests
         };
 
         var ddl = index.ToDDL(new Table("table"));
-        ddl.ShouldBe($"CREATE UNIQUE INDEX index ON {Instance.ToQualifiedName("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT ;");
+        ddl.ShouldBe($"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT ;");
     }
 
     [Fact]
     public void should_be_able_to_parse_index_with_nulls_not_distinct()
     {
-        var index = IndexDefinition.Parse($"CREATE UNIQUE INDEX index ON {Instance.ToQualifiedName("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT;");
+        var index = IndexDefinition.Parse($"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT;");
         index.IsUnique.ShouldBeTrue();
         index.NullsNotDistinct.ShouldBeTrue();
 
