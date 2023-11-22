@@ -334,7 +334,7 @@ public partial class Table: ISchemaObject
         public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
             string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
             CascadeAction onUpdate = CascadeAction.NoAction) =>
-            ForeignKeyTo((PostgresqlObjectName)referencedIdentifier, referencedColumnName, fkName, onDelete, onUpdate);
+            ForeignKeyTo(PostgresqlObjectName.From(referencedIdentifier), referencedColumnName, fkName, onDelete, onUpdate);
 
         public ColumnExpression ForeignKeyTo(PostgresqlObjectName referencedIdentifier, string referencedColumnName,
             string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
