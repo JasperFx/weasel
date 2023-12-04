@@ -2,6 +2,7 @@ using System.Globalization;
 using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
+using Weasel.Postgresql.Tables.Indexes;
 
 namespace Weasel.Postgresql.Tables;
 
@@ -329,12 +330,12 @@ public partial class Table: ISchemaObject
         }
 
 
-
         [Obsolete("Use Overload with PostgresqlObjectName identifier name")]
         public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
             string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
             CascadeAction onUpdate = CascadeAction.NoAction) =>
-            ForeignKeyTo(PostgresqlObjectName.From(referencedIdentifier), referencedColumnName, fkName, onDelete, onUpdate);
+            ForeignKeyTo(PostgresqlObjectName.From(referencedIdentifier), referencedColumnName, fkName, onDelete,
+                onUpdate);
 
         public ColumnExpression ForeignKeyTo(PostgresqlObjectName referencedIdentifier, string referencedColumnName,
             string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
@@ -392,6 +393,29 @@ public partial class Table: ISchemaObject
             _parent.Indexes.Add(index);
 
             configure?.Invoke(index);
+
+            return this;
+        }
+
+        public ColumnExpression AddFullTextIndex(
+            string? regConfig = null,
+            string? documentConfig = null,
+            string? indexName = null,
+            string? indexPrefix = null
+        )
+        {
+            var index = new FullTextIndexDefinition(
+                PostgresqlObjectName.From(_parent.Identifier),
+                documentConfig: documentConfig ?? Column.Name,
+                regConfig: regConfig,
+                indexName: indexName, indexPrefix: indexPrefix);
+
+            if (_parent.HasIgnoredIndex(index.Name))
+            {
+                throw new ArgumentException($"Cannot add ignored index {index.Name} on table {_parent.Identifier}");
+            }
+
+            _parent.Indexes.Add(index);
 
             return this;
         }

@@ -1,30 +1,27 @@
 using JasperFx.Core;
-using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables.Indexes;
 
-public class FullTextIndex: IndexDefinition
+public class FullTextIndexDefinition: IndexDefinition
 {
     public const string DefaultRegConfig = "english";
-    public const string DefaultDataConfig = "data";
 
     private readonly PostgresqlObjectName table;
-    private string dataConfig;
     private readonly string? indexName;
     private readonly string? indexPrefix;
 
-    private string _regConfig;
+    private string regConfig;
 
-    public FullTextIndex(
+    public FullTextIndexDefinition(
         PostgresqlObjectName tableName,
+        string documentConfig,
         string? regConfig = null,
-        string? dataConfig = null,
         string? indexName = null,
         string? indexPrefix = null)
     {
         table = tableName;
-        RegConfig = regConfig;
-        DataConfig = dataConfig;
+        this.regConfig = regConfig ?? DefaultRegConfig;
+        DocumentConfig = documentConfig;
         this.indexName = indexName;
         this.indexPrefix = indexPrefix;
 
@@ -33,19 +30,15 @@ public class FullTextIndex: IndexDefinition
 
     public string? RegConfig
     {
-        get => _regConfig;
-        set => _regConfig = value ?? DefaultRegConfig;
+        get => regConfig;
+        set => regConfig = value ?? DefaultRegConfig;
     }
 
-    public string? DataConfig
-    {
-        get => dataConfig;
-        set => dataConfig = value ?? DefaultDataConfig;
-    }
+    public string DocumentConfig { get; set; }
 
     public override string[] Columns
     {
-        get => new[] { $"to_tsvector('{_regConfig}',{dataConfig.Trim()})" };
+        get => new[] { $"to_tsvector('{regConfig}',{DocumentConfig.Trim()})" };
         set
         {
             // nothing
@@ -65,9 +58,9 @@ public class FullTextIndex: IndexDefinition
             return indexPrefix + lowerValue.ToLowerInvariant();
         }
 
-        if (_regConfig != DefaultRegConfig)
+        if (regConfig != DefaultRegConfig)
         {
-            return $"{table.Name}_{_regConfig}_idx_fts";
+            return $"{table.Name}_{regConfig}_idx_fts";
         }
 
         return $"{table.Name}_idx_fts";

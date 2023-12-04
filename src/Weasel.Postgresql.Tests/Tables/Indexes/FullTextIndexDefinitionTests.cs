@@ -8,13 +8,14 @@ namespace Weasel.Postgresql.Tests.Tables.Indexes;
 public class FullTextIndexTests
 {
     private const string TablePrefix = "mt_";
+    private const string DataDocumentConfig = "data";
     private static readonly PostgresqlObjectName TableName = new("public", "mt_doc_target");
     private readonly Table parent = new(TableName);
 
     [Fact]
     public void creating_a_full_text_index_should_create_the_index_on_the_table()
     {
-        var index = new FullTextIndex(TableName, indexPrefix: TablePrefix);
+        var index = new FullTextIndexDefinition(TableName, DataDocumentConfig, indexPrefix: TablePrefix);
 
         index.ToDDL(parent).ShouldBe(
             $"CREATE INDEX {TableName.Name}_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('english',data));"
@@ -25,12 +26,12 @@ public class FullTextIndexTests
     public void
         creating_a_full_text_index_with_custom_data_configuration_should_create_the_index_without_regConfig_in_indexname_custom_data_configuration()
     {
-        const string dataConfig = "(data ->> 'AnotherString' || ' ' || 'test')";
+        const string documentConfig = "(data ->> 'AnotherString' || ' ' || 'test')";
 
-        var index = new FullTextIndex(TableName, dataConfig: dataConfig);
+        var index = new FullTextIndexDefinition(TableName, documentConfig);
 
         index.ToDDL(parent).ShouldBe(
-            $"CREATE INDEX {TableName.Name}_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('english',{dataConfig}));"
+            $"CREATE INDEX {TableName.Name}_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('english',{documentConfig}));"
         );
     }
 
@@ -38,17 +39,16 @@ public class FullTextIndexTests
     public void
         creating_a_full_text_index_with_custom_data_configuration_and_custom_regConfig_should_create_the_index_with_custom_regConfig_in_indexname_custom_data_configuration()
     {
-        const string dataConfig = "(data ->> 'AnotherString' || ' ' || 'test')";
+        const string documentConfig = "(data ->> 'AnotherString' || ' ' || 'test')";
         const string regConfig = "french";
 
-        var index = new FullTextIndex(
+        var index = new FullTextIndexDefinition(
             TableName,
-            regConfig,
-            dataConfig,
-            indexPrefix: TablePrefix);
+            documentConfig,
+            regConfig: regConfig, indexPrefix: TablePrefix);
 
         index.ToDDL(parent).ShouldBe(
-            $"CREATE INDEX mt_doc_target_{regConfig}_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('{regConfig}',{dataConfig}));"
+            $"CREATE INDEX mt_doc_target_{regConfig}_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('{regConfig}',{documentConfig}));"
         );
     }
 
@@ -56,202 +56,86 @@ public class FullTextIndexTests
     public void
         creating_a_full_text_index_with_single_member_should_create_the_index_without_regConfig_in_indexname_and_member_selectors()
     {
-        const string dataConfig = "(data ->> 'SomeProperty')";
+        const string documentConfig = "(data ->> 'SomeProperty')";
 
-        var index = new FullTextIndex(
+        var index = new FullTextIndexDefinition(
             TableName,
-            dataConfig: dataConfig,
+            documentConfig,
             indexPrefix: TablePrefix);
 
         index.ToDDL(parent).ShouldBe(
-            $"CREATE INDEX mt_doc_target_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('english',{dataConfig}));"
+            $"CREATE INDEX mt_doc_target_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('english',{documentConfig}));"
         );
     }
 
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void
-//         creating_a_full_text_index_with_multiple_members_should_create_the_index_without_regConfig_in_indexname_and_members_selectors()
-//     {
-//         StoreOptions(_ => _.Schema.For<Target>().FullTextIndex(d => d.String, d => d.AnotherString));
-//
-//         var data = Target.GenerateRandomData(100).ToArray();
-//         theStore.BulkInsert(data);
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<Target>(
-//                 indexName: $"mt_doc_target_idx_fts",
-//                 dataConfig:
-//                 $"((data ->> '{nameof(Target.String)}') || ' ' || (data ->> '{nameof(Target.AnotherString)}'))"
-//             );
-//     }
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void
-//         creating_a_full_text_index_with_multiple_members_and_custom_configuration_should_create_the_index_with_custom_configuration_and_members_selectors()
-//     {
-//         const string IndexName = "custom_index_name";
-//         const string RegConfig = "french";
-//
-//         StoreOptions(_ => _.Schema.For<Target>().FullTextIndex(
-//             index =>
-//             {
-//                 index.Name = IndexName;
-//                 index.RegConfig = RegConfig;
-//             },
-//             d => d.AnotherString));
-//
-//         var data = Target.GenerateRandomData(100).ToArray();
-//         theStore.BulkInsert(data);
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<Target>(
-//                 indexName: IndexName,
-//                 regConfig: RegConfig,
-//                 dataConfig: $"((data ->> '{nameof(Target.AnotherString)}'))"
-//             );
-//     }
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void
-//         creating_multiple_full_text_index_with_different_regConfigs_and_custom_data_config_should_create_the_indexes_with_different_recConfigs()
-//     {
-//         const string frenchRegConfig = "french";
-//         const string italianRegConfig = "italian";
-//
-//         StoreOptions(_ => _.Schema.For<Target>()
-//             .FullTextIndex(frenchRegConfig, d => d.String)
-//             .FullTextIndex(italianRegConfig, d => d.AnotherString));
-//
-//         var data = Target.GenerateRandomData(100).ToArray();
-//         theStore.BulkInsert(data);
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<Target>(
-//                 indexName: $"mt_doc_target_{frenchRegConfig}_idx_fts",
-//                 regConfig: frenchRegConfig,
-//                 dataConfig: $"((data ->> '{nameof(Target.String)}'))"
-//             );
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<Target>(
-//                 indexName: $"mt_doc_target_{italianRegConfig}_idx_fts",
-//                 regConfig: italianRegConfig,
-//                 dataConfig: $"((data ->> '{nameof(Target.AnotherString)}'))"
-//             );
-//     }
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void using_a_full_text_index_through_attribute_on_class_with_default()
-//     {
-//         StoreOptions(_ => _.RegisterDocumentType<Book>());
-//
-//         theStore.BulkInsert(new[]
-//         {
-//             new Book { Id = Guid.NewGuid(), Author = "test", Information = "test", Title = "test" }
-//         });
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<Book>(
-//                 tableName: "full_text_index.mt_doc_book",
-//                 indexName: $"mt_doc_book_idx_fts",
-//                 regConfig: FullTextIndex.DefaultRegConfig,
-//                 dataConfig: $"data"
-//             );
-//     }
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void using_a_single_property_full_text_index_through_attribute_with_default()
-//     {
-//         StoreOptions(_ => _.RegisterDocumentType<UserProfile>());
-//
-//         theStore.BulkInsert(new[] { new UserProfile { Id = Guid.NewGuid(), Information = "test" } });
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<UserProfile>(
-//                 tableName: "full_text_index.mt_doc_userprofile",
-//                 indexName: $"mt_doc_userprofile_idx_fts",
-//                 regConfig: FullTextIndex.DefaultRegConfig,
-//                 dataConfig: $"((data ->> '{nameof(UserProfile.Information)}'))"
-//             );
-//     }
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void using_a_single_property_full_text_index_through_attribute_with_custom_settings()
-//     {
-//         StoreOptions(_ => _.RegisterDocumentType<UserDetails>());
-//
-//         theStore.BulkInsert(new[] { new UserDetails { Id = Guid.NewGuid(), Details = "test" } });
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<UserDetails>(
-//                 tableName: "full_text_index.mt_doc_userdetails",
-//                 indexName: "mt_custom_user_details_fts_idx",
-//                 regConfig: "italian",
-//                 dataConfig: $"((data ->> '{nameof(UserDetails.Details)}'))"
-//             );
-//     }
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void using_multiple_properties_full_text_index_through_attribute_with_default()
-//     {
-//         StoreOptions(_ => _.RegisterDocumentType<Article>());
-//
-//         theStore.BulkInsert(new[] { new Article { Id = Guid.NewGuid(), Heading = "test", Text = "test" } });
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<Article>(
-//                 tableName: "full_text_index.mt_doc_article",
-//                 indexName: $"mt_doc_article_idx_fts",
-//                 regConfig: FullTextIndex.DefaultRegConfig,
-//                 dataConfig: $"((data ->> '{nameof(Article.Heading)}') || ' ' || (data ->> '{nameof(Article.Text)}'))"
-//             );
-//     }
-//
-//     [PgVersionTargetedFact(MinimumVersion = "10.0")]
-//     public void using_multiple_properties_full_text_index_through_attribute_with_custom_settings()
-//     {
-//         const string frenchRegConfig = "french";
-//         const string italianRegConfig = "italian";
-//
-//         StoreOptions(_ => _.RegisterDocumentType<BlogPost>());
-//
-//         theStore.BulkInsert(new[]
-//         {
-//             new BlogPost
-//             {
-//                 Id = Guid.NewGuid(),
-//                 Category = "test",
-//                 EnglishText = "test",
-//                 FrenchText = "test",
-//                 ItalianText = "test"
-//             }
-//         });
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<BlogPost>(
-//                 tableName: "full_text_index.mt_doc_blogpost",
-//                 indexName: $"mt_doc_blogpost_idx_fts",
-//                 regConfig: FullTextIndex.DefaultRegConfig,
-//                 dataConfig: $"((data ->> '{nameof(BlogPost.EnglishText)}'))"
-//             );
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<BlogPost>(
-//                 tableName: "full_text_index.mt_doc_blogpost",
-//                 indexName: $"mt_doc_blogpost_{frenchRegConfig}_idx_fts",
-//                 regConfig: frenchRegConfig,
-//                 dataConfig: $"((data ->> '{nameof(BlogPost.FrenchText)}'))"
-//             );
-//
-//         theStore.StorageFeatures
-//             .ShouldContainIndexDefinitionFor<BlogPost>(
-//                 tableName: "full_text_index.mt_doc_blogpost",
-//                 indexName: $"mt_doc_blogpost_{italianRegConfig}_idx_fts",
-//                 regConfig: italianRegConfig,
-//                 dataConfig: $"((data ->> '{nameof(BlogPost.ItalianText)}'))"
-//             );
-//     }
+    [Fact]
+    public void
+        creating_a_full_text_index_with_multiple_members_should_create_the_index_without_regConfig_in_indexname_and_members_selectors()
+    {
+        const string documentConfig = "((data ->> 'SomeProperty') || ' ' || (data ->> 'AnotherProperty'))";
+
+        var index = new FullTextIndexDefinition(
+            TableName,
+            documentConfig,
+            indexPrefix: TablePrefix);
+
+        index.ToDDL(parent).ShouldBe(
+            $"CREATE INDEX mt_doc_target_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('english',{documentConfig}));"
+        );
+    }
+
+    [Fact]
+    public void
+        creating_a_full_text_index_with_multiple_members_and_custom_configuration_should_create_the_index_with_custom_configuration_and_members_selectors()
+    {
+        const string indexName = "custom_index_name";
+        const string regConfig = "french";
+
+        const string documentConfig = "((data ->> 'SomeProperty') || ' ' || (data ->> 'AnotherProperty'))";
+
+        var index = new FullTextIndexDefinition(
+            TableName,
+            documentConfig,
+            regConfig,
+            indexName,
+            TablePrefix
+        );
+
+        index.ToDDL(parent).ShouldBe(
+            $"CREATE INDEX {TablePrefix}{indexName} ON {TableName.QualifiedName} USING gin (to_tsvector('{regConfig}',{documentConfig}));"
+        );
+    }
+
+    [Fact]
+    public void
+        creating_multiple_full_text_index_with_different_regConfigs_and_custom_data_config_should_create_the_indexes_with_different_recConfigs()
+    {
+        // Given
+        const string frenchRegConfig = "french";
+        const string frenchdocumentConfig = "(data ->> 'SomeProperty')";
+
+        const string italianRegConfig = "italian";
+        const string italiandocumentConfig = "(data ->> 'AnotherProperty')";
+
+        var column = parent.AddColumn(new TableColumn("data", "jsonb"));
+
+        // When
+        column.AddFullTextIndex(frenchRegConfig, frenchdocumentConfig);
+        column.AddFullTextIndex(italianRegConfig, italiandocumentConfig);
+
+        // Then
+        parent.Indexes.Count.ShouldBe(2);
+
+        var frenchIndex = parent.Indexes.First();
+        var italianIndex = parent.Indexes[1];
+
+        frenchIndex.ToDDL(parent).ShouldBe(
+            $"CREATE INDEX mt_doc_target_{frenchRegConfig}_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('{frenchRegConfig}',{frenchdocumentConfig}));"
+        );
+        italianIndex.ToDDL(parent).ShouldBe(
+            $"CREATE INDEX mt_doc_target_{italianRegConfig}_idx_fts ON {TableName.QualifiedName} USING gin (to_tsvector('{italianRegConfig}',{italiandocumentConfig}));"
+        );
+    }
 }
 
 //
@@ -336,14 +220,14 @@ public class FullTextIndexTests
 //     public void
 //         creating_a_full_text_index_with_custom_data_configuration_and_custom_regConfig_custom_indexName_should_create_the_index_with_custom_indexname_custom_data_configuration()
 //     {
-//         const string DataConfig = "(data ->> 'AnotherString' || ' ' || 'test')";
+//         const string documentConfig = "(data ->> 'AnotherString' || ' ' || 'test')";
 //         const string RegConfig = "french";
 //         const string IndexName = "custom_index_name";
 //
 //         StoreOptions(_ => _.Schema.For<Target>().FullTextIndex(
 //             index =>
 //             {
-//                 index.DataConfig = DataConfig;
+//                 index.documentConfig = documentConfig;
 //                 index.RegConfig = RegConfig;
 //                 index.Name = IndexName;
 //             }));
@@ -355,7 +239,7 @@ public class FullTextIndexTests
 //             .ShouldContainIndexDefinitionFor<Target>(
 //                 indexName: IndexName,
 //                 regConfig: RegConfig,
-//                 dataConfig: DataConfig
+//                 documentConfig: documentConfig
 //             );
 //     }
 //
@@ -488,7 +372,7 @@ public class FullTextIndexTests
 //         string tableName = "full_text_index.mt_doc_target",
 //         string indexName = "mt_doc_target_idx_fts",
 //         string regConfig = "english",
-//         string dataConfig = null)
+//         string documentConfig = null)
 //     {
 //         var documentMapping = storage.MappingFor(typeof(TDocument));
 //         var table = new DocumentTable(documentMapping);
@@ -501,16 +385,16 @@ public class FullTextIndexTests
 //
 //         SpecificationExtensions.ShouldContain(ddl, $"CREATE INDEX {indexName}");
 //         SpecificationExtensions.ShouldContain(ddl, $"ON {tableName}");
-//         SpecificationExtensions.ShouldContain(ddl, $"to_tsvector('{regConfig}',{dataConfig})");
+//         SpecificationExtensions.ShouldContain(ddl, $"to_tsvector('{regConfig}',{documentConfig})");
 //
 //         if (regConfig != null)
 //         {
 //             SpecificationExtensions.ShouldContain(ddl, regConfig);
 //         }
 //
-//         if (dataConfig != null)
+//         if (documentConfig != null)
 //         {
-//             SpecificationExtensions.ShouldContain(ddl, dataConfig);
+//             SpecificationExtensions.ShouldContain(ddl, documentConfig);
 //         }
 //     }
 // }
