@@ -33,15 +33,15 @@ public class SingleInstanceDatabaseCollectionTests
         (await theDatabases.FindOrCreateDatabase("three")).ShouldBeSameAs(three);
     }
 
-    public class Databases: SingleServerDatabaseCollection<DatabaseWithTables>
+    public class Databases: SingleServerDatabaseCollection<TestDatabase>
     {
         public Databases() : base(ConnectionSource.ConnectionString)
         {
         }
 
-        protected override DatabaseWithTables buildDatabase(string databaseName, string connectionString)
+        protected override TestDatabase buildDatabase(string databaseName, string connectionString)
         {
-            return new DatabaseWithTables(databaseName, connectionString);
+            return new TestDatabase(databaseName, connectionString);
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Npgsql;
 using Shouldly;
@@ -16,11 +17,11 @@ namespace Weasel.Postgresql.Tests.Migrations;
 [Collection("migrations")]
 public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
 {
-    private readonly DatabaseWithTables theDatabase;
+    private readonly TestDatabase theDatabase;
 
     public SchemaMigrationTests() : base("migrations")
     {
-        theDatabase = new DatabaseWithTables(AutoCreate.None, "Migrations");
+        theDatabase = new TestDatabase(AutoCreate.None, "Migrations");
     }
 
     public override Task InitializeAsync()
@@ -116,6 +117,14 @@ public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
         connectionGlobalLock.Failed.ShouldBeTrue();
         connectionGlobalLock.Retried.ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task test_auto_reload_of_npgsql_types()
+    {
+        theDatabase.ExtensionFeatures["Extensions"].AddExtension("pgcrypto");
+        await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync();
+        theDatabase.HasNpgsqlTypesReloaded.ShouldBeTrue();
+    }
 }
 
 public class NamedTable: Table
@@ -149,22 +158,42 @@ public class NamedTableFeature: FeatureSchemaBase
     }
 }
 
-public class DatabaseWithTables: PostgresqlDatabase
+public class ExtensionFeature: FeatureSchemaBase
 {
-    public static DatabaseWithTables ForConnectionString(string connectionString)
+    public Dictionary<string, Extension> ExtensionObjects { get; } = new();
+
+    public ExtensionFeature(string identifier, Migrator migrator) : base(identifier, migrator)
+    {
+    }
+
+    protected override IEnumerable<ISchemaObject> schemaObjects()
+    {
+        return ExtensionObjects.Values;
+    }
+
+    public void AddExtension(string extensionName)
+    {
+        var extension = new Extension(extensionName);
+        ExtensionObjects[extensionName] = extension;
+    }
+}
+
+public class TestDatabase: PostgresqlDatabase
+{
+    public static TestDatabase ForConnectionString(string connectionString)
     {
         var builder = new NpgsqlConnectionStringBuilder(connectionString);
         var identifier = builder.Database;
 
-        return new DatabaseWithTables(identifier, connectionString);
+        return new TestDatabase(identifier, connectionString);
     }
 
-    public DatabaseWithTables(AutoCreate autoCreate, string identifier)
+    public TestDatabase(AutoCreate autoCreate, string identifier)
         : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, ConnectionSource.ConnectionString)
     {
     }
 
-    public DatabaseWithTables(string identifier, string connectionString)
+    public TestDatabase(string identifier, string connectionString)
         : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, connectionString)
     {
     }
@@ -173,9 +202,15 @@ public class DatabaseWithTables: PostgresqlDatabase
         new LightweightCache<string, NamedTableFeature>(name =>
             new NamedTableFeature(name, new PostgresqlMigrator()));
 
+    public LightweightCache<string, ExtensionFeature> ExtensionFeatures { get; } =
+        new LightweightCache<string, ExtensionFeature>(name =>
+            new ExtensionFeature(name, new PostgresqlMigrator()));
+
     public override IFeatureSchema[] BuildFeatureSchemas()
     {
-        return Features.OfType<IFeatureSchema>().ToArray();
+        var featureSchemas = Features.OfType<IFeatureSchema>()
+            .Append(ExtensionFeatures.OfType<IFeatureSchema>()).ToArray();
+        return featureSchemas;
     }
 }
 
