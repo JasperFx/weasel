@@ -13,7 +13,6 @@ public class IndexDefinitionTests
 
     private Table parent = new Table("people");
 
-
     [InlineData(IndexMethod.btree, true)]
     [InlineData(IndexMethod.gin, false)]
     [InlineData(IndexMethod.brin, false)]
