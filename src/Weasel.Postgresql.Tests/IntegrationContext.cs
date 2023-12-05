@@ -7,7 +7,13 @@ namespace Weasel.Postgresql.Tests;
 
 public abstract class IntegrationContext: IDisposable, IAsyncLifetime
 {
-    protected readonly NpgsqlConnection theConnection = new NpgsqlConnection(ConnectionSource.ConnectionString);
+    protected readonly NpgsqlDataSource theDataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+    private NpgsqlConnection? connection;
+
+    protected NpgsqlConnection theConnection
+    {
+        get => (connection ??= theDataSource.CreateConnection());
+    }
 
     protected IntegrationContext(string schemaName)
     {
@@ -24,7 +30,8 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
 
     public void Dispose()
     {
-        theConnection?.Dispose();
+        connection?.Dispose();
+        theDataSource.Dispose();
     }
 
     protected async Task ResetSchema()
