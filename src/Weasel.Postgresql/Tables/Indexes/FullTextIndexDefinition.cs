@@ -5,6 +5,7 @@ namespace Weasel.Postgresql.Tables.Indexes;
 public class FullTextIndexDefinition: IndexDefinition
 {
     public const string DefaultRegConfig = "english";
+    public const string DataDocumentConfig = "data";
 
     private readonly PostgresqlObjectName table;
     private readonly string? indexName;
@@ -36,6 +37,13 @@ public class FullTextIndexDefinition: IndexDefinition
 
     public string DocumentConfig { get; set; }
 
+    [Obsolete("Use DocumentConfig instead")]
+    public string? DataConfig
+    {
+        get => DocumentConfig;
+        set => DocumentConfig = value ?? DataDocumentConfig;
+    }
+
     public override string[] Columns
     {
         get => new[] { $"to_tsvector('{regConfig}',{DocumentConfig.Trim()})" };
@@ -48,14 +56,12 @@ public class FullTextIndexDefinition: IndexDefinition
     protected override string deriveIndexName()
     {
         var lowerValue = indexName?.ToLowerInvariant();
-        if (indexPrefix != null && lowerValue?.StartsWith(indexPrefix) == true)
-        {
-            return lowerValue.ToLowerInvariant();
-        }
 
-        if (indexPrefix != null && lowerValue?.IsNotEmpty() == true)
+        if (lowerValue?.IsNotEmpty() == true)
         {
-            return indexPrefix + lowerValue.ToLowerInvariant();
+            return indexPrefix?.IsNotEmpty() == true && !lowerValue.StartsWith(indexPrefix)
+                ? indexPrefix + lowerValue
+                : lowerValue;
         }
 
         if (regConfig != DefaultRegConfig)

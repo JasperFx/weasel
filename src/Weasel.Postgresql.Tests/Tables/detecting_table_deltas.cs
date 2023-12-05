@@ -33,9 +33,9 @@ public class detecting_table_deltas: IntegrationContext
         theTable.AddColumn("data", "jsonb");
     }
 
-    public override async Task InitializeAsync()
+    public override Task InitializeAsync()
     {
-        await ResetSchema();
+        return ResetSchema();
     }
 
     protected async Task AssertNoDeltasAfterPatching(Table? table = null)
@@ -783,6 +783,4 @@ public class detecting_table_deltas: IntegrationContext
 
         await AssertNoDeltasAfterPatching(table);
     }
-
-
 }
