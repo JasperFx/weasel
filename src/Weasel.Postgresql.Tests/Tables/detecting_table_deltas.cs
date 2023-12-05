@@ -2,15 +2,14 @@ using Shouldly;
 using JasperFx.Core.Reflection;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
+using Weasel.Postgresql.Tests.Tables.Indexes;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables;
 
 [Collection("deltas")]
-public class detecting_table_deltas: IntegrationContext
+public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
 {
-    private Table theTable;
-
     /*
      * TODO
      * 1. Column constraints, to find deltas
@@ -20,33 +19,6 @@ public class detecting_table_deltas: IntegrationContext
      *
      *
      */
-
-    public detecting_table_deltas(): base("deltas")
-    {
-        theTable = new Table("deltas.people");
-        theTable.AddColumn<int>("id").AsPrimaryKey();
-        theTable.AddColumn<string>("first_name");
-        theTable.AddColumn<string>("last_name");
-        theTable.AddColumn<string>("user_name");
-        theTable.AddColumn<DateTime>("created_datetime");
-        theTable.AddColumn<DateTimeOffset>("created_datetime_offset");
-        theTable.AddColumn("data", "jsonb");
-    }
-
-    public override Task InitializeAsync()
-    {
-        return ResetSchema();
-    }
-
-    protected async Task AssertNoDeltasAfterPatching(Table? table = null)
-    {
-        table ??= theTable;
-        await table.ApplyChangesAsync(theConnection);
-
-        var delta = await table.FindDeltaAsync(theConnection);
-
-        delta.HasChanges().ShouldBeFalse();
-    }
 
     [Fact]
     public async Task detect_all_new_table()
@@ -135,7 +107,6 @@ public class detecting_table_deltas: IntegrationContext
 
         await AssertNoDeltasAfterPatching();
     }
-
 
     [PgVersionTargetedFact(MinimumVersion = "15.0")]
     public Task detect_new_index_with_distinct_nulls() =>
@@ -495,7 +466,6 @@ public class detecting_table_deltas: IntegrationContext
 
         await CreateSchemaObjectInDatabase(states);
 
-
         var table = new Table("deltas.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
@@ -533,7 +503,6 @@ public class detecting_table_deltas: IntegrationContext
 
         table.AddColumn<int>("state_id").ForeignKeyTo(states, "id");
 
-
         await CreateSchemaObjectInDatabase(table);
 
         table.ForeignKeys.Clear();
@@ -557,7 +526,6 @@ public class detecting_table_deltas: IntegrationContext
         states.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
-
 
         var table = new Table("deltas.people");
         table.AddColumn<int>("id").AsPrimaryKey();
