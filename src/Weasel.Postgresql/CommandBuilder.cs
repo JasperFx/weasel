@@ -7,6 +7,10 @@ namespace Weasel.Postgresql;
 public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, NpgsqlConnection, NpgsqlTransaction,
     NpgsqlDbType, NpgsqlDataReader>
 {
+    public CommandBuilder(NpgsqlDataSource dataSource): this(dataSource.CreateCommand())
+    {
+    }
+    
     public CommandBuilder(): this(new NpgsqlCommand())
     {
     }

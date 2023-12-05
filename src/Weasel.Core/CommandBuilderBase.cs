@@ -34,7 +34,11 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
         CancellationToken cancellation = default,
         TTransaction? tx = null
     ) =>
-        base.ExecuteNonQueryAsync(conn, cancellation, tx);
+        base.ExecuteNonQueryAsync(cmd =>
+        {
+            cmd.Connection = conn;
+            cmd.Transaction = tx;
+        }, cancellation);
 
 
     /// <summary>
@@ -50,7 +54,11 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
         CancellationToken cancellation = default,
         TTransaction? tx = null
     ) =>
-        base.ExecuteReaderAsync(conn, cancellation, tx);
+        base.ExecuteReaderAsync(cmd =>
+        {
+            cmd.Connection = conn;
+            cmd.Transaction = tx;
+        }, cancellation);
 
     /// <summary>
     ///     Compile and execute the query and returns the results transformed from the raw database reader
@@ -67,7 +75,11 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
         CancellationToken ct = default,
         TTransaction? tx = null
     ) =>
-        base.FetchListAsync(conn, transform, ct, tx);
+        base.FetchListAsync(cmd =>
+        {
+            cmd.Connection = conn;
+            cmd.Transaction = tx;
+        }, transform, ct);
 
     protected CommandBuilderBase(
         IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader> provider,
@@ -165,16 +177,25 @@ public class CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterTy
     /// <summary>
     ///     Compile and execute the batched command against the user supplied connection
     /// </summary>
-    /// <param name="conn"></param>
     /// <param name="cancellation"></param>
-    /// <param name="tx"></param>
     /// <returns></returns>
-    public Task<int> ExecuteNonQueryAsync(DbConnection conn, CancellationToken cancellation = default,
-        TTransaction? tx = null)
+    public Task<int> ExecuteNonQueryAsync(CancellationToken cancellation = default)
     {
         var cmd = Compile();
-        cmd.Connection = conn;
-        cmd.Transaction = tx;
+
+        return cmd.ExecuteNonQueryAsync(cancellation);
+    }
+
+    /// <summary>
+    ///     Compile and execute the batched command against the user supplied connection
+    /// </summary>
+    /// <param name="define"></param>
+    /// <param name="cancellation"></param>
+    /// <returns></returns>
+    protected Task<int> ExecuteNonQueryAsync(Action<TCommand> define, CancellationToken cancellation = default)
+    {
+        var cmd = Compile();
+        define(cmd);
 
         return cmd.ExecuteNonQueryAsync(cancellation);
     }
@@ -187,12 +208,25 @@ public class CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterTy
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    public async Task<TDataReader> ExecuteReaderAsync(DbConnection conn,
-        CancellationToken cancellation = default, TTransaction? tx = null)
+    public async Task<TDataReader> ExecuteReaderAsync(CancellationToken cancellation = default)
     {
         var cmd = Compile();
-        cmd.Connection = conn;
-        cmd.Transaction = tx;
+
+        return (TDataReader)await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection and
+    ///     return a data reader for the results
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="cancellation"></param>
+    /// <param name="tx"></param>
+    /// <returns></returns>
+    protected async Task<TDataReader> ExecuteReaderAsync(Action<TCommand> define, CancellationToken cancellation = default)
+    {
+        var cmd = Compile();
+        define(cmd);
 
         return (TDataReader)await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
     }
@@ -207,15 +241,41 @@ public class CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterTy
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public async Task<IReadOnlyList<T>> FetchListAsync<T>(
-        DbConnection conn,
         Func<DbDataReader, CancellationToken, Task<T>> transform,
-        CancellationToken ct = default,
-        TTransaction? tx = null
+        CancellationToken ct = default
     )
     {
         var cmd = Compile();
-        cmd.Connection = conn;
-        cmd.Transaction = tx;
+
+        var list = new List<T>();
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            list.Add(await transform(reader, ct).ConfigureAwait(false));
+        }
+
+        return list;
+    }
+
+
+    /// <summary>
+    ///     Compile and execute the query and returns the results transformed from the raw database reader
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="transform"></param>
+    /// <param name="ct"></param>
+    /// <param name="tx"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    protected async Task<IReadOnlyList<T>> FetchListAsync<T>(
+        Action<TCommand> define,
+        Func<DbDataReader, CancellationToken, Task<T>> transform,
+        CancellationToken ct = default
+    )
+    {
+        var cmd = Compile();
+        define(cmd);
 
         var list = new List<T>();
 
