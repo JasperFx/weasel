@@ -31,7 +31,6 @@ public interface IDatabaseProvider
     DbObjectName Parse(string schemaName, string objectName);
 }
 
-
 /// <summary>
 ///     Primarily responsible for handling .Net to database engine type mappings
 /// </summary>
@@ -42,7 +41,7 @@ public interface IDatabaseProvider
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
 public interface
-    IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>: IDatabaseProvider
+    IDatabaseProvider<in TCommand, in TParameter, TTransaction, TParameterType, TDataReader>: IDatabaseProvider
     where TCommand : DbCommand
     where TParameter : DbParameter
     where TTransaction : DbTransaction
