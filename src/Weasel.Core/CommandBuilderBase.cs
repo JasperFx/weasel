@@ -30,7 +30,6 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     // TEMP -- will shift this to being pooled later
     private readonly StringBuilder _sql = new();
 
-
     protected CommandBuilderBase(
         IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> provider,
         char parameterPrefix, TCommand command)
