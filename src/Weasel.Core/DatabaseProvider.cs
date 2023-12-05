@@ -36,7 +36,6 @@ public interface IDatabaseProvider
 /// </summary>
 /// <typeparam name="TCommand"></typeparam>
 /// <typeparam name="TParameter"></typeparam>
-/// <typeparam name="TConnection"></typeparam>
 /// <typeparam name="TTransaction"></typeparam>
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>

@@ -14,6 +14,7 @@ namespace Weasel.Core;
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
 public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+    : CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
     where TCommand : DbCommand
     where TParameter : DbParameter
     where TConnection : DbConnection
@@ -21,18 +22,91 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     where TDataReader : DbDataReader
     where TParameterType : struct
 {
+    /// <summary>
+    ///     Compile and execute the batched command against the user supplied connection
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="cancellation"></param>
+    /// <param name="tx"></param>
+    /// <returns></returns>
+    public Task<int> ExecuteNonQueryAsync(
+        TConnection conn,
+        CancellationToken cancellation = default,
+        TTransaction? tx = null
+    ) =>
+        base.ExecuteNonQueryAsync(conn, cancellation, tx);
+
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection and
+    ///     return a data reader for the results
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="cancellation"></param>
+    /// <param name="tx"></param>
+    /// <returns></returns>
+    public Task<TDataReader> ExecuteReaderAsync(
+        TConnection conn,
+        CancellationToken cancellation = default,
+        TTransaction? tx = null
+    ) =>
+        base.ExecuteReaderAsync(conn, cancellation, tx);
+
+    /// <summary>
+    ///     Compile and execute the query and returns the results transformed from the raw database reader
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="transform"></param>
+    /// <param name="ct"></param>
+    /// <param name="tx"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public Task<IReadOnlyList<T>> FetchListAsync<T>(
+        TConnection conn,
+        Func<DbDataReader, CancellationToken, Task<T>> transform,
+        CancellationToken ct = default,
+        TTransaction? tx = null
+    ) =>
+        base.FetchListAsync(conn, transform, ct, tx);
+
+    protected CommandBuilderBase(
+        IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader> provider,
+        char parameterPrefix,
+        TCommand command
+    ): base(provider, parameterPrefix, command)
+    {
+    }
+}
+
+/// <summary>
+///     Base class for batch queries against a relational database
+/// </summary>
+/// <typeparam name="TCommand"></typeparam>
+/// <typeparam name="TParameter"></typeparam>
+/// <typeparam name="TTransaction"></typeparam>
+/// <typeparam name="TParameterType"></typeparam>
+/// <typeparam name="TDataReader"></typeparam>
+public class CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
+    where TCommand : DbCommand
+    where TParameter : DbParameter
+    where TTransaction : DbTransaction
+    where TDataReader : DbDataReader
+    where TParameterType : struct
+{
     private readonly TCommand _command;
     private readonly char _parameterPrefix;
 
-    private readonly IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+    private readonly IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
         _provider;
 
     // TEMP -- will shift this to being pooled later
     private readonly StringBuilder _sql = new();
 
     protected CommandBuilderBase(
-        IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader> provider,
-        char parameterPrefix, TCommand command)
+        IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader> provider,
+        char parameterPrefix,
+        TCommand command
+    )
     {
         _provider = provider;
         _parameterPrefix = parameterPrefix;
@@ -95,7 +169,7 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    public Task<int> ExecuteNonQueryAsync(TConnection conn, CancellationToken cancellation = default,
+    public Task<int> ExecuteNonQueryAsync(DbConnection conn, CancellationToken cancellation = default,
         TTransaction? tx = null)
     {
         var cmd = Compile();
@@ -113,7 +187,7 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    public async Task<TDataReader> ExecuteReaderAsync(TConnection conn,
+    public async Task<TDataReader> ExecuteReaderAsync(DbConnection conn,
         CancellationToken cancellation = default, TTransaction? tx = null)
     {
         var cmd = Compile();
@@ -133,7 +207,7 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public async Task<IReadOnlyList<T>> FetchListAsync<T>(
-        TConnection conn,
+        DbConnection conn,
         Func<DbDataReader, CancellationToken, Task<T>> transform,
         CancellationToken ct = default,
         TTransaction? tx = null

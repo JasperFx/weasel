@@ -7,7 +7,7 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql;
 
-public class PostgresqlProvider: 
+public class PostgresqlProvider:
     DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlTransaction, NpgsqlDbType, NpgsqlDataReader>
 {
     public static readonly PostgresqlProvider Instance = new();

@@ -8,8 +8,8 @@ namespace Weasel.Core;
 /// <summary>
 ///     CommandBuilder for generic DbCommand or DbConnection commands
 /// </summary>
-public class
-    DbCommandBuilder: CommandBuilderBase<DbCommand, DbParameter, DbConnection, DbTransaction, DbType, DbDataReader>
+public class DbCommandBuilder
+    : CommandBuilderBase<DbCommand, DbParameter, DbConnection, DbTransaction, DbType, DbDataReader>
 {
     public DbCommandBuilder(DbCommand command): base(DbDatabaseProvider.Instance, '@', command)
     {
