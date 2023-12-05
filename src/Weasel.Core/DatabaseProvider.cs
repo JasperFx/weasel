@@ -31,6 +31,7 @@ public interface IDatabaseProvider
     DbObjectName Parse(string schemaName, string objectName);
 }
 
+
 /// <summary>
 ///     Primarily responsible for handling .Net to database engine type mappings
 /// </summary>
@@ -41,10 +42,9 @@ public interface IDatabaseProvider
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
 public interface
-    IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>: IDatabaseProvider
+    IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>: IDatabaseProvider
     where TCommand : DbCommand
     where TParameter : DbParameter
-    where TConnection : DbConnection
     where TTransaction : DbTransaction
     where TDataReader : DbDataReader
     where TParameterType : struct
@@ -59,10 +59,28 @@ public interface
     TParameterType ToParameterType(Type type);
     Type[] ResolveTypes(TParameterType parameterType);
     string GetDatabaseType(Type memberType, EnumStorage enumStyle);
-
-
     void AddParameter(TCommand command, TParameter parameter);
     void SetParameterType(TParameter parameter, TParameterType dbType);
+}
+
+/// <summary>
+///     Primarily responsible for handling .Net to database engine type mappings
+/// </summary>
+/// <typeparam name="TCommand"></typeparam>
+/// <typeparam name="TParameter"></typeparam>
+/// <typeparam name="TConnection"></typeparam>
+/// <typeparam name="TTransaction"></typeparam>
+/// <typeparam name="TParameterType"></typeparam>
+/// <typeparam name="TDataReader"></typeparam>
+public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>: IDatabaseProvider
+    <TCommand, TParameter, TTransaction, TParameterType, TDataReader>
+    where TCommand : DbCommand
+    where TParameter : DbParameter
+    where TConnection : DbConnection
+    where TTransaction : DbTransaction
+    where TDataReader : DbDataReader
+    where TParameterType : struct
+{
 }
 
 /// <summary>
@@ -74,11 +92,10 @@ public interface
 /// <typeparam name="TTransaction"></typeparam>
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
-public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
-    : IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+public abstract class DatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
+    : IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
     where TCommand : DbCommand
     where TParameter : DbParameter
-    where TConnection : DbConnection
     where TTransaction : DbTransaction
     where TDataReader : DbDataReader
     where TParameterType : struct
@@ -269,4 +286,28 @@ public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTrans
         $"{ToQualifiedName(schemaName)}.{ToQualifiedName(objectName)}";
 
     public abstract DbObjectName Parse(string schemaName, string objectName);
+}
+
+/// <summary>
+///     Base type for database providers. Primarily responsible for handling .Net to database engine type mappings
+/// </summary>
+/// <typeparam name="TCommand"></typeparam>
+/// <typeparam name="TParameter"></typeparam>
+/// <typeparam name="TConnection"></typeparam>
+/// <typeparam name="TTransaction"></typeparam>
+/// <typeparam name="TParameterType"></typeparam>
+/// <typeparam name="TDataReader"></typeparam>
+public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+    : DatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>,
+        IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+    where TCommand : DbCommand
+    where TParameter : DbParameter
+    where TConnection : DbConnection
+    where TTransaction : DbTransaction
+    where TDataReader : DbDataReader
+    where TParameterType : struct
+{
+    protected DatabaseProvider(string defaultDatabaseSchemaName) : base(defaultDatabaseSchemaName)
+    {
+    }
 }
