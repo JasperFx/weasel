@@ -40,11 +40,9 @@ public interface IDatabaseProvider
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
 public interface
-    IDatabaseProvider<in TCommand, in TParameter, TTransaction, TParameterType, TDataReader>: IDatabaseProvider
+    IDatabaseProvider<in TCommand, in TParameter, TParameterType>: IDatabaseProvider
     where TCommand : DbCommand
     where TParameter : DbParameter
-    where TTransaction : DbTransaction
-    where TDataReader : DbDataReader
     where TParameterType : struct
 {
     TParameterType StringParameterType { get; }
@@ -62,26 +60,6 @@ public interface
 }
 
 /// <summary>
-///     Primarily responsible for handling .Net to database engine type mappings
-/// </summary>
-/// <typeparam name="TCommand"></typeparam>
-/// <typeparam name="TParameter"></typeparam>
-/// <typeparam name="TConnection"></typeparam>
-/// <typeparam name="TTransaction"></typeparam>
-/// <typeparam name="TParameterType"></typeparam>
-/// <typeparam name="TDataReader"></typeparam>
-public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>: IDatabaseProvider
-    <TCommand, TParameter, TTransaction, TParameterType, TDataReader>
-    where TCommand : DbCommand
-    where TParameter : DbParameter
-    where TConnection : DbConnection
-    where TTransaction : DbTransaction
-    where TDataReader : DbDataReader
-    where TParameterType : struct
-{
-}
-
-/// <summary>
 ///     Base type for database providers. Primarily responsible for handling .Net to database engine type mappings
 /// </summary>
 /// <typeparam name="TCommand"></typeparam>
@@ -91,7 +69,7 @@ public interface IDatabaseProvider<TCommand, TParameter, TConnection, TTransacti
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
 public abstract class DatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
-    : IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
+    : IDatabaseProvider<TCommand, TParameter, TParameterType>
     where TCommand : DbCommand
     where TParameter : DbParameter
     where TTransaction : DbTransaction
@@ -296,8 +274,7 @@ public abstract class DatabaseProvider<TCommand, TParameter, TTransaction, TPara
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
 public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
-    : DatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>,
-        IDatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
+    : DatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
     where TCommand : DbCommand
     where TParameter : DbParameter
     where TConnection : DbConnection

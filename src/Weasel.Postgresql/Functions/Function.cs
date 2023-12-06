@@ -11,7 +11,6 @@ public class Function: ISchemaObject
     private readonly string? _body;
     private readonly string[]? _dropStatements;
 
-
     public Function(DbObjectName identifier, string body, string[] dropStatements)
     {
         _body = body;
