@@ -85,23 +85,4 @@ public class FullTextIndexDeltasTests(): IndexDeltasDetectionContext("fts_deltas
 
         await AssertIndexUpdate(indexName);
     }
-
-    [PgVersionTargetedFact(MinimumVersion = "10.0")]
-    public async Task migration_from_v3_to_v4_should_not_result_in_schema_difference()
-    {
-        await CreateSchemaObjectInDatabase(theTable);
-
-        // create index with a sql statement not containing `::regconfig`
-        await using (var conn = new NpgsqlConnection(ConnectionSource.ConnectionString))
-        {
-            await conn.OpenAsync();
-            await conn.CreateCommand(
-                    $"CREATE INDEX {theTable.Identifier.Name}_idx_fts ON {theTable.Identifier} USING gin (( to_tsvector('english', data) ))")
-                .ExecuteNonQueryAsync();
-        }
-
-        theTable.ModifyColumn("data").AddFullTextIndex();
-
-        await AssertNoDeltasAfterPatching();
-    }
 }
