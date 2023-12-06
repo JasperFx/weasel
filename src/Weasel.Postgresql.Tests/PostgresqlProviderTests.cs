@@ -8,6 +8,7 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests;
 
+[Collection("PostgresqlProviderTests")]
 public class PostgresqlProviderTests
 {
     [Fact]
@@ -133,3 +134,6 @@ public class PostgresqlProviderTests
         PostgresqlProvider.Instance.ConvertSynonyms(type).ShouldBe(synonym);
     }
 }
+
+[CollectionDefinition("PostgresqlProviderTests", DisableParallelization = true)]
+public class PostgresqlProviderTestsCollectionDefinition;
