@@ -4,23 +4,7 @@ using JasperFx.Core;
 
 namespace Weasel.Core;
 
-/// <summary>
-///     Base class for batch queries against a relational database
-/// </summary>
-/// <typeparam name="TCommand"></typeparam>
-/// <typeparam name="TParameter"></typeparam>
-/// <typeparam name="TConnection"></typeparam>
-/// <typeparam name="TTransaction"></typeparam>
-/// <typeparam name="TParameterType"></typeparam>
-/// <typeparam name="TDataReader"></typeparam>
-public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
-    : CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
-    where TCommand : DbCommand
-    where TParameter : DbParameter
-    where TConnection : DbConnection
-    where TTransaction : DbTransaction
-    where TDataReader : DbDataReader
-    where TParameterType : struct
+public static class CommandBuilderExtensions
 {
     /// <summary>
     ///     Compile and execute the batched command against the user supplied connection
@@ -29,16 +13,24 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    public Task<int> ExecuteNonQueryAsync(
+    public static Task<int> ExecuteNonQueryAsync<TCommand, TConnection, TTransaction>(
+        this ICommandBuilder<TCommand> commandBuilder,
         TConnection conn,
         CancellationToken cancellation = default,
         TTransaction? tx = null
-    ) =>
-        base.ExecuteNonQueryAsync(cmd =>
-        {
-            cmd.Connection = conn;
-            cmd.Transaction = tx;
-        }, cancellation);
+    )
+        where TCommand : DbCommand
+        where TConnection : DbConnection
+        where TTransaction : DbTransaction
+    {
+
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = conn;
+        cmd.Transaction = tx;
+
+        return cmd.ExecuteNonQueryAsync(cancellation);
+    }
 
 
     /// <summary>
@@ -49,16 +41,24 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    public Task<TDataReader> ExecuteReaderAsync(
+    public static async Task<TDataReader> ExecuteReaderAsync<TCommand, TConnection, TTransaction, TDataReader>(
+        this ICommandBuilder<TCommand> commandBuilder,
         TConnection conn,
         CancellationToken cancellation = default,
         TTransaction? tx = null
-    ) =>
-        base.ExecuteReaderAsync(cmd =>
-        {
-            cmd.Connection = conn;
-            cmd.Transaction = tx;
-        }, cancellation);
+    )
+        where TCommand : DbCommand
+        where TConnection : DbConnection
+        where TTransaction : DbTransaction
+        where TDataReader : DbDataReader
+    {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = conn;
+        cmd.Transaction = tx;
+
+        return (TDataReader)await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+    }
 
     /// <summary>
     ///     Compile and execute the query and returns the results transformed from the raw database reader
@@ -69,25 +69,38 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
     /// <param name="tx"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public Task<IReadOnlyList<T>> FetchListAsync<T>(
+    public static async Task<IReadOnlyList<T>> FetchListAsync<T, TCommand, TConnection, TTransaction>(
+        this ICommandBuilder<TCommand> commandBuilder,
         TConnection conn,
         Func<DbDataReader, CancellationToken, Task<T>> transform,
         CancellationToken ct = default,
         TTransaction? tx = null
-    ) =>
-        base.FetchListAsync(cmd =>
-        {
-            cmd.Connection = conn;
-            cmd.Transaction = tx;
-        }, transform, ct);
-
-    protected CommandBuilderBase(
-        IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader> provider,
-        char parameterPrefix,
-        TCommand command
-    ): base(provider, parameterPrefix, command)
+    )
+        where TCommand : DbCommand
+        where TConnection : DbConnection
+        where TTransaction : DbTransaction
     {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = conn;
+        cmd.Transaction = tx;
+
+        var list = new List<T>();
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            list.Add(await transform(reader, ct).ConfigureAwait(false));
+        }
+
+        return list;
     }
+}
+
+public interface ICommandBuilder<out TCommand>
+    where TCommand : DbCommand
+{
+    public TCommand Compile();
 }
 
 /// <summary>
@@ -98,24 +111,22 @@ public class CommandBuilderBase<TCommand, TParameter, TConnection, TTransaction,
 /// <typeparam name="TTransaction"></typeparam>
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
-public class CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
+public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandBuilder<TCommand>
     where TCommand : DbCommand
     where TParameter : DbParameter
-    where TTransaction : DbTransaction
-    where TDataReader : DbDataReader
     where TParameterType : struct
 {
     private readonly TCommand _command;
     private readonly char _parameterPrefix;
 
-    private readonly IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
+    private readonly IDatabaseProvider<TCommand, TParameter, TParameterType>
         _provider;
 
     // TEMP -- will shift this to being pooled later
     private readonly StringBuilder _sql = new();
 
     protected CommandBuilderBase(
-        IDatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader> provider,
+        IDatabaseProvider<TCommand, TParameter, TParameterType> provider,
         char parameterPrefix,
         TCommand command
     )
@@ -208,11 +219,11 @@ public class CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterTy
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    public async Task<TDataReader> ExecuteReaderAsync(CancellationToken cancellation = default)
+    public Task<DbDataReader> ExecuteReaderAsync(CancellationToken cancellation = default)
     {
         var cmd = Compile();
 
-        return (TDataReader)await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+        return cmd.ExecuteReaderAsync(cancellation);
     }
 
     /// <summary>
@@ -223,12 +234,12 @@ public class CommandBuilderBase<TCommand, TParameter, TTransaction, TParameterTy
     /// <param name="cancellation"></param>
     /// <param name="tx"></param>
     /// <returns></returns>
-    protected async Task<TDataReader> ExecuteReaderAsync(Action<TCommand> define, CancellationToken cancellation = default)
+    protected Task<DbDataReader> ExecuteReaderAsync(Action<TCommand> define, CancellationToken cancellation = default)
     {
         var cmd = Compile();
         define(cmd);
 
-        return (TDataReader)await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+        return cmd.ExecuteReaderAsync(cancellation);
     }
 
     /// <summary>

@@ -8,8 +8,8 @@ namespace Weasel.Core;
 /// <summary>
 ///     CommandBuilder for generic DbCommand or DbConnection commands
 /// </summary>
-public class DbCommandBuilder
-    : CommandBuilderBase<DbCommand, DbParameter, DbConnection, DbTransaction, DbType, DbDataReader>
+public class
+    DbCommandBuilder: CommandBuilderBase<DbCommand, DbParameter, DbType>
 {
     public DbCommandBuilder(DbCommand command): base(DbDatabaseProvider.Instance, '@', command)
     {
@@ -17,6 +17,88 @@ public class DbCommandBuilder
 
     public DbCommandBuilder(DbConnection connection): base(DbDatabaseProvider.Instance, '@', connection.CreateCommand())
     {
+    }
+}
+
+public static class DbCommandBuilderExtensions
+{
+    /// <summary>
+    ///     Compile and execute the batched command against the user supplied connection
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="cancellation"></param>
+    /// <param name="tx"></param>
+    /// <returns></returns>
+    public static Task<int> ExecuteNonQueryAsync(
+        this DbCommandBuilder commandBuilder,
+        DbConnection conn,
+        CancellationToken cancellation = default,
+        DbTransaction? tx = null
+    )
+    {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = conn;
+        cmd.Transaction = tx;
+
+        return cmd.ExecuteNonQueryAsync(cancellation);
+    }
+
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection and
+    ///     return a data reader for the results
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="cancellation"></param>
+    /// <param name="tx"></param>
+    /// <returns></returns>
+    public static Task<DbDataReader> ExecuteReaderAsync(
+        this DbCommandBuilder commandBuilder,
+        DbConnection conn,
+        CancellationToken cancellation = default,
+        DbTransaction? tx = null
+    )
+    {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = conn;
+        cmd.Transaction = tx;
+
+        return cmd.ExecuteReaderAsync(cancellation);
+    }
+
+    /// <summary>
+    ///     Compile and execute the query and returns the results transformed from the raw database reader
+    /// </summary>
+    /// <param name="conn"></param>
+    /// <param name="transform"></param>
+    /// <param name="ct"></param>
+    /// <param name="tx"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static async Task<IReadOnlyList<T>> FetchListAsync<T>(
+        this DbCommandBuilder commandBuilder,
+        DbConnection conn,
+        Func<DbDataReader, CancellationToken, Task<T>> transform,
+        CancellationToken ct = default,
+        DbTransaction? tx = null
+    )
+    {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = conn;
+        cmd.Transaction = tx;
+
+        var list = new List<T>();
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            list.Add(await transform(reader, ct).ConfigureAwait(false));
+        }
+
+        return list;
     }
 }
 
