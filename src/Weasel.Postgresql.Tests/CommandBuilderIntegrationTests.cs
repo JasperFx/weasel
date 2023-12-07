@@ -28,7 +28,7 @@ public class CommandBuilderIntegrationTests: IntegrationContext
         builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
         builder.AddParameters(new { id = 3, tag = "Toodles", age = 5 });
 
-        await builder.ExecuteNonQueryAsync(theConnection);
+        await theConnection.ExecuteNonQueryAsync(builder);
 
         await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
             .ExecuteReaderAsync();
@@ -56,7 +56,7 @@ public class CommandBuilderIntegrationTests: IntegrationContext
         builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
         builder.AddParameters(new { id = 3, tag = "Toodles", age = 5 });
 
-        await builder.ExecuteNonQueryAsync(theConnection);
+        await theConnection.ExecuteNonQueryAsync(builder);
 
         await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
             .ExecuteReaderAsync();
@@ -98,11 +98,12 @@ public class CommandBuilderIntegrationTests: IntegrationContext
         var builder = new CommandBuilder();
         builder.Append("select id, tag from integration.thing order by id");
 
-        var things = await builder.FetchListAsync(theConnection, async (r, ct) =>
+        var things = await theConnection.FetchListAsync(builder, async (r, ct) =>
         {
             var thing = new Thing
             {
-                id = await r.GetFieldValueAsync<int>(0), tag = await r.GetFieldValueAsync<string>(1)
+                id = await r.GetFieldValueAsync<int>(0, ct),
+                tag = await r.GetFieldValueAsync<string>(1, ct)
             };
 
             return thing;
@@ -147,7 +148,7 @@ public class CommandBuilderIntegrationTests: IntegrationContext
         builder.AddNamedParameter("done", true);
 
 
-        await builder.ExecuteNonQueryAsync(theConnection);
+        await theConnection.ExecuteNonQueryAsync(builder);
 
         await using var reader = await theConnection
             .CreateCommand("select id, tag, age, rate, sequence, is_done from integration.thing")

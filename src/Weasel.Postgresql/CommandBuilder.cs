@@ -33,72 +33,109 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
 
 public static class CommandBuilderExtensions
 {
+
     /// <summary>
-    ///     Compile and execute the batched command against the user supplied connection
+    ///     Compile and execute the command against the user supplied connection
     /// </summary>
-    /// <param name="conn"></param>
-    /// <param name="cancellation"></param>
-    /// <param name="tx"></param>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
     public static Task<int> ExecuteNonQueryAsync(
-        this CommandBuilder commandBuilder,
-        NpgsqlConnection conn,
-        CancellationToken cancellation = default,
-        NpgsqlTransaction? tx = null
+        this NpgsqlConnection connection,
+        CommandBuilder commandBuilder,
+        CancellationToken ct = default
+    ) => connection.ExecuteNonQueryAsync(commandBuilder, null, ct);
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="tx"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static Task<int> ExecuteNonQueryAsync(
+        this NpgsqlConnection connection,
+        CommandBuilder commandBuilder,
+        NpgsqlTransaction? tx,
+        CancellationToken ct = default
     )
     {
         var cmd = commandBuilder.Compile();
 
-        cmd.Connection = conn;
+        cmd.Connection = connection;
         cmd.Transaction = tx;
 
-        return cmd.ExecuteNonQueryAsync(cancellation);
+        return cmd.ExecuteNonQueryAsync(ct);
     }
-
 
     /// <summary>
     ///     Compile and execute the command against the user supplied connection and
     ///     return a data reader for the results
     /// </summary>
-    /// <param name="conn"></param>
-    /// <param name="cancellation"></param>
-    /// <param name="tx"></param>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="ct"></param>
     /// <returns></returns>
-    public static async Task<NpgsqlDataReader> ExecuteReaderAsync(
-        this CommandBuilder commandBuilder,
-        NpgsqlConnection conn,
-        CancellationToken cancellation = default,
-        NpgsqlTransaction? tx = null
+    public static Task<NpgsqlDataReader> ExecuteReaderAsync(
+        this NpgsqlConnection connection,
+        CommandBuilder commandBuilder,
+        CancellationToken ct = default
+    ) => connection.ExecuteReaderAsync(commandBuilder, null, ct);
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection and
+    ///     return a data reader for the results
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="tx"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static Task<NpgsqlDataReader> ExecuteReaderAsync(
+        this NpgsqlConnection connection,
+        CommandBuilder commandBuilder,
+        NpgsqlTransaction? tx,
+        CancellationToken ct = default
     )
     {
         var cmd = commandBuilder.Compile();
 
-        cmd.Connection = conn;
+        cmd.Connection = connection;
         cmd.Transaction = tx;
 
-        return (NpgsqlDataReader)await cmd.ExecuteReaderAsync(cancellation).ConfigureAwait(false);
+        return cmd.ExecuteReaderAsync(ct);
     }
+
+    public static Task<IReadOnlyList<T>> FetchListAsync<T>(
+        this NpgsqlConnection connection,
+        CommandBuilder commandBuilder,
+        Func<DbDataReader, CancellationToken, Task<T>> transform,
+        CancellationToken ct = default
+    ) => connection.FetchListAsync(commandBuilder, transform, null, ct);
 
     /// <summary>
     ///     Compile and execute the query and returns the results transformed from the raw database reader
     /// </summary>
-    /// <param name="conn"></param>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
     /// <param name="transform"></param>
-    /// <param name="ct"></param>
     /// <param name="tx"></param>
+    /// <param name="ct"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     public static async Task<IReadOnlyList<T>> FetchListAsync<T>(
-        this CommandBuilder commandBuilder,
-        NpgsqlConnection conn,
+        this NpgsqlConnection connection,
+        CommandBuilder commandBuilder,
         Func<DbDataReader, CancellationToken, Task<T>> transform,
-        CancellationToken ct = default,
-        NpgsqlTransaction? tx = null
+        NpgsqlTransaction? tx,
+        CancellationToken ct = default
     )
     {
         var cmd = commandBuilder.Compile();
 
-        cmd.Connection = conn;
+        cmd.Connection = connection;
         cmd.Transaction = tx;
 
         var list = new List<T>();

@@ -202,7 +202,7 @@ IF NOT EXISTS ( SELECT  *
 
         builder.Append(";");
 
-        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
+        return await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
     }
 
     public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctionsAsync(
@@ -230,7 +230,7 @@ IF NOT EXISTS ( SELECT  *
 
         builder.Append(";");
 
-        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
+        return await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
     }
 
     private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)

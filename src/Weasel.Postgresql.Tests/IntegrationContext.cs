@@ -46,7 +46,7 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
         var rules = new PostgresqlMigrator();
         var builder = new DbCommandBuilder(theConnection);
         schemaObject.ConfigureQueryCommand(builder);
-        await using var reader = await builder.ExecuteReaderAsync(theConnection);
+        await using var reader = await theConnection.ExecuteReaderAsync(builder);
         var schemaMigration = new SchemaMigration(await schemaObject.CreateDeltaAsync(reader));
         await reader.CloseAsync();
 

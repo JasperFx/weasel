@@ -77,7 +77,7 @@ public class Function: ISchemaObject
 
         ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
+        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
         return await readExistingAsync(reader, ct).ConfigureAwait(false);
     }
 
