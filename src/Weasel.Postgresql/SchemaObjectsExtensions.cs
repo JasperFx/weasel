@@ -166,7 +166,7 @@ public static class SchemaObjectsExtensions
 
         builder.Append(";");
 
-        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
+        return await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct: ct).ConfigureAwait(false);
     }
 
     public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctionsAsync(
@@ -194,7 +194,7 @@ public static class SchemaObjectsExtensions
 
         builder.Append(";");
 
-        return await builder.FetchListAsync(conn, ReadDbObjectNameAsync, ct).ConfigureAwait(false);
+        return await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct: ct).ConfigureAwait(false);
     }
 
     private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)

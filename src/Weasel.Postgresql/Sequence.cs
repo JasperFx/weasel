@@ -75,7 +75,7 @@ public class Sequence: ISchemaObject
 
         ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
+        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
 
         return await CreateDeltaAsync(reader, ct).ConfigureAwait(false);
     }

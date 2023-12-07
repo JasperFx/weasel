@@ -79,7 +79,7 @@ public class SchemaMigration
 
         foreach (var schemaObject in schemaObjects) schemaObject.ConfigureQueryCommand(builder);
 
-        await using var reader = await builder.ExecuteReaderAsync(conn, ct).ConfigureAwait(false);
+        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
 
         deltas.Add(await schemaObjects[0].CreateDeltaAsync(reader, ct).ConfigureAwait(false));
 
