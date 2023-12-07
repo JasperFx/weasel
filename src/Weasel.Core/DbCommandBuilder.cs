@@ -146,8 +146,7 @@ public static class DbCommandBuilderExtensions
     }
 }
 
-internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbConnection, DbTransaction, DbType,
-    DbDataReader>
+internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbType>
 {
     public static readonly DbDatabaseProvider Instance = new();
 

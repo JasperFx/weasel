@@ -6,8 +6,7 @@ using Weasel.Core;
 
 namespace Weasel.SqlServer;
 
-public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlConnection, SqlTransaction,
-    SqlDbType, SqlDataReader>
+public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDbType>
 {
     public static readonly SqlServerProvider Instance = new();
 
@@ -41,15 +40,14 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlCo
             return value;
         }
 
-        if (type.IsNullable() &&
-            DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out string databaseType))
-        {
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
-            return databaseType;
-        }
+        if (!type.IsNullable() ||
+            !DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var databaseType))
+            throw new NotSupportedException(
+                $"Weasel.SqlServer does not (yet) support database type mapping to {type.GetFullName()}");
 
-        throw new NotSupportedException(
-            $"Weasel.SqlServer does not (yet) support database type mapping to {type.GetFullName()}");
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
+        return databaseType;
+
     }
 
     private SqlDbType? ResolveSqlDbType(Type type)
