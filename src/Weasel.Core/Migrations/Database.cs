@@ -52,20 +52,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         Migrator migrator,
         string identifier,
         string connectionString
-    )
+    ): this(logger, autoCreate, migrator, identifier, () => CreateConnection(connectionString))
     {
-        _logger = logger;
-        _connectionSource = () =>
-        {
-            var conn = new TConnection();
-            conn.ConnectionString = connectionString;
-
-            return conn;
-        };
-
-        AutoCreate = autoCreate;
-        Migrator = migrator;
-        Identifier = identifier;
     }
 
     public DatabaseBase(
@@ -73,14 +61,22 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         AutoCreate autoCreate,
         Migrator migrator,
         string identifier,
-        Func<TConnection> connectionSource
+        Func<TConnection>? connectionSource
     )
     {
         _logger = logger;
-        _connectionSource = connectionSource;
+        _connectionSource = connectionSource ?? CreateConnection;
         AutoCreate = autoCreate;
         Migrator = migrator;
         Identifier = identifier;
+    }
+
+    private static TConnection CreateConnection(string connectionString)
+    {
+        var conn = new TConnection();
+        conn.ConnectionString = connectionString;
+
+        return conn;
     }
 
     public abstract IFeatureSchema[] BuildFeatureSchemas();

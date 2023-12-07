@@ -11,9 +11,16 @@ namespace Weasel.Postgresql.Migrations;
 /// <typeparam name="T"></typeparam>
 public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlDatabase
 {
+    private readonly NpgsqlDataSource? npgsqlDataSource;
     private readonly TimedLock _lock = new();
     private readonly string _masterConnectionString;
     private ImHashMap<string, T> _databases = ImHashMap<string, T>.Empty;
+
+    protected SingleServerDatabaseCollection(NpgsqlDataSource npgsqlDataSource)
+    {
+        this.npgsqlDataSource = npgsqlDataSource;
+        _masterConnectionString = npgsqlDataSource.ConnectionString;
+    }
 
     protected SingleServerDatabaseCollection(string masterConnectionString)
     {
@@ -48,7 +55,9 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
                 return database;
             }
 
-            await using var conn = new NpgsqlConnection(_masterConnectionString);
+            await using var conn =
+                npgsqlDataSource?.CreateConnection()
+                ?? new NpgsqlConnection(_masterConnectionString);
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
             if (DropAndRecreate)

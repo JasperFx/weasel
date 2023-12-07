@@ -151,6 +151,14 @@ public class NamedTableFeature: FeatureSchemaBase
 
 public class DatabaseWithTables: PostgresqlDatabase
 {
+    public static DatabaseWithTables ForDataSource(NpgsqlDataSource dataSource)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);
+        var identifier = builder.Database;
+
+        return new DatabaseWithTables(identifier, dataSource);
+    }
+
     public static DatabaseWithTables ForConnectionString(string connectionString)
     {
         var builder = new NpgsqlConnectionStringBuilder(connectionString);
@@ -166,6 +174,11 @@ public class DatabaseWithTables: PostgresqlDatabase
 
     public DatabaseWithTables(string identifier, string connectionString)
         : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, connectionString)
+    {
+    }
+
+    public DatabaseWithTables(string identifier, NpgsqlDataSource dataSource)
+        : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, dataSource)
     {
     }
 
