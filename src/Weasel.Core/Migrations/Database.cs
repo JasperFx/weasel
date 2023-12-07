@@ -214,7 +214,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         return await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
     }
 
-    public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
+    public virtual Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
         AutoCreate? @override = null,
         ReconnectionOptions? reconnectionOptions = null,
         CancellationToken ct = default
