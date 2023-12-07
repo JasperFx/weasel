@@ -108,7 +108,7 @@ public abstract class Migrator
     /// <param name="migration"></param>
     /// <param name="autoCreate"></param>
     /// <param name="logger"></param>
-    public async Task ApplyAllAsync(
+    public Task ApplyAllAsync(
         DbConnection conn,
         SchemaMigration migration,
         AutoCreate autoCreate,
@@ -118,23 +118,23 @@ public abstract class Migrator
     {
         if (autoCreate == AutoCreate.None)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         if (migration.Difference == SchemaPatchDifference.None)
         {
-            return;
+            return Task.CompletedTask;
         }
 
         if (!migration.Deltas.Any())
         {
-            return;
+            return Task.CompletedTask;
         }
 
         migration.AssertPatchingIsValid(autoCreate);
 
         logger ??= new DefaultMigrationLogger();
-        await executeDelta(migration, conn, autoCreate, logger, ct).ConfigureAwait(false);
+        return executeDelta(migration, conn, autoCreate, logger, ct);
     }
 
     protected abstract Task executeDelta(
