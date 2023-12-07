@@ -1,6 +1,5 @@
 using System.Data.Common;
 using JasperFx.Core;
-using JasperFx.Core.Reflection;
 using Weasel.Core.Names;
 
 namespace Weasel.Core;
@@ -39,8 +38,7 @@ public interface IDatabaseProvider
 /// <typeparam name="TTransaction"></typeparam>
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
-public interface
-    IDatabaseProvider<in TCommand, in TParameter, TParameterType>: IDatabaseProvider
+public interface IDatabaseProvider<in TCommand, in TParameter, TParameterType>: IDatabaseProvider
     where TCommand : DbCommand
     where TParameter : DbParameter
     where TParameterType : struct
@@ -68,12 +66,10 @@ public interface
 /// <typeparam name="TTransaction"></typeparam>
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
-public abstract class DatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
+public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
     : IDatabaseProvider<TCommand, TParameter, TParameterType>
     where TCommand : DbCommand
     where TParameter : DbParameter
-    where TTransaction : DbTransaction
-    where TDataReader : DbDataReader
     where TParameterType : struct
 {
     protected readonly Ref<ImHashMap<Type, string>> DatabaseTypeMemo = Ref.Of(ImHashMap<Type, string>.Empty);
@@ -262,27 +258,4 @@ public abstract class DatabaseProvider<TCommand, TParameter, TTransaction, TPara
         $"{ToQualifiedName(schemaName)}.{ToQualifiedName(objectName)}";
 
     public abstract DbObjectName Parse(string schemaName, string objectName);
-}
-
-/// <summary>
-///     Base type for database providers. Primarily responsible for handling .Net to database engine type mappings
-/// </summary>
-/// <typeparam name="TCommand"></typeparam>
-/// <typeparam name="TParameter"></typeparam>
-/// <typeparam name="TConnection"></typeparam>
-/// <typeparam name="TTransaction"></typeparam>
-/// <typeparam name="TParameterType"></typeparam>
-/// <typeparam name="TDataReader"></typeparam>
-public abstract class DatabaseProvider<TCommand, TParameter, TConnection, TTransaction, TParameterType, TDataReader>
-    : DatabaseProvider<TCommand, TParameter, TTransaction, TParameterType, TDataReader>
-    where TCommand : DbCommand
-    where TParameter : DbParameter
-    where TConnection : DbConnection
-    where TTransaction : DbTransaction
-    where TDataReader : DbDataReader
-    where TParameterType : struct
-{
-    protected DatabaseProvider(string defaultDatabaseSchemaName) : base(defaultDatabaseSchemaName)
-    {
-    }
 }
