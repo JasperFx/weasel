@@ -33,7 +33,6 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
 
 public static class CommandBuilderExtensions
 {
-
     /// <summary>
     ///     Compile and execute the command against the user supplied connection
     /// </summary>
@@ -60,15 +59,7 @@ public static class CommandBuilderExtensions
         CommandBuilder commandBuilder,
         NpgsqlTransaction? tx,
         CancellationToken ct = default
-    )
-    {
-        var cmd = commandBuilder.Compile();
-
-        cmd.Connection = connection;
-        cmd.Transaction = tx;
-
-        return cmd.ExecuteNonQueryAsync(ct);
-    }
+    ) => Weasel.Core.CommandBuilderExtensions.ExecuteNonQueryAsync(connection, commandBuilder, tx, ct);
 
     /// <summary>
     ///     Compile and execute the command against the user supplied connection and
@@ -93,20 +84,14 @@ public static class CommandBuilderExtensions
     /// <param name="tx"></param>
     /// <param name="ct"></param>
     /// <returns></returns>
-    public static Task<NpgsqlDataReader> ExecuteReaderAsync(
+    public static async Task<NpgsqlDataReader> ExecuteReaderAsync(
         this NpgsqlConnection connection,
         CommandBuilder commandBuilder,
         NpgsqlTransaction? tx,
         CancellationToken ct = default
-    )
-    {
-        var cmd = commandBuilder.Compile();
-
-        cmd.Connection = connection;
-        cmd.Transaction = tx;
-
-        return cmd.ExecuteReaderAsync(ct);
-    }
+    ) =>
+        (NpgsqlDataReader)await Weasel.Core.CommandBuilderExtensions
+            .ExecuteReaderAsync(connection, commandBuilder, tx, ct).ConfigureAwait(false);
 
     public static Task<IReadOnlyList<T>> FetchListAsync<T>(
         this NpgsqlConnection connection,
@@ -125,27 +110,11 @@ public static class CommandBuilderExtensions
     /// <param name="ct"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static async Task<IReadOnlyList<T>> FetchListAsync<T>(
+    public static Task<IReadOnlyList<T>> FetchListAsync<T>(
         this NpgsqlConnection connection,
         CommandBuilder commandBuilder,
         Func<DbDataReader, CancellationToken, Task<T>> transform,
         NpgsqlTransaction? tx,
         CancellationToken ct = default
-    )
-    {
-        var cmd = commandBuilder.Compile();
-
-        cmd.Connection = connection;
-        cmd.Transaction = tx;
-
-        var list = new List<T>();
-
-        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
-        while (await reader.ReadAsync(ct).ConfigureAwait(false))
-        {
-            list.Add(await transform(reader, ct).ConfigureAwait(false));
-        }
-
-        return list;
-    }
+    ) =>  Weasel.Core.CommandBuilderExtensions.FetchListAsync(connection, commandBuilder, transform, tx, ct);
 }
