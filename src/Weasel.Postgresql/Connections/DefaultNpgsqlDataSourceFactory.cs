@@ -3,33 +3,47 @@ using Npgsql;
 
 namespace Weasel.Postgresql.Connections;
 
-public class DefaultNpgsqlDataSourceFactory: INpgsqlDataSourceFactory
+public class DefaultNpgsqlDataSourceFactory: INpgsqlDataSourceFactory, IAsyncDisposable, IDisposable
 {
-    private readonly Cache<string, NpgsqlDataSourceBuilder> builderCache = new();
+    protected readonly Cache<string, NpgsqlDataSourceBuilder> Builders = new();
+    protected readonly Cache<string, NpgsqlDataSource> DataSources = new();
 
     public DefaultNpgsqlDataSourceFactory(Func<string, NpgsqlDataSourceBuilder> dataSourceBuilderFactory)
     {
-        builderCache.OnMissing = dataSourceBuilderFactory;
+        Builders.OnMissing = dataSourceBuilderFactory;
+        DataSources.OnMissing = connectionString =>
+        {
+            var builder = Builders[connectionString];
+            return builder.Build();
+        };
     }
 
     public DefaultNpgsqlDataSourceFactory(): this(connectionString => new NpgsqlDataSourceBuilder(connectionString))
     {
     }
 
-    public NpgsqlDataSource Create(string connectionString)
-    {
-        var builder = builderCache[connectionString];
+    public virtual NpgsqlDataSource Create(string connectionString) =>
+        DataSources[connectionString];
 
-        return builder.Build();
+    public virtual void Dispose()
+    {
+        var dataSources = DataSources.ToList();
+        DataSources.ClearAll();
+
+        foreach (var dataSource in dataSources)
+        {
+            dataSource.Dispose();
+        }
     }
 
-    public NpgsqlDataSource Create(string masterConnectionString, string databaseName)
+    public async ValueTask DisposeAsync()
     {
-        var connectionString = new NpgsqlConnectionStringBuilder(masterConnectionString) { Database = databaseName }
-            .ConnectionString;
+        var dataSources = DataSources.ToList();
+        DataSources.ClearAll();
 
-        var builder = builderCache[connectionString];
-
-        return builder.Build();
+        foreach (var dataSource in dataSources)
+        {
+            await dataSource.DisposeAsync().ConfigureAwait(false);
+        }
     }
 }
