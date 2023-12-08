@@ -328,3 +328,127 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
         return parameters;
     }
 }
+
+// Note: Those methods are intentionally not written as extension methods
+// as the preference is to use the strongly typed methods of specific databases
+// instead of those generic ones
+public static class CommandBuilderExtensions
+{
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static Task<int> ExecuteNonQueryAsync<T>(
+        DbConnection connection,
+        ICommandBuilder<T> commandBuilder,
+        CancellationToken ct = default
+    ) where T : DbCommand =>
+        ExecuteNonQueryAsync(connection, commandBuilder, null, ct);
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="tx"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static Task<int> ExecuteNonQueryAsync<T>(
+        DbConnection connection,
+        ICommandBuilder<T> commandBuilder,
+        DbTransaction? tx,
+        CancellationToken ct = default
+    ) where T : DbCommand
+    {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = connection;
+        cmd.Transaction = tx;
+
+        return cmd.ExecuteNonQueryAsync(ct);
+    }
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection and
+    ///     return a data reader for the results
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static Task<DbDataReader> ExecuteReaderAsync<T>(
+        DbConnection connection,
+        ICommandBuilder<T> commandBuilder,
+        CancellationToken ct = default
+    ) where T : DbCommand =>
+        ExecuteReaderAsync(connection, commandBuilder, null, ct);
+
+    /// <summary>
+    ///     Compile and execute the command against the user supplied connection and
+    ///     return a data reader for the results
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="tx"></param>
+    /// <param name="ct"></param>
+    /// <returns></returns>
+    public static Task<DbDataReader> ExecuteReaderAsync<T>(
+        DbConnection connection,
+        ICommandBuilder<T> commandBuilder,
+        DbTransaction? tx,
+        CancellationToken ct = default
+    ) where T : DbCommand
+    {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = connection;
+        cmd.Transaction = tx;
+
+        return cmd.ExecuteReaderAsync(ct);
+    }
+
+    public static Task<IReadOnlyList<T>> FetchListAsync<T, TCommand>(
+        DbConnection connection,
+        ICommandBuilder<TCommand> commandBuilder,
+        Func<DbDataReader, CancellationToken, Task<T>> transform,
+        CancellationToken ct = default
+    ) where TCommand : DbCommand =>
+        FetchListAsync(connection, commandBuilder, transform, null, ct);
+
+    /// <summary>
+    ///     Compile and execute the query and returns the results transformed from the raw database reader
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="commandBuilder"></param>
+    /// <param name="transform"></param>
+    /// <param name="tx"></param>
+    /// <param name="ct"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static async Task<IReadOnlyList<T>> FetchListAsync<T, TCommand>(
+        DbConnection connection,
+        ICommandBuilder<TCommand> commandBuilder,
+        Func<DbDataReader, CancellationToken, Task<T>> transform,
+        DbTransaction? tx,
+        CancellationToken ct = default
+    ) where TCommand : DbCommand
+    {
+        var cmd = commandBuilder.Compile();
+
+        cmd.Connection = connection;
+        cmd.Transaction = tx;
+
+        var list = new List<T>();
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            list.Add(await transform(reader, ct).ConfigureAwait(false));
+        }
+
+        return list;
+    }
+}

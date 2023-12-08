@@ -47,15 +47,7 @@ public static class DbCommandBuilderExtensions
         DbCommandBuilder commandBuilder,
         DbTransaction? tx,
         CancellationToken ct = default
-    )
-    {
-        var cmd = commandBuilder.Compile();
-
-        cmd.Connection = connection;
-        cmd.Transaction = tx;
-
-        return cmd.ExecuteNonQueryAsync(ct);
-    }
+    ) => CommandBuilderExtensions.ExecuteNonQueryAsync(connection, commandBuilder, tx, ct);
 
     /// <summary>
     ///     Compile and execute the command against the user supplied connection and
@@ -85,15 +77,7 @@ public static class DbCommandBuilderExtensions
         DbCommandBuilder commandBuilder,
         DbTransaction? tx,
         CancellationToken ct = default
-    )
-    {
-        var cmd = commandBuilder.Compile();
-
-        cmd.Connection = connection;
-        cmd.Transaction = tx;
-
-        return cmd.ExecuteReaderAsync(ct);
-    }
+    ) => CommandBuilderExtensions.ExecuteReaderAsync(connection, commandBuilder, tx, ct);
 
     /// <summary>
     ///     Compile and execute the query and returns the results transformed from the raw database reader
@@ -121,29 +105,13 @@ public static class DbCommandBuilderExtensions
     /// <param name="ct"></param>
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
-    public static async Task<IReadOnlyList<T>> FetchListAsync<T>(
+    public static Task<IReadOnlyList<T>> FetchListAsync<T>(
         this DbConnection connection,
         DbCommandBuilder commandBuilder,
         Func<DbDataReader, CancellationToken, Task<T>> transform,
         DbTransaction? tx,
         CancellationToken ct = default
-    )
-    {
-        var cmd = commandBuilder.Compile();
-
-        cmd.Connection = connection;
-        cmd.Transaction = tx;
-
-        var list = new List<T>();
-
-        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
-        while (await reader.ReadAsync(ct).ConfigureAwait(false))
-        {
-            list.Add(await transform(reader, ct).ConfigureAwait(false));
-        }
-
-        return list;
-    }
+    ) => CommandBuilderExtensions.FetchListAsync(connection, commandBuilder, transform, tx, ct);
 }
 
 internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbType>
