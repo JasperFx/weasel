@@ -10,30 +10,10 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
     protected PostgresqlDatabase(
         IMigrationLogger logger,
         AutoCreate autoCreate,
-        PostgresqlMigrator migrator,
-        string identifier,
-        string connectionString
-    ): base(logger, autoCreate, migrator, identifier, connectionString)
-    {
-    }
-
-    protected PostgresqlDatabase(
-        IMigrationLogger logger,
-        AutoCreate autoCreate,
         Migrator migrator,
         string identifier,
         NpgsqlDataSource dataSource
     ): base(logger, autoCreate, migrator, identifier, dataSource.CreateConnection)
-    {
-    }
-
-    protected PostgresqlDatabase(
-        IMigrationLogger logger,
-        AutoCreate autoCreate,
-        PostgresqlMigrator migrator,
-        string identifier,
-        Func<NpgsqlConnection> connectionSource
-    ): base(logger, autoCreate, migrator, identifier, connectionSource)
     {
     }
 

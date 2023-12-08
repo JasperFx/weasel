@@ -1,6 +1,7 @@
 using JasperFx.Core;
 using Npgsql;
 using Weasel.Core.Migrations;
+using Weasel.Postgresql.Connections;
 
 namespace Weasel.Postgresql.Migrations;
 
@@ -11,23 +12,25 @@ namespace Weasel.Postgresql.Migrations;
 /// <typeparam name="T"></typeparam>
 public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlDatabase
 {
-    private readonly NpgsqlDataSource? npgsqlDataSource;
+    private readonly INpgsqlDataSourceFactory dataSourceFactory;
+    private readonly NpgsqlDataSource masterDataSource;
     private readonly TimedLock _lock = new();
-    private readonly string _masterConnectionString;
-    private ImHashMap<string, T> _databases = ImHashMap<string, T>.Empty;
+    private ImHashMap<string, T> databases = ImHashMap<string, T>.Empty;
 
-    protected SingleServerDatabaseCollection(NpgsqlDataSource npgsqlDataSource)
+    protected SingleServerDatabaseCollection(INpgsqlDataSourceFactory dataSourceFactory,
+        NpgsqlDataSource masterDataSource)
     {
-        this.npgsqlDataSource = npgsqlDataSource;
-        _masterConnectionString = npgsqlDataSource.ConnectionString;
+        this.dataSourceFactory = dataSourceFactory;
+        this.masterDataSource = masterDataSource;
     }
 
-    protected SingleServerDatabaseCollection(string masterConnectionString)
+    protected SingleServerDatabaseCollection(INpgsqlDataSourceFactory dataSourceFactory, string masterConnectionString)
+        : this(dataSourceFactory, dataSourceFactory.Create(masterConnectionString))
     {
-        _masterConnectionString = masterConnectionString;
     }
 
-    private DatabaseSpecification Specification { get; } = new();
+    static
+        private DatabaseSpecification Specification { get; } = new();
 
     /// <summary>
     ///     Force the database to be dropped and re-created
@@ -36,28 +39,26 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
 
     public IReadOnlyList<T> AllDatabases()
     {
-        return _databases.Enumerate().Select(x => x.Value).ToList();
+        return databases.Enumerate().Select(x => x.Value).ToList();
     }
 
-    protected abstract T buildDatabase(string databaseName, string connectionString);
+    protected abstract T buildDatabase(string databaseName, NpgsqlDataSource dataSource);
 
     public virtual async ValueTask<T> FindOrCreateDatabase(string databaseName, CancellationToken ct = default)
     {
-        if (_databases.TryFind(databaseName, out var database))
+        if (databases.TryFind(databaseName, out var database))
         {
             return database;
         }
 
         using (await _lock.Lock(5.Seconds(), ct).ConfigureAwait(false))
         {
-            if (_databases.TryFind(databaseName, out database))
+            if (databases.TryFind(databaseName, out database))
             {
                 return database;
             }
 
-            await using var conn =
-                npgsqlDataSource?.CreateConnection()
-                ?? new NpgsqlConnection(_masterConnectionString);
+            await using var conn = masterDataSource.CreateConnection();
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
             if (DropAndRecreate)
@@ -70,12 +71,12 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
                 await Specification.BuildDatabase(conn, databaseName, ct).ConfigureAwait(false);
             }
 
-            var builder = new NpgsqlConnectionStringBuilder(_masterConnectionString) { Database = databaseName };
+            database = buildDatabase(
+                databaseName,
+                dataSourceFactory.Create(masterDataSource.ConnectionString, databaseName)
+            );
 
-            var connectionString = builder.ConnectionString;
-            database = buildDatabase(databaseName, connectionString);
-
-            _databases = _databases.AddOrUpdate(databaseName, database);
+            databases = databases.AddOrUpdate(databaseName, database);
 
             return database;
         }

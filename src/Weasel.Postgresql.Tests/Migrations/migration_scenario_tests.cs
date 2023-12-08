@@ -20,7 +20,7 @@ public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
 
     public SchemaMigrationTests() : base("migrations")
     {
-        theDatabase = new DatabaseWithTables(AutoCreate.None, "Migrations");
+        theDatabase = new DatabaseWithTables(AutoCreate.None, "Migrations", theDataSource);
     }
 
     public override Task InitializeAsync()
@@ -154,31 +154,26 @@ public class DatabaseWithTables: PostgresqlDatabase
     public static DatabaseWithTables ForDataSource(NpgsqlDataSource dataSource)
     {
         var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);
-        var identifier = builder.Database;
+        var identifier = builder.Database!;
 
         return new DatabaseWithTables(identifier, dataSource);
     }
 
     public static DatabaseWithTables ForConnectionString(string connectionString)
     {
-        var builder = new NpgsqlConnectionStringBuilder(connectionString);
-        var identifier = builder.Database;
+        var builder = new NpgsqlDataSourceBuilder(connectionString);
+        var identifier = builder.ConnectionStringBuilder.Database!;
 
-        return new DatabaseWithTables(identifier, connectionString);
-    }
-
-    public DatabaseWithTables(AutoCreate autoCreate, string identifier)
-        : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, ConnectionSource.ConnectionString)
-    {
-    }
-
-    public DatabaseWithTables(string identifier, string connectionString)
-        : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, connectionString)
-    {
+        return new DatabaseWithTables(identifier, builder.Build());
     }
 
     public DatabaseWithTables(string identifier, NpgsqlDataSource dataSource)
         : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, dataSource)
+    {
+    }
+
+    public DatabaseWithTables(AutoCreate autoCreate, string identifier, NpgsqlDataSource dataSource)
+        : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, dataSource)
     {
     }
 
