@@ -6,6 +6,7 @@ using Xunit;
 using System;
 using Shouldly;
 using Weasel.Core;
+using Weasel.Postgresql.Connections;
 
 namespace Weasel.Postgresql.Tests.Migrations;
 
@@ -35,13 +36,13 @@ public class SingleInstanceDatabaseCollectionTests
 
     public class Databases: SingleServerDatabaseCollection<DatabaseWithTables>
     {
-        public Databases() : base(ConnectionSource.ConnectionString)
+        public Databases() : base(new DefaultNpgsqlDataSourceFactory(), ConnectionSource.ConnectionString)
         {
         }
 
-        protected override DatabaseWithTables buildDatabase(string databaseName, string connectionString)
+        protected override DatabaseWithTables buildDatabase(string databaseName, NpgsqlDataSource dataSource)
         {
-            return new DatabaseWithTables(databaseName, connectionString);
+            return new DatabaseWithTables(databaseName, dataSource);
         }
     }
 }
