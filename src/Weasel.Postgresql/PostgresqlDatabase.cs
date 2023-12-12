@@ -17,6 +17,17 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
     {
     }
 
+    protected PostgresqlDatabase(
+        IMigrationLogger logger,
+        AutoCreate autoCreate,
+        Migrator migrator,
+        string identifier,
+        Func<NpgsqlConnection>? connectionSource
+    ): base(logger, autoCreate, migrator, identifier, connectionSource)
+    {
+
+    }
+
     public async Task<Function?> DefinitionForFunction(DbObjectName function, CancellationToken ct = default)
     {
         await using var conn = CreateConnection();
