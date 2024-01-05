@@ -42,4 +42,31 @@ public class command_extensions_integrated_test: IntegrationContext
         (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
         (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
     }
+
+    [Fact]
+    public async Task execute_from_data_source()
+    {
+        var table = new Table("general.thing");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("tag");
+        table.AddColumn<int>("age");
+
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        await using var source = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+
+        await source.CreateCommand("insert into general.thing (id, tag, age) values ($1, $2, $3)", 3, "Toodles", 5)
+            .ExecuteNonQueryAsync();
+
+        await using var reader = await theConnection.CreateCommand("select id, tag, age from general.thing")
+            .ExecuteReaderAsync();
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
+    }
 }

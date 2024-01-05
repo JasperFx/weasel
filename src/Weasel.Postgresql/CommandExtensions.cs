@@ -162,4 +162,24 @@ public static class CommandExtensions
     {
         return CallFunction(conn, functionName.QualifiedName, functionParamsNames);
     }
+
+    /// <summary>
+    /// Create an executable command using the supplied arguments in the order that
+    /// they would appear in the SQL string
+    /// </summary>
+    /// <param name="source"></param>
+    /// <param name="sql"></param>
+    /// <param name="arguments"></param>
+    /// <returns></returns>
+    public static NpgsqlCommand CreateCommand(this NpgsqlDataSource source, string sql, params object[] arguments)
+    {
+        var cmd = source.CreateCommand(sql);
+
+        foreach (var argument in arguments)
+        {
+            cmd.Parameters.Add(new NpgsqlParameter {Value = argument});
+        }
+
+        return cmd;
+    }
 }
