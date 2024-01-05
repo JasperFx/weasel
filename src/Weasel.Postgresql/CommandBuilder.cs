@@ -1,9 +1,92 @@
 using System.Data.Common;
+using System.Text;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
 
 namespace Weasel.Postgresql;
+
+public class BatchBuilder
+{
+    private readonly NpgsqlBatch _batch;
+    private readonly StringBuilder _builder = new();
+    private NpgsqlBatchCommand? _current;
+
+    public BatchBuilder(NpgsqlBatch batch)
+    {
+        _batch = batch;
+    }
+
+    public BatchBuilder()
+    {
+        _batch = new NpgsqlBatch();
+    }
+
+    private NpgsqlBatchCommand appendCommand()
+    {
+        var command = _batch.CreateBatchCommand();
+        _batch.BatchCommands.Add(command);
+
+        return command;
+    }
+
+    public void Append(string sql)
+    {
+        _current ??= appendCommand();
+        _builder.Append(sql);
+    }
+
+    public void Append(char character)
+    {
+        _builder.Append(character);
+    }
+
+    public void AppendParameter(object value)
+    {
+        _current ??= _batch.CreateBatchCommand();
+        var param = new NpgsqlParameter { Value = value };
+        _current.Parameters.Add(param);
+
+        _builder.Append('$');
+        _builder.Append(_current.Parameters.Count);
+    }
+
+    public void AppendParameters(params object[] parameters)
+    {
+        if (!parameters.Any())
+            throw new ArgumentOutOfRangeException(nameof(parameters),
+                "Must be at least one parameter value, but got " + parameters.Length);
+
+        AppendParameter(parameters[0]);
+
+        for (var i = 1; i < parameters.Length; i++)
+        {
+            _builder.Append(", ");
+            AppendParameter(parameters[i]);
+        }
+    }
+
+    public void StartNewCommand()
+    {
+        if (_current != null)
+        {
+            _current.CommandText = _builder.ToString();
+        }
+
+        _builder.Clear();
+        _current = appendCommand();
+    }
+
+    public NpgsqlBatch Compile()
+    {
+        if (_current != null)
+        {
+            _current.CommandText = _builder.ToString();
+        }
+
+        return _batch;
+    }
+}
 
 public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, NpgsqlDbType>
 {
