@@ -15,22 +15,16 @@ public class CustomizableWhereFragment: ISqlFragment
         _token = paramReplacementToken;
     }
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
-        // TODO -- reevaluate this code. Use the new AppendWithParameters maybe?
-        var sql = _sql;
-
-        foreach (var def in _parameters)
+        var parameters = builder.AppendWithParameters(_sql);
+        for (var i = 0; i < parameters.Length; i++)
         {
-            var param = def.AddParameter(builder);
-            sql = sql.ReplaceFirst(_token, ":" + param.ParameterName);
+            parameters[i].Value = _parameters[i].Value;
+            if (_parameters[i].DbType.HasValue)
+            {
+                parameters[i].NpgsqlDbType = _parameters[i].DbType.Value;
+            }
         }
-
-        builder.Append(sql);
-    }
-
-    public bool Contains(string sqlText)
-    {
-        return _sql.Contains(sqlText);
     }
 }

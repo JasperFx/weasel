@@ -11,16 +11,11 @@ public class NotWhereFragment: ISqlFragment, IWhereFragmentHolder
 
     public ISqlFragment Inner { get; set; } = null!;
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         builder.Append("NOT(");
         Inner.Apply(builder);
         builder.Append(')');
-    }
-
-    public bool Contains(string sqlText)
-    {
-        return "NOT".Contains(sqlText) || Inner.Contains(sqlText);
     }
 
     void IWhereFragmentHolder.Register(ISqlFragment fragment)

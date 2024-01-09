@@ -13,7 +13,7 @@ public class WhereInArrayFilter: ISqlFragment
         _values = new CommandParameter(values);
     }
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         builder.Append(_locator);
         builder.Append(" = ANY(:");
@@ -22,8 +22,4 @@ public class WhereInArrayFilter: ISqlFragment
         builder.Append(")");
     }
 
-    public bool Contains(string sqlText)
-    {
-        return _locator.Contains(sqlText);
-    }
 }

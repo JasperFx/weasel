@@ -41,18 +41,13 @@ public class ComparisonFilter: IReversibleWhereFragment
 
     public string Op { get; private set; }
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         Left.Apply(builder);
         builder.Append(" ");
         builder.Append(Op);
         builder.Append(" ");
         Right.Apply(builder);
-    }
-
-    public bool Contains(string sqlText)
-    {
-        return false;
     }
 
     public ISqlFragment Reverse()

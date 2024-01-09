@@ -10,15 +10,11 @@ public class WhereInSubQuery: ISqlFragment
         _tableName = tableName;
     }
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         builder.Append("id in (select id from ");
         builder.Append(_tableName);
         builder.Append(")");
     }
 
-    public bool Contains(string sqlText)
-    {
-        return false;
-    }
 }

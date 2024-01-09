@@ -70,9 +70,25 @@ public static class SqlFragmentExtensions
         }
 
         var cmd = new NpgsqlCommand();
-        var builder = new CommandBuilder(cmd);
+        var builder = new BatchBuilder();
         fragment.Apply(builder);
 
-        return builder.ToString().Trim();
+        var command = builder.Compile().BatchCommands[0];
+
+        return command.CommandText.Trim();
+    }
+
+    /// <summary>
+    /// Test whether or not this fragment or any children fragments
+    /// implement the named marker interface T
+    /// </summary>
+    /// <param name="fragment"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    public static bool ContainsAny<T>(this ISqlFragment fragment) where T : ISqlFragment
+    {
+        if (fragment is T) return true;
+        if (fragment is ICompoundFragment compound) return compound.Children.Any(x => x.ContainsAny<T>());
+        return false;
     }
 }

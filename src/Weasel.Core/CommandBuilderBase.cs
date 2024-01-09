@@ -23,7 +23,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     where TParameter : DbParameter
     where TParameterType : struct
 {
-    private readonly TCommand _command;
+    protected readonly TCommand _command;
     private readonly char _parameterPrefix;
 
     private readonly IDatabaseProvider<TCommand, TParameter, TParameterType>

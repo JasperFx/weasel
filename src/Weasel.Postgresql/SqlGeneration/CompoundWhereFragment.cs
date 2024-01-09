@@ -2,7 +2,7 @@ using JasperFx.Core;
 
 namespace Weasel.Postgresql.SqlGeneration;
 
-public class CompoundWhereFragment: ISqlFragment, IWhereFragmentHolder
+public class CompoundWhereFragment: IWhereFragmentHolder, ICompoundFragment
 {
     private readonly IList<ISqlFragment> _children = new List<ISqlFragment>();
 
@@ -16,7 +16,7 @@ public class CompoundWhereFragment: ISqlFragment, IWhereFragmentHolder
 
     public IEnumerable<ISqlFragment> Children => _children;
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         if (!_children.Any())
         {
@@ -34,11 +34,6 @@ public class CompoundWhereFragment: ISqlFragment, IWhereFragmentHolder
         }
 
         builder.Append(")");
-    }
-
-    public bool Contains(string sqlText)
-    {
-        return _children.Any(x => x.Contains(sqlText));
     }
 
     public void Register(ISqlFragment fragment)
