@@ -31,11 +31,12 @@ public class CommandParameterTests
     [Fact]
     public void append_parameter()
     {
-        var command = new NpgsqlCommand();
-        var builder = new CommandBuilder(command);
+        var builder = new BatchBuilder();
 
         var parameter = new CommandParameter(44);
         parameter.AddParameter(builder);
+
+        var command = builder.Compile().BatchCommands[0];
 
         command.Parameters[0].Value.ShouldBe(parameter.Value);
         command.Parameters[0].NpgsqlDbType.ShouldBe(parameter.DbType!.Value);
@@ -44,17 +45,18 @@ public class CommandParameterTests
     [Fact]
     public void apply()
     {
-        var command = new NpgsqlCommand();
-        var builder = new CommandBuilder(command);
+        var builder = new BatchBuilder();
 
         var parameter = new CommandParameter(44);
         parameter.Apply(builder);
+
+        var command = builder.Compile().BatchCommands[0];
 
         var dbParameter = command.Parameters[0];
         dbParameter.Value.ShouldBe(parameter.Value);
         dbParameter.NpgsqlDbType.ShouldBe(parameter.DbType!.Value);
 
-        builder.ToString().ShouldEndWith(":" + dbParameter.ParameterName);
+        command.CommandText.ShouldEndWith("$1");
     }
 
     [Theory]

@@ -41,7 +41,7 @@ public class EnumIsNotOneOfWhereFragment: ISqlFragment
         _locator = locator;
     }
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         builder.Append("NOT(");
         builder.Append(_locator);
@@ -49,10 +49,5 @@ public class EnumIsNotOneOfWhereFragment: ISqlFragment
         builder.AppendParameter(_values, _dbType);
         builder.Append(")");
         builder.Append(")");
-    }
-
-    public bool Contains(string sqlText)
-    {
-        return false;
     }
 }

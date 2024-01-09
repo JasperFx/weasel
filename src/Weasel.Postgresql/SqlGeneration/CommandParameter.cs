@@ -20,7 +20,7 @@ public class CommandParameter: ISqlFragment
 
     public CommandParameter(object? value)
     {
-        Value = value;
+        Value = value ?? DBNull.Value;
         if (value == null) return;
 
         var valueType = value.GetType();
@@ -35,25 +35,20 @@ public class CommandParameter: ISqlFragment
 
     public CommandParameter(object value, NpgsqlDbType npgsqlDbType)
     {
-        Value = value;
+        Value = value ?? DBNull.Value;
         DbType = npgsqlDbType;
     }
 
     public object? Value { get; }
-    public NpgsqlDbType? DbType { get; }
+    public NpgsqlDbType? DbType { get; set; }
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         builder.AppendParameter(Value, DbType);
     }
 
-    public bool Contains(string sqlText)
+    public NpgsqlParameter AddParameter(ICommandBuilder builder)
     {
-        return false;
-    }
-
-    public NpgsqlParameter AddParameter(CommandBuilder builder)
-    {
-        return builder.AddParameter(Value, DbType);
+        return builder.AppendParameter(Value, DbType);
     }
 }

@@ -56,7 +56,7 @@ public class EnumIsOneOfWhereFragment: ISqlFragment
         _locator = locator;
     }
 
-    public void Apply(CommandBuilder builder)
+    public void Apply(ICommandBuilder builder)
     {
         builder.Append("(");
         builder.Append(_locator);
@@ -77,10 +77,5 @@ public class EnumIsOneOfWhereFragment: ISqlFragment
         }
 
         builder.Append(")");
-    }
-
-    public bool Contains(string sqlText)
-    {
-        return false;
     }
 }
