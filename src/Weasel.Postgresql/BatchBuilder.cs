@@ -49,6 +49,21 @@ public class BatchBuilder: ICommandBuilder
         _builder.Append(character);
     }
 
+    public NpgsqlParameter AppendParameter<T>(T value)
+    {
+        _current ??= appendCommand();
+        var param = new NpgsqlParameter<T>() {
+            TypedValue = value,
+        };
+
+        _current.Parameters.Add(param);
+
+        _builder.Append('$');
+        _builder.Append(_current.Parameters.Count);
+
+        return param;
+    }
+
     public NpgsqlParameter AppendParameter(object value)
     {
         _current ??= appendCommand();

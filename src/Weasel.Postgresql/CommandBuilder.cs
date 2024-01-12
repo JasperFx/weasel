@@ -32,6 +32,12 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
     }
 
+    NpgsqlParameter ICommandBuilder.AppendParameter<T>(T value)
+    {
+        AppendParameter(value);
+        return _command.Parameters[^1];
+    }
+
     NpgsqlParameter ICommandBuilder.AppendParameter(object value)
     {
         AppendParameter(value);
