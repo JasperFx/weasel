@@ -9,7 +9,10 @@ public class CompoundWhereFragment: IWhereFragmentHolder, ICompoundFragment
     private CompoundWhereFragment(string separator, params ISqlFragment[] children)
     {
         Separator = separator;
-        _children.AddRange(children);
+        foreach (var child in children)
+        {
+            Add(child);
+        }
     }
 
     public string Separator { get; }
@@ -48,7 +51,7 @@ public class CompoundWhereFragment: IWhereFragmentHolder, ICompoundFragment
 
     public static CompoundWhereFragment And(IEnumerable<ISqlFragment> children)
     {
-        return new CompoundWhereFragment(" and ", children.ToArray());
+        return new CompoundWhereFragment("and", children.ToArray());
     }
 
     public static CompoundWhereFragment Or(params ISqlFragment[] children)
@@ -58,7 +61,17 @@ public class CompoundWhereFragment: IWhereFragmentHolder, ICompoundFragment
 
     public void Add(ISqlFragment child)
     {
-        _children.Add(child);
+        if (child is CompoundWhereFragment c && c.Separator == Separator)
+        {
+            foreach (var innerChild in c.Children)
+            {
+                Add(innerChild);
+            }
+        }
+        else
+        {
+            _children.Add(child);
+        }
     }
 
     public void Remove(ISqlFragment fragment)
