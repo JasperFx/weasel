@@ -706,13 +706,24 @@ public class IndexDefinition: INamed
     public static string CanonicizeDdl(IndexDefinition index, Table parent)
     {
         var canonicizedStr = index.ToDDL(parent);
+        return CanonicizeDdl(canonicizedStr);
+    }
+
+    public static string CanonicizeDdl(string sql)
+    {
+        // This was caused by https://github.com/JasperFx/marten/issues/2983
+        sql = sql.Replace("if not exists", "", StringComparison.OrdinalIgnoreCase);
+        sql = sql.Replace("desc nulls first", "desc", StringComparison.OrdinalIgnoreCase);
+        sql = sql.Replace("asc nulls first", "asc", StringComparison.OrdinalIgnoreCase);
+        sql = sql.Replace("TABLESPACE pg_default", "", StringComparison.OrdinalIgnoreCase);
+
         // replace multiple spaces with single space
-        canonicizedStr = Regex.Replace(canonicizedStr, @"\s+", " ");
+        sql = Regex.Replace(sql, @"\s+", " ");
         // replace open parenthesis followed by one or more spaces to just open parenthesis
-        canonicizedStr = Regex.Replace(canonicizedStr, @"\(\s+", "(");
+        sql = Regex.Replace(sql, @"\(\s+", "(");
         // replace one or more spaces followed by closed parenthesis to closed parenthesis
-        canonicizedStr = Regex.Replace(canonicizedStr, @"\s+\)", ")");
-        return canonicizedStr.Replace("\"\"", "\"")
+        sql = Regex.Replace(sql, @"\s+\)", ")");
+        return sql.Replace("\"\"", "\"")
             .Replace("!=", "<>")
             .Replace("(", "")
             .Replace(")", "")
