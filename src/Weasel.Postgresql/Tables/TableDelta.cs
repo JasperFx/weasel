@@ -114,11 +114,11 @@ public class TableDelta: SchemaObjectDelta<Table>
                 }
 
                 writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName} CASCADE;");
-                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()} CASCADE;");
+                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                 break;
 
             case SchemaPatchDifference.Create:
-                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()} CASCADE;");
+                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                 break;
         }
     }
