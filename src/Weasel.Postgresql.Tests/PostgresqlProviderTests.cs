@@ -108,7 +108,7 @@ public class PostgresqlProviderTests
         charactervaryingAsArray.ShouldBe(new TableColumn("comments", "array"));
 
         var textarrayAsArray = new TableColumn("comments", "text[]");
-        charactervaryingAsArray.ShouldBe(new TableColumn("comments", "array"));
+        textarrayAsArray.ShouldBe(new TableColumn("comments", "array"));
     }
 
     [Theory]
