@@ -13,7 +13,7 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
         Migrator migrator,
         string identifier,
         NpgsqlDataSource dataSource
-    ): base(logger, autoCreate, migrator, identifier, dataSource.CreateConnection)
+    ): base(logger, autoCreate, migrator, identifier, () => dataSource.CreateConnection())
     {
     }
 
