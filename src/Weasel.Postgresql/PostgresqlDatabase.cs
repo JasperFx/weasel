@@ -15,18 +15,10 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
         NpgsqlDataSource dataSource
     ): base(logger, autoCreate, migrator, identifier, () => dataSource.CreateConnection())
     {
+        DataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
     }
 
-    protected PostgresqlDatabase(
-        IMigrationLogger logger,
-        AutoCreate autoCreate,
-        Migrator migrator,
-        string identifier,
-        Func<NpgsqlConnection>? connectionSource
-    ): base(logger, autoCreate, migrator, identifier, connectionSource)
-    {
-
-    }
+    public NpgsqlDataSource DataSource { get; }
 
     public async Task<Function?> DefinitionForFunction(DbObjectName function, CancellationToken ct = default)
     {
