@@ -407,6 +407,7 @@ public static class CommandBuilderExtensions
         cmd.Connection = connection;
         cmd.Transaction = tx;
 
+        // Got to remember to make this disposed by caller
         return cmd.ExecuteReaderAsync(ct);
     }
 
