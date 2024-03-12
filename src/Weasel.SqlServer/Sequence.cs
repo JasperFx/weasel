@@ -79,6 +79,8 @@ public class Sequence: ISchemaObject
 
         await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
 
-        return await CreateDeltaAsync(reader, ct).ConfigureAwait(false);
+        var result = await CreateDeltaAsync(reader, ct).ConfigureAwait(false);
+        await reader.CloseAsync().ConfigureAwait(false);
+        return result;
     }
 }

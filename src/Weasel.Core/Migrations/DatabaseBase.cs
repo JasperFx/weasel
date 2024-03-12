@@ -88,6 +88,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         var migration = await SchemaMigration.DetermineAsync(conn, ct, group.Objects).ConfigureAwait(false);
 
+        await conn.CloseAsync().ConfigureAwait(false);
+
         return migration;
     }
 
@@ -172,7 +174,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        return await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
+        var result = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
+        await conn.CloseAsync().ConfigureAwait(false);
+        return result;
     }
 
     public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(

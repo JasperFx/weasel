@@ -89,6 +89,8 @@ public class SchemaMigration
             deltas.Add(await schemaObjects[i].CreateDeltaAsync(reader, ct).ConfigureAwait(false));
         }
 
+        await reader.CloseAsync().ConfigureAwait(false);
+
         return new SchemaMigration(deltas);
     }
 
