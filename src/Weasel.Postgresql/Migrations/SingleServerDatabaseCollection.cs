@@ -12,21 +12,15 @@ namespace Weasel.Postgresql.Migrations;
 /// <typeparam name="T"></typeparam>
 public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlDatabase
 {
-    private readonly INpgsqlDataSourceFactory dataSourceFactory;
-    private readonly NpgsqlDataSource masterDataSource;
+    private readonly INpgsqlDataSourceFactory _dataSourceFactory;
+    private readonly string _masterConnectionString;
     private readonly TimedLock _lock = new();
-    private ImHashMap<string, T> databases = ImHashMap<string, T>.Empty;
-
-    protected SingleServerDatabaseCollection(INpgsqlDataSourceFactory dataSourceFactory,
-        NpgsqlDataSource masterDataSource)
-    {
-        this.dataSourceFactory = dataSourceFactory;
-        this.masterDataSource = masterDataSource;
-    }
+    private ImHashMap<string, T> _databases = ImHashMap<string, T>.Empty;
 
     protected SingleServerDatabaseCollection(INpgsqlDataSourceFactory dataSourceFactory, string masterConnectionString)
-        : this(dataSourceFactory, dataSourceFactory.Create(masterConnectionString))
     {
+        _dataSourceFactory = dataSourceFactory;
+        _masterConnectionString = masterConnectionString;
     }
 
     static
@@ -39,26 +33,26 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
 
     public IReadOnlyList<T> AllDatabases()
     {
-        return databases.Enumerate().Select(x => x.Value).ToList();
+        return _databases.Enumerate().Select(x => x.Value).ToList();
     }
 
     protected abstract T buildDatabase(string databaseName, NpgsqlDataSource dataSource);
 
     public virtual async ValueTask<T> FindOrCreateDatabase(string databaseName, CancellationToken ct = default)
     {
-        if (databases.TryFind(databaseName, out var database))
+        if (_databases.TryFind(databaseName, out var database))
         {
             return database;
         }
 
         using (await _lock.Lock(5.Seconds(), ct).ConfigureAwait(false))
         {
-            if (databases.TryFind(databaseName, out database))
+            if (_databases.TryFind(databaseName, out database))
             {
                 return database;
             }
 
-            await using var conn = masterDataSource.CreateConnection();
+            await using var conn = new NpgsqlConnection(_masterConnectionString);
             await conn.OpenAsync(ct).ConfigureAwait(false);
 
             if (DropAndRecreate)
@@ -73,10 +67,10 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
 
             database = buildDatabase(
                 databaseName,
-                dataSourceFactory.Create(masterDataSource.ConnectionString, databaseName)
+                _dataSourceFactory.Create(_masterConnectionString, databaseName)
             );
 
-            databases = databases.AddOrUpdate(databaseName, database);
+            _databases = _databases.AddOrUpdate(databaseName, database);
 
             return database;
         }

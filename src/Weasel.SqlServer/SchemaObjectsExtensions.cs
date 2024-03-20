@@ -181,7 +181,9 @@ IF NOT EXISTS ( SELECT  *
             .With("schema", functionIdentifier.Schema)
             .ExecuteReaderAsync(ct).ConfigureAwait(false);
 
-        return await reader.ReadAsync(ct).ConfigureAwait(false);
+        var result = await reader.ReadAsync(ct).ConfigureAwait(false);
+        await reader.CloseAsync().ConfigureAwait(false);
+        return result;
     }
 
     public static async Task<IReadOnlyList<DbObjectName>> ExistingTables(

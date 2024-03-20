@@ -113,7 +113,7 @@ public class TableDelta: SchemaObjectDelta<Table>
                     break;
                 }
 
-                writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName};");
+                writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName} CASCADE;");
                 writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                 break;
 
