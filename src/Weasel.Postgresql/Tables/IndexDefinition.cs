@@ -716,6 +716,7 @@ public class IndexDefinition: INamed
         sql = sql.Replace("desc nulls first", "desc", StringComparison.OrdinalIgnoreCase);
         sql = sql.Replace("asc nulls first", "asc", StringComparison.OrdinalIgnoreCase);
         sql = sql.Replace("TABLESPACE pg_default", "", StringComparison.OrdinalIgnoreCase);
+        sql = sql.Replace("public.", "", StringComparison.OrdinalIgnoreCase);
         sql = sql.Replace("public.", "");
 
         // replace multiple spaces with single space
