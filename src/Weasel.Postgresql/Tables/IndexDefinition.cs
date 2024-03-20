@@ -706,10 +706,10 @@ public class IndexDefinition: INamed
     public static string CanonicizeDdl(IndexDefinition index, Table parent)
     {
         var canonicizedStr = index.ToDDL(parent);
-        return CanonicizeDdl(canonicizedStr);
+        return CanonicizeDdl(canonicizedStr, parent.Identifier.Schema);
     }
 
-    public static string CanonicizeDdl(string sql)
+    public static string CanonicizeDdl(string sql, string schema)
     {
         // This was caused by https://github.com/JasperFx/marten/issues/2983
         sql = sql.Replace("if not exists", "", StringComparison.OrdinalIgnoreCase);
@@ -717,6 +717,7 @@ public class IndexDefinition: INamed
         sql = sql.Replace("asc nulls first", "asc", StringComparison.OrdinalIgnoreCase);
         sql = sql.Replace("TABLESPACE pg_default", "", StringComparison.OrdinalIgnoreCase);
         sql = sql.Replace("public.", "");
+        sql = sql.Replace($"{schema}.", "");
 
         // replace multiple spaces with single space
         sql = Regex.Replace(sql, @"\s+", " ");
