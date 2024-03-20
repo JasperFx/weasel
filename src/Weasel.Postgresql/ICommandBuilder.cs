@@ -18,6 +18,7 @@ public interface ICommandBuilder
 
     void Append(string sql);
     void Append(char character);
+    NpgsqlParameter AppendParameter<T>(T value);
     NpgsqlParameter AppendParameter(object value);
     NpgsqlParameter AppendParameter(object? value, NpgsqlDbType? dbType);
     void AppendParameters(params object[] parameters);
