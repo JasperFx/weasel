@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -575,5 +576,18 @@ public class IndexDefinitionTests
         index = IndexDefinition.Parse("CREATE UNIQUE INDEX index ON public.table USING btree (column1, column2) NULLS DISTINCT;");
         index.IsUnique.ShouldBeTrue();
         index.NullsNotDistinct.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Marten_bug_3068()
+    {
+        var table = new Table("app.mt_doc_user");
+        var index1 =
+            IndexDefinition.Parse(
+                "CREATE INDEX mt_doc_user_idx_fts ON app.mt_doc_user USING gin (app.mt_grams_vector(data ->> 'FirstName'))");
+        var index2 =
+            IndexDefinition.Parse(
+                "CREATE INDEX mt_doc_user_idx_fts ON app.mt_doc_user USING gin (mt_grams_vector(data ->> 'FirstName'))");
+        IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
     }
 }
