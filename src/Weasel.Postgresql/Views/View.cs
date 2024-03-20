@@ -108,6 +108,7 @@ public class View: ISchemaObject
 
         await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
         var any = await reader.ReadAsync(ct).ConfigureAwait(false);
+        await reader.CloseAsync().ConfigureAwait(false);
         return any;
     }
 }

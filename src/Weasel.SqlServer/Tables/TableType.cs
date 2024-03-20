@@ -92,7 +92,9 @@ order by
         ConfigureQueryCommand(builder);
 
         await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
-        return await readExistingAsync(reader, ct).ConfigureAwait(false);
+        var result = await readExistingAsync(reader, ct).ConfigureAwait(false);
+        await reader.CloseAsync().ConfigureAwait(false);
+        return result;
     }
 
     public async Task<TableTypeDelta> FindDeltaAsync(SqlConnection conn, CancellationToken ct = default)

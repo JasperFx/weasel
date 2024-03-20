@@ -136,6 +136,8 @@ public static class CommandExtensions
             list.Add(await transform(reader).ConfigureAwait(false));
         }
 
+        await reader.CloseAsync().ConfigureAwait(false);
+
         return list;
     }
 
@@ -180,6 +182,9 @@ public static class CommandExtensions
             }
 
             var result = await reader.GetFieldValueAsync<T>(0, cancellation).ConfigureAwait(false);
+
+            await reader.CloseAsync().ConfigureAwait(false);
+
             return result;
         }
 

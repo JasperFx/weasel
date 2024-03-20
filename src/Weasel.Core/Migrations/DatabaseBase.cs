@@ -4,41 +4,6 @@ using JasperFx.Core;
 
 namespace Weasel.Core.Migrations;
 
-public record AttainLockResult(bool Succeeded, AttainLockResult.FailureReason Reason)
-{
-    public bool ShouldReconnect => Reason == FailureReason.DatabaseNotAvailable;
-
-    public static readonly AttainLockResult Success = new(true, FailureReason.None);
-
-    public static AttainLockResult Failure(FailureReason reason = FailureReason.Failure) => new(false, reason);
-
-    public enum FailureReason
-    {
-        None,
-        Failure,
-        DatabaseNotAvailable
-    }
-}
-
-public interface IGlobalLock<in TConnection> where TConnection : DbConnection
-{
-    Task<AttainLockResult> TryAttainLock(TConnection conn, CancellationToken ct = default);
-    Task ReleaseLock(TConnection conn, CancellationToken ct = default);
-}
-
-internal class NulloGlobalList<TConnection>: IGlobalLock<TConnection> where TConnection : DbConnection
-{
-    public Task<AttainLockResult> TryAttainLock(TConnection conn, CancellationToken ct = default)
-    {
-        return Task.FromResult(AttainLockResult.Success);
-    }
-
-    public Task ReleaseLock(TConnection conn, CancellationToken ct = default)
-    {
-        return Task.CompletedTask;
-    }
-}
-
 public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TConnection : DbConnection, new()
 {
     private readonly ConcurrentDictionary<Type, bool> _checks = new();
@@ -122,6 +87,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
         var migration = await SchemaMigration.DetermineAsync(conn, ct, group.Objects).ConfigureAwait(false);
+
+        await conn.CloseAsync().ConfigureAwait(false);
 
         return migration;
     }
@@ -207,7 +174,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
 
-        return await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
+        var result = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
+        await conn.CloseAsync().ConfigureAwait(false);
+        return result;
     }
 
     public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
@@ -451,17 +420,4 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             _checks[feature.StorageType] = true;
         }
     }
-}
-
-/// <summary>
-/// Reconnection policy options when the database is unavailable while applying database changes.
-/// </summary>
-/// <param name="MaxReconnectionCount">The maximum number of reconnections if the database is unavailable while applying database changes. Default is 3.</param>
-/// <param name="DelayInMs">The base delay between reconnections to perform if the database is unavailable while applying database changes. Note it'll be performed with exponential backoff. Default is 50ms.</param>
-public record ReconnectionOptions(
-    int MaxReconnectionCount = 3,
-    int DelayInMs = 50
-)
-{
-    public static ReconnectionOptions Default { get; } = new();
 }
