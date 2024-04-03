@@ -43,4 +43,19 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
 
         return await conn.ExistingTablesAsync(schemas: schemaNames, ct: ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Creates a connection from the underlying <see cref="NpgsqlDataSource"/>
+    /// </summary>
+    /// <param name="targetSessionAttributes">Sets the target session attributes. Only relevant when <see cref="NpgsqlMultiHostDataSource"/> is being used.</param>
+    /// <returns></returns>
+    public NpgsqlConnection CreateConnection(TargetSessionAttributes targetSessionAttributes = TargetSessionAttributes.Primary)
+    {
+        if (DataSource is NpgsqlMultiHostDataSource multiHostDataSource)
+        {
+            return multiHostDataSource.CreateConnection(targetSessionAttributes);
+        }
+
+        return base.CreateConnection();
+    }
 }
