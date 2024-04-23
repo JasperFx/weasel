@@ -54,11 +54,6 @@ public partial class Table: ISchemaObject
     {
         get
         {
-            if (!_primaryKeyColumns.Any())
-            {
-                _primaryKeyColumns.AddRange(_columns.Where(x => x.IsPrimaryKey).Select(x => x.Name));
-            }
-
             return _primaryKeyColumns;
         }
     }
@@ -383,6 +378,7 @@ public partial class Table: ISchemaObject
         {
             Column.IsPrimaryKey = true;
             Column.AllowNulls = false;
+            _parent._primaryKeyColumns.Fill(Column.Name);
             return this;
         }
 
@@ -501,6 +497,7 @@ public partial class Table: ISchemaObject
             _parent.PartitionExpressions.Add(Column.Name);
 
             Column.IsPrimaryKey = true;
+            _parent._primaryKeyColumns.Fill(Column.Name);
 
             return this;
         }
