@@ -219,13 +219,17 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             return GetDatabaseType(memberType.GetInnerTypeFromNullable(), enumStyle);
         }
 
-        if (memberType.IsConstructedGenericType)
+        if (ResolveDatabaseType(memberType) is { } result)
         {
-            var templateType = memberType.GetGenericTypeDefinition();
-            return ResolveDatabaseType(templateType) ?? "jsonb";
+            return result;
         }
 
-        return ResolveDatabaseType(memberType) ?? "jsonb";
+        if (memberType.IsConstructedGenericType)
+        {
+            return GetDatabaseType(memberType.GetGenericTypeDefinition(), enumStyle);
+        }
+
+        return "jsonb";
     }
 
     public override void AddParameter(NpgsqlCommand command, NpgsqlParameter parameter)
