@@ -48,7 +48,26 @@ public partial class Table: ISchemaObject
     /// </summary>
     public int MaxIdentifierLength { get; set; } = 63;
 
-    public IReadOnlyList<string> PrimaryKeyColumns => _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
+    private readonly List<string> _primaryKeyColumns = new();
+
+    public IReadOnlyList<string> PrimaryKeyColumns
+    {
+        get
+        {
+            if (!_primaryKeyColumns.Any())
+            {
+                _primaryKeyColumns.AddRange(_columns.Where(x => x.IsPrimaryKey).Select(x => x.Name));
+            }
+
+            return _primaryKeyColumns;
+        }
+    }
+
+    internal void ReadPrimaryKeyColumns(List<string> pks)
+    {
+        _primaryKeyColumns.Clear();
+        _primaryKeyColumns.AddRange(pks);
+    }
 
     public IList<string> PartitionExpressions { get; } = new List<string>();
 
