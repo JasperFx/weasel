@@ -213,13 +213,17 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
             return GetDatabaseType(memberType.GetInnerTypeFromNullable(), enumStyle);
         }
 
-        if (memberType.IsConstructedGenericType)
+        if (ResolveDatabaseType(memberType) is { } result)
         {
-            var templateType = memberType.GetGenericTypeDefinition();
-            return ResolveDatabaseType(templateType) ?? "json";
+            return result;
         }
 
-        return ResolveDatabaseType(memberType) ?? "json";
+        if (memberType.IsConstructedGenericType)
+        {
+            return GetDatabaseType(memberType.GetGenericTypeDefinition(), enumStyle);
+        }
+
+        return "json";
     }
 
     // Lazily retrieve the CLR type to SqlDbType and PgTypeName mapping from exposed ISqlTypeMapper.Mappings.
