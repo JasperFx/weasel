@@ -275,6 +275,7 @@ public partial class Table: ISchemaObject
     public void RemoveColumn(string columnName)
     {
         _columns.RemoveAll(x => x.Name.EqualsIgnoreCase(columnName));
+        _primaryKeyColumns.Remove(columnName);
     }
 
     public ColumnExpression ModifyColumn(string columnName)
