@@ -142,10 +142,8 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         var npgsqlDbType = ResolveNpgsqlDbType(type);
         if (npgsqlDbType != null)
         {
-            {
-                dbType = npgsqlDbType.Value;
-                return true;
-            }
+            dbType = npgsqlDbType.Value;
+            return true;
         }
 
         if (type.IsNullable())
@@ -168,10 +166,8 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
                 return true;
             }
 
-            {
-                dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType()!);
-                return true;
-            }
+            dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType()!);
+            return true;
         }
 
         var typeInfo = type.GetTypeInfo();
@@ -195,6 +191,12 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         if (type == typeof(DBNull))
         {
             dbType = NpgsqlDbType.Unknown;
+            return true;
+        }
+
+        if (typeInfo.IsConstructedGenericType)
+        {
+            dbType = ToParameterType(type.GetGenericTypeDefinition());
             return true;
         }
 
