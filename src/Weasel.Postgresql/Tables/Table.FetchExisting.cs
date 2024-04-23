@@ -18,14 +18,14 @@ select column_name, data_type, character_maximum_length, udt_name
 from information_schema.columns where table_schema = :{schemaParam} and table_name = :{nameParam}
 order by ordinal_position;
 
-select a.attname, format_type(a.atttypid, a.atttypmod) as data_type
-from pg_index i
-join   pg_attribute a on a.attrelid = i.indrelid and a.attnum = ANY(i.indkey)
-where attrelid = (select pg_class.oid
-                  from pg_class
-                  join pg_catalog.pg_namespace n ON n.oid = pg_class.relnamespace
-                  where n.nspname = :{schemaParam} and relname = :{nameParam})
-and i.indisprimary;
+select kcu.column_name as key_column
+from information_schema.table_constraints tco
+         join information_schema.key_column_usage kcu
+              on kcu.constraint_name = tco.constraint_name
+                  and kcu.constraint_schema = tco.constraint_schema
+                  and kcu.constraint_name = tco.constraint_name
+where tco.constraint_type = 'PRIMARY KEY' and kcu.table_schema = :{schemaParam} and kcu.table_name = :{nameParam}
+order by kcu.ordinal_position;
 
 SELECT *
 FROM (
@@ -134,6 +134,8 @@ order by column_index;
         await readColumnsAsync(reader, existing, ct).ConfigureAwait(false);
 
         var pks = await readPrimaryKeysAsync(reader, ct).ConfigureAwait(false);
+        existing.ReadPrimaryKeyColumns(pks);
+
         await readIndexesAsync(reader, existing, ct).ConfigureAwait(false);
         await readConstraintsAsync(reader, existing, ct).ConfigureAwait(false);
 
