@@ -151,13 +151,17 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
             return GetDatabaseType(memberType.GetInnerTypeFromNullable(), enumStyle);
         }
 
-        if (memberType.IsConstructedGenericType)
+        if (ResolveDatabaseType(memberType) is { } result)
         {
-            var templateType = memberType.GetGenericTypeDefinition();
-            return ResolveDatabaseType(templateType) ?? "nvarchar(max)";
+            return result;
         }
 
-        return ResolveDatabaseType(memberType) ?? "nvarchar(max)";
+        if (memberType.IsConstructedGenericType)
+        {
+            return GetDatabaseType(memberType.GetGenericTypeDefinition(), enumStyle);
+        }
+
+        return "nvarchar(max)";
     }
 
     public override void AddParameter(SqlCommand command, SqlParameter parameter)
