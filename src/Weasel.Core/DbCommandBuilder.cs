@@ -141,10 +141,8 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
         var resolveSqlDbType = ResolveSqlDbType(type);
         if (resolveSqlDbType != null)
         {
-            {
-                dbType = resolveSqlDbType.Value;
-                return true;
-            }
+            dbType = resolveSqlDbType.Value;
+            return true;
         }
 
         if (type.IsNullable())
@@ -167,6 +165,12 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
         if (type == typeof(DBNull))
         {
             dbType = DbType.Object;
+            return true;
+        }
+
+        if (type.IsConstructedGenericType)
+        {
+            dbType = ToParameterType(type.GetGenericTypeDefinition());
             return true;
         }
 

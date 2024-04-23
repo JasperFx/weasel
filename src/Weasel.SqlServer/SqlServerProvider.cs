@@ -101,10 +101,8 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
         var SqlDbType = ResolveSqlDbType(type);
         if (SqlDbType != null)
         {
-            {
-                dbType = SqlDbType.Value;
-                return true;
-            }
+            dbType = SqlDbType.Value;
+            return true;
         }
 
         if (type.IsNullable())
@@ -127,6 +125,12 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
         if (type == typeof(DBNull))
         {
             dbType = System.Data.SqlDbType.Variant;
+            return true;
+        }
+
+        if (type.IsConstructedGenericType)
+        {
+            dbType = ToParameterType(type.GetGenericTypeDefinition());
             return true;
         }
 
