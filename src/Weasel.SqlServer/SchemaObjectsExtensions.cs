@@ -256,4 +256,60 @@ IF NOT EXISTS ( SELECT  *
 
         return writer.ToString();
     }
+
+        /// <summary>
+    /// Perform any necessary migrations against a database for a supplied number of schema objects
+    /// </summary>
+    /// <param name="conn">A connection to the database you want to migrate. This method will open the connection if it is not already</param>
+    /// <param name="schemaObject">A single schema object to be migrated</param>
+    /// <param name="cancellationToken"></param>
+    /// <param name="autoCreate">Optionally override the AutoCreate settings, the default is CreateOrUpdate</param>
+    /// <returns>True if there was a migration made, false if no changes were detected</returns>
+    public static async Task<bool> MigrateAsync(this ISchemaObject schemaObject, SqlConnection conn, CancellationToken? cancellationToken = default, AutoCreate autoCreate = AutoCreate.CreateOrUpdate)
+    {
+        cancellationToken ??= CancellationToken.None;
+
+        if (conn.State != ConnectionState.Open)
+        {
+            await conn.OpenAsync(cancellationToken.Value).ConfigureAwait(false);
+        }
+
+        var migration = await SchemaMigration.DetermineAsync(conn, cancellationToken.Value, schemaObject).ConfigureAwait(false);
+        if (migration.Difference == SchemaPatchDifference.None) return false;
+
+        migration.AssertPatchingIsValid(autoCreate);
+
+        var migrator = new SqlServerMigrator();
+        await migrator.ApplyAllAsync(conn, migration, autoCreate, ct: cancellationToken.Value).ConfigureAwait(false);
+
+        return true;
+    }
+
+    /// <summary>
+    /// Perform any necessary migrations against a database for a supplied number of schema objects
+    /// </summary>
+    /// <param name="conn">A connection to the database you want to migrate. This method will open the connection if it is not already</param>
+    /// <param name="schemaObjects">A collection of schema objects to migrate</param>
+    /// <param name="cancellationToken"></param>
+    /// <param name="autoCreate">Optionally override the AutoCreate settings, the default is CreateOrUpdate</param>
+    /// <returns></returns>
+    public static async Task<bool> MigrateAsync(this ISchemaObject[] schemaObjects,SqlConnection conn, CancellationToken? cancellationToken = default, AutoCreate autoCreate = AutoCreate.CreateOrUpdate)
+    {
+        cancellationToken ??= CancellationToken.None;
+
+        if (conn.State != ConnectionState.Open)
+        {
+            await conn.OpenAsync(cancellationToken.Value).ConfigureAwait(false);
+        }
+
+        var migration = await SchemaMigration.DetermineAsync(conn, cancellationToken.Value, schemaObjects).ConfigureAwait(false);
+        if (migration.Difference == SchemaPatchDifference.None) return false;
+
+        migration.AssertPatchingIsValid(autoCreate);
+
+        var migrator = new SqlServerMigrator();
+        await migrator.ApplyAllAsync(conn, migration, autoCreate, ct: cancellationToken.Value).ConfigureAwait(false);
+
+        return true;
+    }
 }

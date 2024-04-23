@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.SqlServer.Tables;
 using Xunit;
 
@@ -8,6 +9,40 @@ public class creating_tables_in_database: IntegrationContext
 {
     public creating_tables_in_database(): base("tables")
     {
+    }
+
+    [Fact]
+    public async Task migrate_async()
+    {
+        await theConnection.OpenAsync();
+
+        await theConnection.ResetSchemaAsync("tables");
+
+        var table = new Table("tables.people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+
+        await table.MigrateAsync(theConnection);
+    }
+
+    [Fact]
+    public async Task migrate_async_with_multiples()
+    {
+        await theConnection.OpenAsync();
+
+        await theConnection.ResetSchemaAsync("tables");
+
+        var table = new Table("tables.people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+
+        var sequence = new Sequence(new DbObjectName("dbo", "counter"));
+
+        var objects = new ISchemaObject[] { table, sequence };
+
+        await objects.MigrateAsync(theConnection);
     }
 
     [Fact]
