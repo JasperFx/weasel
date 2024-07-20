@@ -1,6 +1,7 @@
 using System.Text;
 using Npgsql;
 using NpgsqlTypes;
+using Weasel.Core;
 
 namespace Weasel.Postgresql;
 
@@ -108,6 +109,7 @@ public class BatchBuilder: ICommandBuilder
         return AppendWithParameters(text, '?');
     }
 
+#if NET6_0 || NET7_0
     public NpgsqlParameter[] AppendWithParameters(string text, char placeholder)
     {
         var split = text.Split(placeholder);
@@ -124,7 +126,35 @@ public class BatchBuilder: ICommandBuilder
 
         return parameters;
     }
+#else
+    public NpgsqlParameter[] AppendWithParameters(string text, char separator)
+    {
+        var span = text.AsSpan();
 
+        var parameters = new NpgsqlParameter[span.Count(separator)];
+
+        var enumerator = span.Split(separator);
+
+        var pos = 0;
+        foreach (var range in enumerator)
+        {
+            if (range.Start.Value == 0)
+            {
+                // append the first part of the SQL string
+                _builder.Append(span[range]);
+                continue;
+            }
+
+            // Just need a placeholder parameter type and value
+            var parameter = AppendParameter(DBNull.Value, NpgsqlDbType.Text);
+            parameters[pos] = parameter;
+            _builder.Append(span[range]);
+            pos++;
+        }
+
+        return parameters;
+    }
+#endif
     public void StartNewCommand()
     {
         if (_current != null)
