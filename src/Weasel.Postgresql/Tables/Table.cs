@@ -6,22 +6,6 @@ using Weasel.Postgresql.Tables.Indexes;
 
 namespace Weasel.Postgresql.Tables;
 
-public enum PartitionStrategy
-{
-    /// <summary>
-    ///     No partitioning
-    /// </summary>
-    None,
-
-    /// <summary>
-    ///     Postgresql PARTITION BY RANGE semantics
-    /// </summary>
-    Range
-
-
-    //List
-}
-
 public partial class Table: ISchemaObject
 {
     private readonly List<TableColumn> _columns = new();
@@ -63,13 +47,6 @@ public partial class Table: ISchemaObject
         _primaryKeyColumns.Clear();
         _primaryKeyColumns.AddRange(pks);
     }
-
-    public IList<string> PartitionExpressions { get; } = new List<string>();
-
-    /// <summary>
-    ///     PARTITION strategy for this table
-    /// </summary>
-    public PartitionStrategy PartitionStrategy { get; set; } = PartitionStrategy.None;
 
     public string PrimaryKeyName
     {
@@ -137,6 +114,14 @@ public partial class Table: ISchemaObject
 
             case PartitionStrategy.Range:
                 writer.WriteLine($") PARTITION BY RANGE ({PartitionExpressions.Join(", ")});");
+                break;
+
+            case PartitionStrategy.List:
+                writer.WriteLine($") PARTITION BY LIST ({PartitionExpressions.Join(", ")});");
+                break;
+
+            case PartitionStrategy.Hash:
+                writer.WriteLine($") PARTITION BY HASH ({PartitionExpressions.Join(", ")});");
                 break;
         }
 
@@ -304,19 +289,6 @@ public partial class Table: ISchemaObject
     public bool HasIgnoredIndex(string indexName)
     {
         return IgnoredIndexes.Contains(indexName);
-    }
-
-    public void PartitionByRange(params string[] columnOrExpressions)
-    {
-        PartitionStrategy = PartitionStrategy.Range;
-        PartitionExpressions.Clear();
-        PartitionExpressions.AddRange(columnOrExpressions);
-    }
-
-    public void ClearPartitions()
-    {
-        PartitionStrategy = PartitionStrategy.None;
-        PartitionExpressions.Clear();
     }
 
     public class ColumnExpression
