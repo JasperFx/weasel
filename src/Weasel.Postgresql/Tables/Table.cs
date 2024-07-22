@@ -125,21 +125,28 @@ public partial class Table: ISchemaObject
                 break;
         }
 
-
-        // TODO -- support OriginWriter
-        //writer.WriteLine(OriginWriter.OriginStatement("TABLE", Identifier.QualifiedName));
-
         foreach (var foreignKey in ForeignKeys)
         {
             writer.WriteLine();
             writer.WriteLine(foreignKey.ToDDL(this));
         }
 
-
         foreach (var index in Indexes)
         {
             writer.WriteLine();
             writer.WriteLine(index.ToDDL(this));
+        }
+
+        foreach (var partition in _partitions)
+        {
+            writer.WriteLine();
+            partition.WriteCreateStatement(writer, this);
+        }
+
+        if (PartitionStrategy == PartitionStrategy.List || PartitionStrategy == PartitionStrategy.Range)
+        {
+            writer.WriteLine();
+            new DefaultPartition().WriteCreateStatement(writer, this);
         }
     }
 

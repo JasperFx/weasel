@@ -33,11 +33,12 @@ public partial class Table
         PartitionExpressions.AddRange(columnOrExpressions);
     }
 
-    public void PartitionByHash(params string[] columnOrExpressions)
+    public void PartitionByHash(HashPartitioning partitioning)
     {
         PartitionStrategy = PartitionStrategy.Hash;
         PartitionExpressions.Clear();
-        PartitionExpressions.AddRange(columnOrExpressions);
+        PartitionExpressions.AddRange(partitioning.Columns);
+        _partitions.AddRange(partitioning.BuildPartitions());
     }
 
     public void ClearPartitions()
@@ -55,4 +56,19 @@ public partial class Table
     public PartitionStrategy PartitionStrategy { get; private set; } = PartitionStrategy.None;
 
 
+    public void AddListPartition<T>(string suffix, params T[] values)
+    {
+        var partition = new ListPartition<T>(suffix, values);
+        _partitions.Add(partition);
+    }
+
+    private readonly List<IPartition> _partitions = new();
+
+    public IReadOnlyList<IPartition> Partitions => _partitions;
+
+    public void AddRangePartition<T>(string suffix, T from, T to)
+    {
+        var partition = new RangePartition<T>(suffix, from, to);
+        _partitions.Add(partition);
+    }
 }
