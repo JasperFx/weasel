@@ -65,6 +65,23 @@ public class BatchBuilder: ICommandBuilder
         return param;
     }
 
+    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType)
+    {
+        _current ??= appendCommand();
+        var param = new NpgsqlParameter<T>() {
+            TypedValue = value,
+            NpgsqlDbType = dbType
+        };
+
+        _current.Parameters.Add(param);
+
+        _builder.Append('$');
+        _builder.Append(_current.Parameters.Count);
+
+        return param;
+    }
+
+
     public NpgsqlParameter AppendParameter(object value)
     {
         _current ??= appendCommand();
@@ -97,6 +114,11 @@ public class BatchBuilder: ICommandBuilder
         }
     }
 
+    public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
+    {
+        return new GroupedParameterBuilder(this, seperator);
+    }
+
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
     ///     array of the newly created parameters
@@ -119,7 +141,7 @@ public class BatchBuilder: ICommandBuilder
         for (var i = 0; i < parameters.Length; i++)
         {
             // Just need a placeholder parameter type and value
-            var parameter = AppendParameter(DBNull.Value, NpgsqlDbType.Text);
+            var parameter = AppendParameter<object>(DBNull.Value, NpgsqlDbType.Text);
             parameters[i] = parameter;
             _builder.Append(split[i + 1]);
         }
@@ -146,7 +168,7 @@ public class BatchBuilder: ICommandBuilder
             }
 
             // Just need a placeholder parameter type and value
-            var parameter = AppendParameter(DBNull.Value, NpgsqlDbType.Text);
+            var parameter = AppendParameter<object>(DBNull.Value, NpgsqlDbType.Text);
             parameters[pos] = parameter;
             _builder.Append(span[range]);
             pos++;
