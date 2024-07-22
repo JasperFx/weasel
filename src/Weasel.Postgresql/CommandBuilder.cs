@@ -29,24 +29,30 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
     /// <param name="dbType"></param>
     public void AppendParameter(string[] values)
     {
-        AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
+        base.AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
     }
 
     NpgsqlParameter ICommandBuilder.AppendParameter<T>(T value)
     {
-        AppendParameter(value);
+        base.AppendParameter(value);
+        return _command.Parameters[^1];
+    }
+
+    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType)
+    {
+        base.AppendParameter(value, dbType);
         return _command.Parameters[^1];
     }
 
     NpgsqlParameter ICommandBuilder.AppendParameter(object value)
     {
-        AppendParameter(value);
+        base.AppendParameter(value);
         return _command.Parameters[^1];
     }
 
     NpgsqlParameter ICommandBuilder.AppendParameter(object? value, NpgsqlDbType? dbType)
     {
-        AppendParameter(value, dbType);
+        base.AppendParameter(value, dbType);
         return _command.Parameters[^1];
     }
 
@@ -63,6 +69,11 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
             Append(", ");
             AppendParameter(parameters[i]);
         }
+    }
+
+    public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
+    {
+        return new GroupedParameterBuilder(this, seperator);
     }
 
     public void StartNewCommand()

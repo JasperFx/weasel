@@ -18,10 +18,14 @@ public interface ICommandBuilder
 
     void Append(string sql);
     void Append(char character);
+
     NpgsqlParameter AppendParameter<T>(T value);
+    NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType);
     NpgsqlParameter AppendParameter(object value);
     NpgsqlParameter AppendParameter(object? value, NpgsqlDbType? dbType);
     void AppendParameters(params object[] parameters);
+
+    IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null);
 
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
