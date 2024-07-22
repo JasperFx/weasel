@@ -1,5 +1,30 @@
 namespace Weasel.Postgresql.Tables;
 
+
+public enum PartitionStrategy
+{
+    /// <summary>
+    ///     No partitioning
+    /// </summary>
+    None,
+
+    /// <summary>
+    ///     Postgresql PARTITION BY RANGE semantics
+    /// </summary>
+    Range,
+
+    /// <summary>
+    /// PARTITION BY LIST semantics
+    /// </summary>
+    List,
+
+    /// <summary>
+    /// PARTITION BY HASH semantics
+    /// </summary>
+    Hash
+}
+
+
 public interface IPartition
 {
     PartitionStrategy Strategy { get; }
