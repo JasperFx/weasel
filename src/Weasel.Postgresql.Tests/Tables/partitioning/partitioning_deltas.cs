@@ -112,6 +112,19 @@ public class partitioning_deltas
     }
 
     [Fact]
+    public void honor_table_saying_to_ignore_partitions()
+    {
+        var range2 = new RangePartitioning { Columns = ["roles"] }
+            .AddRange("one", "a", "b")
+            .AddRange("two", "c", "d")
+            .AddRange("three", "e", "f");
+
+        var table = new Table(new DbObjectName("partitions", "people")){IgnorePartitionsInMigration = true};
+
+        range2.CreateDelta(table, range1, out var missing).ShouldBe(PartitionDelta.None);
+    }
+
+    [Fact]
     public void range_is_additive_with_all_new_partitions()
     {
         var range2 = new RangePartitioning { Columns = ["roles"] }
@@ -165,6 +178,22 @@ public class partitioning_deltas
 
         list2.CreateDelta(table, list1, out var missing).ShouldBe(PartitionDelta.Additive);
         missing.Single().ShouldBe(new ListPartition("three", "'three'"));
+    }
+
+    [Fact]
+    public void list_honors_ignore_partitions_on_table()
+    {
+        var list2 = new ListPartitioning { Columns = ["roles"] }
+            .AddPartition("one", "one")
+            .AddPartition("two", "two")
+            .AddPartition("three", "three");
+
+        var table = new Table(new DbObjectName("partitions", "people"))
+        {
+            IgnorePartitionsInMigration = true
+        };
+
+        list2.CreateDelta(table, list1, out var missing).ShouldBe(PartitionDelta.None);
     }
 
     [Fact]

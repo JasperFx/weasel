@@ -131,7 +131,14 @@ order by column_index;
 
         await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
         var result = await readExistingAsync(reader, ct).ConfigureAwait(false);
-        await reader.CloseAsync().ConfigureAwait(false);
+        try
+        {
+            await reader.CloseAsync().ConfigureAwait(false);
+        }
+        catch (NpgsqlException e)
+        {
+            if (!e.Message.Contains("does not exist")) throw;
+        }
         return result;
     }
 

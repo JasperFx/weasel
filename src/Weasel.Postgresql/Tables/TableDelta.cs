@@ -5,8 +5,11 @@ namespace Weasel.Postgresql.Tables;
 
 public class TableDelta: SchemaObjectDelta<Table>
 {
+
+
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
+
     }
 
     internal ItemDelta<TableColumn> Columns { get; private set; } = null!;
