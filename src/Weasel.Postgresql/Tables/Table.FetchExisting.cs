@@ -193,6 +193,10 @@ order by column_index;
         {
             await reader.NextResultAsync(ct).ConfigureAwait(false);
         }
+        else
+        {
+            return;
+        }
 
         switch (strategy)
         {

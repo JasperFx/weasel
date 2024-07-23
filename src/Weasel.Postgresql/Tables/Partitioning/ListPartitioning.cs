@@ -36,6 +36,38 @@ public class ListPartitioning: IPartitionStrategy
         writer.WriteLine($") PARTITION BY LIST ({Columns.Join(", ")});");
     }
 
+    public PartitionDelta CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing)
+    {
+        missing = default;
+        if (actual is ListPartitioning other)
+        {
+            if (!Columns.SequenceEqual(other.Columns))
+            {
+                return PartitionDelta.Rebuild;
+            }
+
+            var match = _partitions.OrderBy(x => x.Suffix).ToArray()
+                .SequenceEqual(other.Partitions.OrderBy(x => x.Suffix).ToArray());
+
+            if (match) return PartitionDelta.None;
+
+            // We've already done a SequenceEqual, so we know the counts aren't the same
+            // and if there are more actual partitions than expected, we need to do a rebalance
+            if (other.Partitions.Count > Partitions.Count) return PartitionDelta.Rebuild;
+
+            // If any partitions are in the actual that are no longer expected, that's an automatic rebuild
+            if (other._partitions.Any(x => !_partitions.Contains(x))) return PartitionDelta.Rebuild;
+
+            missing = _partitions.Where(x => !other._partitions.Contains(x)).OfType<IPartition>().ToArray();
+            return missing.Any() ? PartitionDelta.Additive : PartitionDelta.Rebuild;
+
+        }
+        else
+        {
+            return PartitionDelta.Rebuild;
+        }
+    }
+
     public async Task ReadPartitionsAsync(DbObjectName identifier, DbDataReader reader, CancellationToken ct)
     {
         var expectedDefaultName = identifier.Name + "_default";

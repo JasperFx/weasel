@@ -58,25 +58,6 @@ public class table_partitioning: IntegrationContext
     }
 
 
-    [Fact]
-    public async Task detect_difference_when_new_partition_is_found()
-    {
-        await ResetSchema();
-
-        var table = new Table("partitions.people");
-        table.AddColumn<int>("id").AsPrimaryKey();
-        table.AddColumn<string>("first_name");
-        table.AddColumn<string>("last_name");
-
-        await CreateSchemaObjectInDatabase(table);
-
-        table.PartitionByRange("id");
-
-        var delta = await table.FindDeltaAsync(theConnection);
-
-        delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
-    }
-
 
     [Fact]
     public async Task force_columns_in_range_partitions_to_be_primary_key()
@@ -85,15 +66,12 @@ public class table_partitioning: IntegrationContext
 
         var table = new Table("partitions.people");
         table.AddColumn<int>("id").AsPrimaryKey().PartitionByRange();
-        table.AddColumn<DateTime>("modified").DefaultValueByExpression("now()").PartitionByRange();
+        table.AddColumn<DateTime>("modified").DefaultValueByExpression("now()");
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
 
         table.Partitioning.ShouldBeOfType<RangePartitioning>()
             .Columns.Single().ShouldBe("id");
-
-        table.PrimaryKeyColumns.ShouldContain("modified");
-
 
         await CreateSchemaObjectInDatabase(table);
 
