@@ -3,6 +3,7 @@ using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Postgresql.Tables.Indexes;
+using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
@@ -106,23 +107,13 @@ public partial class Table: ISchemaObject
             writer.WriteLine(lines.Last());
         }
 
-        switch (PartitionStrategy)
+        if (Partitioning != null)
         {
-            case PartitionStrategy.None:
-                writer.WriteLine(");");
-                break;
-
-            case PartitionStrategy.Range:
-                writer.WriteLine($") PARTITION BY RANGE ({PartitionExpressions.Join(", ")});");
-                break;
-
-            case PartitionStrategy.List:
-                writer.WriteLine($") PARTITION BY LIST ({PartitionExpressions.Join(", ")});");
-                break;
-
-            case PartitionStrategy.Hash:
-                writer.WriteLine($") PARTITION BY HASH ({PartitionExpressions.Join(", ")});");
-                break;
+            Partitioning.WritePartitionBy(writer);
+        }
+        else
+        {
+            writer.WriteLine(");");
         }
 
         foreach (var foreignKey in ForeignKeys)
@@ -137,16 +128,10 @@ public partial class Table: ISchemaObject
             writer.WriteLine(index.ToDDL(this));
         }
 
-        foreach (var partition in _partitions)
+        if (Partitioning != null)
         {
             writer.WriteLine();
-            partition.WriteCreateStatement(writer, this);
-        }
-
-        if (PartitionStrategy == PartitionStrategy.List || PartitionStrategy == PartitionStrategy.Range)
-        {
-            writer.WriteLine();
-            new DefaultPartition().WriteCreateStatement(writer, this);
+            Partitioning.WriteCreateStatement(writer, this);
         }
     }
 
@@ -471,15 +456,11 @@ public partial class Table: ISchemaObject
             return this;
         }
 
-        public ColumnExpression PartitionByRange()
+        public RangePartitioning PartitionByRange()
         {
-            _parent.PartitionStrategy = PartitionStrategy.Range;
-            _parent.PartitionExpressions.Add(Column.Name);
-
             Column.IsPrimaryKey = true;
             _parent._primaryKeyColumns.Fill(Column.Name);
-
-            return this;
+            return _parent.PartitionByRange(Column.Name);
         }
     }
 }

@@ -198,17 +198,6 @@ public class TableDelta: SchemaObjectDelta<Table>
 
     private SchemaPatchDifference determinePatchDifference()
     {
-        if (Actual!.PartitionStrategy != Expected.PartitionStrategy)
-        {
-            return SchemaPatchDifference.Invalid;
-        }
-
-        if (!Actual.PartitionExpressions.SequenceEqual(Expected.PartitionExpressions))
-        {
-            return SchemaPatchDifference.Invalid;
-        }
-
-
         if (!HasChanges())
         {
             return SchemaPatchDifference.None;

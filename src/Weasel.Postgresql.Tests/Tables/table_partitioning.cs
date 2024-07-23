@@ -1,6 +1,7 @@
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
+using Weasel.Postgresql.Tables.Partitioning;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables;
@@ -16,7 +17,7 @@ public class table_partitioning: IntegrationContext
     public void partition_strategy_is_none_by_default()
     {
         var table = new Table("partitions.people");
-        table.PartitionStrategy.ShouldBe(PartitionStrategy.None);
+        table.Partitioning.ShouldBeNull();
     }
 
     [Fact]
@@ -28,11 +29,6 @@ public class table_partitioning: IntegrationContext
         table.AddColumn<int>("id").AsPrimaryKey().PartitionByRange();
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
-
-
-        table.PartitionExpressions.Single().ShouldBe("id");
-        table.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
-
 
         table.ToBasicCreateTableSql().ShouldContain("PARTITION BY RANGE (id)");
 
@@ -93,9 +89,9 @@ public class table_partitioning: IntegrationContext
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
 
+        table.Partitioning.ShouldBeOfType<RangePartitioning>()
+            .Columns.Single().ShouldBe("id");
 
-        table.PartitionExpressions.ShouldContain("modified");
-        table.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
         table.PrimaryKeyColumns.ShouldContain("modified");
 
 
@@ -119,8 +115,8 @@ public class table_partitioning: IntegrationContext
         table.PartitionByRange("id");
 
 
-        table.PartitionExpressions.Single().ShouldBe("id");
-        table.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
+        table.Partitioning.ShouldBeOfType<RangePartitioning>()
+            .Columns.Single().ShouldBe("id");
 
 
         table.ToBasicCreateTableSql().ShouldContain("PARTITION BY RANGE (id)");
@@ -147,8 +143,7 @@ public class table_partitioning: IntegrationContext
 
         var existing = await table.FetchExistingAsync(theConnection);
 
-        existing.PartitionExpressions.Count.ShouldBe(1);
-        existing.PartitionExpressions.ShouldContain("id");
-        existing.PartitionStrategy.ShouldBe(PartitionStrategy.Range);
+        table.Partitioning.ShouldBeOfType<RangePartitioning>()
+            .Columns.Single().ShouldBe("id");
     }
 }
