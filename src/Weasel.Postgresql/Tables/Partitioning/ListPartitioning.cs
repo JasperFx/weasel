@@ -1,4 +1,7 @@
+using System.Data.Common;
+using System.Diagnostics;
 using JasperFx.Core;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
@@ -32,4 +35,26 @@ public class ListPartitioning: IPartitionStrategy
     {
         writer.WriteLine($") PARTITION BY LIST ({Columns.Join(", ")});");
     }
+
+    public async Task ReadPartitionsAsync(DbObjectName identifier, DbDataReader reader, CancellationToken ct)
+    {
+        var expectedDefaultName = identifier.Name + "_default";
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var partitionName = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            var expression = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+
+            if (partitionName == expectedDefaultName)
+            {
+                HasExistingDefault = true;
+            }
+            else
+            {
+                var partition = ListPartition.Parse(identifier, partitionName, expression);
+                _partitions.Add(partition);
+            }
+        }
+    }
+
+    public bool HasExistingDefault { get; private set; }
 }

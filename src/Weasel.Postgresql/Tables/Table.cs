@@ -462,5 +462,37 @@ public partial class Table: ISchemaObject
             _parent._primaryKeyColumns.Fill(Column.Name);
             return _parent.PartitionByRange(Column.Name);
         }
+
+        /// <summary>
+        /// Partition this table using LIST partitioning of supplied values
+        /// on this column
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public ListPartitioning PartitionByListValues()
+        {
+            Column.IsPrimaryKey = true;
+            _parent._primaryKeyColumns.Fill(Column.Name);
+            return _parent.PartitionByList(Column.Name);
+        }
+
+        /// <summary>
+        /// Partition this table using HASH partitioning on this column
+        /// using the following table suffixes as a series of partition
+        /// tables
+        /// </summary>
+        /// <param name="suffixNames">List of table suffixes. Marten will create hashed partitions for each suffix that distributes the data accordingly</param>
+        public ColumnExpression PartitionByHash(params string[] suffixNames)
+        {
+            Column.IsPrimaryKey = true;
+            _parent._primaryKeyColumns.Fill(Column.Name);
+            _parent.PartitionByHash(new HashPartitioning
+            {
+                Columns = [Column.Name],
+                Suffixes = suffixNames
+            });
+
+            return this;
+        }
     }
 }

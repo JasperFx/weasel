@@ -16,4 +16,16 @@ public static class PartitionExtensions
         return $"'{value.ToString()}'";
     }
 
+    public static string GetSuffixName(this DbObjectName identifier, string tableName)
+    {
+        return tableName.TrimStart(identifier.Name.ToCharArray()).TrimStart('_');
+    }
+
+    public static string GetStringWithinParantheses(this string raw)
+    {
+        var start = raw.IndexOf('(');
+        var end = raw.IndexOf(')');
+        return raw.Substring(start + 1, end - start - 1);
+    }
+
 }
