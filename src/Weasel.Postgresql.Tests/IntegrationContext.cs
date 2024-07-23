@@ -47,8 +47,20 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
         var builder = new DbCommandBuilder(theConnection);
         schemaObject.ConfigureQueryCommand(builder);
         await using var reader = await theConnection.ExecuteReaderAsync(builder);
-        var schemaMigration = new SchemaMigration(await schemaObject.CreateDeltaAsync(reader));
-        await reader.CloseAsync();
+        var delta = await schemaObject.CreateDeltaAsync(reader);
+        var schemaMigration = new SchemaMigration(delta);
+        try
+        {
+            await reader.CloseAsync();
+        }
+        catch (NpgsqlException e)
+        {
+            // Quirk of postgres metadata tables, this will throw on the partition querying if the table does not already exist
+            if (!e.Message.Contains("does not exist"))
+            {
+                throw;
+            }
+        }
 
         try
         {

@@ -22,6 +22,12 @@ public partial class Table: ISchemaObject
     {
     }
 
+    /// <summary>
+    /// Default is false. If true, Weasel assumes that *something* else like pg_partman is controlling
+    /// the database partitions outside of Weasel control
+    /// </summary>
+    public bool IgnorePartitionsInMigration { get; set; }
+
     public IReadOnlyList<TableColumn> Columns => _columns;
 
     public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();

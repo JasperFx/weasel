@@ -20,7 +20,7 @@ public enum SchemaPatchDifference
 
     /// <summary>
     ///     The existing database object in incompatible somehow with the expected configuration and Weasel
-    ///     cannot determine the update SQL to bridge the difference
+    ///     cannot determine the update SQL to bridge the difference without potentially losing data
     /// </summary>
     Invalid = 0
 }

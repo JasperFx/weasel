@@ -22,6 +22,37 @@ public class RangePartitioning: IPartitionStrategy
         writer.WriteLine($") PARTITION BY RANGE ({Columns.Join(", ")});");
     }
 
+    public PartitionDelta CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing)
+    {
+        missing = default;
+        if (actual is RangePartitioning other)
+        {
+            if (!Columns.SequenceEqual(other.Columns))
+            {
+                return PartitionDelta.Rebuild;
+            }
+
+            var match = _ranges.OrderBy(x => x.Suffix).ToArray()
+                .SequenceEqual(other._ranges.OrderBy(x => x.Suffix).ToArray());
+
+            if (match) return PartitionDelta.None;
+
+            // We've already done a SequenceEqual, so we know the counts aren't the same
+            // and if there are more actual partitions than expected, we need to do a rebalance
+            if (other._ranges.Count > _ranges.Count) return PartitionDelta.Rebuild;
+
+            // If any partitions are in the actual that are no longer expected, that's an automatic rebuild
+            if (other._ranges.Any(x => !_ranges.Contains(x))) return PartitionDelta.Rebuild;
+
+            missing = _ranges.Where(x => !other._ranges.Contains(x)).OfType<IPartition>().ToArray();
+            return missing.Any() ? PartitionDelta.Additive : PartitionDelta.Rebuild;
+        }
+        else
+        {
+            return PartitionDelta.Rebuild;
+        }
+    }
+
     public RangePartitioning AddRange<T>(string suffix, T from, T to)
     {
         var partition = new RangePartition(suffix, from.FormatSqlValue(), to.FormatSqlValue());

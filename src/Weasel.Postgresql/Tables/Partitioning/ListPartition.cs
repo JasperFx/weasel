@@ -3,7 +3,7 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
-public class ListPartition
+public class ListPartition : IPartition
 {
     public ListPartition(string suffix, params string[] values)
     {

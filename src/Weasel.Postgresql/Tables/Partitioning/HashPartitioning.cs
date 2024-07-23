@@ -1,5 +1,4 @@
 using System.Data.Common;
-using System.Diagnostics;
 using JasperFx.Core;
 using Weasel.Core;
 
@@ -52,6 +51,29 @@ public class HashPartitioning : IPartitionStrategy
     public void WritePartitionBy(TextWriter writer)
     {
         writer.WriteLine($") PARTITION BY HASH ({Columns.Join(", ")});");
+    }
+
+    public PartitionDelta CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing)
+    {
+        missing = default;
+        if (actual is HashPartitioning other)
+        {
+            if (!Columns.SequenceEqual(other.Columns))
+            {
+                return PartitionDelta.Rebuild;
+            }
+
+            var match = _partitions.OrderBy(x => x.Modulus).ToArray()
+                .SequenceEqual(other.Partitions.OrderBy(x => x.Modulus).ToArray());
+
+            if (match) return PartitionDelta.None;
+
+            return PartitionDelta.Rebuild;
+        }
+        else
+        {
+            return PartitionDelta.Rebuild;
+        }
     }
 
     public static async Task<HashPartitioning> ReadPartitionsAsync(DbObjectName identifier, List<string> columns,

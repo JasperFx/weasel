@@ -3,7 +3,7 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
-public class RangePartition
+public class RangePartition : IPartition
 {
     public string Suffix { get; }
     public string From { get; }
