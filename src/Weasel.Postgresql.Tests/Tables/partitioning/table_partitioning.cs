@@ -4,7 +4,7 @@ using Weasel.Postgresql.Tables;
 using Weasel.Postgresql.Tables.Partitioning;
 using Xunit;
 
-namespace Weasel.Postgresql.Tests.Tables;
+namespace Weasel.Postgresql.Tests.Tables.partitioning;
 
 [Collection("partitions")]
 public class table_partitioning: IntegrationContext

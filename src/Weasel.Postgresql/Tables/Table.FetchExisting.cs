@@ -1,6 +1,7 @@
 using System.Data.Common;
 using Npgsql;
 using Weasel.Core;
+using Weasel.Postgresql.Tables.Partitioning;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql.Tables;
@@ -80,38 +81,44 @@ WHERE
 GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
 SHOW max_identifier_length;
+
+
+select
+    col.column_name,
+    partition_strategy
+from
+    (select
+         partrelid,
+         partnatts,
+         case partstrat
+             when 'l' then 'list'
+             when 'h' then 'hash'
+             when 'r' then 'range' end as partition_strategy,
+         unnest(partattrs) column_index
+     from
+         pg_partitioned_table) pt
+        join
+    pg_class par
+    on
+            par.oid = pt.partrelid
+        join
+    information_schema.columns col
+    on
+                col.table_schema = par.relnamespace::regnamespace::text
+            and col.table_name = par.relname
+            and ordinal_position = pt.column_index
+where
+    col.table_schema = :{schemaParam} and table_name = :{nameParam}
+order by column_index;
+
+
+   select pt.relname as partition_name,
+          pg_get_expr(pt.relpartbound, pt.oid, true) as partition_expression
+   from pg_class base_tb
+            join pg_inherits i on i.inhparent = base_tb.oid
+            join pg_class pt on pt.oid = i.inhrelid
+   where base_tb.oid = :{nameWithSchemaParam}::regclass;
 ");
-
-
-//             builder.Append($@"
-// select
-//     col.column_name,
-//     partition_strategy
-// from
-//     (select
-//          partrelid,
-//          partnatts,
-//          case partstrat
-//              when 'l' then 'list'
-//              when 'h' then 'hash'
-//              when 'r' then 'range' end as partition_strategy,
-//          unnest(partattrs) column_index
-//      from
-//          pg_partitioned_table) pt
-//         join
-//     pg_class par
-//     on
-//             par.oid = pt.partrelid
-//         join
-//     information_schema.columns col
-//     on
-//                 col.table_schema = par.relnamespace::regnamespace::text
-//             and col.table_name = par.relname
-//             and ordinal_position = pt.column_index
-// where
-//     col.table_schema = :{schemaParam} and table_name = :{nameParam}
-// order by column_index;
-// ");
 
     }
 
@@ -143,6 +150,7 @@ SHOW max_identifier_length;
         foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
 
         await readMaxIdentifierLength(reader, existing, ct).ConfigureAwait(false);
+        await readPartitionsAsync(reader, existing, ct).ConfigureAwait(false);
 
         return !existing.Columns.Any()
             ? null
@@ -169,22 +177,48 @@ SHOW max_identifier_length;
 
     private async Task readPartitionsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
     {
-        // await reader.NextResultAsync(ct).ConfigureAwait(false);
-        //
-        // while (await reader.ReadAsync(ct).ConfigureAwait(false))
-        // {
-        //     var strategy = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
-        //     var columnOrExpression = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
-        //
-        //     existing.PartitionExpressions.Add(columnOrExpression);
-        //
-        //     switch (strategy)
-        //     {
-        //         case "range":
-        //             existing.PartitionStrategy = PartitionStrategy.Range;
-        //             break;
-        //     }
-        // }
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+
+        var columns = new List<string>();
+        string strategy = "none";
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            strategy = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+            var columnOrExpression = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+
+            columns.Add(columnOrExpression);
+        }
+
+        if (columns.Any())
+        {
+            await reader.NextResultAsync(ct).ConfigureAwait(false);
+        }
+
+        switch (strategy)
+        {
+            case "list":
+                var lists = new ListPartitioning { Columns = columns.ToArray() };
+                await lists.ReadPartitionsAsync(Identifier, reader, ct).ConfigureAwait(false);
+                existing.Partitioning = lists;
+                break;
+
+            case "range":
+                var ranges = new RangePartitioning { Columns = columns.ToArray() };
+                await ranges.ReadPartitionsAsync(Identifier, reader, ct).ConfigureAwait(false);
+                existing.Partitioning = ranges;
+                break;
+
+            case "hash":
+                var hash = await HashPartitioning.ReadPartitionsAsync(Identifier, columns, reader, ct).ConfigureAwait(false);
+                existing.Partitioning = hash;
+                break;
+
+            default:
+                return;
+
+        }
+
+
     }
 
     private static async Task readColumnsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
@@ -278,16 +312,3 @@ SHOW max_identifier_length;
 }
 
 
-/*
-
-
-   select pt.relname as partition_name,
-          pg_get_expr(pt.relpartbound, pt.oid, true) as partition_expression
-   from pg_class base_tb
-            join pg_inherits i on i.inhparent = base_tb.oid
-            join pg_class pt on pt.oid = i.inhrelid
-   where base_tb.oid = 'partitions.people'::regclass;
-
-
-
-*/

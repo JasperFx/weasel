@@ -1,4 +1,7 @@
+using System.Data.Common;
+using System.Diagnostics;
 using JasperFx.Core;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
@@ -13,31 +16,60 @@ public class HashPartitioning : IPartitionStrategy
     /// The suffix names for the partitioned table names. The modulo/remainder values
     /// will be created automatically based on the number of suffixes
     /// </summary>
-    public string[] Suffixes { get; init; }
+    public string[] Suffixes
+    {
+        get
+        {
+            return _partitions.Select(x => x.Suffix).ToArray();
+        }
+        set
+        {
+            _partitions.Clear();
+            var modulus = value.Length;
+            var remainder = 0;
+            foreach (var suffix in value)
+            {
+                var partition = new HashPartition(suffix, modulus, remainder);
+                _partitions.Add(partition);
+                remainder++;
+            }
+        }
+    }
 
-    // TODO -- make the partition building be lazy next time?
+    private readonly List<HashPartition> _partitions = new();
+
+    public IReadOnlyList<HashPartition> Partitions => _partitions;
+
     public void WriteCreateStatement(TextWriter writer, Table parent)
     {
-        foreach (var partition in BuildPartitions())
+        foreach (var partition in _partitions)
         {
             partition.WriteCreateStatement(writer, parent);
             writer.WriteLine();
         }
     }
 
-    internal IEnumerable<HashPartition> BuildPartitions()
-    {
-        var modulus = Suffixes.Length;
-        var remainder = 0;
-        foreach (var suffix in Suffixes)
-        {
-            yield return new HashPartition(suffix, modulus, remainder);
-            remainder++;
-        }
-    }
-
     public void WritePartitionBy(TextWriter writer)
     {
         writer.WriteLine($") PARTITION BY HASH ({Columns.Join(", ")});");
+    }
+
+    public static async Task<HashPartitioning> ReadPartitionsAsync(DbObjectName identifier, List<string> columns,
+        DbDataReader reader, CancellationToken ct)
+    {
+        var partitioning = new HashPartitioning { Columns = columns.ToArray() };
+
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var partitionName = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            var expression = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+
+            var suffix = identifier.GetSuffixName(partitionName);
+            var partition = HashPartition.Parse(suffix, expression);
+
+            partitioning._partitions.Add(partition);
+        }
+
+        return partitioning;
     }
 }
