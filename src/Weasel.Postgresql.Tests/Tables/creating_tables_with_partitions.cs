@@ -1,5 +1,6 @@
 using Shouldly;
 using Weasel.Postgresql.Tables;
+using Weasel.Postgresql.Tables.Partitioning;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables;
@@ -42,10 +43,10 @@ public class creating_tables_with_partitions: IntegrationContext
     [Fact]
     public async Task add_some_list_partitions()
     {
-        theTable.PartitionByList("role");
-        theTable.AddListPartition("admin", "admin");
-        theTable.AddListPartition("super", "super");
-        theTable.AddListPartition("special", "special");
+        theTable.PartitionByList("role")
+            .AddPartition("admin", "admin")
+            .AddPartition("super", "super")
+            .AddPartition("special", "special");
 
         var sql = theTable.ToCreateSql(new PostgresqlMigrator());
         sql.ShouldContain("partitions.people_admin");
@@ -82,10 +83,9 @@ public class creating_tables_with_partitions: IntegrationContext
     public async Task add_range_partitions()
     {
         theTable.AddColumn<int>("age").AsPrimaryKey();
-        theTable.PartitionByRange("age");
-
-        theTable.AddRangePartition("twenties", 20, 29);
-        theTable.AddRangePartition("thirties", 30, 39);
+        theTable.PartitionByRange("age")
+            .AddRange("twenties", 20, 29)
+            .AddRange("thirties", 30, 39);
 
         var sql = theTable.ToCreateSql(new PostgresqlMigrator());
         sql.ShouldContain("partitions.people_twenties");
@@ -106,4 +106,17 @@ public class creating_tables_with_partitions: IntegrationContext
 
         await tryToCreateTable();
     }
+
+    /*
+     * Test Plans
+     * Check that a table has no partitions
+     * Missing partitions
+     *
+     *
+     *
+     *
+     *
+     *
+     *
+     */
 }
