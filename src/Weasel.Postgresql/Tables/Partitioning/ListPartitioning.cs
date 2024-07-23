@@ -46,6 +46,8 @@ public class ListPartitioning: IPartitionStrategy
                 return PartitionDelta.Rebuild;
             }
 
+            if (parent.IgnorePartitionsInMigration) return PartitionDelta.None;
+
             var match = _partitions.OrderBy(x => x.Suffix).ToArray()
                 .SequenceEqual(other.Partitions.OrderBy(x => x.Suffix).ToArray());
 

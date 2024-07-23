@@ -32,6 +32,8 @@ public class RangePartitioning: IPartitionStrategy
                 return PartitionDelta.Rebuild;
             }
 
+            if (parent.IgnorePartitionsInMigration) return PartitionDelta.None;
+
             var match = _ranges.OrderBy(x => x.Suffix).ToArray()
                 .SequenceEqual(other._ranges.OrderBy(x => x.Suffix).ToArray());
 
