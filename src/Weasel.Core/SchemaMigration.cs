@@ -89,7 +89,14 @@ public class SchemaMigration
             deltas.Add(await schemaObjects[i].CreateDeltaAsync(reader, ct).ConfigureAwait(false));
         }
 
-        await reader.CloseAsync().ConfigureAwait(false);
+        try
+        {
+            await reader.CloseAsync().ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // It's aggravating, but there's an issue w/ postgresql's metadata query on partitions that can throw here
+        }
 
         return new SchemaMigration(deltas);
     }

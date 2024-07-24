@@ -10,16 +10,6 @@ namespace Weasel.Postgresql.Tests.Tables;
 [Collection("deltas")]
 public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
 {
-    /*
-     * TODO
-     * 1. Column constraints, to find deltas
-     * 5. Table constraints?
-     * 6. Partitions?
-     *
-     *
-     *
-     */
-
     [Fact]
     public async Task detect_all_new_table()
     {
