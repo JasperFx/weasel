@@ -92,6 +92,7 @@ public class SchemaMigration
         try
         {
             await reader.CloseAsync().ConfigureAwait(false);
+            await reader.DisposeAsync().ConfigureAwait(false);
         }
         catch (Exception)
         {

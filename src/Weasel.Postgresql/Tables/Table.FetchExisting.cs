@@ -117,7 +117,7 @@ order by column_index;
    from pg_class base_tb
             join pg_inherits i on i.inhparent = base_tb.oid
             join pg_class pt on pt.oid = i.inhrelid
-   where base_tb.oid = :{nameWithSchemaParam}::regclass;
+   where base_tb.relname = :{nameParam} and base_tb.relnamespace = :{schemaParam}::regnamespace::oid;
 ");
 
     }
@@ -196,11 +196,20 @@ order by column_index;
             columns.Add(columnOrExpression);
         }
 
-        if (columns.Any())
+        try
         {
+            // Advance the reader no matter what so that this works in
+            // series with other tables or objects even though we know there may
+            // be no more data
             await reader.NextResultAsync(ct).ConfigureAwait(false);
         }
-        else
+        catch (PostgresException e)
+        {
+            if (e.Message.Contains("does not exist")) return;
+            throw;
+        }
+
+        if (!columns.Any())
         {
             return;
         }
