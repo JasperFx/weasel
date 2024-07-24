@@ -13,6 +13,9 @@ public static class PartitionExtensions
     public static string FormatSqlValue<T>(this T value)
     {
         if (typeof(T).IsNumeric()) return value.ToString();
+
+        if (value is string v && v.StartsWith("'") && v.EndsWith("'")) return v;
+
         return $"'{value.ToString()}'";
     }
 

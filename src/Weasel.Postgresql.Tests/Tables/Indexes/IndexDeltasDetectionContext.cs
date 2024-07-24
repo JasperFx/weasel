@@ -23,6 +23,7 @@ public abstract class IndexDeltasDetectionContext: IntegrationContext
         theTable.AddColumn("data", "jsonb");
     }
 
+
     protected async Task AssertNoDeltasAfterPatching(Table? table = null)
     {
         table ??= theTable;

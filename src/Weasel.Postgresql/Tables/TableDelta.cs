@@ -1,5 +1,6 @@
 using JasperFx.Core;
 using Weasel.Core;
+using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
@@ -9,8 +10,33 @@ public class TableDelta: SchemaObjectDelta<Table>
 
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
-
+        if (actual != null)
+        {
+            if (expected.Partitioning == null)
+            {
+                if (actual.Partitioning != null)
+                {
+                    PartitionDelta = PartitionDelta.Rebuild;
+                }
+            }
+            else
+            {
+                if (actual.Partitioning == null)
+                {
+                    PartitionDelta = PartitionDelta.Rebuild;
+                }
+                else
+                {
+                    PartitionDelta = expected.Partitioning.CreateDelta(expected, actual.Partitioning, out var missing);
+                    MissingPartitions = missing;
+                }
+            }
+        }
     }
+
+    public IPartition[] MissingPartitions { get; private set; } = Array.Empty<IPartition>();
+
+    public PartitionDelta PartitionDelta { get; private set; } = PartitionDelta.None;
 
     internal ItemDelta<TableColumn> Columns { get; private set; } = null!;
     internal ItemDelta<IndexDefinition> Indexes { get; private set; } = null!;
@@ -100,6 +126,29 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         // Extra columns
         foreach (var column in Columns.Extras) writer.WriteLine(column.DropColumnSql(Expected));
+
+        if (this.PartitionDelta == PartitionDelta.Additive)
+        {
+            foreach (var partition in MissingPartitions)
+            {
+                writer.WriteLine();
+                partition.WriteCreateStatement(writer, Expected);
+            }
+        }
+        else if (this.PartitionDelta == PartitionDelta.Rebuild)
+        {
+            var tempName = new DbObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_temp");
+            writer.WriteLine($"create table {tempName} as select * from {Expected.Identifier};");
+            writer.WriteLine($"drop table {Expected.Identifier} cascade;");
+
+            Expected.WriteCreateStatement(rules, writer);
+
+            writer.WriteLine();
+
+            writer.WriteLine($"insert into {Expected.Identifier} select * from {tempName};");
+
+            writer.WriteLine($"drop table {tempName} cascade;");
+        }
     }
 
     private void writePrimaryKeyChanges(TextWriter writer)
@@ -206,7 +255,6 @@ public class TableDelta: SchemaObjectDelta<Table>
             return SchemaPatchDifference.None;
         }
 
-
         // If there are any columns that are different and at least one cannot
         // automatically generate an `ALTER TABLE` statement, the patch is invalid
         if (Columns.Different.Any(x => !x.Expected.CanAlter(x.Actual)))
@@ -223,10 +271,25 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         var differences = new[]
         {
-            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), PrimaryKeyDifference
+            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), PrimaryKeyDifference, partitionDifference()
         };
 
         return differences.Min();
+    }
+
+    private SchemaPatchDifference partitionDifference()
+    {
+        switch (this.PartitionDelta)
+        {
+            case PartitionDelta.None:
+                return SchemaPatchDifference.None;
+            case PartitionDelta.Additive:
+                return SchemaPatchDifference.Update;
+            case PartitionDelta.Rebuild:
+                return SchemaPatchDifference.Update;
+        }
+
+        return SchemaPatchDifference.None;
     }
 
     public bool HasChanges()
