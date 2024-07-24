@@ -237,8 +237,6 @@ order by column_index;
                 return;
 
         }
-
-
     }
 
     private static async Task readColumnsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)

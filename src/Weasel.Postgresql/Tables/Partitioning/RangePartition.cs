@@ -5,8 +5,19 @@ namespace Weasel.Postgresql.Tables.Partitioning;
 
 public class RangePartition : IPartition
 {
+    /// <summary>
+    /// Table suffix of this partitioned table
+    /// </summary>
     public string Suffix { get; }
+
+    /// <summary>
+    /// The SQL "from" value of the partition
+    /// </summary>
     public string From { get; }
+
+    /// <summary>
+    /// The SQL "to" value of the partition
+    /// </summary>
     public string To { get; }
 
     public RangePartition(string suffix, string from, string to)
@@ -16,7 +27,7 @@ public class RangePartition : IPartition
         To = to;
     }
 
-    public void WriteCreateStatement(TextWriter writer, Table parent)
+    void IPartition.WriteCreateStatement(TextWriter writer, Table parent)
     {
         writer.WriteLine($"CREATE TABLE {parent.Identifier}_{Suffix} PARTITION OF {parent.Identifier} FOR VALUES FROM ({From}) TO ({To});");
     }
@@ -56,7 +67,7 @@ public class RangePartition : IPartition
         return HashCode.Combine(Suffix, From, To);
     }
 
-    public static RangePartition Parse(DbObjectName tableName, string partitionName, string postgresExpression)
+    internal static RangePartition Parse(DbObjectName tableName, string partitionName, string postgresExpression)
     {
         var suffix = tableName.GetSuffixName(partitionName);
 

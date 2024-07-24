@@ -11,15 +11,22 @@ public class ListPartition : IPartition
         Values = values;
     }
 
+    /// <summary>
+    /// The SQL representation of the values used to create this list partition
+    /// </summary>
     public string[] Values { get; }
+
+    /// <summary>
+    /// Table suffix for this partition
+    /// </summary>
     public string Suffix { get; }
 
-    public void WriteCreateStatement(TextWriter writer, Table parent)
+    void IPartition.WriteCreateStatement(TextWriter writer, Table parent)
     {
         writer.WriteLine($"CREATE TABLE {parent.Identifier}_{Suffix} partition of {parent.Identifier} for values in ({Values.Join(", ")});");
     }
 
-    public static ListPartition Parse(DbObjectName dbObjectName, string partitionTableName, string postgresExpression)
+    internal static ListPartition Parse(DbObjectName dbObjectName, string partitionTableName, string postgresExpression)
     {
         var suffix = dbObjectName.GetSuffixName(partitionTableName);
         var parsed = postgresExpression.GetStringWithinParantheses().ToDelimitedArray(',');

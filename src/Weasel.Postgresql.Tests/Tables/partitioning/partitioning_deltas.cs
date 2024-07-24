@@ -1,4 +1,5 @@
 using System.Collections;
+using JasperFx.Core.Reflection;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
@@ -9,14 +10,14 @@ namespace Weasel.Postgresql.Tests.Tables.partitioning;
 
 public class partitioning_deltas
 {
-    private readonly HashPartitioning hash1 =
+    private readonly IPartitionStrategy hash1 =
         new HashPartitioning { Columns = ["role"], Suffixes = ["one", "two", "three"] };
 
-    private readonly RangePartitioning range1 = new RangePartitioning { Columns = ["roles"] }
+    private readonly IPartitionStrategy range1 = new RangePartitioning { Columns = ["roles"] }
         .AddRange("one", "a", "b")
         .AddRange("two", "c", "d");
 
-    private readonly ListPartitioning list1 = new ListPartitioning { Columns = ["roles"] }
+    private readonly IPartitionStrategy list1 = new ListPartitioning { Columns = ["roles"] }
         .AddPartition("one", "one")
         .AddPartition("two", "two");
 
@@ -40,7 +41,7 @@ public class partitioning_deltas
         var table = new Table(new DbObjectName("partitions", "people"));
 
         var hash2 =
-            new HashPartitioning { Columns = ["role", "other"], Suffixes = ["one", "two", "three"] };
+            new HashPartitioning { Columns = ["role", "other"], Suffixes = ["one", "two", "three"] }.As<IPartitionStrategy>();
 
         IPartition[] partitions = default;
         hash2.CreateDelta(table, hash1, out partitions).ShouldBe(PartitionDelta.Rebuild);
@@ -75,7 +76,7 @@ public class partitioning_deltas
         var table = new Table(new DbObjectName("partitions", "people"));
         var range2 = new RangePartitioning { Columns = ["roles", "other"] }
             .AddRange("one", "a", "b")
-            .AddRange("two", "c", "d");
+            .AddRange("two", "c", "d").As<IPartitionStrategy>();
 
         IPartition[] partitions = default;
 
@@ -89,7 +90,7 @@ public class partitioning_deltas
         var table = new Table(new DbObjectName("partitions", "people"));
         var range2 = new RangePartitioning { Columns = ["roles",] }
             .AddRange("one", "a", "b")
-            .AddRange("two", "f", "g");
+            .AddRange("two", "f", "g").As<IPartitionStrategy>();
 
         IPartition[] partitions = default;
 
@@ -103,7 +104,7 @@ public class partitioning_deltas
         var table = new Table(new DbObjectName("partitions", "people"));
         var range2 = new RangePartitioning { Columns = ["roles",] }
             .AddRange("one", "a", "b")
-            .AddRange("two_different", "c", "d");
+            .AddRange("two_different", "c", "d").As<IPartitionStrategy>();
 
         IPartition[] partitions = default;
 
@@ -117,7 +118,7 @@ public class partitioning_deltas
         var range2 = new RangePartitioning { Columns = ["roles"] }
             .AddRange("one", "a", "b")
             .AddRange("two", "c", "d")
-            .AddRange("three", "e", "f");
+            .AddRange("three", "e", "f").As<IPartitionStrategy>();
 
         var table = new Table(new DbObjectName("partitions", "people")){IgnorePartitionsInMigration = true};
 
@@ -130,7 +131,7 @@ public class partitioning_deltas
         var range2 = new RangePartitioning { Columns = ["roles"] }
             .AddRange("one", "a", "b")
             .AddRange("two", "c", "d")
-            .AddRange("three", "e", "f");
+            .AddRange("three", "e", "f").As<IPartitionStrategy>();
 
         var table = new Table(new DbObjectName("partitions", "people"));
 
@@ -158,7 +159,7 @@ public class partitioning_deltas
         var table = new Table(new DbObjectName("partitions", "people"));
         var list2 = new ListPartitioning { Columns = ["roles",] }
             .AddPartition("one", "one")
-            .AddPartition("different", "two");
+            .AddPartition("different", "two").As<IPartitionStrategy>();
 
         IPartition[] partitions = default;
 
@@ -172,7 +173,7 @@ public class partitioning_deltas
         var list2 = new ListPartitioning { Columns = ["roles"] }
             .AddPartition("one", "one")
             .AddPartition("two", "two")
-            .AddPartition("three", "three");
+            .AddPartition("three", "three").As<IPartitionStrategy>();
 
         var table = new Table(new DbObjectName("partitions", "people"));
 
@@ -186,7 +187,7 @@ public class partitioning_deltas
         var list2 = new ListPartitioning { Columns = ["roles"] }
             .AddPartition("one", "one")
             .AddPartition("two", "two")
-            .AddPartition("three", "three");
+            .AddPartition("three", "three").As<IPartitionStrategy>();
 
         var table = new Table(new DbObjectName("partitions", "people"))
         {
@@ -216,7 +217,7 @@ public class partitioning_deltas
 
         var list2 = new ListPartitioning { Columns = ["roles", "other"] }
             .AddPartition("one", "one")
-            .AddPartition("two", "two");
+            .AddPartition("two", "two").As<IPartitionStrategy>();
 
         IPartition[] partitions = default;
 

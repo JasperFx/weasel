@@ -17,12 +17,12 @@ public class RangePartitioning: IPartitionStrategy
 
     public bool HasExistingDefault { get; private set; }
 
-    public void WritePartitionBy(TextWriter writer)
+    void IPartitionStrategy.WritePartitionBy(TextWriter writer)
     {
         writer.WriteLine($") PARTITION BY RANGE ({Columns.Join(", ")});");
     }
 
-    public PartitionDelta CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing)
+    PartitionDelta IPartitionStrategy.CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing)
     {
         missing = default;
         if (actual is RangePartitioning other)
@@ -55,6 +55,14 @@ public class RangePartitioning: IPartitionStrategy
         }
     }
 
+    /// <summary>
+    /// Add another range partition with the name "{parent table name}_{suffix}"
+    /// </summary>
+    /// <param name="suffix">The suffix for the partition table name</param>
+    /// <param name="from">The "from" value</param>
+    /// <param name="to">The "to" value</param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
     public RangePartitioning AddRange<T>(string suffix, T from, T to)
     {
         var partition = new RangePartition(suffix, from.FormatSqlValue(), to.FormatSqlValue());
@@ -63,9 +71,9 @@ public class RangePartitioning: IPartitionStrategy
         return this;
     }
 
-    public void WriteCreateStatement(TextWriter writer, Table parent)
+    void IPartitionStrategy.WriteCreateStatement(TextWriter writer, Table parent)
     {
-        foreach (var partition in _ranges)
+        foreach (IPartition partition in _ranges)
         {
             partition.WriteCreateStatement(writer, parent);
             writer.WriteLine();
@@ -74,7 +82,7 @@ public class RangePartitioning: IPartitionStrategy
         writer.WriteDefaultPartition(parent.Identifier);
     }
 
-    public async Task ReadPartitionsAsync(DbObjectName identifier, DbDataReader reader, CancellationToken ct)
+    internal async Task ReadPartitionsAsync(DbObjectName identifier, DbDataReader reader, CancellationToken ct)
     {
         var expectedDefaultName = identifier.Name + "_default";
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
