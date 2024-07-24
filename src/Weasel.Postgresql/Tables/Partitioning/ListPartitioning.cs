@@ -12,6 +12,13 @@ public class ListPartitioning: IPartitionStrategy
 
     public IReadOnlyList<ListPartition> Partitions => _partitions;
 
+    /// <summary>
+    /// Add another list partition table based on the supplied table suffix and values
+    /// </summary>
+    /// <param name="suffix"></param>
+    /// <param name="values"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
     public ListPartitioning AddPartition<T>(string suffix, params T[] values)
     {
         var partition = new ListPartition(suffix, values.Select(x => x.FormatSqlValue()).ToArray());
@@ -20,9 +27,9 @@ public class ListPartitioning: IPartitionStrategy
         return this;
     }
 
-    public void WriteCreateStatement(TextWriter writer, Table parent)
+    void IPartitionStrategy.WriteCreateStatement(TextWriter writer, Table parent)
     {
-        foreach (var partition in _partitions)
+        foreach (IPartition partition in _partitions)
         {
             partition.WriteCreateStatement(writer, parent);
             writer.WriteLine();
@@ -31,12 +38,12 @@ public class ListPartitioning: IPartitionStrategy
         writer.WriteDefaultPartition(parent.Identifier);
     }
 
-    public void WritePartitionBy(TextWriter writer)
+    void IPartitionStrategy.WritePartitionBy(TextWriter writer)
     {
         writer.WriteLine($") PARTITION BY LIST ({Columns.Join(", ")});");
     }
 
-    public PartitionDelta CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing)
+    PartitionDelta IPartitionStrategy.CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing)
     {
         missing = default;
         if (actual is ListPartitioning other)
