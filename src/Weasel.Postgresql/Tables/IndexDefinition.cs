@@ -734,10 +734,12 @@ public class IndexDefinition: INamed
             .Replace("IS NOT NULL", "is not null")
             .Replace("INDEX CONCURRENTLY", "INDEX")
             .Replace("::text", "")
+            .Replace("::regconfig", "")
             .Replace(" ->> ", "->>")
             .Replace(" -> ", "->")
             .Replace(IndexCreationBeginComment, "")
             .Replace(IndexCreationEndComment, "")
+            .Replace(", ", ",")
             .Trim()
             .TrimEnd(new[] { ';' })
             .ToLowerInvariant();

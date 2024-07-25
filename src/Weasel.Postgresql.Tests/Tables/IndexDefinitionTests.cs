@@ -251,6 +251,36 @@ public class IndexDefinitionTests
     }
 
     [Fact]
+    public void test_multicolumn_index_with_fulltextsearch_vs_raw_sql()
+    {
+        var table = new Table("mt_doc_mydata");
+        var index1 = "CREATE INDEX mt_doc_mydata_idx_fulltext_search ON public.mt_doc_mydata USING gin (tenant_id, type, is_active_and_not_archived, to_tsvector('english'::regconfig, (data ->> 'SearchableValue'::text)));";
+        var index2 = IndexDefinition.Parse(index1);
+
+        IndexDefinition.CanonicizeDdl(index1, "public").ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+    }
+    [Fact]
+    public void test_multicolumn_index_with_fulltextsearch_vs_parsed_sql()
+    {
+        var table = new Table("mt_doc_mydata");
+        var index1 = new IndexDefinition("mt_doc_mydata_idx_fulltext_search")
+        {
+            Columns =
+            [
+                "tenant_id",
+                "type",
+                "is_active_and_not_archived",
+                "to_tsvector('english', (data ->> 'SearchableValue'::text))"
+            ],
+            Method = IndexMethod.gin
+        };
+        var index2 = IndexDefinition.Parse(
+            "CREATE INDEX mt_doc_mydata_idx_fulltext_search ON public.mt_doc_mydata USING gin (tenant_id, type, is_active_and_not_archived, to_tsvector('english'::regconfig, (data ->> 'SearchableValue'::text)));");
+
+        IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+    }
+
+    [Fact]
     public void ensure_proper_delta_check_for_full_text_index_definition_between_db_and_instance()
     {
         var table = new Table("mt_doc_user");
