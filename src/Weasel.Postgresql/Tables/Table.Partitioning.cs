@@ -5,7 +5,10 @@ namespace Weasel.Postgresql.Tables;
 
 public partial class Table
 {
-    public IPartitionStrategy? Partitioning { get; private set; }
+    /// <summary>
+    /// Set a partitioning strategy
+    /// </summary>
+    public IPartitionStrategy? Partitioning { get; set; }
 
     public RangePartitioning PartitionByRange(params string[] columnOrExpressions)
     {
