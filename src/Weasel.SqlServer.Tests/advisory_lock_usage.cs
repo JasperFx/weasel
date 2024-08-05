@@ -1,4 +1,5 @@
 ﻿using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Logging.Abstractions;
 using Shouldly;
 using Xunit;
 
@@ -141,4 +142,49 @@ public class advisory_lock_usage
             tx3.Rollback();
         }
     }
+}
+
+public class AdvisoryLockSpecs : IAsyncLifetime
+{
+    private AdvisoryLock theLock;
+
+    public Task InitializeAsync()
+    {
+
+        theLock = new AdvisoryLock(() => new SqlConnection(ConnectionSource.ConnectionString), NullLogger.Instance, "Testing");
+        return Task.CompletedTask;
+    }
+
+    public async Task DisposeAsync()
+    {
+        await theLock.DisposeAsync();
+    }
+
+
+    [Fact]
+    public async Task explicitly_release_global_session_locks()
+    {
+        await using var conn2 = new SqlConnection(ConnectionSource.ConnectionString);
+        await using var conn3 = new SqlConnection(ConnectionSource.ConnectionString);
+
+        await conn2.OpenAsync();
+        await conn3.OpenAsync();
+
+        await theLock.TryAttainLockAsync(10, CancellationToken.None);
+
+        // Cannot get the lock here
+        (await conn2.TryGetGlobalLock(10.ToString())).ShouldBeFalse();
+
+        await theLock.ReleaseLockAsync(10);
+
+        for (var j = 0; j < 5; j++)
+        {
+            if ((await conn2.TryGetGlobalLock(10.ToString()))) return;
+
+            await Task.Delay(250);
+        }
+
+        throw new Exception("Advisory lock was not released");
+    }
+
 }

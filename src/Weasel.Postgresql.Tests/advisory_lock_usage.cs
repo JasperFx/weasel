@@ -167,16 +167,16 @@ public class AdvisoryLockSpecs : IAsyncLifetime
         await conn2.OpenAsync();
         await conn3.OpenAsync();
 
-        await theLock.TryAttainLockAsync(1, CancellationToken.None);
+        await theLock.TryAttainLockAsync(10, CancellationToken.None);
 
         // Cannot get the lock here
-        (await conn2.TryGetGlobalLock(1)).Succeeded.ShouldBeFalse();
+        (await conn2.TryGetGlobalLock(10)).Succeeded.ShouldBeFalse();
 
-        await theLock.ReleaseLockAsync(1);
+        await theLock.ReleaseLockAsync(10);
 
         for (var j = 0; j < 5; j++)
         {
-            if ((await conn2.TryGetGlobalLock(1)).Succeeded) return;
+            if ((await conn2.TryGetGlobalLock(10)).Succeeded) return;
 
             await Task.Delay(250);
         }
