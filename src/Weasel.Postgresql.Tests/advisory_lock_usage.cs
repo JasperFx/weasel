@@ -1,11 +1,16 @@
-﻿using Npgsql;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using Npgsql;
 using Shouldly;
+using Weasel.Core;
+using Weasel.Core.Migrations;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests;
 
 public class advisory_lock_usage
 {
+
+
     [Fact]
     public async Task explicitly_release_global_session_locks()
     {
@@ -131,5 +136,64 @@ public class advisory_lock_usage
         await tx1.RollbackAsync();
         await tx2.RollbackAsync();
         await tx3.RollbackAsync();
+    }
+}
+
+public class AdvisoryLockSpecs : IAsyncLifetime
+{
+    private SimplePostgresqlDatabase _database;
+    private AdvisoryLock theLock;
+
+    public Task InitializeAsync()
+    {
+        _database = new SimplePostgresqlDatabase(NpgsqlDataSource.Create(ConnectionSource.ConnectionString));
+        theLock = new AdvisoryLock(_database, NullLogger.Instance);
+        return Task.CompletedTask;
+    }
+
+    public async Task DisposeAsync()
+    {
+        await theLock.DisposeAsync();
+        await _database.DisposeAsync();
+    }
+
+
+    [Fact]
+    public async Task explicitly_release_global_session_locks()
+    {
+        await using var conn2 = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await using var conn3 = new NpgsqlConnection(ConnectionSource.ConnectionString);
+
+        await conn2.OpenAsync();
+        await conn3.OpenAsync();
+
+        await theLock.TryAttainLockAsync(1, CancellationToken.None);
+
+        // Cannot get the lock here
+        (await conn2.TryGetGlobalLock(1)).Succeeded.ShouldBeFalse();
+
+        await theLock.ReleaseLockAsync(1);
+
+        for (var j = 0; j < 5; j++)
+        {
+            if ((await conn2.TryGetGlobalLock(1)).Succeeded) return;
+
+            await Task.Delay(250);
+        }
+
+        throw new Exception("Advisory lock was not released");
+    }
+
+}
+
+public class SimplePostgresqlDatabase: PostgresqlDatabase
+{
+    public SimplePostgresqlDatabase(NpgsqlDataSource dataSource) : base(new DefaultMigrationLogger(), AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Simple", dataSource)
+    {
+    }
+
+    public override IFeatureSchema[] BuildFeatureSchemas()
+    {
+        return Array.Empty<IFeatureSchema>();
     }
 }

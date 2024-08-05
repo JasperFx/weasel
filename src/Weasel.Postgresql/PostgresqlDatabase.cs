@@ -5,7 +5,7 @@ using Weasel.Postgresql.Functions;
 
 namespace Weasel.Postgresql;
 
-public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
+public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsyncDisposable
 {
     protected PostgresqlDatabase(
         IMigrationLogger logger,
@@ -57,5 +57,10 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>
         }
 
         return base.CreateConnection();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return DataSource.DisposeAsync();
     }
 }
