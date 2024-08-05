@@ -7,7 +7,7 @@ using Weasel.Core.Migrations;
 
 namespace Weasel.Postgresql;
 
-internal class AdvisoryLock : IAdvisoryLock
+public class AdvisoryLock : IAdvisoryLock
 {
     private readonly PostgresqlDatabase _database;
     private readonly ILogger _logger;

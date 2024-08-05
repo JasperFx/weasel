@@ -6,7 +6,7 @@ using Weasel.Core;
 
 namespace Weasel.SqlServer;
 
-internal class AdvisoryLock : IAdvisoryLock
+public class AdvisoryLock : IAdvisoryLock
 {
     private readonly Func<SqlConnection> _source;
     private readonly ILogger _logger;
