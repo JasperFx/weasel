@@ -1,3 +1,4 @@
+using NetTopologySuite.Geometries;
 using Shouldly;
 using Weasel.Postgresql.Tables;
 using Xunit;
@@ -118,5 +119,15 @@ public class TableColumnTests
 
         column.AddColumnSql(table)
             .ShouldBe($"alter table {Instance.Parse("public.people")} add column name1 varchar NOT NULL;");
+    }
+
+    [Fact]
+    public void add_column_sql_geometry()
+    {
+        var table = new Table("map");
+        var column = table.AddColumn<Geometry>("geom").NotNull().Column;
+
+        column.AddColumnSql(table)
+            .ShouldBe($"alter table {Instance.Parse("public.map")} add column geom geometry NOT NULL;");
     }
 }

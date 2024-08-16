@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Immutable;
 using System.Collections.Specialized;
 using System.Data;
@@ -7,6 +7,7 @@ using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Text.Json;
 using JasperFx.Core;
+using NetTopologySuite.Geometries;
 using NpgsqlTypes;
 
 namespace Weasel.Postgresql;
@@ -103,6 +104,7 @@ public class NpgsqlTypeMapper
         {NpgsqlDbType.Path, new NpgsqlTypeMapping(NpgsqlDbType.Path, DbType.Object, "path", typeof(NpgsqlPath))},
         {NpgsqlDbType.Point, new NpgsqlTypeMapping(NpgsqlDbType.Point, DbType.Object, "point", typeof(NpgsqlPoint))},
         {NpgsqlDbType.Polygon, new NpgsqlTypeMapping(NpgsqlDbType.Polygon, DbType.Object, "polygon", typeof(NpgsqlPolygon))},
+        {NpgsqlDbType.Geometry, new NpgsqlTypeMapping(NpgsqlDbType.Geometry, DbType.Object, "geometry", typeof(Geometry))},
 
         // LTree types
         {NpgsqlDbType.LQuery, new NpgsqlTypeMapping(NpgsqlDbType.LQuery, DbType.Object, "lquery")},
