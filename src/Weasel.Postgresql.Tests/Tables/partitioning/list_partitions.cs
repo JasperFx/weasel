@@ -1,3 +1,4 @@
+using JasperFx.Core.Reflection;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;
@@ -68,6 +69,19 @@ public class list_partitions : IntegrationContext
     }
 
     [Fact]
+    public async Task can_create_table_with_default_partition_off()
+    {
+        theTable.Partitioning.As<ListPartitioning>().EnableDefaultPartition = false;
+        var sql = theTable.ToCreateSql(new PostgresqlMigrator());
+        sql.ShouldContain("partitions.people_admin");
+        sql.ShouldContain("partitions.people_super");
+        sql.ShouldContain("partitions.people_special");
+        sql.ShouldNotContain("partitions.people_default");
+
+        await tryToCreateTable();
+    }
+
+    [Fact]
     public async Task fetch_the_existing_table()
     {
         await tryToCreateTable();
@@ -83,5 +97,24 @@ public class list_partitions : IntegrationContext
         partitioning.Partitions.ShouldContain(new ListPartition("special", "'special'"));
 
         partitioning.HasExistingDefault.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task fetch_the_existing_table_when_default_partition_is_off()
+    {
+        theTable.Partitioning.As<ListPartitioning>().EnableDefaultPartition = false;
+        await tryToCreateTable();
+
+        var existing = await tryToFetchExisting();
+
+        var partitioning = existing.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.Columns.Single().ShouldBe("role");
+
+        partitioning.Partitions.Count.ShouldBe(3);
+        partitioning.Partitions.ShouldContain(new ListPartition("admin", "'admin'"));
+        partitioning.Partitions.ShouldContain(new ListPartition("super", "'super'"));
+        partitioning.Partitions.ShouldContain(new ListPartition("special", "'special'"));
+
+        partitioning.HasExistingDefault.ShouldBeFalse();
     }
 }

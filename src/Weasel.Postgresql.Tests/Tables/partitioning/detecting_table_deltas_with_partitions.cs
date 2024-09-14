@@ -110,6 +110,36 @@ public class detecting_table_deltas_with_partitions : IndexDeltasDetectionContex
     }
 
     [Fact]
+    public async Task apply_migration_to_list_partitioned_with_data_with_no_default_partitioning()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.ModifyColumn("last_name").AsPrimaryKey();
+
+        theTable.PartitionByList("last_name")
+            .DisableDefaultPartition()
+            .AddPartition("Miller", "Miller")
+            .AddPartition("May", "May")
+            .AddPartition("Smith", "Smith");
+
+        await addRow("Jeremy", "Miller");
+        await addRow("Lindsey", "Miller");
+        await addRow("Russell", "May");
+        await addRow("Tyler", "May");
+
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        delta.HasChanges().ShouldBeTrue();
+
+        await AssertNoDeltasAfterPatching();
+
+        (await countIs()).ShouldBe(4);
+    }
+
+
+
+    [Fact]
     public async Task no_partition_to_hash_partition()
     {
         await CreateSchemaObjectInDatabase(theTable);
