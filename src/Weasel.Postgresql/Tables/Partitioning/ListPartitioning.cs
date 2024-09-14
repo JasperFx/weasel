@@ -13,6 +13,10 @@ public class ListPartitioning: IPartitionStrategy
     public IReadOnlyList<ListPartition> Partitions => _partitions;
 
     /// <summary>
+    /// </summary>
+    public bool EnableDefaultPartition { get; set; } = true;
+
+    /// <summary>
     /// Add another list partition table based on the supplied table suffix and values
     /// </summary>
     /// <param name="suffix"></param>
@@ -35,7 +39,10 @@ public class ListPartitioning: IPartitionStrategy
             writer.WriteLine();
         }
 
-        writer.WriteDefaultPartition(parent.Identifier);
+        if (EnableDefaultPartition)
+        {
+            writer.WriteDefaultPartition(parent.Identifier);
+        }
     }
 
     void IPartitionStrategy.WritePartitionBy(TextWriter writer)
@@ -98,4 +105,14 @@ public class ListPartitioning: IPartitionStrategy
     }
 
     public bool HasExistingDefault { get; private set; }
+
+    /// <summary>
+    /// Disable the default partition
+    /// </summary>
+    /// <returns></returns>
+    public ListPartitioning DisableDefaultPartition()
+    {
+        EnableDefaultPartition = false;
+        return this;
+    }
 }
