@@ -7,7 +7,7 @@ public class ListPartition : IPartition
 {
     public ListPartition(string suffix, params string[] values)
     {
-        Suffix = suffix;
+        Suffix = suffix.ToLowerInvariant();
         Values = values;
     }
 
