@@ -2,8 +2,19 @@ using JasperFx.Core;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
-public record HashPartition(string Suffix, int Modulus, int Remainder)
+public record HashPartition
 {
+    public HashPartition(string suffix, int modulus, int remainder)
+    {
+        Suffix = suffix.ToLowerInvariant();
+        Modulus = modulus;
+        Remainder = remainder;
+    }
+
+    public int Remainder { get; }
+    public int Modulus { get; }
+    public string Suffix { get; }
+
     public void WriteCreateStatement(TextWriter writer, Table parent)
     {
         writer.WriteLine($"create table {parent.Identifier}_{Suffix} partition of {parent.Identifier} for values with (modulus {Modulus}, remainder {Remainder});");

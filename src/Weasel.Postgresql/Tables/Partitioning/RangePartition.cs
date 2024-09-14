@@ -22,7 +22,7 @@ public class RangePartition : IPartition
 
     public RangePartition(string suffix, string from, string to)
     {
-        Suffix = suffix;
+        Suffix = suffix.ToLowerInvariant();
         From = from;
         To = to;
     }

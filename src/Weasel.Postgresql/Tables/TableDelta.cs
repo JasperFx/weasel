@@ -10,28 +10,7 @@ public class TableDelta: SchemaObjectDelta<Table>
 
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
-        if (actual != null)
-        {
-            if (expected.Partitioning == null)
-            {
-                if (actual.Partitioning != null)
-                {
-                    PartitionDelta = PartitionDelta.Rebuild;
-                }
-            }
-            else
-            {
-                if (actual.Partitioning == null)
-                {
-                    PartitionDelta = PartitionDelta.Rebuild;
-                }
-                else
-                {
-                    PartitionDelta = expected.Partitioning.CreateDelta(expected, actual.Partitioning, out var missing);
-                    MissingPartitions = missing;
-                }
-            }
-        }
+
     }
 
     public IPartition[] MissingPartitions { get; private set; } = Array.Empty<IPartition>();
@@ -82,6 +61,26 @@ public class TableDelta: SchemaObjectDelta<Table>
                      actual.PrimaryKeyColumns.Select(actual.TruncatedNameIdentifier)))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
+        }
+
+        if (expected.Partitioning == null)
+        {
+            if (actual.Partitioning != null)
+            {
+                PartitionDelta = PartitionDelta.Rebuild;
+            }
+        }
+        else
+        {
+            if (actual.Partitioning == null)
+            {
+                PartitionDelta = PartitionDelta.Rebuild;
+            }
+            else
+            {
+                PartitionDelta = expected.Partitioning.CreateDelta(expected, actual.Partitioning, out var missing);
+                MissingPartitions = missing;
+            }
         }
 
         return determinePatchDifference();
@@ -295,7 +294,7 @@ public class TableDelta: SchemaObjectDelta<Table>
     public bool HasChanges()
     {
         return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() ||
-               PrimaryKeyDifference != SchemaPatchDifference.None;
+               PrimaryKeyDifference != SchemaPatchDifference.None || PartitionDelta != PartitionDelta.None;
     }
 
     public override string ToString()
