@@ -40,7 +40,13 @@ public static class PartitionExtensions
     /// <returns></returns>
     public static string GetSuffixName(this DbObjectName identifier, string tableName)
     {
-        return tableName.TrimStart(identifier.Name.ToCharArray()).TrimStart('_');
+        var suffix = tableName;
+        if (tableName.StartsWith(identifier.Name))
+        {
+            suffix = suffix.Substring(identifier.Name.Length);
+        }
+
+    return suffix.TrimStart('_');
     }
 
     internal static string GetStringWithinParantheses(this string raw)
