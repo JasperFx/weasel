@@ -2,6 +2,7 @@ using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 using Weasel.Postgresql.Functions;
+using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql;
 
@@ -62,5 +63,25 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
     public ValueTask DisposeAsync()
     {
         return DataSource.DisposeAsync();
+    }
+
+    public async Task<Table[]> FetchExistingTablesAsync()
+    {
+        var tableNames = AllObjects().OfType<Table>().Select(x => x.Identifier).ToArray();
+
+        var list = new List<Table>();
+        await using var conn = CreateConnection();
+        await conn.OpenAsync(CancellationToken.None).ConfigureAwait(false);
+
+        foreach (var tableName in tableNames)
+        {
+            var table = await new Table(tableName).FetchExistingAsync(conn, CancellationToken.None).ConfigureAwait(false);
+            if (table != null)
+            {
+                list.Add(table);
+            }
+        }
+
+        return list.ToArray();
     }
 }

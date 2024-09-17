@@ -81,10 +81,24 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await conn.CloseAsync().ConfigureAwait(false);
     }
 
+    private async Task initializeSchema(TConnection connection, CancellationToken token)
+    {
+        var initializers = BuildFeatureSchemas()
+            .OfType<IFeatureSchemaWithInitialization<TConnection>>()
+            .ToArray();
+
+        foreach (var initializer in initializers)
+        {
+            await initializer.InitializeAsync(connection, token).ConfigureAwait(false);
+        }
+    }
+
     public async Task<SchemaMigration> CreateMigrationAsync(IFeatureSchema group, CancellationToken ct = default)
     {
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
+
+        await initializeSchema(conn, ct).ConfigureAwait(false);
 
         var migration = await SchemaMigration.DetermineAsync(conn, ct, group.Objects).ConfigureAwait(false);
 
@@ -112,13 +126,23 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         return writer.ToString();
     }
 
-    public Task WriteCreationScriptToFileAsync(string filename, CancellationToken ct = default)
+    public async Task WriteCreationScriptToFileAsync(string filename, CancellationToken ct = default)
     {
         var directory = Path.GetDirectoryName(filename);
         FileSystem.CreateDirectoryIfNotExists(directory);
 
+        await initializeSchemaWithNewConnection(ct).ConfigureAwait(false);
+
         var sql = ToDatabaseScript();
-        return File.WriteAllTextAsync(filename, sql, ct);
+        await File.WriteAllTextAsync(filename, sql, ct).ConfigureAwait(false);
+    }
+
+    private async Task initializeSchemaWithNewConnection(CancellationToken ct)
+    {
+        await using var conn = CreateConnection();
+        await conn.OpenAsync(ct).ConfigureAwait(false);
+        await initializeSchema(conn, ct).ConfigureAwait(false);
+        await conn.CloseAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -129,6 +153,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     public async Task WriteScriptsByTypeAsync(string directory, CancellationToken ct = default)
     {
         FileSystem.CleanDirectory(directory);
+
+        await initializeSchemaWithNewConnection(ct).ConfigureAwait(false);
 
         var scriptNames = new List<string>();
 
@@ -173,6 +199,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
+        await initializeSchema(conn, ct).ConfigureAwait(false);
 
         var result = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
         await conn.CloseAsync().ConfigureAwait(false);
@@ -256,6 +283,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
             if (attainLockResult == AttainLockResult.Success)
             {
+                await initializeSchema(conn, ct).ConfigureAwait(false);
                 var patch = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
 
                 if (patch.Difference != SchemaPatchDifference.None)
@@ -360,6 +388,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         types.Fill(featureType);
 
+        await initializeSchemaWithNewConnection(token).ConfigureAwait(false);
+
         foreach (var dependentType in feature.DependentTypes())
             await ensureStorageExistsAsync(types, dependentType, token).ConfigureAwait(false);
 
@@ -398,6 +428,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await using var conn = _connectionSource();
 
         await conn.OpenAsync(ct).ConfigureAwait(false);
+        await initializeSchema(conn, ct).ConfigureAwait(false);
 
         var migration = await SchemaMigration.DetermineAsync(conn, ct, schemaObjects).ConfigureAwait(false);
 

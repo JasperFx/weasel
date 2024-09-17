@@ -1,4 +1,11 @@
+using System.Data.Common;
+
 namespace Weasel.Core.Migrations;
+
+public interface IFeatureSchemaWithInitialization<T> where T : DbConnection
+{
+    Task InitializeAsync(T connection, CancellationToken token);
+}
 
 /// <summary>
 ///     Defines a distinct part of your database. Can represent relationships
