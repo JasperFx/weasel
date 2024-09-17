@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Data.Common;
 using JasperFx.Core;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -98,6 +99,70 @@ public class ManagedListPartitions : FeatureSchemaBase, IFeatureSchemaWithInitia
         await conn.CloseAsync().ConfigureAwait(false);
     }
 
+    public async Task<TablePartitionStatus[]> AddPartitionToAllTables(ILogger logger, PostgresqlDatabase database, Dictionary<string, string> values, CancellationToken token)
+    {
+        await using var conn = database.CreateConnection();
+        await conn.OpenAsync(token).ConfigureAwait(false);
+
+        await _table.MigrateAsync(conn, token).ConfigureAwait(false);
+
+        await using var tx = await conn.BeginTransactionAsync(token).ConfigureAwait(false);
+        foreach (var pair in values)
+        {
+            var cmd = tx
+                .CreateCommand(
+                    $"insert into {_table.Identifier} (partition_value, partition_suffix) values (:value, :suffix) on conflict (partition_value) do update set partition_suffix = :suffix")
+                .With("value", pair.Key)
+                .With("suffix", pair.Value);
+
+            _partitions[pair.Key] = pair.Value;
+
+            await cmd.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+        }
+
+        await tx.CommitAsync(token).ConfigureAwait(false);
+
+        var tables = database
+            .AllObjects()
+            .OfType<Table>()
+            .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
+            .ToArray();
+
+        var list = new List<TablePartitionStatus>();
+
+        foreach (var table in tables)
+        {
+            var existing = await table.FetchExistingAsync(conn, token).ConfigureAwait(false);
+            var delta = new TableDelta(table, existing);
+            if (delta.PartitionDelta == PartitionDelta.Additive)
+            {
+                try
+                {
+                    await table.MigrateAsync(conn, token).ConfigureAwait(false);
+                    foreach (var partition in delta.MissingPartitions)
+                    {
+                        logger.LogInformation("Added partition {Partition} to table {TableName}", partition, table.Identifier);
+                    }
+
+                    list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Complete));
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Error trying to add table partitions to {Table}", table.Identifier);
+                    list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Failed));
+                }
+            }
+            else
+            {
+                list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.RequiresTableRebuild));
+            }
+        }
+
+        await conn.CloseAsync().ConfigureAwait(false);
+
+        return list.ToArray();
+    }
+
     public Task AddPartitionToAllTables(NpgsqlConnection conn, CancellationToken token, string value, string? suffix = null)
     {
         if (value.IsEmpty()) throw new ArgumentNullException(nameof(value));
@@ -165,3 +230,13 @@ public class ManagedListPartitions : FeatureSchemaBase, IFeatureSchemaWithInitia
         }
     }
 }
+
+public enum PartitionMigrationStatus
+{
+    Complete,
+    Failed,
+    RequiresTableRebuild
+}
+
+public record TablePartitionStatus(DbObjectName Identifier, PartitionMigrationStatus Status);
+
