@@ -10,6 +10,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     private readonly Func<TConnection> _connectionSource;
     private readonly IMigrationLogger _logger;
     private readonly TimedLock _migrateLocker = new();
+    private readonly List<IDatabaseInitializer<TConnection>> _initializers = new();
 
     public DatabaseBase(
         IMigrationLogger logger,
@@ -34,6 +35,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         AutoCreate = autoCreate;
         Migrator = migrator;
         Identifier = identifier;
+    }
+
+    public void AddInitializer(IDatabaseInitializer<TConnection> initializer)
+    {
+        _initializers.Add(initializer);
     }
 
     private static TConnection CreateConnection(string connectionString)
@@ -83,11 +89,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
     private async Task initializeSchema(TConnection connection, CancellationToken token)
     {
-        var initializers = BuildFeatureSchemas()
-            .OfType<IFeatureSchemaWithInitialization<TConnection>>()
-            .ToArray();
-
-        foreach (var initializer in initializers)
+        foreach (var initializer in _initializers)
         {
             await initializer.InitializeAsync(connection, token).ConfigureAwait(false);
         }

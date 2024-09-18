@@ -13,7 +13,7 @@ public interface IListPartitionManager
     IEnumerable<ListPartition> Partitions();
 }
 
-public class ManagedListPartitions : FeatureSchemaBase, IFeatureSchemaWithInitialization<NpgsqlConnection>, IListPartitionManager
+public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<NpgsqlConnection>, IListPartitionManager
 {
     private readonly Table _table;
     private Dictionary<string, string> _partitions = new();

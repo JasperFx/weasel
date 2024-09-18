@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace Weasel.Core.Migrations;
 
-public interface IFeatureSchemaWithInitialization<T> where T : DbConnection
+public interface IDatabaseInitializer<T> where T : DbConnection
 {
     Task InitializeAsync(T connection, CancellationToken token);
 }
