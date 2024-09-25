@@ -216,13 +216,25 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                 var suffix = value.ToLowerInvariant();
                 if (await reader.IsDBNullAsync(1, token).ConfigureAwait(false))
                 {
-                    suffix = (await reader.GetFieldValueAsync<string>(1, token).ConfigureAwait(false)).ToLowerInvariant();
+                    suffix =
+                        (await reader.GetFieldValueAsync<string>(1, token).ConfigureAwait(false)).ToLowerInvariant();
                 }
 
                 _partitions[value] = suffix;
             }
 
             _hasInitialized = true;
+        }
+        // 42P01: relation "public.mt_tenant_partitions" does not exist
+        catch (NpgsqlException e)
+        {
+            if (e.Message.Contains("does not exist"))
+            {
+                _hasInitialized = true;
+                return;
+            }
+
+            throw;
         }
         finally
         {
