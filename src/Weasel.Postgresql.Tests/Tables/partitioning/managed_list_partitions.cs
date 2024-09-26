@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -63,6 +64,35 @@ public class managed_list_partitions : IntegrationContext
             .ShouldBe(new []{"blue", "green", "red"});
 
     }
+
+    [Fact]
+    public async Task migrate_tables_smoke_test_with_variable_value_and_tenant_id()
+    {
+        var database = new ManagedListDatabase();
+        var partitions = new Dictionary<string, string> { { Guid.NewGuid().ToString(), "red" }, { Guid.NewGuid().ToString(), "green" }, { Guid.NewGuid().ToString(), "blue" }, };
+        //await database.Partitions.ResetValues(database, partitions, CancellationToken.None);
+
+        await database.Partitions.AddPartitionToAllTables(NullLogger.Instance, database, partitions, CancellationToken.None);
+
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var tables = await database.FetchExistingTablesAsync();
+
+        var teams = tables.Single(x => x.Identifier.Name == "teams");
+        var partitioning = teams.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.HasExistingDefault.ShouldBeFalse();
+        partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
+            .ShouldBe(new []{"blue", "green", "red"});
+
+        var players = tables.Single(x => x.Identifier.Name == "players");
+        partitioning = players.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.HasExistingDefault.ShouldBeFalse();
+        partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
+            .ShouldBe(new []{"blue", "green", "red"});
+
+    }
+
+
 
     [Fact]
     public async Task apply_additive_migration()

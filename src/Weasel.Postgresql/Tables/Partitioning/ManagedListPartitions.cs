@@ -214,7 +214,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             {
                 var value = await reader.GetFieldValueAsync<string>(0, token).ConfigureAwait(false);
                 var suffix = value.ToLowerInvariant();
-                if (await reader.IsDBNullAsync(1, token).ConfigureAwait(false))
+                if (!(await reader.IsDBNullAsync(1, token).ConfigureAwait(false)))
                 {
                     suffix =
                         (await reader.GetFieldValueAsync<string>(1, token).ConfigureAwait(false)).ToLowerInvariant();
