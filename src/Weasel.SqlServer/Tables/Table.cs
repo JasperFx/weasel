@@ -64,7 +64,15 @@ public partial class Table: ISchemaObject
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
-            writer.WriteLine("EXEC sp_MSdropconstraints '{0}', '{1}';", Identifier.Name, Identifier.Schema);
+            // drop all FK constraints
+            var sqlVariableName = $"@sql_{Guid.NewGuid().ToString().ToLower().Replace("-", "_")}";
+            writer.WriteLine("DECLARE {0} NVARCHAR(MAX) = '';", sqlVariableName);
+            writer.WriteLine("SELECT {0} = {1} + 'ALTER TABLE {2} DROP CONSTRAINT ' + QUOTENAME(name) + ';'",
+                sqlVariableName, sqlVariableName, Identifier.QualifiedName);
+            writer.WriteLine("FROM sys.foreign_keys");
+            writer.WriteLine("WHERE referenced_object_id = OBJECT_ID('{0}');", Identifier.QualifiedName);
+            writer.WriteLine("EXEC sp_executesql {0}", sqlVariableName);
+
             writer.WriteLine("DROP TABLE IF EXISTS {0};", Identifier);
             writer.WriteLine("CREATE TABLE {0} (", Identifier);
         }
