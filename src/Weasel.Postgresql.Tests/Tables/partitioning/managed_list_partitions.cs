@@ -119,6 +119,35 @@ public class managed_list_partitions : IntegrationContext
         partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
             .ShouldBe(new []{"blue", "green", "purple", "red"});
     }
+
+    [Fact]
+    public async Task apply_additive_migration_2()
+    {
+        var database = new ManagedListDatabase();
+        var partitions = new Dictionary<string, string> { { "red", "red" }, { "green", "green" }, { "blue", "blue" }, };
+        await database.Partitions.ResetValues(database, partitions, CancellationToken.None);
+
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        // RECREATE a new instance of the database
+        database = new ManagedListDatabase();
+
+        await database.Partitions.AddPartitionToAllTables(database, "purple", "purple", CancellationToken.None);
+
+        var tables = await database.FetchExistingTablesAsync();
+
+        var teams = tables.Single(x => x.Identifier.Name == "teams");
+        var partitioning = teams.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.HasExistingDefault.ShouldBeFalse();
+        partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
+            .ShouldBe(new []{"blue", "green", "purple", "red"});
+
+        var players = tables.Single(x => x.Identifier.Name == "players");
+        partitioning = players.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.HasExistingDefault.ShouldBeFalse();
+        partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
+            .ShouldBe(new []{"blue", "green", "purple", "red"});
+    }
 }
 
 public class ManagedListDatabase: PostgresqlDatabase

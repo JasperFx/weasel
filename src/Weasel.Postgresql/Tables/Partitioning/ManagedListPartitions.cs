@@ -83,6 +83,9 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         await using var conn = database.CreateConnection();
         await conn.OpenAsync(token).ConfigureAwait(false);
 
+        // This is idempotent, so just do it here
+        await InitializeAsync(conn, token).ConfigureAwait(false);
+
         await AddPartitionToAllTables(conn, token, value, suffix).ConfigureAwait(false);
 
         var tables = database
