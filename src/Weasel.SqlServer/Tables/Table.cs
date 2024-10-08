@@ -71,7 +71,7 @@ public partial class Table: ISchemaObject
                 sqlVariableName, sqlVariableName);
             writer.WriteLine("FROM sys.foreign_keys AS fk");
             writer.WriteLine("WHERE fk.referenced_object_id = OBJECT_ID('{0}');", Identifier.QualifiedName);
-            writer.WriteLine("EXEC sp_executesql {0}", sqlVariableName);
+            writer.WriteLine("EXEC sp_executesql {0};", sqlVariableName);
 
             writer.WriteLine("DROP TABLE IF EXISTS {0};", Identifier);
             writer.WriteLine("CREATE TABLE {0} (", Identifier);
