@@ -213,4 +213,27 @@ public class creating_tables_in_database: IntegrationContext
         (await table.ExistsInDatabaseAsync(theConnection))
             .ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task create_table_with_name_and_column_using_reserved_keyword()
+    {
+        await theConnection.OpenAsync();
+
+        await theConnection.ResetSchemaAsync("tables");
+
+        var table = new Table("order");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+        table.AddColumn<int>("order");
+
+        await CreateSchemaObjectInDatabase(table);
+
+        (await table.ExistsInDatabaseAsync(theConnection))
+            .ShouldBeTrue();
+
+        await theConnection.CreateCommand(
+                "insert into [order] (id, first_name, last_name, [order]) values (1, 'Elton', 'John',1)")
+            .ExecuteNonQueryAsync();
+    }
 }

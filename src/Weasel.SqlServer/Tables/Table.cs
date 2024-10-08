@@ -70,7 +70,7 @@ public partial class Table: ISchemaObject
             writer.WriteLine("SELECT {0} = {1} + 'ALTER TABLE ' + QUOTENAME(OBJECT_SCHEMA_NAME(fk.parent_object_id)) + '.' + QUOTENAME(OBJECT_NAME(fk.parent_object_id)) + ' DROP CONSTRAINT ' + QUOTENAME(fk.name) + ';'",
                 sqlVariableName, sqlVariableName);
             writer.WriteLine("FROM sys.foreign_keys AS fk");
-            writer.WriteLine("WHERE fk.referenced_object_id = OBJECT_ID('{0}');", Identifier.QualifiedName);
+            writer.WriteLine("WHERE fk.referenced_object_id = OBJECT_ID('{0}');", Identifier);
             writer.WriteLine("EXEC sp_executesql {0};", sqlVariableName);
 
             writer.WriteLine("DROP TABLE IF EXISTS {0};", Identifier);
@@ -83,11 +83,11 @@ public partial class Table: ISchemaObject
 
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
-            var columnLength = Columns.Max(x => x.Name.Length) + 4;
+            var columnLength = Columns.Max(x => x.QuotedName.Length) + 4;
             var typeLength = Columns.Max(x => x.Type.Length) + 4;
 
             var lines = Columns.Select(column =>
-                    $"    {column.Name.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}")
+                    $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}")
                 .ToList();
 
             if (PrimaryKeyColumns.Any())
