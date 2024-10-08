@@ -5,6 +5,8 @@ namespace Weasel.SqlServer;
 
 public class SqlServerObjectName: DbObjectName
 {
+    protected override string QuotedQualifiedName => $"{SchemaUtils.QuoteName(Schema)}.{SchemaUtils.QuoteName(Name)}";
+
     public SqlServerObjectName(string schema, string name)
         : base(schema, name, SqlServerProvider.Instance.As<IDatabaseProvider>().ToQualifiedName(schema, name))
     {

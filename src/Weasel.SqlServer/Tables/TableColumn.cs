@@ -41,6 +41,7 @@ public class TableColumn: INamed
     public bool IsAutoNumber { get; set; }
 
     public string Name { get; }
+    public string QuotedName => SchemaUtils.QuoteName(Name);
 
     public string RawType()
     {
@@ -103,8 +104,8 @@ public class TableColumn: INamed
         var declaration = Declaration();
 
         return declaration.IsEmpty()
-            ? $"{Name} {Type}"
-            : $"{Name} {Type} {declaration}";
+            ? $"{QuotedName} {Type}"
+            : $"{QuotedName} {Type} {declaration}";
     }
 
     public override string ToString()

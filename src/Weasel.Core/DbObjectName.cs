@@ -23,6 +23,8 @@ public class DbObjectName
     public string Name { get; }
     public string QualifiedName { get; }
 
+    protected virtual string QuotedQualifiedName => QualifiedName;
+
     public DbObjectName ToTempCopyTable()
     {
         return new DbObjectName(Schema, Name + "_temp");
@@ -38,7 +40,7 @@ public class DbObjectName
 
     public override string ToString()
     {
-        return QualifiedName;
+        return QuotedQualifiedName;
     }
 
     protected bool Equals(DbObjectName other)

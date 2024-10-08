@@ -30,24 +30,9 @@ internal static class Canonicalization
             .Replace("Boolean", "boolean")
             .Replace("bool,", "boolean,")
             .Replace("int[]", "integer[]")
-            .Replace("numeric", "decimal").TrimEnd(';').TrimEnd();
+            .Replace("numeric", "decimal")
+            .TrimEnd(';').TrimEnd();
 
-
-        if (replaced.ContainsIgnoreCase("PLV8"))
-        {
-            replaced = replaced
-                .Replace("LANGUAGE plv8 IMMUTABLE STRICT AS $function$", "AS $$");
-
-            const string languagePlv8ImmutableStrict = "$$ LANGUAGE plv8 IMMUTABLE STRICT";
-            const string functionMarker = "$function$";
-            if (replaced.EndsWith(functionMarker))
-            {
-                replaced = replaced.Substring(0, replaced.LastIndexOf(functionMarker)) +
-                           languagePlv8ImmutableStrict;
-            }
-        }
-
-        return replaced
-            .Replace("  ", " ").TrimEnd().TrimEnd(';');
+        return replaced;
     }
 }
