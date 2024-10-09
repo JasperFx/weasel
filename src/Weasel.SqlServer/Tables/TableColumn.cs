@@ -66,7 +66,7 @@ public class TableColumn: INamed
 
     protected bool Equals(TableColumn other)
     {
-        return string.Equals(Name, other.Name) &&
+        return string.Equals(QuotedName, other.QuotedName) &&
                string.Equals(SqlServerProvider.Instance.ConvertSynonyms(RawType()),
                    SqlServerProvider.Instance.ConvertSynonyms(other.RawType()));
     }
@@ -116,12 +116,12 @@ public class TableColumn: INamed
 
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
-        return $"alter table {table.Identifier} modify column {Name.PadRight(Name.Length)} type {Type};";
+        return $"alter table {table.Identifier} alter column {changeActual.ToDeclaration()};";
     }
 
     public string DropColumnSql(Table table)
     {
-        return $"alter table {table.Identifier} drop column {Name};";
+        return $"alter table {table.Identifier} drop column {QuotedName};";
     }
 
 

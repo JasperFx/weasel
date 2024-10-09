@@ -118,4 +118,17 @@ public class TableColumnTests
         column.AddColumnSql(table)
             .ShouldBe("alter table dbo.people add name1 varchar(100) NOT NULL;");
     }
+
+    [Fact]
+    public void change_column_type_sql()
+    {
+        var table = new Table("people");
+        const string columnName = "order";
+        table.AddColumn<string>(columnName).NotNull();
+
+        var updatedColumn = new TableColumn(columnName, "varchar(200)") { AllowNulls = true };
+
+        table.ColumnFor("order")!.AlterColumnTypeSql(table, updatedColumn)
+            .ShouldBe($"alter table dbo.people alter column [{columnName}] varchar(200) NULL;");
+    }
 }
