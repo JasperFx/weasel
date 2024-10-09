@@ -128,7 +128,7 @@ public class TableColumnTests
 
         var updatedColumn = new TableColumn(columnName, "varchar(200)") { AllowNulls = true };
 
-        table.ColumnFor("order")!.AlterColumnTypeSql(table, updatedColumn)
+        table.ColumnFor(columnName)!.AlterColumnTypeSql(table, updatedColumn)
             .ShouldBe($"alter table dbo.people alter column [{columnName}] varchar(200) NULL;");
     }
 }
