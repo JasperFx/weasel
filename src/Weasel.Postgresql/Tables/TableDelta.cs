@@ -136,6 +136,8 @@ public class TableDelta: SchemaObjectDelta<Table>
         }
         else if (this.PartitionDelta == PartitionDelta.Rebuild)
         {
+            var columns = Expected.Columns.Select(x => x.Name).Join(", ");
+
             var tempName = new DbObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_temp");
             writer.WriteLine($"create table {tempName} as select * from {Expected.Identifier};");
             writer.WriteLine($"drop table {Expected.Identifier} cascade;");
@@ -144,7 +146,7 @@ public class TableDelta: SchemaObjectDelta<Table>
 
             writer.WriteLine();
 
-            writer.WriteLine($"insert into {Expected.Identifier} select * from {tempName};");
+            writer.WriteLine($"insert into {Expected.Identifier}({columns}) select {columns} from {tempName};");
 
             writer.WriteLine($"drop table {tempName} cascade;");
         }
