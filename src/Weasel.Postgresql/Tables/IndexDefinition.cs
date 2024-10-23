@@ -511,6 +511,11 @@ public class IndexDefinition: INamed
         }
         else
         {
+            if (expression.StartsWith('(') && expression.EndsWith(')'))
+            {
+                expression = expression.Substring(1, expression.Length - 2);
+            }
+
             index.Columns = expression.Split(',').Select(canonicizeColumn).ToArray();
         }
 
@@ -739,6 +744,7 @@ public class IndexDefinition: INamed
             .Replace(" -> ", "->")
             .Replace(IndexCreationBeginComment, "")
             .Replace(IndexCreationEndComment, "")
+            .Replace("as decimal", "as numeric")
             .Replace(", ", ",")
             .Trim()
             .TrimEnd(new[] { ';' })
