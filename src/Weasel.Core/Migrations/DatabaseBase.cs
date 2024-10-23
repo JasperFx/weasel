@@ -258,6 +258,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         var objects = AllObjects().ToArray();
 
+        foreach (var objectName in objects.SelectMany(x => x.AllNames()))
+        {
+            Migrator.AssertValidIdentifier(objectName.Name);
+        }
+
         TConnection? conn = null;
         try
         {
@@ -393,7 +398,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         await initializeSchemaWithNewConnection(token).ConfigureAwait(false);
 
         foreach (var dependentType in feature.DependentTypes())
+        {
             await ensureStorageExistsAsync(types, dependentType, token).ConfigureAwait(false);
+        }
 
         await generateOrUpdateFeature(featureType, feature, token).ConfigureAwait(false);
     }
@@ -410,7 +417,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
 
         foreach (var objectName in schemaObjects.SelectMany(x => x.AllNames()))
+        {
             Migrator.AssertValidIdentifier(objectName.Name);
+        }
 
         using (await _migrateLocker.Lock(5.Seconds(), token).ConfigureAwait(false))
         {
