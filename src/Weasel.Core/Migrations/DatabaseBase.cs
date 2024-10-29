@@ -141,6 +141,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
     private async Task initializeSchemaWithNewConnection(CancellationToken ct)
     {
+        // Don't do this if it's unnecessary
+        if (!_initializers.Any()) return;
+
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
         await initializeSchema(conn, ct).ConfigureAwait(false);
