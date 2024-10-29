@@ -1,15 +1,18 @@
-using Npgsql;
-using NpgsqlTypes;
+using System.Data;
+using System.Data.Common;
+using Weasel.Core.Serialization;
 
-namespace Weasel.Postgresql;
+namespace Weasel.Core.Operations;
 
-public interface ICommandBuilder
+public interface ICommandBuilder : ICommandBatchBuilder
 {
     /// <summary>
     /// It became so common, that it's turned out to be convenient to place
     /// this here
     /// </summary>
     string TenantId { get; set; }
+
+    void SetParameterAsJson(DbParameter parameter, string json);
 
     /// <summary>
     /// Preview the parameter name of the last appended parameter
@@ -19,13 +22,14 @@ public interface ICommandBuilder
     void Append(string sql);
     void Append(char character);
 
-    NpgsqlParameter AppendParameter<T>(T value);
-    NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType);
-    NpgsqlParameter AppendParameter(object value);
-    NpgsqlParameter AppendParameter(object? value, NpgsqlDbType? dbType);
+    void AppendParameter<T>(T value);
+    void AppendParameter<T>(T value, DbType? dbType);
+
+    void AppendParameter(object value);
+
     void AppendParameters(params object[] parameters);
 
-    IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null);
+    IGroupedParameterBuilder CreateGroupedParameterBuilder(char? separator = null);
 
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
@@ -34,7 +38,7 @@ public interface ICommandBuilder
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    NpgsqlParameter[] AppendWithParameters(string text);
+    DbParameter[] AppendWithParameters(string text);
 
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
@@ -43,9 +47,8 @@ public interface ICommandBuilder
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    NpgsqlParameter[] AppendWithParameters(string text, char placeholder);
+    DbParameter[] AppendWithParameters(string text, char placeholder);
 
-    void StartNewCommand();
 
     /// <summary>
     ///     Use an anonymous type to add named parameters.
@@ -65,4 +68,10 @@ public interface ICommandBuilder
     /// </summary>
     /// <param name="parameters"></param>
     void AddParameters<T>(IDictionary<string, T> parameters);
+
+    void AppendStringArrayParameter(string[] values);
+    void AppendGuidArrayParameter(Guid[] values);
+    void AppendLongArrayParameter(long[] values);
+    void AppendJsonParameter(ISerializer serializer, object value);
+    void AppendJsonParameter(string json);
 }

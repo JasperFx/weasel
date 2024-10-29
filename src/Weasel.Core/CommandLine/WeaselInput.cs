@@ -1,11 +1,11 @@
+using JasperFx.CommandLine;
 using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Oakton;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public class WeaselInput: NetCoreInput
 {
@@ -22,7 +22,7 @@ public class WeaselInput: NetCoreInput
 
         foreach (var source in sources)
         {
-            var found = await source.BuildDatabases();
+            var found = await source.BuildDatabases().ConfigureAwait(false);
             databases.AddRange(found);
         }
 
@@ -52,11 +52,8 @@ public class WeaselInput: NetCoreInput
 
             return new List<IDatabase> { database };
         }
-        else
-        {
-            return databases;
-        }
 
+        return databases;
     }
 
     public virtual List<string> SelectOptions(List<IDatabase> databases)
@@ -77,10 +74,7 @@ public class WeaselInput: NetCoreInput
     {
         var databases = host.Services.GetServices<IDatabase>().ToList();
         var sources = host.Services.GetServices<IDatabaseSource>();
-        foreach (var source in sources)
-        {
-            databases.AddRange(await source.BuildDatabases().ConfigureAwait(false));
-        }
+        foreach (var source in sources) databases.AddRange(await source.BuildDatabases().ConfigureAwait(false));
 
         if (!databases.Any())
         {
@@ -108,7 +102,6 @@ public class WeaselInput: NetCoreInput
             listDatabases(databases);
 
             return (false, null);
-
         }
 
         if (databases.Count == 1)
@@ -116,7 +109,8 @@ public class WeaselInput: NetCoreInput
             return (true, databases.Single());
         }
 
-        AnsiConsole.MarkupLine("[bold]A specific database from this list must be selected with the -d|--database flag:[/]");
+        AnsiConsole.MarkupLine(
+            "[bold]A specific database from this list must be selected with the -d|--database flag:[/]");
         listDatabases(databases);
 
         return (false, null);
@@ -125,10 +119,7 @@ public class WeaselInput: NetCoreInput
     private static void listDatabases(List<IDatabase> databases)
     {
         var tree = new Tree("Registered Databases");
-        foreach (var database1 in databases)
-        {
-            tree.AddNode(database1.Identifier);
-        }
+        foreach (var database1 in databases) tree.AddNode(database1.Identifier);
 
         AnsiConsole.Write(tree);
     }

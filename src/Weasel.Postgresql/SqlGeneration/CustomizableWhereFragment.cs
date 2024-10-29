@@ -1,5 +1,6 @@
 using System.Collections;
 using JasperFx.Core.Reflection;
+using Npgsql;
 
 namespace Weasel.Postgresql.SqlGeneration;
 
@@ -16,7 +17,7 @@ public class CustomizableWhereFragment: ISqlFragment
         _token = paramReplacementToken.ToCharArray()[0];
     }
 
-    public void Apply(ICommandBuilder builder)
+    public void Apply(IPostgresqlCommandBuilder builder)
     {
         // backwards compatibility, old version of this class accepted CommandParameter[]
         if (_parameters is [CommandParameter { Value: { } firstVal }] && (firstVal.IsAnonymousType() || firstVal is IDictionary { Keys: ICollection<string> }))
@@ -32,7 +33,6 @@ public class CustomizableWhereFragment: ISqlFragment
             builder.AddParameters(first);
             return;
         }
-        
 
         var parameters = builder.AppendWithParameters(_sql, _token);
         for (var i = 0; i < parameters.Length; i++)
@@ -42,7 +42,8 @@ public class CustomizableWhereFragment: ISqlFragment
             parameters[i].Value = commandParameter.Value;
             if (commandParameter.DbType.HasValue)
             {
-                parameters[i].NpgsqlDbType = commandParameter.DbType.Value;
+                // TODO - don't like the downcast here! Do we really have to use NpgsqlDbType???
+                parameters[i].As<NpgsqlParameter>().NpgsqlDbType = commandParameter.DbType.Value;
             }
         }
     }

@@ -1,9 +1,10 @@
+using JasperFx;
+using JasperFx.CommandLine;
 using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Npgsql;
-using Oakton;
-using Weasel.Core;
+using Weasel.Core.CommandLine;
 using Weasel.Core.Migrations;
 using Weasel.Postgresql;
 using Weasel.Postgresql.Tests;
@@ -15,8 +16,8 @@ namespace Weasel.CommandLine.Tests;
 public abstract class IntegrationContext
 {
     internal readonly LightweightCache<string, DatabaseWithTables> Databases
-        = new LightweightCache<string, DatabaseWithTables>(name =>
-            new DatabaseWithTables(AutoCreate.CreateOrUpdate, name));
+        = new(name =>
+            new DatabaseWithTables(JasperFx.AutoCreate.CreateOrUpdate, name));
 
     internal async Task DropSchema(string schemaName)
     {
@@ -24,7 +25,7 @@ public abstract class IntegrationContext
         await conn.DropSchemaAsync(schemaName);
     }
 
-    internal Task<bool> ExecuteCommand<TCommand>() where TCommand : OaktonAsyncCommand<WeaselInput>, new()
+    internal Task<bool> ExecuteCommand<TCommand>() where TCommand : JasperFxAsyncCommand<WeaselInput>, new()
     {
         var command = new TCommand();
         var builder = Host.CreateDefaultBuilder().ConfigureServices(services =>

@@ -1,8 +1,10 @@
+using JasperFx;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using NSubstitute;
 using Shouldly;
 using Weasel.Core;
+using Weasel.Core.CommandLine;
 using Weasel.Core.Migrations;
 using Xunit;
 

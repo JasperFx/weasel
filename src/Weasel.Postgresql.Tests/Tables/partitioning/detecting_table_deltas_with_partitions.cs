@@ -1,3 +1,4 @@
+using JasperFx;
 using Npgsql;
 using Shouldly;
 using Weasel.Core;

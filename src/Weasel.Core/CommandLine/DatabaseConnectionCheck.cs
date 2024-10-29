@@ -1,9 +1,9 @@
-using Oakton.Environment;
+using JasperFx.Environment;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
-internal class DatabaseConnectionCheck : IEnvironmentCheckFactory
+internal class DatabaseConnectionCheck: IEnvironmentCheckFactory
 {
     private readonly IEnumerable<IDatabase> _databases;
     private readonly IEnumerable<IDatabaseSource> _sources;
@@ -42,6 +42,4 @@ internal class DatabaseConnectionCheck : IEnvironmentCheckFactory
 
         public string Description => "Validating connectivity of Weasel database " + _database.Identifier;
     }
-
-
 }

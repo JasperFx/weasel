@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using JasperFx.Core;
@@ -25,7 +26,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     where TParameterType : struct
 {
     protected readonly TCommand _command;
-    private readonly char _parameterPrefix;
+    protected readonly char _parameterPrefix;
 
     private readonly IDatabaseProvider<TCommand, TParameter, TParameterType>
         _provider;
@@ -230,9 +231,10 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// </summary>
     /// <param name="value"></param>
     /// <param name="dbType"></param>
-    public void AppendParameter(object? value, TParameterType? dbType = null)
+    public void AppendParameter(object? value, DbType? dbType = null)
     {
-        var parameter = AddParameter(value, dbType);
+        var parameter = AddParameter(value);
+        if (dbType.HasValue) parameter.DbType = dbType.Value;
         Append(_parameterPrefix);
         Append(parameter.ParameterName);
     }
@@ -245,7 +247,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="dbType"></param>
     public void AppendParameter(int value)
     {
-        AppendParameter(value, _provider.IntegerParameterType);
+        AppendParameter(value, DbType.Int32);
     }
 
     /// <summary>
@@ -256,7 +258,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="dbType"></param>
     public void AppendParameter(Guid value)
     {
-        AppendParameter(value, _provider.GuidParameterType);
+        AppendParameter(value, DbType.Guid);
     }
 
     /// <summary>
@@ -267,7 +269,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="dbType"></param>
     public void AppendParameter(string value)
     {
-        AppendParameter(value, _provider.StringParameterType);
+        AppendParameter(value, DbType.String);
     }
 
     /// <summary>
@@ -345,13 +347,12 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// </summary>
     /// <param name="text"></param>
     /// <returns></returns>
-    public TParameter[] AppendWithParameters(string text)
+    public DbParameter[] AppendWithParameters(string text)
     {
         var separator = '?';
         return AppendWithParameters(text, separator);
     }
 
-#if NET6_0 || NET7_0
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
     ///     array of the newly created parameters
@@ -359,34 +360,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    public TParameter[] AppendWithParameters(string text, char separator)
-    {
-        var split = text.Split(separator);
-        var parameters = new TParameter[split.Length - 1];
-
-        _sql.Append(split[0]);
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            // Just need a placeholder parameter type and value
-            var parameter = AddParameter(DBNull.Value, _provider.StringParameterType);
-            parameters[i] = parameter;
-            _sql.Append(_parameterPrefix);
-            _sql.Append(parameter.ParameterName);
-            _sql.Append(split[i + 1]);
-        }
-
-        return parameters;
-    }
-#else
-
-    /// <summary>
-    ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
-    ///     array of the newly created parameters
-    /// </summary>
-    /// <param name="text"></param>
-    /// <param name="separator"></param>
-    /// <returns></returns>
-    public TParameter[] AppendWithParameters(string text, char separator)
+    public DbParameter[] AppendWithParameters(string text, char separator)
     {
         var span = text.AsSpan();
 
@@ -415,7 +389,6 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
 
         return parameters;
     }
-#endif
 }
 
 // Note: Those methods are intentionally not written as extension methods

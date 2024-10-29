@@ -1,14 +1,13 @@
-using Oakton.Resources;
+using JasperFx.Resources;
 using Spectre.Console;
 using Spectre.Console.Rendering;
-using Weasel.Core;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 /// <summary>
-/// Exposes optional status information about a database to the Oakton
-/// command line report "resources statistics" model
+///     Exposes optional status information about a database to the Oakton
+///     command line report "resources statistics" model
 /// </summary>
 public interface IDatabaseWithStatistics
 {
@@ -16,8 +15,8 @@ public interface IDatabaseWithStatistics
 }
 
 /// <summary>
-/// Exposes optional status information about a database to the Oakton
-/// command line report "resources clear" model
+///     Exposes optional status information about a database to the Oakton
+///     command line report "resources clear" model
 /// </summary>
 public interface IDatabaseWithRewindableState
 {
@@ -35,6 +34,9 @@ internal class DatabaseResource: IStatefulResource
         Name = database.Identifier;
     }
 
+    public string Type { get; }
+    public string Name { get; }
+
     public Task Check(CancellationToken token)
     {
         return _database.AssertDatabaseMatchesConfigurationAsync(token);
@@ -42,7 +44,11 @@ internal class DatabaseResource: IStatefulResource
 
     public Task ClearState(CancellationToken token)
     {
-        if (_database is IDatabaseWithRewindableState d) return d.ClearState(token);
+        if (_database is IDatabaseWithRewindableState d)
+        {
+            return d.ClearState(token);
+        }
+
         return Task.CompletedTask;
     }
 
@@ -58,9 +64,12 @@ internal class DatabaseResource: IStatefulResource
 
     public async Task<IRenderable> DetermineStatus(CancellationToken token)
     {
-        if (_database is IDatabaseWithStatistics d) return await d.DetermineStatus(token).ConfigureAwait(false);
+        if (_database is IDatabaseWithStatistics d)
+        {
+            return await d.DetermineStatus(token).ConfigureAwait(false);
+        }
 
-        var migration = await _database.CreateMigrationAsync(token);
+        var migration = await _database.CreateMigrationAsync(token).ConfigureAwait(false);
         switch (migration.Difference)
         {
             case SchemaPatchDifference.None:
@@ -79,7 +88,4 @@ internal class DatabaseResource: IStatefulResource
                 throw new NotSupportedException(); // can't get here, but compiler
         }
     }
-
-    public string Type { get; }
-    public string Name { get; }
 }

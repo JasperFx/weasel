@@ -13,7 +13,7 @@ public class WhereInArrayFilter: ISqlFragment
         _values = new CommandParameter(values);
     }
 
-    public void Apply(ICommandBuilder builder)
+    public void Apply(IPostgresqlCommandBuilder builder)
     {
         builder.Append(_locator);
         builder.Append(" = ANY(:");

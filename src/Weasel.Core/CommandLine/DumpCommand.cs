@@ -1,9 +1,9 @@
+using JasperFx.CommandLine;
 using JasperFx.Core;
-using Oakton;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public class DumpInput: WeaselInput
 {
@@ -20,7 +20,7 @@ public class DumpInput: WeaselInput
 }
 
 [Description("Dumps the entire DDL for the configured Marten database", Name = "db-dump")]
-public class DumpCommand: OaktonAsyncCommand<DumpInput>
+public class DumpCommand: JasperFxAsyncCommand<DumpInput>
 {
     public DumpCommand()
     {
@@ -32,8 +32,11 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
     {
         using var host = input.BuildHost();
 
-        var (found, database) = await input.TryChooseSingleDatabase(host);
-        if (!found) return false;
+        var (found, database) = await input.TryChooseSingleDatabase(host).ConfigureAwait(false);
+        if (!found)
+        {
+            return false;
+        }
 
         // This can only override to true
         if (input.TransactionalScriptFlag)
@@ -43,13 +46,13 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
 
         if (input.ByFeatureFlag)
         {
-            await writeByType(input, database);
+            await writeByType(input, database).ConfigureAwait(false);
         }
         else
         {
             AnsiConsole.MarkupLine("Writing SQL file to " + input.Path);
 
-            await database.WriteCreationScriptToFileAsync(input.Path);
+            await database.WriteCreationScriptToFileAsync(input.Path).ConfigureAwait(false);
         }
 
         return true;

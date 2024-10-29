@@ -14,6 +14,20 @@ public class CommandBuilder: CommandBuilderBase<SqlCommand, SqlParameter, SqlDbT
     public CommandBuilder(SqlCommand command): base(SqlServerProvider.Instance, '@', command)
     {
     }
+
+    /// <summary>
+    ///     Append a parameter with the supplied value to the underlying command
+    ///     parameter collection *and* the command text
+    /// </summary>
+    /// <param name="value"></param>
+    /// <param name="dbType"></param>
+    public void AppendParameter(object? value, SqlDbType? dbType = null)
+    {
+        var parameter = AddParameter(value);
+        if (dbType.HasValue) parameter.SqlDbType = dbType.Value;
+        Append(_parameterPrefix);
+        Append(parameter.ParameterName);
+    }
 }
 
 public static class CommandBuilderExtensions

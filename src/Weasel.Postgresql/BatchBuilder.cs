@@ -1,12 +1,17 @@
 using System.Collections;
+using System.Data;
+using System.Data.Common;
 using System.Text;
+using JasperFx.Core.Reflection;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
+using Weasel.Core.Operations;
+using Weasel.Core.Serialization;
 
 namespace Weasel.Postgresql;
 
-public class BatchBuilder: ICommandBuilder
+public class BatchBuilder: IPostgresqlCommandBuilder
 {
     private readonly NpgsqlBatch _batch;
     private readonly StringBuilder _builder = new();
@@ -32,6 +37,12 @@ public class BatchBuilder: ICommandBuilder
 
     public string TenantId { get; set; }
 
+    public void SetParameterAsJson(DbParameter parameter, string json)
+    {
+        parameter.Value = json;
+        parameter.As<NpgsqlParameter>().NpgsqlDbType = NpgsqlDbType.Jsonb;
+    }
+
     /// <summary>
     /// Preview the parameter name of the last appended parameter
     /// </summary>
@@ -51,9 +62,25 @@ public class BatchBuilder: ICommandBuilder
         _builder.Append(character);
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value)
+    public void AppendParameter<T>(T value)
     {
         _current ??= appendCommand();
+
+        if (value == null || typeof(T) == typeof(DBNull))
+        {
+            var nullParam = new NpgsqlParameter
+            {
+                Value = DBNull.Value, NpgsqlDbType = PostgresqlProvider.Instance.ToParameterType(typeof(T))
+            };
+
+            _current.Parameters.Add(nullParam);
+
+            _builder.Append('$');
+            _builder.Append(_current.Parameters.Count);
+
+            return;
+        }
+
         var param = new NpgsqlParameter<T>() {
             TypedValue = value,
         };
@@ -62,28 +89,41 @@ public class BatchBuilder: ICommandBuilder
 
         _builder.Append('$');
         _builder.Append(_current.Parameters.Count);
-
-        return param;
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType)
+    public void AppendParameter<T>(T value, DbType? dbType)
     {
         _current ??= appendCommand();
+
+        if (value is DBNull)
+        {
+            var nullParam = new NpgsqlParameter
+            {
+                Value = DBNull.Value, DbType = dbType.HasValue ? dbType.Value : DbTypeMapper.Lookup(typeof(T)).Value
+            };
+
+            _current.Parameters.Add(nullParam);
+
+            _builder.Append('$');
+            _builder.Append(_current.Parameters.Count);
+
+            return;
+        }
+
         var param = new NpgsqlParameter<T>() {
-            TypedValue = value,
-            NpgsqlDbType = dbType
+            TypedValue = value
         };
+
+        if (dbType.HasValue) param.DbType = dbType.Value;
 
         _current.Parameters.Add(param);
 
         _builder.Append('$');
         _builder.Append(_current.Parameters.Count);
-
-        return param;
     }
 
 
-    public NpgsqlParameter AppendParameter(object value)
+    public void AppendParameter(object value)
     {
         _current ??= appendCommand();
         var param = new NpgsqlParameter {
@@ -96,8 +136,6 @@ public class BatchBuilder: ICommandBuilder
 
         _builder.Append('$');
         _builder.Append(_current.Parameters.Count);
-
-        return param;
     }
 
     public void AppendParameters(params object[] parameters)
@@ -115,6 +153,38 @@ public class BatchBuilder: ICommandBuilder
         }
     }
 
+    public void AppendLongArrayParameter(long[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Bigint);
+    }
+
+    public void AppendJsonParameter(ISerializer serializer, object value)
+    {
+        if (value == null)
+        {
+            AppendParameter(DBNull.Value, NpgsqlDbType.Jsonb);
+        }
+        else
+        {
+            AppendParameter(serializer.ToJson(value), NpgsqlDbType.Jsonb);
+        }
+    }
+
+    public void AppendJsonParameter(string json)
+    {
+        AppendParameter(json, NpgsqlDbType.Jsonb);
+    }
+
+    public void AppendStringArrayParameter(string[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Varchar);
+    }
+
+    public void AppendGuidArrayParameter(Guid[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Uuid);
+    }
+
     public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
     {
         return new GroupedParameterBuilder(this, seperator);
@@ -127,30 +197,12 @@ public class BatchBuilder: ICommandBuilder
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    public NpgsqlParameter[] AppendWithParameters(string text)
+    public DbParameter[] AppendWithParameters(string text)
     {
         return AppendWithParameters(text, '?');
     }
 
-#if NET6_0 || NET7_0
-    public NpgsqlParameter[] AppendWithParameters(string text, char placeholder)
-    {
-        var split = text.Split(placeholder);
-        var parameters = new NpgsqlParameter[split.Length - 1];
-
-        _builder.Append(split[0]);
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, NpgsqlDbType.Text);
-            parameters[i] = parameter;
-            _builder.Append(split[i + 1]);
-        }
-
-        return parameters;
-    }
-#else
-    public NpgsqlParameter[] AppendWithParameters(string text, char separator)
+    public DbParameter[] AppendWithParameters(string text, char separator)
     {
         var span = text.AsSpan();
 
@@ -169,7 +221,8 @@ public class BatchBuilder: ICommandBuilder
             }
 
             // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, NpgsqlDbType.Text);
+            AppendParameter<object>(DBNull.Value, DbType.String);
+            var parameter = _current.Parameters[^1];
             parameters[pos] = parameter;
             _builder.Append(span[range]);
             pos++;
@@ -177,7 +230,7 @@ public class BatchBuilder: ICommandBuilder
 
         return parameters;
     }
-#endif
+
     public void StartNewCommand()
     {
         if (_current != null)

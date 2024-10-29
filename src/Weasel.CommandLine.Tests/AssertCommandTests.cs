@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core.CommandLine;
 using Xunit;
 
 namespace Weasel.CommandLine.Tests;

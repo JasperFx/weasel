@@ -1,7 +1,7 @@
-using Oakton.Environment;
+using JasperFx.Environment;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public class AssertAllWeaselDatabasesCheck: IEnvironmentCheckFactory
 {
@@ -13,6 +13,9 @@ public class AssertAllWeaselDatabasesCheck: IEnvironmentCheckFactory
         _databases = databases;
         _sources = sources;
     }
+
+
+    public string Description { get; } = "Weasel: Validating the configuration of registered databases";
 
     public IEnvironmentCheck[] Build()
     {
@@ -36,12 +39,11 @@ public class AssertAllWeaselDatabasesCheck: IEnvironmentCheckFactory
             Description = $"Assert the expected configuration of database '{database.Identifier}'";
         }
 
-        public Task Assert(IServiceProvider services, CancellationToken cancellation) =>
-            _database.AssertDatabaseMatchesConfigurationAsync(cancellation);
+        public Task Assert(IServiceProvider services, CancellationToken cancellation)
+        {
+            return _database.AssertDatabaseMatchesConfigurationAsync(cancellation);
+        }
 
         public string Description { get; }
     }
-
-
-    public string Description { get; } = "Weasel: Validating the configuration of registered databases";
 }

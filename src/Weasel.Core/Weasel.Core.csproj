@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+        <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
         <Description>Core Weasel types for ADO.Net helpers, spin off of Marten</Description>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
@@ -16,7 +16,12 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="JasperFx.Core" Version="1.9.0" />
+        <ProjectReference Include="..\..\..\jasperfx\src\JasperFx\JasperFx.csproj"/>
     </ItemGroup>
-    <Import Project="../../Analysis.Build.props" />
+
+    <ItemGroup>
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
+        <PackageReference Include="System.Text.Json" Version="8.0.5"/>
+    </ItemGroup>
+    <Import Project="../../Analysis.Build.props"/>
 </Project>
