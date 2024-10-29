@@ -1,5 +1,6 @@
+using JasperFx;
+using JasperFx.CommandLine;
 using JasperFx.Core;
-using Oakton;
 using Spectre.Console;
 using Weasel.Core;
 
@@ -21,7 +22,10 @@ public class PatchCommand: OaktonAsyncCommand<PatchInput>
         using var host = input.BuildHost();
 
         var (found, database) = await input.TryChooseSingleDatabase(host);
-        if (!found) return false;
+        if (!found)
+        {
+            return false;
+        }
 
         var migration = await database.CreateMigrationAsync();
         if (migration.Difference == SchemaPatchDifference.None)

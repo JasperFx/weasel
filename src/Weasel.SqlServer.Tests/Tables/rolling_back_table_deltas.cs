@@ -1,4 +1,5 @@
 using Baseline.Dates;
+using JasperFx;
 using Shouldly;
 using Weasel.Core;
 using Weasel.SqlServer.Tables;

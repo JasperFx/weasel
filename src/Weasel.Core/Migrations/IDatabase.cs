@@ -1,4 +1,5 @@
 using System.Data.Common;
+using JasperFx;
 
 namespace Weasel.Core.Migrations;
 

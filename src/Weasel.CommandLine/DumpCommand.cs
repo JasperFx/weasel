@@ -1,5 +1,5 @@
+using JasperFx.CommandLine;
 using JasperFx.Core;
-using Oakton;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
@@ -33,7 +33,10 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
         using var host = input.BuildHost();
 
         var (found, database) = await input.TryChooseSingleDatabase(host);
-        if (!found) return false;
+        if (!found)
+        {
+            return false;
+        }
 
         // This can only override to true
         if (input.TransactionalScriptFlag)

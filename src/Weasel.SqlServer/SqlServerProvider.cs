@@ -43,7 +43,7 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
         if (!type.IsNullable() ||
             !DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var databaseType))
             throw new NotSupportedException(
-                $"Weasel.SqlServer does not (yet) support database type mapping to {type.GetFullName()}");
+                $"Weasel.SqlServer does not (yet) support database type mapping to {type.FullNameInCode()}");
 
         DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
         return databaseType;

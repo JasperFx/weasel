@@ -1,4 +1,4 @@
-using Oakton.Resources;
+using JasperFx.Resources;
 using Weasel.Core.Migrations;
 
 namespace Weasel.CommandLine;

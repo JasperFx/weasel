@@ -1,3 +1,4 @@
+using JasperFx;
 using JasperFx.Core.Reflection;
 using Shouldly;
 using Weasel.Core;

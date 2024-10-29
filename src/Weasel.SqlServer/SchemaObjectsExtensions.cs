@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using JasperFx;
 using JasperFx.Core;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;

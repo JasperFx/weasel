@@ -1,7 +1,8 @@
+using JasperFx;
+using JasperFx.CommandLine;
 using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Oakton;
 using Weasel.CommandLine.Tests;
 using Weasel.Core;
 using Weasel.Core.Migrations;

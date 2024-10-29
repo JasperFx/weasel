@@ -1,4 +1,5 @@
-﻿using JasperFx.Core;
+﻿using JasperFx;
+using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;

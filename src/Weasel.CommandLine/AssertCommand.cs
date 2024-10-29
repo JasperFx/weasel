@@ -1,4 +1,4 @@
-using Oakton;
+using JasperFx.CommandLine;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 

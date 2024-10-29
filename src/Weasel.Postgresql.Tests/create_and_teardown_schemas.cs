@@ -1,3 +1,4 @@
+using JasperFx;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Tables;

@@ -248,7 +248,7 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
         }
 
         throw new NotSupportedException(
-            $"Weasel.SqlServer does not (yet) support database type mapping to {type.GetFullName()}");
+            $"Weasel.SqlServer does not (yet) support database type mapping to {type.FullNameInCode()}");
     }
 
     public override void AddParameter(DbCommand command, DbParameter parameter)

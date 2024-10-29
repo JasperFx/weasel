@@ -1,4 +1,5 @@
 using System.Data.Common;
+using JasperFx;
 using JasperFx.Core;
 using Weasel.Core;
 using Weasel.Core.Migrations;

@@ -157,7 +157,7 @@ public class ManagedListDatabase: PostgresqlDatabase
 
     private readonly People _feature;
 
-    public ManagedListDatabase() : base(new DefaultMigrationLogger(), AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Partitions", NpgsqlDataSource.Create(ConnectionSource.ConnectionString))
+    public ManagedListDatabase() : base(new DefaultMigrationLogger(), JasperFx.AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Partitions", NpgsqlDataSource.Create(ConnectionSource.ConnectionString))
     {
         _feature = new People(Partitions);
     }
