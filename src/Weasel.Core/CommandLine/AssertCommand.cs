@@ -2,7 +2,7 @@ using JasperFx.CommandLine;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 [Description("Assert that the existing database(s) matches the current configuration", Name = "db-assert")]
 public class AssertCommand: OaktonAsyncCommand<WeaselInput>
@@ -11,14 +11,14 @@ public class AssertCommand: OaktonAsyncCommand<WeaselInput>
     {
         using var host = input.BuildHost();
 
-        var databases = await input.FilterDatabases(host);
+        var databases = await input.FilterDatabases(host).ConfigureAwait(false);
 
         var success = true;
         foreach (var database in databases)
         {
             try
             {
-                await database.AssertDatabaseMatchesConfigurationAsync();
+                await database.AssertDatabaseMatchesConfigurationAsync().ConfigureAwait(false);
                 AnsiConsole.MarkupLine(
                     $"[green]No database differences detected for '{database.Identifier.EscapeMarkup()}'.[/]");
             }

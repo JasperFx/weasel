@@ -1,7 +1,7 @@
 using JasperFx.Environment;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 internal class DatabaseConnectionCheck: IEnvironmentCheckFactory
 {

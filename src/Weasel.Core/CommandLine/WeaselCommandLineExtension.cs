@@ -3,7 +3,7 @@ using JasperFx.Environment;
 using JasperFx.Resources;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 internal class WeaselCommandLineExtension: IServiceRegistrations
 {

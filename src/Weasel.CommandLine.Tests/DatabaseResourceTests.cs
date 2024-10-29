@@ -3,6 +3,7 @@ using NSubstitute;
 using Shouldly;
 using Spectre.Console;
 using Weasel.Core;
+using Weasel.Core.CommandLine;
 using Weasel.Core.Migrations;
 using Xunit;
 

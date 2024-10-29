@@ -3,7 +3,7 @@ using JasperFx.Core;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public class DumpInput: WeaselInput
 {
@@ -32,7 +32,7 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
     {
         using var host = input.BuildHost();
 
-        var (found, database) = await input.TryChooseSingleDatabase(host);
+        var (found, database) = await input.TryChooseSingleDatabase(host).ConfigureAwait(false);
         if (!found)
         {
             return false;
@@ -46,13 +46,13 @@ public class DumpCommand: OaktonAsyncCommand<DumpInput>
 
         if (input.ByFeatureFlag)
         {
-            await writeByType(input, database);
+            await writeByType(input, database).ConfigureAwait(false);
         }
         else
         {
             AnsiConsole.MarkupLine("Writing SQL file to " + input.Path);
 
-            await database.WriteCreationScriptToFileAsync(input.Path);
+            await database.WriteCreationScriptToFileAsync(input.Path).ConfigureAwait(false);
         }
 
         return true;
