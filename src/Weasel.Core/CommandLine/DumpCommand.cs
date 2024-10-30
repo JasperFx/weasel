@@ -20,7 +20,7 @@ public class DumpInput: WeaselInput
 }
 
 [Description("Dumps the entire DDL for the configured Marten database", Name = "db-dump")]
-public class DumpCommand: OaktonAsyncCommand<DumpInput>
+public class DumpCommand: JasperFxAsyncCommand<DumpInput>
 {
     public DumpCommand()
     {

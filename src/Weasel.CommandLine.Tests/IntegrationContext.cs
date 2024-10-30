@@ -25,7 +25,7 @@ public abstract class IntegrationContext
         await conn.DropSchemaAsync(schemaName);
     }
 
-    internal Task<bool> ExecuteCommand<TCommand>() where TCommand : OaktonAsyncCommand<WeaselInput>, new()
+    internal Task<bool> ExecuteCommand<TCommand>() where TCommand : JasperFxAsyncCommand<WeaselInput>, new()
     {
         var command = new TCommand();
         var builder = Host.CreateDefaultBuilder().ConfigureServices(services =>

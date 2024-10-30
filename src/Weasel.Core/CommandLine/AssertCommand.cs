@@ -5,7 +5,7 @@ using Weasel.Core.Migrations;
 namespace Weasel.Core.CommandLine;
 
 [Description("Assert that the existing database(s) matches the current configuration", Name = "db-assert")]
-public class AssertCommand: OaktonAsyncCommand<WeaselInput>
+public class AssertCommand: JasperFxAsyncCommand<WeaselInput>
 {
     public override async Task<bool> Execute(WeaselInput input)
     {

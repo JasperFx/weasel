@@ -30,6 +30,6 @@ public class DatabaseCollection
             {
                 services.AddSingleton<IDatabase>(database);
             }
-        }).RunOaktonCommands(args);
+        }).RunJasperFxCommands(args);
     }
 }
