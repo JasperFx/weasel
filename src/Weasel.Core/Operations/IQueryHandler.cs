@@ -19,3 +19,5 @@ public interface IQueryHandler<T, TCommandBuilder, TSession> : IQueryHandler<TCo
 }
 
 
+
+
