@@ -1,13 +1,6 @@
 using System.Data.Common;
-using Weasel.Core.Serialization;
 
 namespace Weasel.Core.Operations;
-
-public interface IOperationSession
-{
-    ISerializer Serializer { get; }
-    public string TenantId { get; }
-}
 
 public interface IQueryHandler<TCommandBuilder, TSession>
     where TSession : IOperationSession
@@ -25,15 +18,4 @@ public interface IQueryHandler<T, TCommandBuilder, TSession> : IQueryHandler<TCo
     Task<int> StreamJson(Stream stream, DbDataReader reader, CancellationToken token);
 }
 
-public interface IStorageOperation<TCommandBuilder, TSession>: IQueryHandler<TCommandBuilder, TSession>
-    where TSession : IOperationSession
-{
-    Type DocumentType { get; }
-
-    void Postprocess(DbDataReader reader, IList<Exception> exceptions);
-
-    Task PostprocessAsync(DbDataReader reader, IList<Exception> exceptions, CancellationToken token);
-
-    OperationRole Role();
-}
 

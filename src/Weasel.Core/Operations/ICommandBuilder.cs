@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace Weasel.Core.Operations;
 
-public interface ICommandBuilder<TParameter, TDbType>
+public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
     where TParameter : DbParameter
     where TDbType : struct
 {
@@ -46,7 +46,6 @@ public interface ICommandBuilder<TParameter, TDbType>
     /// <returns></returns>
     TParameter[] AppendWithParameters(string text, char placeholder);
 
-    void StartNewCommand();
 
     /// <summary>
     /// Use an anonymous type to add named parameters
