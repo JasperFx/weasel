@@ -2,6 +2,7 @@ using System.Text;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
+using Weasel.Core.Operations;
 
 namespace Weasel.Postgresql;
 
@@ -65,13 +66,14 @@ public class BatchBuilder: ICommandBuilder
         return param;
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType)
+    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType? dbType)
     {
         _current ??= appendCommand();
         var param = new NpgsqlParameter<T>() {
-            TypedValue = value,
-            NpgsqlDbType = dbType
+            TypedValue = value
         };
+
+        if (dbType.HasValue) param.NpgsqlDbType = dbType.Value;
 
         _current.Parameters.Add(param);
 
@@ -114,9 +116,9 @@ public class BatchBuilder: ICommandBuilder
         }
     }
 
-    public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
+    public IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType> CreateGroupedParameterBuilder(char? seperator = null)
     {
-        return new GroupedParameterBuilder(this, seperator);
+        return new GroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType>(this, seperator);
     }
 
     /// <summary>

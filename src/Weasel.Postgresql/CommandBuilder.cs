@@ -2,6 +2,7 @@ using System.Data.Common;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
+using Weasel.Core.Operations;
 
 namespace Weasel.Postgresql;
 
@@ -32,31 +33,31 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         base.AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
     }
 
-    NpgsqlParameter ICommandBuilder.AppendParameter<T>(T value)
+    public NpgsqlParameter AppendParameter<T>(T value)
     {
         base.AppendParameter(value);
         return _command.Parameters[^1];
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType)
+    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType? dbType)
     {
         base.AppendParameter(value, dbType);
         return _command.Parameters[^1];
     }
 
-    NpgsqlParameter ICommandBuilder.AppendParameter(object value)
+    public NpgsqlParameter AppendParameter(object value)
     {
         base.AppendParameter(value);
         return _command.Parameters[^1];
     }
 
-    NpgsqlParameter ICommandBuilder.AppendParameter(object? value, NpgsqlDbType? dbType)
+    public NpgsqlParameter AppendParameter(object? value, NpgsqlDbType? dbType)
     {
         base.AppendParameter(value, dbType);
         return _command.Parameters[^1];
     }
 
-    void ICommandBuilder.AppendParameters(params object[] parameters)
+    public void AppendParameters(params object[] parameters)
     {
         if (!parameters.Any())
             throw new ArgumentOutOfRangeException(nameof(parameters),
@@ -71,9 +72,9 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         }
     }
 
-    public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
+    public IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType> CreateGroupedParameterBuilder(char? seperator = null)
     {
-        return new GroupedParameterBuilder(this, seperator);
+        return new GroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType>(this, seperator);
     }
 
     public void StartNewCommand()
