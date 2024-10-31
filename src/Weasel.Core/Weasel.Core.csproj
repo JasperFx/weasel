@@ -18,5 +18,10 @@
     <ItemGroup>
       <ProjectReference Include="..\..\..\jasperfx\src\JasperFx\JasperFx.csproj" />
     </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+      <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    </ItemGroup>
     <Import Project="../../Analysis.Build.props" />
 </Project>
