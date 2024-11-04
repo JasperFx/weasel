@@ -1,8 +1,10 @@
+using System.Data.Common;
 using System.Text;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
 using Weasel.Core.Operations;
+using Weasel.Core.Serialization;
 
 namespace Weasel.Postgresql;
 
@@ -118,7 +120,7 @@ public class BatchBuilder: ICommandBuilder
 
     public IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType> CreateGroupedParameterBuilder(char? seperator = null)
     {
-        return new GroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType>(this, seperator);
+        return new GroupedParameterBuilder(this, seperator);
     }
 
     /// <summary>
@@ -237,3 +239,53 @@ public class BatchBuilder: ICommandBuilder
         return param;
     }
 }
+
+public sealed class GroupedParameterBuilder: IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType>
+{
+    private readonly ICommandBuilder<NpgsqlParameter, NpgsqlDbType> _commandBuilder;
+    private readonly char? _separator;
+    private int _count = 0;
+
+    public GroupedParameterBuilder(ICommandBuilder<NpgsqlParameter, NpgsqlDbType> commandBuilder, char? separator)
+    {
+        _commandBuilder = commandBuilder;
+        _separator = separator;
+    }
+
+    public NpgsqlParameter AppendParameter<T>(T? value) where T : notnull
+    {
+        if(_count > 0 && _separator.HasValue)
+            _commandBuilder.Append(_separator.Value);
+
+        _count++;
+        return _commandBuilder.AppendParameter(value);
+    }
+
+    public NpgsqlParameter AppendParameter<T>(T? value, NpgsqlDbType dbType) where T : notnull
+    {
+        if(_count > 0 && _separator.HasValue)
+            _commandBuilder.Append(_separator.Value);
+
+        _count++;
+        return _commandBuilder.AppendParameter(value, dbType);
+    }
+
+    public void AppendJsonParameter(ISerializer serializer, object value)
+    {
+        AppendParameter(serializer.ToJson(value), NpgsqlDbType.Jsonb);
+    }
+
+    public void AppendTextParameter(string value)
+    {
+        if (value == null)
+        {
+            AppendParameter(DBNull.Value, NpgsqlDbType.Text);
+        }
+        else
+        {
+            AppendParameter(value, NpgsqlDbType.Text);
+        }
+
+    }
+}
+

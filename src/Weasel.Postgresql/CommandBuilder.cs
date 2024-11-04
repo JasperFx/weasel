@@ -74,7 +74,7 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
 
     public IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType> CreateGroupedParameterBuilder(char? seperator = null)
     {
-        return new GroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType>(this, seperator);
+        return new GroupedParameterBuilder(this, seperator);
     }
 
     public void StartNewCommand()
