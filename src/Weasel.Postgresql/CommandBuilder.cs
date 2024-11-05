@@ -3,6 +3,7 @@ using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
 using Weasel.Core.Operations;
+using Weasel.Core.Serialization;
 
 namespace Weasel.Postgresql;
 
@@ -22,6 +23,28 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
 
     public string TenantId { get; set; }
 
+    public void AppendLongArrayParameter(long[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Bigint);
+    }
+
+    public void AppendJsonParameter(ISerializer serializer, object value)
+    {
+        if (value == null)
+        {
+            AppendParameter(DBNull.Value, NpgsqlDbType.Jsonb);
+        }
+        else
+        {
+            AppendParameter(serializer.ToJson(value), NpgsqlDbType.Jsonb);
+        }
+    }
+
+    public void AppendJsonParameter(string json)
+    {
+        AppendParameter(json, NpgsqlDbType.Jsonb);
+    }
+
     /// <summary>
     ///     Append a parameter with the supplied value to the underlying command parameter
     ///     collection and adds the parameter usage to the SQL
@@ -31,6 +54,16 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
     public void AppendParameter(string[] values)
     {
         base.AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
+    }
+
+    public void AppendStringArrayParameter(string[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Varchar);
+    }
+
+    public void AppendGuidArrayParameter(Guid[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Uuid);
     }
 
     public NpgsqlParameter AppendParameter<T>(T value)

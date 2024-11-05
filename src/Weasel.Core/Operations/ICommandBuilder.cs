@@ -54,7 +54,9 @@ public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
     /// <param name="parameters"></param>
     void AddParameters(object parameters);
 
-    // void AppendStringArrayParameter(string[] values);
-    // void AppendGuidArrayParameter(Guid[] values);
-    // void AppendJsonParameter(ISerializer serializer, object value);
+    void AppendStringArrayParameter(string[] values);
+    void AppendGuidArrayParameter(Guid[] values);
+    void AppendLongArrayParameter(long[] values);
+    void AppendJsonParameter(ISerializer serializer, object value);
+    void AppendJsonParameter(string json);
 }

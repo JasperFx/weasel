@@ -4,6 +4,7 @@ using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
 using Weasel.Core.Operations;
+using Weasel.Core.Serialization;
 
 namespace Weasel.Postgresql;
 
@@ -147,6 +148,38 @@ public class BatchBuilder: ICommandBuilder
             _builder.Append(", ");
             AppendParameter(parameters[i]);
         }
+    }
+
+    public void AppendLongArrayParameter(long[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Bigint);
+    }
+
+    public void AppendJsonParameter(ISerializer serializer, object value)
+    {
+        if (value == null)
+        {
+            AppendParameter(DBNull.Value, NpgsqlDbType.Jsonb);
+        }
+        else
+        {
+            AppendParameter(serializer.ToJson(value), NpgsqlDbType.Jsonb);
+        }
+    }
+
+    public void AppendJsonParameter(string json)
+    {
+        AppendParameter(json, NpgsqlDbType.Jsonb);
+    }
+
+    public void AppendStringArrayParameter(string[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Varchar);
+    }
+
+    public void AppendGuidArrayParameter(Guid[] values)
+    {
+        AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Uuid);
     }
 
     public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
