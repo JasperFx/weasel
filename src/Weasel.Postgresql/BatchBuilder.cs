@@ -4,7 +4,6 @@ using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
 using Weasel.Core.Operations;
-using Weasel.Core.Serialization;
 
 namespace Weasel.Postgresql;
 
@@ -56,6 +55,22 @@ public class BatchBuilder: ICommandBuilder
     public NpgsqlParameter AppendParameter<T>(T value)
     {
         _current ??= appendCommand();
+
+        if (value == null || typeof(T) == typeof(DBNull))
+        {
+            var nullParam = new NpgsqlParameter
+            {
+                Value = DBNull.Value, NpgsqlDbType = PostgresqlProvider.Instance.ToParameterType(typeof(T))
+            };
+
+            _current.Parameters.Add(nullParam);
+
+            _builder.Append('$');
+            _builder.Append(_current.Parameters.Count);
+
+            return nullParam;
+        }
+
         var param = new NpgsqlParameter<T>() {
             TypedValue = value,
         };
@@ -71,6 +86,22 @@ public class BatchBuilder: ICommandBuilder
     public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType? dbType)
     {
         _current ??= appendCommand();
+
+        if (value is DBNull)
+        {
+            var nullParam = new NpgsqlParameter
+            {
+                Value = DBNull.Value, NpgsqlDbType = dbType.HasValue ? dbType.Value : PostgresqlProvider.Instance.ToParameterType(typeof(T))
+            };
+
+            _current.Parameters.Add(nullParam);
+
+            _builder.Append('$');
+            _builder.Append(_current.Parameters.Count);
+
+            return nullParam;
+        }
+
         var param = new NpgsqlParameter<T>() {
             TypedValue = value
         };
@@ -118,7 +149,7 @@ public class BatchBuilder: ICommandBuilder
         }
     }
 
-    public IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType> CreateGroupedParameterBuilder(char? seperator = null)
+    public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
     {
         return new GroupedParameterBuilder(this, seperator);
     }
@@ -239,53 +270,3 @@ public class BatchBuilder: ICommandBuilder
         return param;
     }
 }
-
-public sealed class GroupedParameterBuilder: IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType>
-{
-    private readonly ICommandBuilder<NpgsqlParameter, NpgsqlDbType> _commandBuilder;
-    private readonly char? _separator;
-    private int _count = 0;
-
-    public GroupedParameterBuilder(ICommandBuilder<NpgsqlParameter, NpgsqlDbType> commandBuilder, char? separator)
-    {
-        _commandBuilder = commandBuilder;
-        _separator = separator;
-    }
-
-    public NpgsqlParameter AppendParameter<T>(T? value) where T : notnull
-    {
-        if(_count > 0 && _separator.HasValue)
-            _commandBuilder.Append(_separator.Value);
-
-        _count++;
-        return _commandBuilder.AppendParameter(value);
-    }
-
-    public NpgsqlParameter AppendParameter<T>(T? value, NpgsqlDbType dbType) where T : notnull
-    {
-        if(_count > 0 && _separator.HasValue)
-            _commandBuilder.Append(_separator.Value);
-
-        _count++;
-        return _commandBuilder.AppendParameter(value, dbType);
-    }
-
-    public void AppendJsonParameter(ISerializer serializer, object value)
-    {
-        AppendParameter(serializer.ToJson(value), NpgsqlDbType.Jsonb);
-    }
-
-    public void AppendTextParameter(string value)
-    {
-        if (value == null)
-        {
-            AppendParameter(DBNull.Value, NpgsqlDbType.Text);
-        }
-        else
-        {
-            AppendParameter(value, NpgsqlDbType.Text);
-        }
-
-    }
-}
-

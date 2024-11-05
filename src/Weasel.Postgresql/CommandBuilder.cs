@@ -72,7 +72,7 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         }
     }
 
-    public IGroupedParameterBuilder<NpgsqlParameter, NpgsqlDbType> CreateGroupedParameterBuilder(char? seperator = null)
+    public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
     {
         return new GroupedParameterBuilder(this, seperator);
     }

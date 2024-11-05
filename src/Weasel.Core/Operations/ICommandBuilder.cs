@@ -1,4 +1,5 @@
 using System.Data.Common;
+using Weasel.Core.Serialization;
 
 namespace Weasel.Core.Operations;
 
@@ -26,7 +27,7 @@ public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
 
     void AppendParameters(params object[] parameters);
 
-    IGroupedParameterBuilder<TParameter, TDbType> CreateGroupedParameterBuilder(char? separator = null);
+    IGroupedParameterBuilder CreateGroupedParameterBuilder(char? separator = null);
 
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
@@ -52,4 +53,8 @@ public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
     /// </summary>
     /// <param name="parameters"></param>
     void AddParameters(object parameters);
+
+    // void AppendStringArrayParameter(string[] values);
+    // void AppendGuidArrayParameter(Guid[] values);
+    // void AppendJsonParameter(ISerializer serializer, object value);
 }
