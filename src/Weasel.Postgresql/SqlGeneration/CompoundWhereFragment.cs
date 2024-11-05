@@ -19,7 +19,7 @@ public class CompoundWhereFragment: IWhereFragmentHolder, ICompoundFragment
 
     public IEnumerable<ISqlFragment> Children => _children;
 
-    public void Apply(ICommandBuilder builder)
+    public void Apply(IPostgresqlCommandBuilder builder)
     {
         if (!_children.Any())
         {

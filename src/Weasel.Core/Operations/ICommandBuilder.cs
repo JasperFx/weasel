@@ -4,15 +4,15 @@ using Weasel.Core.Serialization;
 
 namespace Weasel.Core.Operations;
 
-public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
-    where TParameter : DbParameter
-    where TDbType : struct
+public interface ICommandBuilder : ICommandBatchBuilder
 {
     /// <summary>
     /// It became so common, that it's turned out to be convenient to place
     /// this here
     /// </summary>
     string TenantId { get; set; }
+
+    void SetParameterAsJson(DbParameter parameter, string json);
 
     /// <summary>
     /// Preview the parameter name of the last appended parameter
@@ -22,14 +22,10 @@ public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
     void Append(string sql);
     void Append(char character);
 
-    TParameter AppendParameter<T>(T value);
-    TParameter AppendParameter<T>(T value, DbType? dbType);
+    void AppendParameter<T>(T value);
+    void AppendParameter<T>(T value, DbType? dbType);
 
-    [Obsolete("Try to remove this from the public signature?")]
-    TParameter AppendParameter(object? value, TDbType? dbType);
-
-
-    TParameter AppendParameter(object value);
+    void AppendParameter(object value);
 
     void AppendParameters(params object[] parameters);
 
@@ -42,7 +38,7 @@ public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    TParameter[] AppendWithParameters(string text);
+    DbParameter[] AppendWithParameters(string text);
 
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
@@ -51,7 +47,7 @@ public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    TParameter[] AppendWithParameters(string text, char placeholder);
+    DbParameter[] AppendWithParameters(string text, char placeholder);
 
 
     /// <summary>

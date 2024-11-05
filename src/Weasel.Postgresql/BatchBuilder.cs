@@ -1,6 +1,7 @@
 using System.Data;
 using System.Data.Common;
 using System.Text;
+using JasperFx.Core.Reflection;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
@@ -9,7 +10,7 @@ using Weasel.Core.Serialization;
 
 namespace Weasel.Postgresql;
 
-public class BatchBuilder: ICommandBuilder
+public class BatchBuilder: IPostgresqlCommandBuilder
 {
     private readonly NpgsqlBatch _batch;
     private readonly StringBuilder _builder = new();
@@ -35,6 +36,12 @@ public class BatchBuilder: ICommandBuilder
 
     public string TenantId { get; set; }
 
+    public void SetParameterAsJson(DbParameter parameter, string json)
+    {
+        parameter.Value = json;
+        parameter.As<NpgsqlParameter>().NpgsqlDbType = NpgsqlDbType.Jsonb;
+    }
+
     /// <summary>
     /// Preview the parameter name of the last appended parameter
     /// </summary>
@@ -54,7 +61,7 @@ public class BatchBuilder: ICommandBuilder
         _builder.Append(character);
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value)
+    public void AppendParameter<T>(T value)
     {
         _current ??= appendCommand();
 
@@ -70,7 +77,7 @@ public class BatchBuilder: ICommandBuilder
             _builder.Append('$');
             _builder.Append(_current.Parameters.Count);
 
-            return nullParam;
+            return;
         }
 
         var param = new NpgsqlParameter<T>() {
@@ -81,11 +88,9 @@ public class BatchBuilder: ICommandBuilder
 
         _builder.Append('$');
         _builder.Append(_current.Parameters.Count);
-
-        return param;
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value, DbType? dbType)
+    public void AppendParameter<T>(T value, DbType? dbType)
     {
         _current ??= appendCommand();
 
@@ -101,7 +106,7 @@ public class BatchBuilder: ICommandBuilder
             _builder.Append('$');
             _builder.Append(_current.Parameters.Count);
 
-            return nullParam;
+            return;
         }
 
         var param = new NpgsqlParameter<T>() {
@@ -114,12 +119,10 @@ public class BatchBuilder: ICommandBuilder
 
         _builder.Append('$');
         _builder.Append(_current.Parameters.Count);
-
-        return param;
     }
 
 
-    public NpgsqlParameter AppendParameter(object value)
+    public void AppendParameter(object value)
     {
         _current ??= appendCommand();
         var param = new NpgsqlParameter {
@@ -132,8 +135,6 @@ public class BatchBuilder: ICommandBuilder
 
         _builder.Append('$');
         _builder.Append(_current.Parameters.Count);
-
-        return param;
     }
 
     public void AppendParameters(params object[] parameters)
@@ -195,13 +196,13 @@ public class BatchBuilder: ICommandBuilder
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    public NpgsqlParameter[] AppendWithParameters(string text)
+    public DbParameter[] AppendWithParameters(string text)
     {
         return AppendWithParameters(text, '?');
     }
 
 #if NET6_0 || NET7_0
-    public NpgsqlParameter[] AppendWithParameters(string text, char placeholder)
+    public DbParameter[] AppendWithParameters(string text, char placeholder)
     {
         var split = text.Split(placeholder);
         var parameters = new NpgsqlParameter[split.Length - 1];
@@ -210,15 +211,15 @@ public class BatchBuilder: ICommandBuilder
         for (var i = 0; i < parameters.Length; i++)
         {
             // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, DbType.String);
-            parameters[i] = parameter;
+            AppendParameter<object>(DBNull.Value, DbType.String);
+            parameters[i] = _current.Parameters[^1];
             _builder.Append(split[i + 1]);
         }
 
         return parameters;
     }
 #else
-    public NpgsqlParameter[] AppendWithParameters(string text, char separator)
+    public DbParameter[] AppendWithParameters(string text, char separator)
     {
         var span = text.AsSpan();
 
@@ -237,7 +238,8 @@ public class BatchBuilder: ICommandBuilder
             }
 
             // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, DbType.String);
+            AppendParameter<object>(DBNull.Value, DbType.String);
+            var parameter = _current.Parameters[^1];
             parameters[pos] = parameter;
             _builder.Append(span[range]);
             pos++;

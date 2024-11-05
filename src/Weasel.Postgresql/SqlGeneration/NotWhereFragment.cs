@@ -11,7 +11,7 @@ public class NotWhereFragment: ISqlFragment, IWhereFragmentHolder
 
     public ISqlFragment Inner { get; set; } = null!;
 
-    public void Apply(ICommandBuilder builder)
+    public void Apply(IPostgresqlCommandBuilder builder)
     {
         builder.Append("NOT(");
         Inner.Apply(builder);

@@ -298,7 +298,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// </summary>
     /// <param name="text"></param>
     /// <returns></returns>
-    public TParameter[] AppendWithParameters(string text)
+    public DbParameter[] AppendWithParameters(string text)
     {
         var separator = '?';
         return AppendWithParameters(text, separator);
@@ -312,7 +312,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    public TParameter[] AppendWithParameters(string text, char separator)
+    public DbParameter[] AppendWithParameters(string text, char separator)
     {
         var split = text.Split(separator);
         var parameters = new TParameter[split.Length - 1];
@@ -339,7 +339,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="text"></param>
     /// <param name="separator"></param>
     /// <returns></returns>
-    public TParameter[] AppendWithParameters(string text, char separator)
+    public DbParameter[] AppendWithParameters(string text, char separator)
     {
         var span = text.AsSpan();
 

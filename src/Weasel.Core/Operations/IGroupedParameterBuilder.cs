@@ -18,8 +18,6 @@ public interface IGroupedParameterBuilder
 
     void AppendNull(DbType dbType);
 
-
-
     void AppendEnumAsString<T>(T? value) where T : struct;
     void AppendEnumAsInteger<T>(T? value) where T : struct;
 

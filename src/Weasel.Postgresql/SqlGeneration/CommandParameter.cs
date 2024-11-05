@@ -4,6 +4,7 @@ using NpgsqlTypes;
 
 namespace Weasel.Postgresql.SqlGeneration;
 
+// TODO -- move to Core, and de-Postgres it
 public class CommandParameter: ISqlFragment
 {
     public CommandParameter()
@@ -42,12 +43,12 @@ public class CommandParameter: ISqlFragment
     public object? Value { get; }
     public NpgsqlDbType? DbType { get; set; }
 
-    public void Apply(ICommandBuilder builder)
+    public void Apply(IPostgresqlCommandBuilder builder)
     {
         builder.AppendParameter(Value, DbType);
     }
 
-    public NpgsqlParameter AddParameter(ICommandBuilder builder)
+    public NpgsqlParameter AddParameter(IPostgresqlCommandBuilder builder)
     {
         return builder.AppendParameter(Value, DbType);
     }

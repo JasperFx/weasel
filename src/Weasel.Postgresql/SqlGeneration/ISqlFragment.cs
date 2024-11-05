@@ -2,7 +2,7 @@ namespace Weasel.Postgresql.SqlGeneration;
 
 public interface ISqlFragment
 {
-    void Apply(ICommandBuilder builder);
+    void Apply(IPostgresqlCommandBuilder builder);
 }
 
 /// <summary>

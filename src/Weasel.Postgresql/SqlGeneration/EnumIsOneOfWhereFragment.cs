@@ -56,7 +56,7 @@ public class EnumIsOneOfWhereFragment: ISqlFragment
         _locator = locator;
     }
 
-    public void Apply(ICommandBuilder builder)
+    public void Apply(IPostgresqlCommandBuilder builder)
     {
         builder.Append("(");
         builder.Append(_locator);

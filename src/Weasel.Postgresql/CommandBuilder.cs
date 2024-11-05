@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using JasperFx.Core.Reflection;
 using Npgsql;
 using NpgsqlTypes;
 using Weasel.Core;
@@ -8,7 +9,7 @@ using Weasel.Core.Serialization;
 
 namespace Weasel.Postgresql;
 
-public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, NpgsqlDbType>, ICommandBuilder
+public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, NpgsqlDbType>, IPostgresqlCommandBuilder
 {
     public CommandBuilder(NpgsqlDataSource dataSource): this(dataSource.CreateCommand())
     {
@@ -23,6 +24,12 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
     }
 
     public string TenantId { get; set; }
+
+    public void SetParameterAsJson(DbParameter parameter, string json)
+    {
+        parameter.Value = json;
+        parameter.As<NpgsqlParameter>().NpgsqlDbType = NpgsqlDbType.Jsonb;
+    }
 
     public void AppendLongArrayParameter(long[] values)
     {
@@ -67,22 +74,19 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         AppendParameter(values, NpgsqlDbType.Array | NpgsqlDbType.Uuid);
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value)
+    public void AppendParameter<T>(T value)
     {
         base.AppendParameter(value);
-        return _command.Parameters[^1];
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value, DbType? dbType)
+    public void AppendParameter<T>(T value, DbType? dbType)
     {
         base.AppendParameter(value, dbType);
-        return _command.Parameters[^1];
     }
 
-    public NpgsqlParameter AppendParameter(object value)
+    public void AppendParameter(object value)
     {
         base.AppendParameter(value);
-        return _command.Parameters[^1];
     }
 
     public NpgsqlParameter AppendParameter(object? value, NpgsqlDbType? dbType)

@@ -10,11 +10,11 @@ namespace Weasel.Postgresql;
 
 public sealed class GroupedParameterBuilder: IGroupedParameterBuilder
 {
-    private readonly ICommandBuilder<NpgsqlParameter, NpgsqlDbType> _commandBuilder;
+    private readonly IPostgresqlCommandBuilder _commandBuilder;
     private readonly char? _separator;
     private int _count = 0;
 
-    public GroupedParameterBuilder(ICommandBuilder<NpgsqlParameter, NpgsqlDbType> commandBuilder, char? separator)
+    public GroupedParameterBuilder(IPostgresqlCommandBuilder commandBuilder, char? separator)
     {
         _commandBuilder = commandBuilder;
         _separator = separator;
@@ -37,11 +37,10 @@ public sealed class GroupedParameterBuilder: IGroupedParameterBuilder
         }
 
         _count++;
-        var parameter = _commandBuilder.AppendParameter(value);
-        parameter.DbType = dbType;
+        _commandBuilder.AppendParameter(value, dbType);
     }
 
-    public NpgsqlParameter AppendParameter<T>(T? value, NpgsqlDbType dbType) where T : notnull
+    public NpgsqlParameter AppendParameter<T>(T? value, NpgsqlDbType? dbType) where T : notnull
     {
         if(_count > 0 && _separator.HasValue)
         {
@@ -81,7 +80,7 @@ public sealed class GroupedParameterBuilder: IGroupedParameterBuilder
             _commandBuilder.Append(_separator.Value);
 
         _count++;
-        _commandBuilder.AppendParameter(DBNull.Value).DbType = dbType;
+        _commandBuilder.AppendParameter(DBNull.Value, dbType);
     }
 
     public void AppendStringArrayParameter(string[] values)

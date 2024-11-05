@@ -41,7 +41,7 @@ public class EnumIsNotOneOfWhereFragment: ISqlFragment
         _locator = locator;
     }
 
-    public void Apply(ICommandBuilder builder)
+    public void Apply(IPostgresqlCommandBuilder builder)
     {
         builder.Append("NOT(");
         builder.Append(_locator);
