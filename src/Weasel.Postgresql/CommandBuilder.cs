@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using Npgsql;
 using NpgsqlTypes;
@@ -53,7 +54,7 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
     /// <param name="dbType"></param>
     public void AppendParameter(string[] values)
     {
-        base.AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
+        AppendParameter(values, NpgsqlDbType.Varchar | NpgsqlDbType.Array);
     }
 
     public void AppendStringArrayParameter(string[] values)
@@ -72,7 +73,7 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         return _command.Parameters[^1];
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType? dbType)
+    public NpgsqlParameter AppendParameter<T>(T value, DbType? dbType)
     {
         base.AppendParameter(value, dbType);
         return _command.Parameters[^1];
@@ -86,7 +87,10 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
 
     public NpgsqlParameter AppendParameter(object? value, NpgsqlDbType? dbType)
     {
-        base.AppendParameter(value, dbType);
+        var parameter = AddParameter(value);
+        if (dbType.HasValue) parameter.NpgsqlDbType = dbType.Value;
+        Append(_parameterPrefix);
+        Append(parameter.ParameterName);
         return _command.Parameters[^1];
     }
 

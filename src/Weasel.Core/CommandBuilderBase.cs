@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using JasperFx.Core;
@@ -24,7 +25,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     where TParameterType : struct
 {
     protected readonly TCommand _command;
-    private readonly char _parameterPrefix;
+    protected readonly char _parameterPrefix;
 
     private readonly IDatabaseProvider<TCommand, TParameter, TParameterType>
         _provider;
@@ -229,9 +230,10 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// </summary>
     /// <param name="value"></param>
     /// <param name="dbType"></param>
-    public void AppendParameter(object? value, TParameterType? dbType = null)
+    public void AppendParameter(object? value, DbType? dbType = null)
     {
-        var parameter = AddParameter(value, dbType);
+        var parameter = AddParameter(value);
+        if (dbType.HasValue) parameter.DbType = dbType.Value;
         Append(_parameterPrefix);
         Append(parameter.ParameterName);
     }
@@ -244,7 +246,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="dbType"></param>
     public void AppendParameter(int value)
     {
-        AppendParameter(value, _provider.IntegerParameterType);
+        AppendParameter(value, DbType.Int32);
     }
 
     /// <summary>
@@ -255,7 +257,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="dbType"></param>
     public void AppendParameter(Guid value)
     {
-        AppendParameter(value, _provider.GuidParameterType);
+        AppendParameter(value, DbType.Guid);
     }
 
     /// <summary>
@@ -266,7 +268,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="dbType"></param>
     public void AppendParameter(string value)
     {
-        AppendParameter(value, _provider.StringParameterType);
+        AppendParameter(value, DbType.String);
     }
 
     /// <summary>

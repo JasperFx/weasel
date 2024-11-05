@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using Npgsql;
@@ -84,7 +85,7 @@ public class BatchBuilder: ICommandBuilder
         return param;
     }
 
-    public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType? dbType)
+    public NpgsqlParameter AppendParameter<T>(T value, DbType? dbType)
     {
         _current ??= appendCommand();
 
@@ -92,7 +93,7 @@ public class BatchBuilder: ICommandBuilder
         {
             var nullParam = new NpgsqlParameter
             {
-                Value = DBNull.Value, NpgsqlDbType = dbType.HasValue ? dbType.Value : PostgresqlProvider.Instance.ToParameterType(typeof(T))
+                Value = DBNull.Value, DbType = dbType.HasValue ? dbType.Value : DbTypeMapper.Lookup(typeof(T)).Value
             };
 
             _current.Parameters.Add(nullParam);
@@ -107,7 +108,7 @@ public class BatchBuilder: ICommandBuilder
             TypedValue = value
         };
 
-        if (dbType.HasValue) param.NpgsqlDbType = dbType.Value;
+        if (dbType.HasValue) param.DbType = dbType.Value;
 
         _current.Parameters.Add(param);
 
@@ -209,7 +210,7 @@ public class BatchBuilder: ICommandBuilder
         for (var i = 0; i < parameters.Length; i++)
         {
             // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, NpgsqlDbType.Text);
+            var parameter = AppendParameter<object>(DBNull.Value, DbType.String);
             parameters[i] = parameter;
             _builder.Append(split[i + 1]);
         }
@@ -236,7 +237,7 @@ public class BatchBuilder: ICommandBuilder
             }
 
             // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, NpgsqlDbType.Text);
+            var parameter = AppendParameter<object>(DBNull.Value, DbType.String);
             parameters[pos] = parameter;
             _builder.Append(span[range]);
             pos++;

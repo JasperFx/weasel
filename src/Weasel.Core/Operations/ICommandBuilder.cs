@@ -1,3 +1,4 @@
+using System.Data;
 using System.Data.Common;
 using Weasel.Core.Serialization;
 
@@ -22,7 +23,12 @@ public interface ICommandBuilder<TParameter, TDbType> : ICommandBatchBuilder
     void Append(char character);
 
     TParameter AppendParameter<T>(T value);
-    TParameter AppendParameter<T>(T value, TDbType? dbType);
+    TParameter AppendParameter<T>(T value, DbType? dbType);
+
+    [Obsolete("Try to remove this from the public signature?")]
+    TParameter AppendParameter(object? value, TDbType? dbType);
+
+
     TParameter AppendParameter(object value);
 
     void AppendParameters(params object[] parameters);

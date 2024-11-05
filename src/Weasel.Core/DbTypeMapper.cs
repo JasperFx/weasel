@@ -33,7 +33,7 @@ public static class DbTypeMapper
         _types = _types.AddOrUpdate(typeof(DateTime),DbType.DateTime);
         _types = _types.AddOrUpdate(typeof(DateTimeOffset),DbType.DateTimeOffset);
         _types = _types.AddOrUpdate(typeof(TimeSpan),DbType.Time);
-        _types = _types.AddOrUpdate(typeof(byte[] ,DbType.Binary);
+        _types = _types.AddOrUpdate(typeof(byte[]), DbType.Binary);
     }
 
     /// <summary>
