@@ -8,4 +8,5 @@ public interface IOperationSession
     string TenantId { get; }
 
     int UpdateBatchSize();
+    DbObjectName TableNameFor(Type documentType);
 }
