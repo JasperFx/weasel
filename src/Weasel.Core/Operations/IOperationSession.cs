@@ -9,4 +9,6 @@ public interface IOperationSession
 
     int UpdateBatchSize();
     DbObjectName TableNameFor(Type documentType);
+
+    IEnumerable<object> DetectChangedDocuments();
 }
