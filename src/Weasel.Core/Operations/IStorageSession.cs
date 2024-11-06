@@ -1,11 +1,11 @@
+using JasperFx;
 using Weasel.Core.Serialization;
 
 namespace Weasel.Core.Operations;
 
-public interface IOperationSession
+public interface IStorageSession : IOperationContext
 {
     ISerializer Serializer { get; }
-    string TenantId { get; }
 
     int UpdateBatchSize();
     DbObjectName TableNameFor(Type documentType);

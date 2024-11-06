@@ -3,13 +3,13 @@ using System.Data.Common;
 namespace Weasel.Core.Operations;
 
 public interface IQueryHandler<TCommandBuilder, TSession>
-    where TSession : IOperationSession
+    where TSession : IStorageSession
 {
     void ConfigureCommand(TCommandBuilder builder, TSession session);
 }
 
 public interface IQueryHandler<T, TCommandBuilder, TSession> : IQueryHandler<TCommandBuilder, TSession>
-    where TSession : IOperationSession
+    where TSession : IStorageSession
 {
     T Handle(DbDataReader reader, TSession session);
 

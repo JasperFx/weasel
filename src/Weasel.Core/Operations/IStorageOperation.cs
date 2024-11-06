@@ -2,7 +2,7 @@ using System.Data.Common;
 
 namespace Weasel.Core.Operations;
 
-public interface IStorageOperation: IQueryHandler<ICommandBuilder, IOperationSession>
+public interface IStorageOperation: IQueryHandler<ICommandBuilder, IStorageSession>
 {
     Type DocumentType { get; }
 

@@ -4,7 +4,7 @@ using JasperFx.Core.Exceptions;
 namespace Weasel.Core.Operations;
 
 public class OperationPage<TSession>
-    where TSession : IOperationSession
+    where TSession : IStorageSession
 {
     private TSession _session;
     protected readonly ICommandBuilder _builder;
