@@ -16,7 +16,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Npgsql" Version="8.0.3" />
+        <PackageReference Include="Npgsql" Version="8.0.3"/>
     </ItemGroup>
 
     <!--SourceLink specific settings-->
@@ -32,11 +32,11 @@
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
-        <PackageReference Include="Npgsql.NetTopologySuite" Version="8.0.3" />
+        <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
+        <PackageReference Include="Npgsql.NetTopologySuite" Version="8.0.3"/>
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj"/>
     </ItemGroup>
-    <Import Project="../../Analysis.Build.props" />
+    <Import Project="../../Analysis.Build.props"/>
 </Project>
