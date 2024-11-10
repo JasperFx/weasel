@@ -3,20 +3,19 @@ using JasperFx.Core.Exceptions;
 
 namespace Weasel.Core.Operations;
 
-public class OperationPage<TSession>
-    where TSession : IStorageSession
+public class OperationPage
 {
-    private TSession _session;
     protected readonly ICommandBuilder _builder;
     private readonly List<IStorageOperation> _operations = new();
+    private IStorageSession _session;
 
-    public OperationPage(TSession session, ICommandBuilder builder)
+    public OperationPage(IStorageSession session, ICommandBuilder builder)
     {
         _session = session;
         _builder = builder;
     }
 
-    public OperationPage(TSession session, ICommandBuilder builder, IReadOnlyList<IStorageOperation> operations) : this(session, builder)
+    public OperationPage(IStorageSession session, ICommandBuilder builder, IReadOnlyList<IStorageOperation> operations) : this(session, builder)
     {
         _operations.AddRange(operations);
         foreach (var operation in operations)
@@ -27,6 +26,8 @@ public class OperationPage<TSession>
 
         Count = _operations.Count;
     }
+
+    public ICommandBuilder Builder => _builder;
 
     public int Count { get; private set; }
     public IReadOnlyList<IStorageOperation> Operations => _operations;
