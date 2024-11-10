@@ -10,8 +10,6 @@ public interface IStorageSession : IOperationContext
     int UpdateBatchSize();
     DbObjectName TableNameFor(Type documentType);
 
-    // TODO -- encapsulate the following two methods!!!!
-
     IEnumerable<object> DetectChangedDocuments();
 
     /// <summary>
@@ -19,5 +17,5 @@ public interface IStorageSession : IOperationContext
     /// </summary>
     /// <param name="document"></param>
     /// <typeparam name="T"></typeparam>
-    void UpsertDirtyCheckedDocument<T>(T document);
+    IStorageOperation UpsertDirtyCheckedDocument<T>(T document);
 }
