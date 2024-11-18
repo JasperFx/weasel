@@ -11,11 +11,11 @@ services:
       POSTGRES_DB: marten_testing
       NAMEDATALEN: 100
   sqlserver:
-    image: ${MSSQL_IMAGE:-mcr.microsoft.com/mssql/server:2019-latest}
-    ports:
-      - "1433:1433"
-    environment:
-      - "ACCEPT_EULA=Y"
-      - "SA_PASSWORD=P@55w0rd"
-      - "MSSQL_PID=Developer"
+      image: "mcr.microsoft.com/azure-sql-edge"
+      ports:
+          - "1434:1433"
+      environment:
+          - "ACCEPT_EULA=Y"
+          - "SA_PASSWORD=P@55w0rd"
+          - "MSSQL_PID=Developer"
 
