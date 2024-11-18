@@ -25,7 +25,6 @@ jobs:
     # define the test matrix
         matrix:
             postgres-image:
-                - ionx/postgres-plv8:12.2
                 - postgres:15.3-alpine
             useCaseSensitiveQualifiedNames:
                 - true
