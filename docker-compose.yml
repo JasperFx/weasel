@@ -13,7 +13,7 @@ services:
   sqlserver:
       image: "mcr.microsoft.com/azure-sql-edge"
       ports:
-          - "1434:1433"
+          - "1433:1433"
       environment:
           - "ACCEPT_EULA=Y"
           - "SA_PASSWORD=P@55w0rd"
