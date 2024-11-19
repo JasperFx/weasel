@@ -58,11 +58,6 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     public string Identifier { get; }
 
 
-    TConnection IConnectionSource<TConnection>.CreateConnection()
-    {
-        return _connectionSource();
-    }
-
     /// <summary>
     ///     All referenced schema names by the known objects in this database
     /// </summary>
@@ -235,7 +230,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         }
     }
 
-    public TConnection CreateConnection()
+    public virtual TConnection CreateConnection()
     {
         return _connectionSource();
     }

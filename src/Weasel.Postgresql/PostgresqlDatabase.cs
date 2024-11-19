@@ -60,6 +60,11 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
         return base.CreateConnection();
     }
 
+    public override NpgsqlConnection CreateConnection()
+    {
+        return CreateConnection();
+    }
+
     public ValueTask DisposeAsync()
     {
         return DataSource.DisposeAsync();
