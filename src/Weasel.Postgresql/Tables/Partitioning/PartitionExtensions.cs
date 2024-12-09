@@ -25,7 +25,7 @@ public static class PartitionExtensions
     {
         if (typeof(T).IsNumeric()) return value.ToString();
 
-        if (value is bool b) return b.ToString().ToUpperInvariant();
+        if (value is bool b) return b.ToString().ToLowerInvariant();
 
         if (value is string v && v.StartsWith("'") && v.EndsWith("'")) return v;
 
