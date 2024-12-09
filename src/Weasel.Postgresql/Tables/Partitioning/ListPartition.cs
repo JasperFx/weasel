@@ -36,8 +36,19 @@ public class ListPartition : IPartition
 
     protected bool Equals(ListPartition other)
     {
-        return Values.SequenceEqual(other.Values) && Suffix == other.Suffix;
+        if (Values.Length != other.Values.Length) return false;
+        for (int i = 0; i < Values.Length; i++)
+        {
+            if (!Values[i].Equals(other.Values[i]))
+            {
+                return false;
+            }
+        }
+
+        return Suffix == other.Suffix;
     }
+
+
 
     public override bool Equals(object? obj)
     {
