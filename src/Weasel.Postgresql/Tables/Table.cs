@@ -75,11 +75,11 @@ public partial class Table: ISchemaObject
 
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
-            var columnLength = Columns.Max(x => x.Name.Length) + 4;
+            var columnLength = Columns.Max(x => x.QuotedName.Length) + 4;
             var typeLength = Columns.Max(x => x.Type.Length) + 4;
 
             var lines = Columns.Select(column =>
-                    $"    {column.Name.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}")
+                    $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}")
                 .ToList();
 
             if (PrimaryKeyColumns.Any())

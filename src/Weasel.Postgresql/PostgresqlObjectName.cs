@@ -4,6 +4,8 @@ namespace Weasel.Postgresql;
 
 public class PostgresqlObjectName: DbObjectName
 {
+    protected override string QuotedQualifiedName => $"{SchemaUtils.QuoteName(Schema)}.{SchemaUtils.QuoteName(Name)}";
+
     public PostgresqlObjectName(string schema, string name)
         : base(schema, name, PostgresqlProvider.Instance.ToQualifiedName(schema, name))
     {
