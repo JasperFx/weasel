@@ -41,6 +41,8 @@ public class TableColumn: INamed
 
     public string Name { get; }
 
+    public string QuotedName => SchemaUtils.QuoteName(Name);
+
     public string RawType()
     {
         return Type.Split('(')[0].Trim();
@@ -59,7 +61,7 @@ public class TableColumn: INamed
 
     protected bool Equals(TableColumn other)
     {
-        return string.Equals(Name, other.Name) &&
+        return string.Equals(QuotedName, other.QuotedName) &&
                string.Equals(PostgresqlProvider.Instance.ConvertSynonyms(RawType()),
                    PostgresqlProvider.Instance.ConvertSynonyms(other.RawType()));
     }
@@ -97,8 +99,8 @@ public class TableColumn: INamed
         var declaration = Declaration();
 
         return declaration.IsEmpty()
-            ? $"{Name} {Type}"
-            : $"{Name} {Type} {declaration}";
+            ? $"{QuotedName} {Type}"
+            : $"{QuotedName} {Type} {declaration}";
     }
 
     public override string ToString()
@@ -109,12 +111,12 @@ public class TableColumn: INamed
 
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
-        return $"alter table {table.Identifier} alter column {Name.PadRight(Name.Length)} type {Type};";
+        return $"alter table {table.Identifier} alter column {QuotedName.PadRight(QuotedName.Length)} type {Type};";
     }
 
     public string DropColumnSql(Table table)
     {
-        return $"alter table {table.Identifier} drop column {Name};";
+        return $"alter table {table.Identifier} drop column {QuotedName};";
     }
 
 
