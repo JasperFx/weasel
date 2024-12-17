@@ -53,6 +53,6 @@ public class CommandParameterTests
         dbParameter.Value.ShouldBe(parameter.Value);
         dbParameter.SqlDbType.ShouldBe(parameter.DbType);
 
-        builder.ToString().ShouldEndWith(":" + dbParameter.ParameterName);
+        builder.ToString().ShouldEndWith("@" + dbParameter.ParameterName);
     }
 }

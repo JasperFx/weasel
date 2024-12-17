@@ -15,7 +15,7 @@ public class CommandBuilderTests
         builder.AppendWithParameters("foo = ?")
             .Length.ShouldBe(1);
 
-        builder.ToString().ShouldBe("select data from table where foo = :p0");
+        builder.ToString().ShouldBe("select data from table where foo = @p0");
     }
 
     [Fact]
@@ -27,7 +27,7 @@ public class CommandBuilderTests
         builder.AppendWithParameters("foo = ? and bar = ?")
             .Length.ShouldBe(2);
 
-        builder.ToString().ShouldBe("select data from table where foo = :p0 and bar = :p1");
+        builder.ToString().ShouldBe("select data from table where foo = @p0 and bar = @p1");
     }
 
 
@@ -40,7 +40,7 @@ public class CommandBuilderTests
         builder.AppendWithParameters("foo = ? and bar = ? order by baz")
             .Length.ShouldBe(2);
 
-        builder.ToString().ShouldBe("select data from table where foo = :p0 and bar = :p1 order by baz");
+        builder.ToString().ShouldBe("select data from table where foo = @p0 and bar = @p1 order by baz");
     }
 
 
@@ -55,7 +55,7 @@ public class CommandBuilderTests
         builder.AppendWithParameters("foo = ^", '^')
             .Length.ShouldBe(1);
 
-        builder.ToString().ShouldBe("select data from table where foo = :p0");
+        builder.ToString().ShouldBe("select data from table where foo = @p0");
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class CommandBuilderTests
         builder.AppendWithParameters("foo = ^ and bar = ^", '^')
             .Length.ShouldBe(2);
 
-        builder.ToString().ShouldBe("select data from table where foo = :p0 and bar = :p1");
+        builder.ToString().ShouldBe("select data from table where foo = @p0 and bar = @p1");
     }
 
 
@@ -80,6 +80,6 @@ public class CommandBuilderTests
         builder.AppendWithParameters("foo = ^ and bar = ^ order by baz", '^')
             .Length.ShouldBe(2);
 
-        builder.ToString().ShouldBe("select data from table where foo = :p0 and bar = :p1 order by baz");
+        builder.ToString().ShouldBe("select data from table where foo = @p0 and bar = @p1 order by baz");
     }
 }
