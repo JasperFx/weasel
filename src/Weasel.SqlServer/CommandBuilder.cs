@@ -11,7 +11,7 @@ public class CommandBuilder: CommandBuilderBase<SqlCommand, SqlParameter, SqlDbT
     {
     }
 
-    public CommandBuilder(SqlCommand command): base(SqlServerProvider.Instance, ':', command)
+    public CommandBuilder(SqlCommand command): base(SqlServerProvider.Instance, '@', command)
     {
     }
 }
