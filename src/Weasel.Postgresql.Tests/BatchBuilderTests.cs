@@ -36,6 +36,16 @@ public class BatchBuilderTests : IntegrationContext
         batcher.Append("insert into batching.thing (id, tag, age) values (");
         batcher.AppendParameters(5, "green", 11);
         batcher.Append(")");
+        batcher.StartNewCommand();
+        batcher.Append("insert into batching.thing (id, tag, age) values (:id, :tag, :age)");
+        batcher.AddParameters(new { id = 6, tag = "yellow", age = 12 });
+        batcher.StartNewCommand();
+        batcher.Append("insert into batching.thing (id, tag, age) values (:id, :tag, :age)");
+        batcher.AddParameters((object)new Dictionary<string, object?> { { "id", 7 }, { "tag", "red" }, { "age", 13 } });
+        batcher.StartNewCommand();
+        batcher.Append("insert into batching.thing (id, tag, age) values (:id, :tag, :age)");
+        batcher.AddParameters((object)new Dictionary<string, int> { { "id", 8 }, { "age", 14 } });
+        batcher.AddParameters((object)new Dictionary<string, string> { { "tag", "purple" } });
         batcher.Compile();
 
         await batch.ExecuteNonQueryAsync();
@@ -54,5 +64,23 @@ public class BatchBuilderTests : IntegrationContext
         (await reader.GetFieldValueAsync<int>(0)).ShouldBe(5);
         (await reader.GetFieldValueAsync<string>(1)).ShouldBe("green");
         (await reader.GetFieldValueAsync<int>(2)).ShouldBe(11);
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(6);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("yellow");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(12);
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(7);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("red");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(13);
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(8);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("purple");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(14);
     }
 }
