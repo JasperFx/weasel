@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Data.Common;
 using System.Text;
 using JasperFx.Core;
@@ -282,11 +283,59 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
             return;
         }
 
+        // dictionaries should also be treated as parameter maps.
+        if (parameters is IDictionary<string, object?> paramDict)
+        {
+            AddParameters(paramDict);
+            return;
+        }
+
+        // dictionaries of any type are supported, as long as the key is string
+        if (parameters is IDictionary { Keys: ICollection<string> keys } anyTypeDict)
+        {
+            AddParameters(keys.ToDictionary(k => k, k => anyTypeDict[k]));
+            return;
+        }
+
         var properties = parameters.GetType().GetProperties();
         foreach (var property in properties)
         {
             var value = property.GetValue(parameters);
             AddNamedParameter(property.Name, value ?? DBNull.Value, _provider.ToParameterType(property.PropertyType));
+        }
+    }
+
+    /// <summary>
+    ///     For each key-value pair of the parameters dictionary, adds a new parameter
+    ///     to the command using the key as the name and the value.
+    ///     Does *not* affect the command text
+    /// </summary>
+    /// <param name="parameters"></param>
+    public void AddParameters(IDictionary<string, object?> parameters)
+    {
+        AddParameters<object?>(parameters);
+    }
+
+
+    /// <summary>
+    ///     For each key-value pair of the parameters dictionary, adds a new parameter
+    ///     to the command using the key as the name and the value.
+    ///     Does *not* affect the command text
+    /// </summary>
+    /// <param name="parameters"></param>
+    public void AddParameters<T>(IDictionary<string, T> parameters)
+    {
+        if (parameters == null)
+        {
+            return;
+        }
+
+        foreach (var (key, value) in parameters)
+        {
+            AddNamedParameter(
+                key,
+                (object?)value ?? DBNull.Value,
+                _provider.ToParameterType(value?.GetType() ?? typeof(DBNull)));
         }
     }
 

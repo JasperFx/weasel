@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Text;
 using Npgsql;
 using NpgsqlTypes;
@@ -197,12 +198,46 @@ public class BatchBuilder: ICommandBuilder
             return;
         }
 
+        // dictionaries should also be treated as parameter maps.
+        if (parameters is IDictionary<string, object?> paramDict)
+        {
+            AddParameters(paramDict);
+            return;
+        }
+
+        // dictionaries of any type are supported, as long as the key is string
+        if (parameters is IDictionary { Keys: ICollection<string> keys } anyTypeDict)
+        {
+            AddParameters(keys.ToDictionary(k => k, k => anyTypeDict[k]));
+            return;
+        }
+
         var properties = parameters.GetType().GetProperties();
         foreach (var property in properties)
         {
             var value = property.GetValue(parameters);
 
             _current.Parameters.Add(new() { Value = value ?? DBNull.Value, ParameterName = property.Name });
+        }
+    }
+
+    public void AddParameters(IDictionary<string, object?> parameters)
+    {
+        AddParameters<object?>(parameters);
+    }
+
+    public void AddParameters<T>(IDictionary<string, T> parameters)
+    {
+        _current ??= appendCommand();
+
+        if (parameters == null)
+        {
+            return;
+        }
+
+        foreach (var (key, value) in parameters)
+        {
+            _current.Parameters.Add(new() { Value = (object?)value ?? DBNull.Value, ParameterName = key });
         }
     }
 

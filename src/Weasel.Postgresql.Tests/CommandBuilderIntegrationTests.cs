@@ -41,6 +41,151 @@ public class CommandBuilderIntegrationTests: IntegrationContext
     }
 
     [Fact]
+    public async Task use_parameters_to_query_by_dictionary_string_nullable_object()
+    {
+        var table = new Table("integration.thing");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("tag");
+        table.AddColumn<int>("age");
+
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var builder = new CommandBuilder();
+        builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
+        var parameters = new Dictionary<string, object?> { { "id", 3 }, { "tag", "Toodles" }, { "age", 5 } };
+        builder.AddParameters(parameters);
+
+        await theConnection.ExecuteNonQueryAsync(builder);
+
+        await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+            .ExecuteReaderAsync();
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task use_parameters_to_query_by_dictionary_string_object()
+    {
+        var table = new Table("integration.thing");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("tag");
+        table.AddColumn<int>("age");
+
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var builder = new CommandBuilder();
+        builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
+        var parameters = new Dictionary<string, object> { { "id", 3 }, { "tag", "Toodles" }, { "age", 5 } };
+        builder.AddParameters(parameters);
+
+        await theConnection.ExecuteNonQueryAsync(builder);
+
+        await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+            .ExecuteReaderAsync();
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task use_parameters_to_query_by_dictionary_string_string()
+    {
+        var table = new Table("integration.thing");
+        table.AddColumn<string>("id").AsPrimaryKey();
+        table.AddColumn<string>("tag");
+        table.AddColumn<string>("age");
+
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var builder = new CommandBuilder();
+        builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
+        var parameters = new Dictionary<string, string> { { "id", "3" }, { "tag", "Toodles" }, { "age", "5" } };
+        builder.AddParameters(parameters);
+
+        await theConnection.ExecuteNonQueryAsync(builder);
+
+        await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+            .ExecuteReaderAsync();
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<string>(0)).ShouldBe("3");
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+        (await reader.GetFieldValueAsync<string>(2)).ShouldBe("5");
+    }
+
+    [Fact]
+    public async Task use_parameters_to_query_by_dictionary_string_nullable_object_as_object()
+    {
+        var table = new Table("integration.thing");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("tag");
+        table.AddColumn<int>("age");
+
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var builder = new CommandBuilder();
+        builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
+        var parameters = new Dictionary<string, object?> { { "id", 3 }, { "tag", "Toodles" }, { "age", 5 } };
+        builder.AddParameters((object)parameters);
+
+        await theConnection.ExecuteNonQueryAsync(builder);
+
+        await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+            .ExecuteReaderAsync();
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(3);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(5);
+    }
+
+    [Fact]
+    public async Task use_parameters_to_query_by_dictionary_string_string_as_object()
+    {
+        var table = new Table("integration.thing");
+        table.AddColumn<string>("id").AsPrimaryKey();
+        table.AddColumn<string>("tag");
+        table.AddColumn<string>("age");
+
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var builder = new CommandBuilder();
+        builder.Append("insert into integration.thing (id, tag, age) values (:id, :tag, :age)");
+        var parameters = new Dictionary<string, string> { { "id", "3" }, { "tag", "Toodles" }, { "age", "5" } };
+        builder.AddParameters((object)parameters);
+
+        await theConnection.ExecuteNonQueryAsync(builder);
+
+        await using var reader = await theConnection.CreateCommand("select id, tag, age from integration.thing")
+            .ExecuteReaderAsync();
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<string>(0)).ShouldBe("3");
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("Toodles");
+        (await reader.GetFieldValueAsync<string>(2)).ShouldBe("5");
+    }
+
+    [Fact]
     public async Task use_parameters_to_query_by_anonymous_type_by_generic_command_builder()
     {
         var table = new Table("integration.thing");
