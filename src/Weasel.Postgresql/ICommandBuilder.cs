@@ -48,8 +48,21 @@ public interface ICommandBuilder
     void StartNewCommand();
 
     /// <summary>
-    /// Use an anonymous type to add named parameters
+    ///     Use an anonymous type to add named parameters.
+    ///     If a dictionary is passed in then its key-value pairs will be used as named parameters
     /// </summary>
     /// <param name="parameters"></param>
     void AddParameters(object parameters);
+
+    /// <summary>
+    ///     Use a dictionary to add named parameters
+    /// </summary>
+    /// <param name="parameters"></param>
+    void AddParameters(IDictionary<string, object?> parameters);
+
+    /// <summary>
+    ///     Use a dictionary to add named parameters
+    /// </summary>
+    /// <param name="parameters"></param>
+    void AddParameters<T>(IDictionary<string, T> parameters);
 }
