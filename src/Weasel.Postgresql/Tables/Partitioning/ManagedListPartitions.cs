@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Data.Common;
 using JasperFx.Core;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -78,6 +79,50 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         await conn.CloseAsync().ConfigureAwait(false);
     }
 
+    public async Task DropPartitionFromAllTables(PostgresqlDatabase database, ILogger logger, string[] suffixNames, CancellationToken token)
+    {
+        await using var conn = database.CreateConnection();
+        await conn.OpenAsync(token).ConfigureAwait(false);
+
+        // This is idempotent, so just do it here
+        await InitializeAsync(conn, token).ConfigureAwait(false);
+
+        var cmd = conn
+            .CreateCommand(
+                $"delete from {_table.Identifier} where partition_suffix = ANY(:suffix)")
+            .With("suffix", suffixNames);
+
+        await cmd.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+
+        logger.LogInformation("Removed partition suffixes {SuffixNames} from partition list {TableName}", suffixNames.Join(", "), _table.Identifier.QualifiedName);
+
+        var tables = database
+            .AllObjects()
+            .OfType<Table>()
+            .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
+            .ToArray();
+
+        var builder = new CommandBuilder();
+
+        foreach (var table in tables)
+        {
+            foreach (var suffixName in suffixNames)
+            {
+                var partitionName = $"{table.Identifier}_{suffixName}";
+
+                builder.StartNewCommand();
+                builder.Append($"drop table if exists {partitionName} cascade;");
+            }
+        }
+
+        var command = builder.Compile();
+        command.Connection = conn;
+
+        await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+
+        logger.LogInformation("Executed script to drop table partitions:\n" + command.CommandText);
+    }
+
     public async Task AddPartitionToAllTables(PostgresqlDatabase database, string value, string? suffix, CancellationToken token)
     {
         await using var conn = database.CreateConnection();
@@ -88,16 +133,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         await AddPartitionToAllTables(conn, token, value, suffix).ConfigureAwait(false);
 
-        var tables = database
-            .AllObjects()
-            .OfType<Table>()
-            .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
-            .ToArray();
-
-        foreach (var table in tables)
-        {
-            await table.MigrateAsync(conn, token).ConfigureAwait(false);
-        }
+        await additivelyMigrateTablesForNewPartitions(NullLogger.Instance, database, token, conn).ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
     }
@@ -128,6 +164,16 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         await tx.CommitAsync(token).ConfigureAwait(false);
 
+        var list = await additivelyMigrateTablesForNewPartitions(logger, database, token, conn).ConfigureAwait(false);
+
+        await conn.CloseAsync().ConfigureAwait(false);
+
+        return list.ToArray();
+    }
+
+    private async Task<List<TablePartitionStatus>> additivelyMigrateTablesForNewPartitions(ILogger logger, PostgresqlDatabase database,
+        CancellationToken token, NpgsqlConnection conn)
+    {
         var tables = database
             .AllObjects()
             .OfType<Table>()
@@ -164,9 +210,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             }
         }
 
-        await conn.CloseAsync().ConfigureAwait(false);
-
-        return list.ToArray();
+        return list;
     }
 
     public Task AddPartitionToAllTables(NpgsqlConnection conn, CancellationToken token, string value, string? suffix = null)
