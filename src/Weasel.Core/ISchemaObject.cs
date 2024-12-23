@@ -20,6 +20,15 @@ public class SchemaMigrationException: Exception
 }
 
 /// <summary>
+/// Schema objects that may need to analyze other schema objects in order to correctly
+/// generate their own model. Originally introduced for PostgreSQL partitioning with foreign keys
+/// </summary>
+public interface ISchemaObjectWithPostProcessing : ISchemaObject
+{
+    void PostProcess(ISchemaObject[] allObjects);
+}
+
+/// <summary>
 ///     Responsible for the desired configuration of a single database object like
 ///     a table, sequence, of function.
 /// </summary>

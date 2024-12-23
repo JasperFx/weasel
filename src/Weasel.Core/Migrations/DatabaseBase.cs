@@ -113,6 +113,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             .ToArray();
         var writer = new StringWriter();
 
+        applyPostProcessingIfAny();
+
         Migrator.WriteScript(writer, (m, w) =>
         {
             m.WriteSchemaCreationSql(schemaNames, writer);
@@ -121,6 +123,15 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         });
 
         return writer.ToString();
+    }
+
+    private void applyPostProcessingIfAny()
+    {
+        var objects = AllObjects().ToArray();
+        foreach (var postProcessing in objects.OfType<ISchemaObjectWithPostProcessing>().ToArray())
+        {
+            postProcessing.PostProcess(objects);
+        }
     }
 
     public async Task WriteCreationScriptToFileAsync(string filename, CancellationToken ct = default)
@@ -152,6 +163,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     /// <param name="directory"></param>
     public async Task WriteScriptsByTypeAsync(string directory, CancellationToken ct = default)
     {
+        applyPostProcessingIfAny();
+
         FileSystem.CleanDirectory(directory);
 
         await initializeSchemaWithNewConnection(ct).ConfigureAwait(false);
@@ -195,6 +208,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
     public async Task<SchemaMigration> CreateMigrationAsync(CancellationToken ct = default)
     {
+        applyPostProcessingIfAny();
         var objects = AllObjects().ToArray();
 
         await using var conn = CreateConnection();
@@ -259,6 +273,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         foreach (var objectName in objects.SelectMany(x => x.AllNames()))
         {
             Migrator.AssertValidIdentifier(objectName.Name);
+        }
+
+        foreach (var postProcessing in objects.OfType<ISchemaObjectWithPostProcessing>().ToArray())
+        {
+            postProcessing.PostProcess(objects);
         }
 
         TConnection? conn = null;
@@ -400,10 +419,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             await ensureStorageExistsAsync(types, dependentType, token).ConfigureAwait(false);
         }
 
-        await generateOrUpdateFeature(featureType, feature, token).ConfigureAwait(false);
+        await generateOrUpdateFeature(featureType, feature, token, false).ConfigureAwait(false);
     }
 
-    protected async ValueTask generateOrUpdateFeature(Type featureType, IFeatureSchema feature, CancellationToken token)
+    protected async ValueTask generateOrUpdateFeature(Type featureType, IFeatureSchema feature, CancellationToken token,
+        bool skipPostProcessing)
     {
         if (_checks.ContainsKey(featureType))
         {
@@ -413,10 +433,18 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
         var schemaObjects = feature.Objects;
 
-
         foreach (var objectName in schemaObjects.SelectMany(x => x.AllNames()))
         {
             Migrator.AssertValidIdentifier(objectName.Name);
+        }
+
+        if (!skipPostProcessing)
+        {
+            var allObjects = AllObjects().ToArray();
+            foreach (var processing in schemaObjects.OfType<ISchemaObjectWithPostProcessing>().ToArray())
+            {
+                processing.PostProcess(allObjects);
+            }
         }
 
         using (await _migrateLocker.Lock(5.Seconds(), token).ConfigureAwait(false))

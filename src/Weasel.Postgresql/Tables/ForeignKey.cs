@@ -156,4 +156,35 @@ public class ForeignKey: INamed
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
     }
+
+    public void TryToCorrectForLink(Table parentTable, Table linkedTable)
+    {
+        // Depends on "id" always being first in Marten world
+        LinkedNames = linkedTable.PrimaryKeyColumns.ToArray();
+        if (ColumnNames.Length != LinkedNames.Length)
+        {
+            // Leave the first column alone!
+            for (int i = 1; i < LinkedNames.Length; i++)
+            {
+                var columnName = LinkedNames[i];
+                var matching = parentTable.ColumnFor(columnName);
+                if (matching != null)
+                {
+                    ColumnNames = ColumnNames.Concat([columnName]).ToArray();
+                }
+                else
+                {
+                    throw new InvalidForeignKeyException(
+                        $"Cannot make a foreign key relationship from {parentTable.Identifier}({ColumnNames.Join(", ")}) to {linkedTable.Identifier}({LinkedNames.Join(", ")}) ");
+                }
+            }
+        }
+    }
+}
+
+public class InvalidForeignKeyException: Exception
+{
+    public InvalidForeignKeyException(string? message) : base(message)
+    {
+    }
 }
