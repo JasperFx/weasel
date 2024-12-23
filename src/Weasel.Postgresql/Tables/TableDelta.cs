@@ -4,7 +4,7 @@ using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public class TableDelta: SchemaObjectDelta<Table>
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostProcessing
 {
 
 
@@ -230,6 +230,21 @@ public class TableDelta: SchemaObjectDelta<Table>
                 writer.WriteLine(
                     $"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
                 break;
+        }
+    }
+
+    public void PostProcess(IList<ISchemaObjectDelta> allDeltas)
+    {
+        if (Actual?.Partitioning != null)
+        {
+            var others = allDeltas.OfType<TableDelta>().Select(x => x.Actual)
+                .Where(x => x?.Partitioning != null).ToArray();
+
+            Actual.ReadOtherTables(others);
+
+            // Correct the foreign keys
+            ForeignKeys = new ItemDelta<ForeignKey>(Expected.ForeignKeys, Actual.ForeignKeys);
+            Difference = compare(Expected, Actual);
         }
     }
 

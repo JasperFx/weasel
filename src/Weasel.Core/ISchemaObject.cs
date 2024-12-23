@@ -89,7 +89,7 @@ public abstract class SchemaObjectDelta<T>: ISchemaObjectDelta where T : ISchema
 
     public ISchemaObject SchemaObject => Expected;
 
-    public SchemaPatchDifference Difference { get; }
+    public SchemaPatchDifference Difference { get; protected set; }
     public abstract void WriteUpdate(Migrator rules, TextWriter writer);
 
     public virtual void WriteRollback(Migrator rules, TextWriter writer)

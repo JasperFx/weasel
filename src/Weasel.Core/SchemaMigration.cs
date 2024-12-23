@@ -69,7 +69,6 @@ public class SchemaMigration
     {
         var deltas = new List<ISchemaObjectDelta>();
 
-
         if (!schemaObjects.Any())
         {
             return new SchemaMigration(deltas);
@@ -97,6 +96,11 @@ public class SchemaMigration
         catch (Exception)
         {
             // It's aggravating, but there's an issue w/ postgresql's metadata query on partitions that can throw here
+        }
+
+        foreach (var postProcessing in deltas.OfType<ISchemaObjectDeltaWithPostProcessing>().ToArray())
+        {
+            postProcessing.PostProcess(deltas);
         }
 
         return new SchemaMigration(deltas);

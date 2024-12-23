@@ -1,5 +1,10 @@
 namespace Weasel.Core;
 
+public interface ISchemaObjectDeltaWithPostProcessing : ISchemaObjectDelta
+{
+    void PostProcess(IList<ISchemaObjectDelta> allDeltas);
+}
+
 /// <summary>
 ///     Models the difference between a configured ISchemaObject and the actual
 ///     database version of that object

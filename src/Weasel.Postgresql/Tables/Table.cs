@@ -18,6 +18,11 @@ public partial class Table: ISchemaObject
         Identifier = name ?? throw new ArgumentNullException(nameof(name));
     }
 
+    public override string ToString()
+    {
+        return $"Table: {Identifier}";
+    }
+
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
     {
     }
@@ -512,6 +517,21 @@ public partial class Table: ISchemaObject
         foreach (var tableName in Partitioning.PartitionTableNames(this))
         {
             yield return tableName;
+        }
+    }
+
+    public void ReadOtherTables(Table[] tables)
+    {
+        // The only reason this exists is to remove FK's that point to partitioned tables from the
+        // weasel configuration
+        foreach (var foreignKey in ForeignKeys.ToArray())
+        {
+            var otherTable = tables.FirstOrDefault(x => Equals(x.Identifier, foreignKey.LinkedTable));
+            if (otherTable?.Partitioning != null)
+            {
+                var partitionNames = otherTable.PartitionTableNames().ToArray();
+                ForeignKeys.RemoveAll(x => partitionNames.Contains(x.LinkedTable.Name));
+            }
         }
     }
 }
