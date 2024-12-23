@@ -1,5 +1,6 @@
 using Shouldly;
 using Weasel.Core;
+using Weasel.Postgresql.Tables;
 using Weasel.Postgresql.Tables.Partitioning;
 using Weasel.Postgresql.Tests.Tables.Indexes;
 using Xunit;
@@ -225,6 +226,39 @@ public class detecting_table_deltas_with_partitions : IndexDeltasDetectionContex
         await AssertNoDeltasAfterPatching();
 
         (await countIs()).ShouldBe(4);
+    }
+
+
+    [Fact]
+    public async Task apply_migration_to_list_partitioned_with_foreign_key_to_other_partitioned_table()
+    {
+        theTable.ModifyColumn("last_name").AsPrimaryKey();
+        theOtherTable.ModifyColumn("last_name").AsPrimaryKey();
+
+        theTable.PartitionByList("last_name")
+            .AddPartition("Miller", "Miller")
+            .AddPartition("May", "May")
+            .AddPartition("Smith", "Smith");
+
+        theOtherTable.PartitionByList("last_name")
+            .AddPartition("Miller", "Miller")
+            .AddPartition("May", "May")
+            .AddPartition("Smith", "Smith");
+
+        theTable.ForeignKeys.Add(new ForeignKey("fk_other")
+        {
+            ColumnNames = ["id", "last_name"],
+            LinkedNames = ["id", "last_name"],
+            LinkedTable = theOtherTable.Identifier
+        });
+
+        await CreateSchemaObjectInDatabase(theOtherTable);
+        await CreateSchemaObjectInDatabase(theTable);
+
+        var existing = await theOtherTable.FetchExistingAsync(theConnection);
+
+        // There should be no delta after patching
+        await AssertNoDeltasAfterPatching(theTable);
     }
 
 

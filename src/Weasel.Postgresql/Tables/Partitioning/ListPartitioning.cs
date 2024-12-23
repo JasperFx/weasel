@@ -102,6 +102,19 @@ public class ListPartitioning: IPartitionStrategy
         }
     }
 
+    public IEnumerable<string> PartitionTableNames(Table parent)
+    {
+        foreach (var partition in _partitions)
+        {
+            yield return $"{parent.Identifier.Name.ToLowerInvariant()}_{partition.Suffix.ToLowerInvariant()}";
+        }
+
+        if (EnableDefaultPartition)
+        {
+            yield return $"{parent.Identifier.Name.ToLowerInvariant()}_default";
+        }
+    }
+
     public async Task ReadPartitionsAsync(DbObjectName identifier, DbDataReader reader, CancellationToken ct)
     {
         var expectedDefaultName = identifier.Name + "_default";

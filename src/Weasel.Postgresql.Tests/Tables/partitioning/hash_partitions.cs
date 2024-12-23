@@ -35,6 +35,13 @@ public class hash_partitions: IntegrationContext
     }
 
     [Fact]
+    public void get_partition_table_names()
+    {
+        theTable.PartitionTableNames()
+            .ShouldBe(["people_one", "people_two", "people_three"]);
+    }
+
+    [Fact]
     public async Task write_sql_for_partition_by_hash()
     {
         var sql = theTable.ToCreateSql(new PostgresqlMigrator());

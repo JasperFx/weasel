@@ -24,6 +24,14 @@ public class range_partitions: IntegrationContext
             .AddRange("thirties", 30, 39);
     }
 
+    [Fact]
+    public void partition_table_names()
+    {
+        theTable.PartitionTableNames().ToArray()
+            .ShouldBe(["people_twenties", "people_thirties", "people_default"]);
+
+    }
+
 
     [Fact]
     public async Task write_sql_for_partition_by_list()

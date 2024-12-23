@@ -501,4 +501,17 @@ public partial class Table: ISchemaObject
             return this;
         }
     }
+
+    public IEnumerable<string> PartitionTableNames()
+    {
+        if (Partitioning == null)
+        {
+            yield break;
+        }
+
+        foreach (var tableName in Partitioning.PartitionTableNames(this))
+        {
+            yield return tableName;
+        }
+    }
 }

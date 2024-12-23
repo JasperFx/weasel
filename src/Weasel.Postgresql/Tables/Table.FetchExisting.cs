@@ -270,6 +270,9 @@ order by column_index;
 
     private async Task readConstraintsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
     {
+        // This is to screen out foreign keys from partitions
+        var expectedDefinition = $"REFERENCES {existing.Identifier.QualifiedName.ToLowerInvariant()}(";
+
         await reader.NextResultAsync(ct).ConfigureAwait(false);
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
