@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using JasperFx.Core;
 using Npgsql;
@@ -7,7 +8,7 @@ using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public partial class Table: ISchemaObject
+public partial class Table: ISchemaObjectWithPostProcessing
 {
     private readonly List<TableColumn> _columns = new();
 
@@ -161,6 +162,20 @@ public partial class Table: ISchemaObject
         foreach (var index in Indexes) yield return new PostgresqlObjectName(Identifier.Schema, index.Name);
 
         foreach (var fk in ForeignKeys) yield return new PostgresqlObjectName(Identifier.Schema, fk.Name);
+    }
+
+    public void PostProcess(ISchemaObject[] allObjects)
+    {
+        if (!ForeignKeys.Any()) return;
+
+        foreach (var key in ForeignKeys)
+        {
+            var matching = allObjects.OfType<Table>().FirstOrDefault(x => x.Identifier.Equals(key.LinkedTable));
+            if (matching != null)
+            {
+                key.TryToCorrectForLink(this, matching);
+            }
+        }
     }
 
     /// <summary>
