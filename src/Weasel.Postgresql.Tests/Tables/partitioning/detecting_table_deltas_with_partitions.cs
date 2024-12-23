@@ -1,5 +1,7 @@
+using Npgsql;
 using Shouldly;
 using Weasel.Core;
+using Weasel.Core.Migrations;
 using Weasel.Postgresql.Tables;
 using Weasel.Postgresql.Tables.Partitioning;
 using Weasel.Postgresql.Tests.Tables.Indexes;
@@ -255,11 +257,39 @@ public class detecting_table_deltas_with_partitions : IndexDeltasDetectionContex
         await CreateSchemaObjectInDatabase(theOtherTable);
         await CreateSchemaObjectInDatabase(theTable);
 
-        var existing = await theOtherTable.FetchExistingAsync(theConnection);
+        var database = new TestingDatabase(new DefaultMigrationLogger(), AutoCreate.CreateOrUpdate,
+            new PostgresqlMigrator(), "Testing", NpgsqlDataSource.Create(ConnectionSource.ConnectionString));
+        database.SchemaObjects.Add(theTable);
+        database.SchemaObjects.Add(theOtherTable);
 
-        // There should be no delta after patching
-        await AssertNoDeltasAfterPatching(theTable);
+        await database.AssertDatabaseMatchesConfigurationAsync();
     }
 
 
+}
+
+public class TestingDatabase: PostgresqlDatabase, IFeatureSchema
+{
+    public TestingDatabase(IMigrationLogger logger, AutoCreate autoCreate, Migrator migrator, string identifier, NpgsqlDataSource dataSource) : base(logger, autoCreate, migrator, identifier, dataSource)
+    {
+    }
+
+    public List<ISchemaObject> SchemaObjects { get; } = new();
+
+    public override IFeatureSchema[] BuildFeatureSchemas()
+    {
+        return [this];
+    }
+
+    public ISchemaObject[] Objects => SchemaObjects.ToArray();
+    public Type StorageType => GetType();
+    public void WritePermissions(Migrator rules, TextWriter writer)
+    {
+        // Nothing
+    }
+
+    public IEnumerable<Type> DependentTypes()
+    {
+        yield break;
+    }
 }
