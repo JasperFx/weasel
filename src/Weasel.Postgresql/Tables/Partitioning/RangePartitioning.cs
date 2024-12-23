@@ -55,6 +55,16 @@ public class RangePartitioning: IPartitionStrategy
         }
     }
 
+    public IEnumerable<string> PartitionTableNames(Table parent)
+    {
+        foreach (var partition in _ranges)
+        {
+            yield return $"{parent.Identifier.Name.ToLowerInvariant()}_{partition.Suffix.ToLowerInvariant()}";
+        }
+
+        yield return $"{parent.Identifier.Name.ToLowerInvariant()}_default";
+    }
+
     /// <summary>
     /// Add another range partition with the name "{parent table name}_{suffix}"
     /// </summary>

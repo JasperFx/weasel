@@ -7,6 +7,7 @@ namespace Weasel.Postgresql.Tests.Tables.Indexes;
 public abstract class IndexDeltasDetectionContext: IntegrationContext
 {
     protected Table theTable;
+    protected Table theOtherTable;
 
     public override Task InitializeAsync() =>
         ResetSchema();
@@ -21,6 +22,10 @@ public abstract class IndexDeltasDetectionContext: IntegrationContext
         theTable.AddColumn<DateTime>("created_datetime");
         theTable.AddColumn<DateTimeOffset>("created_datetime_offset");
         theTable.AddColumn("data", "jsonb");
+
+        theOtherTable = new Table($"{schemaName}.other");
+        theOtherTable.AddColumn<int>("id").AsPrimaryKey();
+        theOtherTable.AddColumn<string>("last_name");
     }
 
 

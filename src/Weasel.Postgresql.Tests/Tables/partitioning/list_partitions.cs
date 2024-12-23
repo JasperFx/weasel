@@ -39,6 +39,20 @@ public class list_partitions : IntegrationContext
         return theTable.FetchExistingAsync(theConnection);
     }
 
+    [Fact]
+    public void get_table_names_with_default_partition()
+    {
+        theTable.PartitionTableNames().ToArray()
+            .ShouldBe(["people_admin", "people_super" ,"people_special", "people_default"]);
+    }
+
+    [Fact]
+    public void get_table_names_without_default_partition()
+    {
+        theTable.Partitioning.As<ListPartitioning>().EnableDefaultPartition = false;
+        theTable.PartitionTableNames().ToArray()
+            .ShouldBe(["people_admin", "people_super" ,"people_special"]);
+    }
 
     [Fact]
     public void parse_list_partition_by_expression_with_single_value()

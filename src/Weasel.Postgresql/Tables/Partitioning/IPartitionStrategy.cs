@@ -26,6 +26,8 @@ public interface IPartitionStrategy
     /// <param name="missing"></param>
     /// <returns></returns>
     PartitionDelta CreateDelta(Table parent, IPartitionStrategy actual, out IPartition[] missing);
+
+    IEnumerable<string> PartitionTableNames(Table parent);
 }
 
 public enum PartitionDelta

@@ -76,6 +76,14 @@ public class HashPartitioning : IPartitionStrategy
         }
     }
 
+    public IEnumerable<string> PartitionTableNames(Table parent)
+    {
+        foreach (var suffix in Suffixes)
+        {
+            yield return $"{parent.Identifier.Name.ToLowerInvariant()}_{suffix}";
+        }
+    }
+
     public static async Task<HashPartitioning> ReadPartitionsAsync(DbObjectName identifier, List<string> columns,
         DbDataReader reader, CancellationToken ct)
     {
