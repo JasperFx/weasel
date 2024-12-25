@@ -29,8 +29,11 @@ jobs:
             useCaseSensitiveQualifiedNames:
                 - true
                 - false
+            framework:
+                - net8.0
+                - net9.0
 
-    name: Postgres ${{ matrix.postgres-image }} Case Sensitive ${{ matrix.useCaseSensitiveQualifiedNames }}
+    name: Postgres ${{ matrix.postgres-image }} ${{ matrix.framework }} Case Sensitive ${{ matrix.useCaseSensitiveQualifiedNames }}
 
     services:
       postgres:
@@ -87,5 +90,5 @@ jobs:
     - name: Test
       env:
         weasel_postgresql_testing_database: "Host=localhost;Database=${{ env.db_name }};Username=${{ env.db_user }};Password=${{ env.db_pwd }};"
-      run: dotnet test src/Weasel.Postgresql.Tests/Weasel.Postgresql.Tests.csproj --no-build --verbosity normal
+      run: dotnet test src/Weasel.Postgresql.Tests/Weasel.Postgresql.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }}
 
