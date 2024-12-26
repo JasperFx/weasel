@@ -205,7 +205,7 @@ order by column_index;
         }
         catch (PostgresException e)
         {
-            if (e.Message.Contains("does not exist")) return;
+            if (e.SqlState == PostgresErrorCodes.InvalidSchemaName) return;
             throw;
         }
 
