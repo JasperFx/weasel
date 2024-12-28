@@ -23,10 +23,11 @@ public record HashPartition
     public static HashPartition Parse(string suffix, string expression)
     {
         // FOR VALUES WITH (modulus 3, remainder 0)
-        var parts = expression.GetStringWithinParantheses().ToDelimitedArray();
-        var modulus = int.Parse(parts[0].Substring(7).Trim());
-        var remainder = int.Parse(parts[1].Substring(9).Trim());
-
+        var span = expression.GetSpanWithinParentheses();
+        Span<Range> ranges = stackalloc Range[2];
+        span.Split(ranges, ',', StringSplitOptions.TrimEntries);
+        var modulus = int.Parse(span[ranges[0]][7..]);
+        var remainder = int.Parse(span[ranges[1]][9..]);
         return new HashPartition(suffix, modulus, remainder);
     }
 
