@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
@@ -79,20 +80,36 @@ AND    n.nspname = :{schemaParam};
     public static string ParseSignature(string body)
     {
         var functionIndex = body.IndexOf("FUNCTION", StringComparison.OrdinalIgnoreCase);
-        var openParen = body.IndexOf("(");
-        var closeParen = body.IndexOf(")");
+        var openParen = body.IndexOf('(');
+        var closeParen = body.IndexOf(')');
 
-        var args = body.Substring(openParen + 1, closeParen - openParen - 1).Trim()
-            .Split(',').Select(x =>
-            {
-                var parts = x.Trim().Split(' ');
-                return parts.Skip(1).Join(" ");
-            }).Join(", ");
+        var stringBuilder = new StringBuilder();
 
         var nameStart = functionIndex + "function".Length;
-        var funcName = body.Substring(nameStart, openParen - nameStart).Trim();
+        var funcName = body.AsSpan(nameStart, openParen - nameStart).Trim();
 
-        return $"{funcName}({args})";
+        stringBuilder.Append(funcName);
+        stringBuilder.Append('(');
+
+        var argsSpan = body.AsSpan(openParen + 1, closeParen - openParen - 1).Trim();
+        var argsEnumerator = argsSpan.Split(',');
+
+        foreach (var range in argsEnumerator)
+        {
+            // doc jsonb | docdotnettype character varying | docid uuid | docversion uuid
+            var span = argsSpan[range].Trim();
+
+            var indexOfType = span.IndexOf(' ') + 1;
+
+            stringBuilder.Append(span[indexOfType..]);
+            if (range.End.Value != argsSpan.Length)
+            {
+                stringBuilder.Append(", ");
+            }
+        }
+
+        stringBuilder.Append(')');
+        return stringBuilder.ToString();
     }
 
     public static DbObjectName ParseIdentifier(string functionSql)
