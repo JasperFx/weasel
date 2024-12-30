@@ -56,7 +56,7 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
         catch (NpgsqlException e)
         {
             // Quirk of postgres metadata tables, this will throw on the partition querying if the table does not already exist
-            if (!e.Message.Contains("does not exist"))
+            if (e.SqlState != PostgresErrorCodes.UndefinedTable)
             {
                 throw;
             }
