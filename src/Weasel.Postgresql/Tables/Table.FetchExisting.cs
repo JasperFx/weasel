@@ -137,7 +137,7 @@ order by column_index;
         }
         catch (NpgsqlException e)
         {
-            if (!e.Message.Contains("does not exist")) throw;
+            if (e.SqlState != PostgresErrorCodes.UndefinedTable) throw;
         }
         return result;
     }
@@ -205,7 +205,7 @@ order by column_index;
         }
         catch (PostgresException e)
         {
-            if (e.Message.Contains("does not exist")) return;
+            if (e.SqlState == PostgresErrorCodes.InvalidSchemaName) return;
             throw;
         }
 

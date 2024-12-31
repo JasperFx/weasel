@@ -278,7 +278,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         // 42P01: relation "public.mt_tenant_partitions" does not exist
         catch (NpgsqlException e)
         {
-            if (e.Message.Contains("does not exist"))
+            if (e.SqlState == PostgresErrorCodes.UndefinedTable)
             {
                 _hasInitialized = true;
                 return;
