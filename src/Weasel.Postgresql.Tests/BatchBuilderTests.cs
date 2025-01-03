@@ -37,18 +37,33 @@ public class BatchBuilderTests : IntegrationContext
         batcher.AppendParameters(5, "green", 11);
         batcher.Append(")");
         batcher.StartNewCommand();
-        batcher.Append("insert into batching.thing (id, tag, age) values (:id, :tag, :age)");
+        // testing a mix of tag prefixes
+        batcher.Append("insert into batching.thing (id, tag, age) values (:id, @tag, :age)");
         batcher.AddParameters(new { id = 6, tag = "yellow", age = 12 });
         batcher.StartNewCommand();
-        batcher.Append("insert into batching.thing (id, tag, age) values (:id, :tag, :age)");
+        batcher.Append("insert into batching.thing (id, tag, age) values (:id, @tag, :age)");
         batcher.AddParameters((object)new Dictionary<string, object?> { { "id", 7 }, { "tag", "red" }, { "age", 13 } });
         batcher.StartNewCommand();
-        batcher.Append("insert into batching.thing (id, tag, age) values (:id, :tag, :age)");
+        batcher.Append("insert into batching.thing (id, tag, age) values (:id, @tag, :age)");
         batcher.AddParameters((object)new Dictionary<string, int> { { "id", 8 }, { "age", 14 } });
         batcher.AddParameters((object)new Dictionary<string, string> { { "tag", "purple" } });
+        batcher.StartNewCommand();
+        // testing a mix of positional and named parameters
+        batcher.Append("insert into batching.thing (id, tag, age) values (");
+        batcher.AppendParameter(9);
+        batcher.Append(", @tag, :age)");
+        batcher.AddParameters(new { tag = "orange", age = 15 });
         batcher.Compile();
 
-        await batch.ExecuteNonQueryAsync();
+        try
+        {
+            await batch.ExecuteNonQueryAsync();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            throw;
+        }
 
         await using var reader = await theConnection.CreateCommand("select id, tag, age from batching.thing order by id")
             .ExecuteReaderAsync();
@@ -82,5 +97,13 @@ public class BatchBuilderTests : IntegrationContext
         (await reader.GetFieldValueAsync<int>(0)).ShouldBe(8);
         (await reader.GetFieldValueAsync<string>(1)).ShouldBe("purple");
         (await reader.GetFieldValueAsync<int>(2)).ShouldBe(14);
+
+        await reader.ReadAsync();
+
+        (await reader.GetFieldValueAsync<int>(0)).ShouldBe(9);
+        (await reader.GetFieldValueAsync<string>(1)).ShouldBe("orange");
+        (await reader.GetFieldValueAsync<int>(2)).ShouldBe(15);
+
+        (await reader.ReadAsync()).ShouldBeFalse();
     }
 }
