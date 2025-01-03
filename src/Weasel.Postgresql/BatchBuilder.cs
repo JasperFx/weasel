@@ -30,6 +30,20 @@ public class BatchBuilder: ICommandBuilder
         return command;
     }
 
+    private NpgsqlParameter addPositionalParameterAsNamedParameter(NpgsqlParameter parameter)
+    {
+        _current ??= appendCommand();
+        var name = "p" + _current.Parameters.Count;
+        parameter.ParameterName = name;
+
+        _current.Parameters.Add(parameter);
+
+        _builder.Append(':');
+        _builder.Append(name);
+
+        return parameter;
+    }
+
     public string TenantId { get; set; }
 
     /// <summary>
@@ -58,12 +72,7 @@ public class BatchBuilder: ICommandBuilder
             TypedValue = value,
         };
 
-        _current.Parameters.Add(param);
-
-        _builder.Append('$');
-        _builder.Append(_current.Parameters.Count);
-
-        return param;
+        return addPositionalParameterAsNamedParameter(param);
     }
 
     public NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType)
@@ -74,12 +83,7 @@ public class BatchBuilder: ICommandBuilder
             NpgsqlDbType = dbType
         };
 
-        _current.Parameters.Add(param);
-
-        _builder.Append('$');
-        _builder.Append(_current.Parameters.Count);
-
-        return param;
+        return addPositionalParameterAsNamedParameter(param);
     }
 
 
@@ -92,12 +96,7 @@ public class BatchBuilder: ICommandBuilder
             //ParameterName = "p" + _current.Parameters.Count
         };
 
-        _current.Parameters.Add(param);
-
-        _builder.Append('$');
-        _builder.Append(_current.Parameters.Count);
-
-        return param;
+        return addPositionalParameterAsNamedParameter(param);
     }
 
     public void AppendParameters(params object[] parameters)
@@ -262,11 +261,7 @@ public class BatchBuilder: ICommandBuilder
         _current ??= appendCommand();
         var param = new NpgsqlParameter { Value = value};
         if (dbType.HasValue) param.NpgsqlDbType = dbType.Value;
-        _current.Parameters.Add(param);
 
-        _builder.Append('$');
-        _builder.Append(_current.Parameters.Count);
-
-        return param;
+        return addPositionalParameterAsNamedParameter(param);
     }
 }

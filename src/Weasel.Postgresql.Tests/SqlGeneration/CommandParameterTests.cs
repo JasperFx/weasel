@@ -56,7 +56,7 @@ public class CommandParameterTests
         dbParameter.Value.ShouldBe(parameter.Value);
         dbParameter.NpgsqlDbType.ShouldBe(parameter.DbType!.Value);
 
-        command.CommandText.ShouldEndWith("$1");
+        command.CommandText.ShouldEndWith(":p0");
     }
 
     [Theory]
