@@ -160,7 +160,12 @@ public class ForeignKey: INamed
     public void TryToCorrectForLink(Table parentTable, Table linkedTable)
     {
         // Depends on "id" always being first in Marten world
-        LinkedNames = linkedTable.PrimaryKeyColumns.ToArray();
+        // This is important, don't lose the ordering that marten does to put tenant_id first
+        if (LinkedNames.Length != linkedTable.PrimaryKeyColumns.Count)
+        {
+            LinkedNames = LinkedNames.Union(linkedTable.PrimaryKeyColumns).ToArray();
+        }
+
         if (ColumnNames.Length != LinkedNames.Length)
         {
             // Leave the first column alone!
