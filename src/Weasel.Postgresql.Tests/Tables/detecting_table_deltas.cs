@@ -741,4 +741,18 @@ public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
 
         await AssertNoDeltasAfterPatching(table);
     }
+
+    [Fact]
+    public async Task patching_and_detecting_deltas_with_upper_case_chars_in_index_name()
+    {
+        var table = new Table("deltas.blobs");
+        table.AddColumn<string>("key").AsPrimaryKey();
+        table.AddColumn("data", "jsonb");
+
+        await CreateSchemaObjectInDatabase(table);
+
+        table.Indexes.Add(new IndexDefinition("IdxBlobsDataName") { Columns = new[] { "(data ->> 'Name')" } });
+
+        await AssertNoDeltasAfterPatching(table);
+    }
 }
