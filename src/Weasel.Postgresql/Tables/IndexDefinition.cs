@@ -205,7 +205,8 @@ public class IndexDefinition: INamed
             builder.Append("CONCURRENTLY ");
         }
 
-        builder.Append(Name);
+        // Add double quotes if the index name contains upper case characters
+        builder.Append(Name.Any(char.IsUpper) ? $"\"{Name}\"" : Name);
 
         builder.Append(" ON ");
         builder.Append(parent.Identifier);
@@ -370,7 +371,7 @@ public class IndexDefinition: INamed
                     continue;
 
                 case "INDEX":
-                    var name = tokens.Dequeue();
+                    var name = tokens.Dequeue().Trim('"');
                     index = new IndexDefinition(name) { Mask = string.Empty, IsUnique = isUnique };
                     break;
 
