@@ -204,6 +204,10 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                     list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Failed));
                 }
             }
+            else if (delta.PartitionDelta == PartitionDelta.None)
+            {
+                list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Complete));
+            }
             else
             {
                 list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.RequiresTableRebuild));
