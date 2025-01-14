@@ -46,7 +46,7 @@ public static class SchemaUtils
 
     public static string QuoteName(string name)
     {
-        return ReservedKeywords.Contains(name, StringComparer.InvariantCultureIgnoreCase) ? $"\"{name}\"" : name;
+        return ReservedKeywords.Contains(name, StringComparer.InvariantCultureIgnoreCase) || name.Any(char.IsUpper) ? $"\"{name}\"" : name;
     }
 
     private static readonly string[] ReservedKeywords =

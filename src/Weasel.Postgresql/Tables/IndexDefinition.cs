@@ -160,6 +160,8 @@ public class IndexDefinition: INamed
         set => _indexName = value;
     }
 
+    public string QuotedName => SchemaUtils.QuoteName(Name);
+
     protected virtual string deriveIndexName()
     {
         throw new NotSupportedException();
@@ -205,8 +207,7 @@ public class IndexDefinition: INamed
             builder.Append("CONCURRENTLY ");
         }
 
-        // Add double quotes if the index name contains upper case characters
-        builder.Append(Name.Any(char.IsUpper) ? $"\"{Name}\"" : Name);
+        builder.Append(QuotedName);
 
         builder.Append(" ON ");
         builder.Append(parent.Identifier);
