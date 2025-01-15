@@ -620,4 +620,14 @@ public class IndexDefinitionTests
                 "CREATE INDEX mt_doc_user_idx_fts ON app.mt_doc_user USING gin (mt_grams_vector(data ->> 'FirstName'))");
         IndexDefinition.CanonicizeDdl(index1, table).ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
     }
+
+    [Fact]
+    public void parse_index_with_column_type_character_varying_and_canonicize_as_varchar()
+    {
+        var table = new Table("mt_doc_abccorp_wallets_sunshine_payments");
+        var index1 =
+            IndexDefinition.Parse(
+                "create index bwsp_idx_tomainaccountid on mt_doc_abccorp_wallets_sunshine_payments using btree (cast(data->>'tomainaccountid' as character varying))");
+        IndexDefinition.CanonicizeDdl(index1, table).ShouldContain("varchar");
+    }
 }

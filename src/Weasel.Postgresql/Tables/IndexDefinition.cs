@@ -747,6 +747,7 @@ public class IndexDefinition: INamed
             .Replace(IndexCreationBeginComment, "")
             .Replace(IndexCreationEndComment, "")
             .Replace("as decimal", "as numeric")
+            .Replace("character varying", "varchar")
             .Replace(", ", ",")
             .Trim()
             .TrimEnd(new[] { ';' })
