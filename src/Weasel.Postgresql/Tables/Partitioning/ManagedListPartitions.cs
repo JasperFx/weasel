@@ -111,6 +111,9 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                 var partitionName = $"{table.Identifier}_{suffixName}";
 
                 builder.StartNewCommand();
+                builder.Append($"alter table {table.Identifier.QualifiedName} detach partition {partitionName};");
+
+                builder.StartNewCommand();
                 builder.Append($"drop table if exists {partitionName} cascade;");
             }
         }
