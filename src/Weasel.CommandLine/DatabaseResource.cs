@@ -1,4 +1,4 @@
-using Oakton.Resources;
+using JasperFx.Resources;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using Weasel.Core;
@@ -7,7 +7,7 @@ using Weasel.Core.Migrations;
 namespace Weasel.CommandLine;
 
 /// <summary>
-/// Exposes optional status information about a database to the Oakton
+/// Exposes optional status information about a database to the JasperFx
 /// command line report "resources statistics" model
 /// </summary>
 public interface IDatabaseWithStatistics
@@ -16,7 +16,7 @@ public interface IDatabaseWithStatistics
 }
 
 /// <summary>
-/// Exposes optional status information about a database to the Oakton
+/// Exposes optional status information about a database to the JasperFx
 /// command line report "resources clear" model
 /// </summary>
 public interface IDatabaseWithRewindableState

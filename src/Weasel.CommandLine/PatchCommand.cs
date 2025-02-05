@@ -1,5 +1,6 @@
 using JasperFx.Core;
-using Oakton;
+using JasperFx;
+using JasperFx.CommandLine;
 using Spectre.Console;
 using Weasel.Core;
 
@@ -9,7 +10,7 @@ namespace Weasel.CommandLine;
     "Evaluates the current configuration against the database and writes a patch and drop file if there are any differences",
     Name = "db-patch"
 )]
-public class PatchCommand: OaktonAsyncCommand<PatchInput>
+public class PatchCommand: JasperFxAsyncCommand<PatchInput>
 {
     public PatchCommand()
     {

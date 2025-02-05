@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
-using Oakton;
+using JasperFx.CommandLine;
 using Weasel.CommandLine;
 
-[assembly:OaktonCommandAssembly(typeof(WeaselCommandLineExtension))]
+[assembly:JasperFxAssembly(typeof(WeaselCommandLineExtension))]
 [assembly: InternalsVisibleTo("Weasel.CommandLine.Tests")]

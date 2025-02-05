@@ -1,4 +1,4 @@
-using Oakton;
+using JasperFx.CommandLine;
 using Spectre.Console;
 using Weasel.Core;
 
@@ -6,7 +6,7 @@ namespace Weasel.CommandLine;
 
 [Description("Applies all outstanding changes to the database(s) based on the current configuration",
     Name = "db-apply")]
-public class ApplyCommand: OaktonAsyncCommand<WeaselInput>
+public class ApplyCommand: JasperFxAsyncCommand<WeaselInput>
 {
     public override async Task<bool> Execute(WeaselInput input)
     {

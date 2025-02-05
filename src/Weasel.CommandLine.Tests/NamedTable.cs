@@ -1,4 +1,5 @@
-﻿using JasperFx.Core;
+﻿using JasperFx;
+using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
@@ -39,6 +40,7 @@ public class NamedTableFeature: FeatureSchemaBase
 
 public class DatabaseWithTables: PostgresqlDatabase
 {
+    /// <inheritdoc />
     public DatabaseWithTables(AutoCreate autoCreate, string identifier) :
         base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, new NpgsqlDataSourceBuilder(ConnectionSource.ConnectionString).Build())
     {

@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Oakton" Version="6.3.0" />
+      <PackageReference Include="JasperFx" Version="0.1.0" />
     </ItemGroup>
 
     <ItemGroup>

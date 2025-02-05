@@ -1,7 +1,7 @@
+using JasperFx.CommandLine;
 using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Oakton;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
