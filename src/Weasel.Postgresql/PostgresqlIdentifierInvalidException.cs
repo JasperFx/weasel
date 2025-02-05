@@ -11,10 +11,5 @@ public class PostgresqlIdentifierInvalidException: Exception
         Name = name;
     }
 
-    protected PostgresqlIdentifierInvalidException(SerializationInfo info, StreamingContext context): base(info,
-        context)
-    {
-    }
-
     public string Name { get; set; }
 }
