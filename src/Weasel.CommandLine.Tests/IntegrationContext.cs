@@ -5,6 +5,7 @@ using Npgsql;
 using JasperFx;
 using JasperFx.CommandLine;
 using Weasel.Core;
+using Weasel.Core.CommandLine;
 using Weasel.Core.Migrations;
 using Weasel.Postgresql;
 using Weasel.Postgresql.Tests;

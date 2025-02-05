@@ -1,8 +1,7 @@
 using JasperFx.CommandLine;
 using Spectre.Console;
-using Weasel.Core;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 [Description("Applies all outstanding changes to the database(s) based on the current configuration",
     Name = "db-apply")]
@@ -12,12 +11,12 @@ public class ApplyCommand: JasperFxAsyncCommand<WeaselInput>
     {
         using var host = input.BuildHost();
 
-        var databases = await input.FilterDatabases(host);
+        var databases = await input.FilterDatabases(host).ConfigureAwait(false);
 
         foreach (var database in databases)
         {
             // TODO -- it'd be cool to get a rundown of everything that changed.
-            var difference = await database.ApplyAllConfiguredChangesToDatabaseAsync();
+            var difference = await database.ApplyAllConfiguredChangesToDatabaseAsync().ConfigureAwait(false);
             switch (difference)
             {
                 case SchemaPatchDifference.None:

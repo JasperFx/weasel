@@ -1,7 +1,7 @@
 using JasperFx.Resources;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 internal class DatabaseResources: IStatefulResourceSource
 {
@@ -23,7 +23,9 @@ internal class DatabaseResources: IStatefulResourceSource
         foreach (var source in _sources)
         {
             // BOO! Reevaluate this in JasperFx some day, but not right now.
+#pragma warning disable VSTHRD103
             var databases = source.BuildDatabases().AsTask().GetAwaiter().GetResult();
+#pragma warning restore VSTHRD103
             list.AddRange(databases.Select(x => new DatabaseResource(x)));
         }
 

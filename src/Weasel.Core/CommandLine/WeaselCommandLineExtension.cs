@@ -1,10 +1,9 @@
-using Microsoft.Extensions.DependencyInjection;
-using JasperFx;
 using JasperFx.CommandLine;
 using JasperFx.Environment;
 using JasperFx.Resources;
+using Microsoft.Extensions.DependencyInjection;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 internal class WeaselCommandLineExtension : IServiceRegistrations
 {
