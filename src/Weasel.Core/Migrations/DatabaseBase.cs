@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
+using JasperFx;
 using JasperFx.Core;
 
 namespace Weasel.Core.Migrations;

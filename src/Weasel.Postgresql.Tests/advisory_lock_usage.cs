@@ -188,7 +188,7 @@ public class AdvisoryLockSpecs : IAsyncLifetime
 
 public class SimplePostgresqlDatabase: PostgresqlDatabase
 {
-    public SimplePostgresqlDatabase(NpgsqlDataSource dataSource) : base(new DefaultMigrationLogger(), AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Simple", dataSource)
+    public SimplePostgresqlDatabase(NpgsqlDataSource dataSource) : base(new DefaultMigrationLogger(), JasperFx.AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Simple", dataSource)
     {
     }
 

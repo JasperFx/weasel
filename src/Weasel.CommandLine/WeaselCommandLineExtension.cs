@@ -1,7 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
-using Oakton;
-using Oakton.Environment;
-using Oakton.Resources;
+using JasperFx;
+using JasperFx.CommandLine;
+using JasperFx.Environment;
+using JasperFx.Resources;
 
 namespace Weasel.CommandLine;
 
