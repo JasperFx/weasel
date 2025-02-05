@@ -1,10 +1,9 @@
-using JasperFx.Core;
 using JasperFx;
 using JasperFx.CommandLine;
+using JasperFx.Core;
 using Spectre.Console;
-using Weasel.Core;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 [Description(
     "Evaluates the current configuration against the database and writes a patch and drop file if there are any differences",
@@ -21,10 +20,10 @@ public class PatchCommand: JasperFxAsyncCommand<PatchInput>
     {
         using var host = input.BuildHost();
 
-        var (found, database) = await input.TryChooseSingleDatabase(host);
+        var (found, database) = await input.TryChooseSingleDatabase(host).ConfigureAwait(false);
         if (!found) return false;
 
-        var migration = await database.CreateMigrationAsync();
+        var migration = await database!.CreateMigrationAsync().ConfigureAwait(false);
         if (migration.Difference == SchemaPatchDifference.None)
         {
             AnsiConsole.MarkupLine(
@@ -40,7 +39,7 @@ public class PatchCommand: JasperFxAsyncCommand<PatchInput>
         }
 
         var fullPathToFile = input.FileName.ToFullPath();
-        await database.Migrator.WriteMigrationFileAsync(fullPathToFile, migration);
+        await database!.Migrator.WriteMigrationFileAsync(fullPathToFile, migration).ConfigureAwait(false);
         AnsiConsole.MarkupLine($"[green]Wrote migration file to {fullPathToFile}[/]");
 
         return true;

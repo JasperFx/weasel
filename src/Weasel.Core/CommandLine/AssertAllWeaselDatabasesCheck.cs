@@ -1,7 +1,7 @@
 using JasperFx.Environment;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public class AssertAllWeaselDatabasesCheck: IEnvironmentCheckFactory
 {
@@ -19,7 +19,9 @@ public class AssertAllWeaselDatabasesCheck: IEnvironmentCheckFactory
         var list = _databases.Select(x => new AssertDatabaseCheck(x)).ToList();
         foreach (var source in _sources)
         {
+#pragma warning disable VSTHRD002
             var databases = source.BuildDatabases().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002
             list.AddRange(databases.Select(x => new AssertDatabaseCheck(x)));
         }
 

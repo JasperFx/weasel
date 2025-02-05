@@ -1,10 +1,9 @@
-using JasperFx.Core;
-using JasperFx;
 using JasperFx.CommandLine;
+using JasperFx.Core;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public class DumpInput: WeaselInput
 {
@@ -33,24 +32,24 @@ public class DumpCommand: JasperFxAsyncCommand<DumpInput>
     {
         using var host = input.BuildHost();
 
-        var (found, database) = await input.TryChooseSingleDatabase(host);
+        var (found, database) = await input.TryChooseSingleDatabase(host).ConfigureAwait(false);
         if (!found) return false;
 
         // This can only override to true
         if (input.TransactionalScriptFlag)
         {
-            database.Migrator.IsTransactional = true;
+            database!.Migrator.IsTransactional = true;
         }
 
         if (input.ByFeatureFlag)
         {
-            await writeByType(input, database);
+            await writeByType(input, database).ConfigureAwait(false);
         }
         else
         {
             AnsiConsole.MarkupLine("Writing SQL file to " + input.Path);
 
-            await database.WriteCreationScriptToFileAsync(input.Path);
+            await database!.WriteCreationScriptToFileAsync(input.Path).ConfigureAwait(false);
         }
 
         return true;
