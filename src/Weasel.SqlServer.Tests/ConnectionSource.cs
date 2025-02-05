@@ -1,4 +1,4 @@
-using Baseline;
+using JasperFx.Core;
 
 namespace Weasel.SqlServer.Tests;
 

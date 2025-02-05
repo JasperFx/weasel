@@ -11,7 +11,7 @@ public class AdvisoryLock : IAdvisoryLock
 {
     private readonly PostgresqlDatabase _database;
     private readonly ILogger _logger;
-    private NpgsqlConnection _conn;
+    private NpgsqlConnection? _conn;
     private readonly List<int> _locks = new();
 
     public AdvisoryLock(PostgresqlDatabase database, ILogger logger)
