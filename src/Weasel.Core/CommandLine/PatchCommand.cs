@@ -23,7 +23,7 @@ public class PatchCommand: JasperFxAsyncCommand<PatchInput>
         var (found, database) = await input.TryChooseSingleDatabase(host).ConfigureAwait(false);
         if (!found) return false;
 
-        var migration = await database!.CreateMigrationAsync().ConfigureAwait(false);
+        var migration = await database.CreateMigrationAsync().ConfigureAwait(false);
         if (migration.Difference == SchemaPatchDifference.None)
         {
             AnsiConsole.MarkupLine(

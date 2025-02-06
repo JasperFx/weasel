@@ -14,14 +14,12 @@ public class AssertAllWeaselDatabasesCheck: IEnvironmentCheckFactory
         _sources = sources;
     }
 
-    public IEnvironmentCheck[] Build()
+    public async ValueTask<IReadOnlyList<IEnvironmentCheck>> Build()
     {
         var list = _databases.Select(x => new AssertDatabaseCheck(x)).ToList();
         foreach (var source in _sources)
         {
-#pragma warning disable VSTHRD002
-            var databases = source.BuildDatabases().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-#pragma warning restore VSTHRD002
+            var databases = await source.BuildDatabases().ConfigureAwait(false);
             list.AddRange(databases.Select(x => new AssertDatabaseCheck(x)));
         }
 

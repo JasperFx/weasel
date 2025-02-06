@@ -1,7 +1,9 @@
 using JasperFx.CommandLine;
 using Spectre.Console;
+using Weasel.Core;
+using Weasel.Core.CommandLine;
 
-namespace Weasel.Core.CommandLine;
+namespace Weasel.CommandLine;
 
 [Description("Applies all outstanding changes to the database(s) based on the current configuration",
     Name = "db-apply")]

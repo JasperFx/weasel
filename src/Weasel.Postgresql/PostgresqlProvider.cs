@@ -9,6 +9,8 @@ namespace Weasel.Postgresql;
 
 public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlDbType>
 {
+    public const string EngineName = "PostgreSQL";
+
     public static readonly PostgresqlProvider Instance = new();
 
     private PostgresqlProvider(): base("public")

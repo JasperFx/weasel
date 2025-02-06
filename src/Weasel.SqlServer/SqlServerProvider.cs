@@ -8,6 +8,7 @@ namespace Weasel.SqlServer;
 
 public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDbType>
 {
+    public const string EngineName = "SqlServer";
     public static readonly SqlServerProvider Instance = new();
 
     private SqlServerProvider(): base("dbo")

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
+using JasperFx.Core.Descriptions;
 
 namespace Weasel.Core.Migrations;
 
@@ -22,6 +23,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     ): this(logger, autoCreate, migrator, identifier, () => CreateConnection(connectionString))
     {
     }
+
+    public abstract DatabaseDescriptor Describe();
 
     public DatabaseBase(
         IMigrationLogger logger,
