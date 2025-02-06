@@ -35,10 +35,6 @@ jobs:
     - name: Pack Weasel.SqlServer
       run: dotnet pack ./src/Weasel.SqlServer/Weasel.SqlServer.csproj -o ./artifacts --configuration Release --no-build
 
-    - name: Pack Weasel.CommandLine
-      run: dotnet pack ./src/Weasel.CommandLine/Weasel.CommandLine.csproj -o ./artifacts --configuration Release --no-build
-
-
     - name: Publish to NuGet
       run: |
         find . -name '*.nupkg' -exec dotnet nuget push "{}" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_API_KEY }} --skip-duplicate \;

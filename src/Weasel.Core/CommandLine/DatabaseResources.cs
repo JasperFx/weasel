@@ -1,4 +1,4 @@
-using Oakton.Resources;
+using JasperFx.Resources;
 using Weasel.Core.Migrations;
 
 namespace Weasel.CommandLine;
@@ -15,15 +15,14 @@ internal class DatabaseResources: IStatefulResourceSource
         _sources = sources;
     }
 
-    public IReadOnlyList<IStatefulResource> FindResources()
+    public async ValueTask<IReadOnlyList<IStatefulResource>> FindResources()
     {
         var list = new List<IStatefulResource>();
         list.AddRange(_databases.Select(x => new DatabaseResource(x)));
 
         foreach (var source in _sources)
         {
-            // BOO! Reevaluate this in Oakton some day, but not right now.
-            var databases = source.BuildDatabases().AsTask().GetAwaiter().GetResult();
+            var databases = await source.BuildDatabases().ConfigureAwait(false);
             list.AddRange(databases.Select(x => new DatabaseResource(x)));
         }
 
