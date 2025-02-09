@@ -13,6 +13,8 @@ namespace Weasel.Postgresql;
 
 public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsyncDisposable
 {
+
+
     protected PostgresqlDatabase(
         IMigrationLogger logger,
         AutoCreate autoCreate,
@@ -29,10 +31,11 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
         var builder = new NpgsqlConnectionStringBuilder(DataSource.ConnectionString);
         var descriptor = new DatabaseDescriptor()
         {
-            Engine = "PostgreSQL",
+            Engine = PostgresqlProvider.EngineName,
             ServerName = builder.Host ?? string.Empty,
             DatabaseName = builder.Database ?? string.Empty,
-            Subject = GetType().FullNameInCode()
+            Subject = GetType().FullNameInCode(),
+            Identifier = Identifier
         };
 
         descriptor.Properties.Add(OptionsValue.Read(builder, x => x.Host));
