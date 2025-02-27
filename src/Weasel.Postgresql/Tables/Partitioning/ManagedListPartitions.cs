@@ -1,5 +1,10 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Common;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using JasperFx.Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -77,6 +82,30 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         await tx.CommitAsync(token).ConfigureAwait(false);
         await conn.CloseAsync().ConfigureAwait(false);
+    }
+
+    public async Task DropPartitionFromAllTablesForValue(PostgresqlDatabase database, ILogger logger, string value,
+        CancellationToken token)
+    {
+        await using var conn = database.CreateConnection();
+        await conn.OpenAsync(token).ConfigureAwait(false);
+
+        // This is idempotent, so just do it here
+        await InitializeAsync(conn, token).ConfigureAwait(false);
+
+        await conn.CloseAsync().ConfigureAwait(false);
+
+        try
+        {
+            var suffix = _partitions.Single(x => x.Value == value).Key;
+            await DropPartitionFromAllTables(database, logger, [suffix], token).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+            throw new ArgumentOutOfRangeException(nameof(value),
+                $"Could not find a partition with the value '{value}'");
+        }
+
     }
 
     public async Task DropPartitionFromAllTables(PostgresqlDatabase database, ILogger logger, string[] suffixNames, CancellationToken token)
