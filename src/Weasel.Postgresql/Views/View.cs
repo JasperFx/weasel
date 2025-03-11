@@ -75,7 +75,7 @@ public class View: ISchemaObject
 
     public void ConfigureQueryCommand(Core.DbCommandBuilder builder)
     {
-        builder.Append("SELECT (CASE WHEN pg_has_role(c.relowner, 'USAGE'::text) THEN pg_get_viewdef(c.oid) ELSE NULL::text END)::information_schema.character_data AS view_definition ");
+        builder.Append("SELECT (CASE WHEN pg_has_role(c.relowner, 'USAGE'::text) THEN LTRIM(pg_get_viewdef(c.oid),' ') ELSE NULL::text END)::information_schema.character_data AS view_definition ");
         builder.Append("FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace ");
         builder.Append("WHERE c.relkind = '");
         builder.Append(ViewKind);
@@ -91,7 +91,9 @@ public class View: ISchemaObject
         if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var previousView = reader.GetString(0);
-            if (string.Equals(previousView, viewSql, StringComparison.OrdinalIgnoreCase))
+            //This is to support when users specify view SQL with/without colon. Postgres allways returns with semicolon.
+            var sanitizedViewSqlBody = viewSql.EndsWith(';') ? viewSql : viewSql + ";";
+            if (string.Equals(previousView, sanitizedViewSqlBody, StringComparison.OrdinalIgnoreCase))
             {
                 return new SchemaObjectDelta(this, SchemaPatchDifference.None);
             }
