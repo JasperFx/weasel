@@ -211,6 +211,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         applyPostProcessingIfAny();
         var objects = AllObjects().ToArray();
 
+        objects = possiblyCheckForSchemas(objects);
+
         await using var conn = CreateConnection();
         await conn.OpenAsync(ct).ConfigureAwait(false);
         await initializeSchema(conn, ct).ConfigureAwait(false);
@@ -218,6 +220,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         var result = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
         await conn.CloseAsync().ConfigureAwait(false);
         return result;
+    }
+
+    protected virtual ISchemaObject[] possiblyCheckForSchemas(ISchemaObject[] objects)
+    {
+        return objects;
     }
 
     public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(

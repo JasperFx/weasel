@@ -21,6 +21,11 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
 
     public NpgsqlDataSource DataSource { get; }
 
+    protected override ISchemaObject[] possiblyCheckForSchemas(ISchemaObject[] objects)
+    {
+        return SchemaExistenceCheck.WithSchemaCheck(objects);
+    }
+
     public async Task<Function?> DefinitionForFunction(DbObjectName function, CancellationToken ct = default)
     {
         await using var conn = CreateConnection();

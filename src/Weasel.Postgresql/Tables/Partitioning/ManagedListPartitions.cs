@@ -131,9 +131,9 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
             .ToArray();
 
-        tables = tables.TopologicalSort(t =>
-            t.ForeignKeys.Select(fk => tables.FirstOrDefault(x => Equals(x.Identifier, fk.LinkedTable))).Where(x => x != null)
-                .ToArray()!).Reverse().ToArray();
+        // var ordered = tables.TopologicalSort(t =>
+        //     t.ForeignKeys.Select(fk => tables.FirstOrDefault(x => Equals(x.Identifier, fk.LinkedTable))).Where(x => x != null)
+        //         .ToArray()!).Reverse().Intersect(tables).ToArray();
 
 
         foreach (var table in tables)
@@ -142,9 +142,20 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             {
                 var partitionName = $"{table.Identifier}_{suffixName}";
 
-                await conn.CreateCommand(
-                        $"alter table {table.Identifier.QualifiedName} detach partition {partitionName} concurrently;")
-                    .ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                try
+                {
+                    var command = $"alter table {table.Identifier.QualifiedName} detach partition {partitionName} CONCURRENTLY;";
+                    await conn.CreateCommand(
+                            command)
+                        .ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                }
+                catch (Exception)
+                {
+                    var command = $"alter table {table.Identifier.QualifiedName} detach partition {partitionName};";
+                    await conn.CreateCommand(
+                            command)
+                        .ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                }
 
                 await conn.CreateCommand(
                         $"drop table if exists {partitionName} cascade;")
