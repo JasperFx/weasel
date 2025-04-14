@@ -140,6 +140,7 @@ $$;
 
     public static string CreateSchemaStatementFor(string schemaName)
     {
+        Console.WriteLine("I AM WRITING OUT SCHEMA CREATION FOR " + schemaName);
         return $"create schema if not exists {schemaName};";
     }
 
