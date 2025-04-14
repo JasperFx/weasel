@@ -131,7 +131,10 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
             .ToArray();
 
-        var builder = new CommandBuilder();
+        tables = tables.TopologicalSort(t =>
+            t.ForeignKeys.Select(fk => tables.FirstOrDefault(x => Equals(x.Identifier, fk.LinkedTable))).Where(x => x != null)
+                .ToArray()!).Reverse().ToArray();
+
 
         foreach (var table in tables)
         {
@@ -139,20 +142,19 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             {
                 var partitionName = $"{table.Identifier}_{suffixName}";
 
-                builder.StartNewCommand();
-                builder.Append($"alter table {table.Identifier.QualifiedName} detach partition {partitionName};");
+                await conn.CreateCommand(
+                        $"alter table {table.Identifier.QualifiedName} detach partition {partitionName} concurrently;")
+                    .ExecuteNonQueryAsync(token).ConfigureAwait(false);
 
-                builder.StartNewCommand();
-                builder.Append($"drop table if exists {partitionName} cascade;");
+                await conn.CreateCommand(
+                        $"drop table if exists {partitionName} cascade;")
+                    .ExecuteNonQueryAsync(token).ConfigureAwait(false);
+
+                logger.LogInformation("Executed script to drop table partition with suffix {suffixName} for table {tableName}", suffixName, table.Identifier);
             }
         }
 
-        var command = builder.Compile();
-        command.Connection = conn;
 
-        await command.ExecuteNonQueryAsync(token).ConfigureAwait(false);
-
-        logger.LogInformation("Executed script to drop table partitions:\n" + command.CommandText);
     }
 
     public async Task AddPartitionToAllTables(PostgresqlDatabase database, string value, string? suffix, CancellationToken token)
