@@ -97,7 +97,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         try
         {
-            var suffix = _partitions.Single(x => x.Value == value).Key;
+            var suffix = _partitions[value];
             await DropPartitionFromAllTables(database, logger, [suffix], token).ConfigureAwait(false);
         }
         catch (InvalidOperationException)
