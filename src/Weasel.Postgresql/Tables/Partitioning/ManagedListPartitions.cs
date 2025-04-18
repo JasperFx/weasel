@@ -297,14 +297,13 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
     public async Task InitializeAsync(NpgsqlConnection conn, CancellationToken token)
     {
         if (_hasInitialized) return;
-
         await _semaphoreSlim.WaitAsync(token).ConfigureAwait(false);
-        if (_hasInitialized) return;
-
-        _partitions.Clear();
-
         try
         {
+            if (_hasInitialized) return;
+
+            _partitions.Clear();
+
             await using var reader = await conn
                 .CreateCommand($"select partition_value, partition_suffix from {_table.Identifier.QualifiedName}")
                 .ExecuteReaderAsync(token).ConfigureAwait(false);
