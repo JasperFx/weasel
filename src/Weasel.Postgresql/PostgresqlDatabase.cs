@@ -1,6 +1,6 @@
 using JasperFx;
 using JasperFx.Core;
-using JasperFx.Core.Descriptions;
+using JasperFx.Core.Descriptors;
 using JasperFx.Core.Reflection;
 using Npgsql;
 using Weasel.Core;

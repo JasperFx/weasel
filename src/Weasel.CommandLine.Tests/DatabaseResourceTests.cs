@@ -1,3 +1,5 @@
+using JasperFx.Core;
+using JasperFx.Core.Descriptors;
 using JasperFx.Core.Reflection;
 using NSubstitute;
 using Shouldly;
@@ -17,7 +19,12 @@ public class DatabaseResourceTests
     public DatabaseResourceTests()
     {
         theDatabase = Substitute.For<IDatabase>();
-        theResource = new DatabaseResource(theDatabase);
+        theDatabase.Describe().Returns(new DatabaseDescriptor
+        {
+            DatabaseName = "Foo", ServerName = "server1", SchemaOrNamespace = "schema1", Engine = "postgresql"
+        });
+
+        theResource = new DatabaseResource(theDatabase, "marten://db".ToUri());
     }
 
     [Fact]
@@ -31,7 +38,12 @@ public class DatabaseResourceTests
     public async Task optionally_delegates_on_clear_state()
     {
         var database = Substitute.For<IDatabase, IDatabaseWithRewindableState>();
-        var resource = new DatabaseResource(database);
+        database.Describe().Returns(new DatabaseDescriptor
+        {
+            DatabaseName = "Foo", ServerName = "server1", SchemaOrNamespace = "schema1", Engine = "postgresql"
+        });
+
+        var resource = new DatabaseResource(database, "marten://db".ToUri());
         var cancellationToken = CancellationToken.None;
         await resource.ClearState(cancellationToken);
 
@@ -43,7 +55,12 @@ public class DatabaseResourceTests
     public async Task optionally_delegates_on_statistics()
     {
         var database = Substitute.For<IDatabase, IDatabaseWithStatistics>();
-        var resource = new DatabaseResource(database);
+        database.Describe().Returns(new DatabaseDescriptor
+        {
+            DatabaseName = "Foo", ServerName = "server1", SchemaOrNamespace = "schema1", Engine = "postgresql"
+        });
+
+        var resource = new DatabaseResource(database, "marten://db".ToUri());
         var databaseWithStatistics = database.As<IDatabaseWithStatistics>();
 
         var cancellationToken = CancellationToken.None;

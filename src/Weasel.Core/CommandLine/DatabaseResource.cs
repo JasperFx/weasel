@@ -25,14 +25,19 @@ public interface IDatabaseWithRewindableState
 
 internal class DatabaseResource: IStatefulResource
 {
+    public Uri SubjectUri { get; }
     private readonly IDatabase _database;
 
-    public DatabaseResource(IDatabase database)
+    public DatabaseResource(IDatabase database, Uri subjectUri)
     {
+        SubjectUri = subjectUri;
         _database = database;
         Type = "WeaselDatabase";
         Name = database.Identifier;
+        ResourceUri = database.Describe().DatabaseUri();
     }
+
+    public Uri ResourceUri { get; }
 
     public Task Check(CancellationToken token)
     {
