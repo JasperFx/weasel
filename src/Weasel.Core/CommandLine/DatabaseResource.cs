@@ -23,30 +23,31 @@ public interface IDatabaseWithRewindableState
     Task ClearState(CancellationToken token);
 }
 
-internal class DatabaseResource: IStatefulResource
+public class DatabaseResource: IStatefulResource
 {
     public Uri SubjectUri { get; }
-    private readonly IDatabase _database;
 
     public DatabaseResource(IDatabase database, Uri subjectUri)
     {
         SubjectUri = subjectUri;
-        _database = database;
+        Database = database;
         Type = "WeaselDatabase";
         Name = database.Identifier;
         ResourceUri = database.Describe().DatabaseUri();
     }
 
+    public IDatabase Database { get; }
+
     public Uri ResourceUri { get; }
 
     public Task Check(CancellationToken token)
     {
-        return _database.AssertDatabaseMatchesConfigurationAsync(token);
+        return Database.AssertDatabaseMatchesConfigurationAsync(token);
     }
 
     public Task ClearState(CancellationToken token)
     {
-        if (_database is IDatabaseWithRewindableState d) return d.ClearState(token);
+        if (Database is IDatabaseWithRewindableState d) return d.ClearState(token);
         return Task.CompletedTask;
     }
 
@@ -57,14 +58,14 @@ internal class DatabaseResource: IStatefulResource
 
     public Task Setup(CancellationToken token)
     {
-        return _database.ApplyAllConfiguredChangesToDatabaseAsync(ct: token);
+        return Database.ApplyAllConfiguredChangesToDatabaseAsync(ct: token);
     }
 
     public async Task<IRenderable> DetermineStatus(CancellationToken token)
     {
-        if (_database is IDatabaseWithStatistics d) return await d.DetermineStatus(token).ConfigureAwait(false);
+        if (Database is IDatabaseWithStatistics d) return await d.DetermineStatus(token).ConfigureAwait(false);
 
-        var migration = await _database.CreateMigrationAsync(token).ConfigureAwait(false);
+        var migration = await Database.CreateMigrationAsync(token).ConfigureAwait(false);
         switch (migration.Difference)
         {
             case SchemaPatchDifference.None:
