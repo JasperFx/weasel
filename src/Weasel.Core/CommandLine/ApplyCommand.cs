@@ -11,6 +11,9 @@ public class ApplyCommand: JasperFxAsyncCommand<WeaselInput>
 {
     public override async Task<bool> Execute(WeaselInput input)
     {
+        AnsiConsole.Write(
+            new FigletText("Weasel"){Justification = Justify.Left});
+
         using var host = input.BuildHost();
 
         var databases = await input.FilterDatabases(host).ConfigureAwait(false);

@@ -18,6 +18,9 @@ public class PatchCommand: JasperFxAsyncCommand<PatchInput>
 
     public override async Task<bool> Execute(PatchInput input)
     {
+        AnsiConsole.Write(
+            new FigletText("Weasel"){Justification = Justify.Left});
+
         using var host = input.BuildHost();
 
         var (found, database) = await input.TryChooseSingleDatabase(host).ConfigureAwait(false);

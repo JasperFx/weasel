@@ -30,6 +30,9 @@ public class DumpCommand: JasperFxAsyncCommand<DumpInput>
 
     public override async Task<bool> Execute(DumpInput input)
     {
+        AnsiConsole.Write(
+            new FigletText("Weasel"){Justification = Justify.Left});
+
         using var host = input.BuildHost();
 
         var (found, database) = await input.TryChooseSingleDatabase(host).ConfigureAwait(false);

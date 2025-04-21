@@ -15,7 +15,7 @@ public class WeaselInput: NetCoreInput
     [Description("Optionally choose the database interactively")]
     public bool InteractiveFlag { get; set; }
 
-    public async ValueTask<IList<IDatabase>> FilterDatabases(IHost host)
+    public async ValueTask<List<IDatabase>> AllDatabases(IHost host)
     {
         var databases = host.Services.GetServices<IDatabase>().ToList();
         var sources = host.Services.GetServices<IDatabaseSource>();
@@ -25,6 +25,13 @@ public class WeaselInput: NetCoreInput
             var found = await source.BuildDatabases().ConfigureAwait(false);
             databases.AddRange(found);
         }
+
+        return databases;
+    }
+
+    public async ValueTask<IList<IDatabase>> FilterDatabases(IHost host)
+    {
+        var databases = await AllDatabases(host).ConfigureAwait(false);
 
         if (!databases.Any())
         {
