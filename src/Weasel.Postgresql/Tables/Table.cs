@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Globalization;
 using JasperFx.Core;
 using Npgsql;
@@ -12,6 +11,8 @@ public partial class Table: ISchemaObjectWithPostProcessing
 {
     private readonly List<TableColumn> _columns = new();
 
+    private readonly List<string> _primaryKeyColumns = new();
+
     private string? _primaryKeyName;
 
     public Table(DbObjectName name)
@@ -19,18 +20,13 @@ public partial class Table: ISchemaObjectWithPostProcessing
         Identifier = name ?? throw new ArgumentNullException(nameof(name));
     }
 
-    public override string ToString()
-    {
-        return $"Table: {Identifier}";
-    }
-
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
     {
     }
 
     /// <summary>
-    /// Default is false. If true, Weasel assumes that *something* else like pg_partman is controlling
-    /// the database partitions outside of Weasel control
+    ///     Default is false. If true, Weasel assumes that *something* else like pg_partman is controlling
+    ///     the database partitions outside of Weasel control
     /// </summary>
     public bool IgnorePartitionsInMigration { get; set; }
 
@@ -45,21 +41,7 @@ public partial class Table: ISchemaObjectWithPostProcessing
     /// </summary>
     public int MaxIdentifierLength { get; set; } = 63;
 
-    private readonly List<string> _primaryKeyColumns = new();
-
-    public IReadOnlyList<string> PrimaryKeyColumns
-    {
-        get
-        {
-            return _primaryKeyColumns;
-        }
-    }
-
-    internal void ReadPrimaryKeyColumns(List<string> pks)
-    {
-        _primaryKeyColumns.Clear();
-        _primaryKeyColumns.AddRange(pks);
-    }
+    public IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
 
     public string PrimaryKeyName
     {
@@ -166,7 +148,10 @@ public partial class Table: ISchemaObjectWithPostProcessing
 
     public void PostProcess(ISchemaObject[] allObjects)
     {
-        if (!ForeignKeys.Any()) return;
+        if (!ForeignKeys.Any())
+        {
+            return;
+        }
 
         foreach (var key in ForeignKeys)
         {
@@ -176,6 +161,17 @@ public partial class Table: ISchemaObjectWithPostProcessing
                 key.TryToCorrectForLink(this, matching);
             }
         }
+    }
+
+    public override string ToString()
+    {
+        return $"Table: {Identifier}";
+    }
+
+    internal void ReadPrimaryKeyColumns(List<string> pks)
+    {
+        _primaryKeyColumns.Clear();
+        _primaryKeyColumns.AddRange(pks);
     }
 
     /// <summary>
@@ -309,6 +305,31 @@ public partial class Table: ISchemaObjectWithPostProcessing
         return IgnoredIndexes.Contains(indexName);
     }
 
+    public IEnumerable<string> PartitionTableNames()
+    {
+        if (Partitioning == null)
+        {
+            yield break;
+        }
+
+        foreach (var tableName in Partitioning.PartitionTableNames(this)) yield return tableName;
+    }
+
+    public void ReadOtherTables(Table[] tables)
+    {
+        // The only reason this exists is to remove FK's that point to partitioned tables from the
+        // weasel configuration
+        foreach (var foreignKey in ForeignKeys.ToArray())
+        {
+            var otherTable = tables.FirstOrDefault(x => Equals(x.Identifier, foreignKey.LinkedTable));
+            if (otherTable?.Partitioning != null)
+            {
+                var partitionNames = otherTable.PartitionTableNames().ToArray();
+                ForeignKeys.RemoveAll(x => partitionNames.Contains(x.LinkedTable.Name));
+            }
+        }
+    }
+
     public class ColumnExpression
     {
         private readonly Table _parent;
@@ -339,9 +360,11 @@ public partial class Table: ISchemaObjectWithPostProcessing
         [Obsolete("Use Overload with PostgresqlObjectName identifier name")]
         public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
             string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
-            CascadeAction onUpdate = CascadeAction.NoAction) =>
-            ForeignKeyTo(PostgresqlObjectName.From(referencedIdentifier), referencedColumnName, fkName, onDelete,
+            CascadeAction onUpdate = CascadeAction.NoAction)
+        {
+            return ForeignKeyTo(PostgresqlObjectName.From(referencedIdentifier), referencedColumnName, fkName, onDelete,
                 onUpdate);
+        }
 
         public ColumnExpression ForeignKeyTo(PostgresqlObjectName referencedIdentifier, string referencedColumnName,
             string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
@@ -413,9 +436,9 @@ public partial class Table: ISchemaObjectWithPostProcessing
         {
             var index = new FullTextIndexDefinition(
                 PostgresqlObjectName.From(_parent.Identifier),
-                documentConfig: documentConfig ?? Column.Name,
-                regConfig: regConfig,
-                indexName: indexName, indexPrefix: indexPrefix);
+                documentConfig ?? Column.Name,
+                regConfig,
+                indexName, indexPrefix);
 
             if (_parent.HasIgnoredIndex(index.Name))
             {
@@ -490,8 +513,8 @@ public partial class Table: ISchemaObjectWithPostProcessing
         }
 
         /// <summary>
-        /// Partition this table using LIST partitioning of supplied values
-        /// on this column
+        ///     Partition this table using LIST partitioning of supplied values
+        ///     on this column
         /// </summary>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
@@ -503,50 +526,21 @@ public partial class Table: ISchemaObjectWithPostProcessing
         }
 
         /// <summary>
-        /// Partition this table using HASH partitioning on this column
-        /// using the following table suffixes as a series of partition
-        /// tables
+        ///     Partition this table using HASH partitioning on this column
+        ///     using the following table suffixes as a series of partition
+        ///     tables
         /// </summary>
-        /// <param name="suffixNames">List of table suffixes. Marten will create hashed partitions for each suffix that distributes the data accordingly</param>
+        /// <param name="suffixNames">
+        ///     List of table suffixes. Marten will create hashed partitions for each suffix that distributes
+        ///     the data accordingly
+        /// </param>
         public ColumnExpression PartitionByHash(params string[] suffixNames)
         {
             Column.IsPrimaryKey = true;
             _parent._primaryKeyColumns.Fill(Column.Name);
-            _parent.PartitionByHash(new HashPartitioning
-            {
-                Columns = [Column.Name],
-                Suffixes = suffixNames
-            });
+            _parent.PartitionByHash(new HashPartitioning { Columns = [Column.Name], Suffixes = suffixNames });
 
             return this;
-        }
-    }
-
-    public IEnumerable<string> PartitionTableNames()
-    {
-        if (Partitioning == null)
-        {
-            yield break;
-        }
-
-        foreach (var tableName in Partitioning.PartitionTableNames(this))
-        {
-            yield return tableName;
-        }
-    }
-
-    public void ReadOtherTables(Table[] tables)
-    {
-        // The only reason this exists is to remove FK's that point to partitioned tables from the
-        // weasel configuration
-        foreach (var foreignKey in ForeignKeys.ToArray())
-        {
-            var otherTable = tables.FirstOrDefault(x => Equals(x.Identifier, foreignKey.LinkedTable));
-            if (otherTable?.Partitioning != null)
-            {
-                var partitionNames = otherTable.PartitionTableNames().ToArray();
-                ForeignKeys.RemoveAll(x => partitionNames.Contains(x.LinkedTable.Name));
-            }
         }
     }
 }

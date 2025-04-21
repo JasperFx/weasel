@@ -14,14 +14,14 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Npgsql" Version="9.0.2" />
+        <PackageReference Include="Npgsql" Version="9.0.2"/>
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Npgsql.NetTopologySuite" Version="9.0.2" />
+        <PackageReference Include="Npgsql.NetTopologySuite" Version="9.0.2"/>
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj"/>
     </ItemGroup>
-    <Import Project="../../Analysis.Build.props" />
+    <Import Project="../../Analysis.Build.props"/>
 </Project>
