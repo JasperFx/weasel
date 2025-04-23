@@ -95,8 +95,8 @@ class Build: NukeBuild
 
         if (Nugets.Contains(projectName))
         {
-            var marten = Solution.GetProject("Marten").Path;
-            DotNet($"remove {marten} reference {path}");
+            var weaselCore = Solution.GetProject("Weasel.Core").Path;
+            DotNet($"remove {weaselCore} reference {path}");
         }
 
         var slnPath = Solution.Path;

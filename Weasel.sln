@@ -1,5 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.Postgresql", "src\Weasel.Postgresql\Weasel.Postgresql.csproj", "{D3DFCB74-4B67-4207-8D42-0EC2A676C1B5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.Postgresql.Tests", "src\Weasel.Postgresql.Tests\Weasel.Postgresql.Tests.csproj", "{5DF7B7F1-D86C-4A07-87EE-EC7009F91562}"
@@ -7,9 +8,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.Core", "src\Weasel.Core\Weasel.Core.csproj", "{0A6581EE-A1BA-4108-9E6A-99F92A4430C9}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Docs", "Docs", "{F8CA44AE-0EAD-4129-A5F1-401CE841D3BC}"
-ProjectSection(SolutionItems) = preProject
-	README.md = README.md
-EndProjectSection
+	ProjectSection(SolutionItems) = preProject
+		README.md = README.md
+	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.SqlServer", "src\Weasel.SqlServer\Weasel.SqlServer.csproj", "{FBE36127-095E-41EA-8865-8FFC285E8324}"
 EndProject
