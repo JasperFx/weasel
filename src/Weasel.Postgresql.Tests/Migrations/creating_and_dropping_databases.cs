@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 using Npgsql;
 using Weasel.Postgresql.Migrations;
 using Xunit;
-using System;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Connections;

@@ -1,5 +1,3 @@
-using JasperFx.Core;
-
 namespace Weasel.Postgresql.Tables.Partitioning;
 
 public record HashPartition

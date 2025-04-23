@@ -41,8 +41,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Weasel.CommandLine.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommandLineTarget", "src\CommandLineTarget\CommandLineTarget.csproj", "{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JasperFx", "..\jasperfx\src\JasperFx\JasperFx.csproj", "{B9D6126E-AF5D-41EA-914C-5E2A5378DBF4}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommandLineTests", "..\jasperfx\src\CommandLineTests\CommandLineTests.csproj", "{FAB431C1-4F67-4EAA-9D05-D056D5F564A2}"
 EndProject
 Global
@@ -83,10 +81,6 @@ Global
 		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7EE8D0C3-C05B-4C62-9C6C-005F39C54598}.Release|Any CPU.Build.0 = Release|Any CPU
-		{B9D6126E-AF5D-41EA-914C-5E2A5378DBF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{B9D6126E-AF5D-41EA-914C-5E2A5378DBF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{B9D6126E-AF5D-41EA-914C-5E2A5378DBF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{B9D6126E-AF5D-41EA-914C-5E2A5378DBF4}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FAB431C1-4F67-4EAA-9D05-D056D5F564A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FAB431C1-4F67-4EAA-9D05-D056D5F564A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FAB431C1-4F67-4EAA-9D05-D056D5F564A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
