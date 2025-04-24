@@ -53,3 +53,19 @@ By default Postgres tests are run with case insensitive names. To run tests agai
 ```
 USE_CASE_SENSITIVE_QUALIFIED_NAMES=true
 ```
+
+### Nuke
+
+There's now a very rudimentary Nuke build, but it just compiles the solution. What it **does** do is provide two tasks for development:
+
+```shell
+nuke attach
+```
+
+and 
+
+```shell
+nuke detach
+```
+
+To switch back and forth between using JasperFx as a project reference (Attach) or Nuget reference (Detach).
