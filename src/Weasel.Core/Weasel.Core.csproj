@@ -14,7 +14,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\jasperfx\src\JasperFx\JasperFx.csproj" />
+      <PackageReference Include="JasperFx" Version="0.5.1" />
     </ItemGroup>
 
     <Import Project="../../Analysis.Build.props" />
