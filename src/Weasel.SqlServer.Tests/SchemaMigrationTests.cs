@@ -1,3 +1,4 @@
+using JasperFx;
 using NSubstitute;
 using Shouldly;
 using Weasel.Core;

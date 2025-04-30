@@ -1,11 +1,11 @@
+using JasperFx.CommandLine;
 using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Oakton;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public class WeaselInput: NetCoreInput
 {
@@ -22,7 +22,7 @@ public class WeaselInput: NetCoreInput
 
         foreach (var source in sources)
         {
-            var found = await source.BuildDatabases();
+            var found = await source.BuildDatabases().ConfigureAwait(false);
             databases.AddRange(found);
         }
 

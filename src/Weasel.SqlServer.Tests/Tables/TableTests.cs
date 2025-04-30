@@ -1,4 +1,5 @@
-using Baseline;
+using JasperFx;
+using JasperFx.Core;
 using Shouldly;
 using Weasel.Core;
 using Weasel.SqlServer.Tables;

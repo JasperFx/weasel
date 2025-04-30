@@ -1,4 +1,5 @@
 using System.Data;
+using ImTools;
 using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Microsoft.Data.SqlClient;
@@ -8,6 +9,7 @@ namespace Weasel.SqlServer;
 
 public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDbType>
 {
+    public const string EngineName = "SqlServer";
     public static readonly SqlServerProvider Instance = new();
 
     private SqlServerProvider(): base("dbo")
@@ -43,7 +45,7 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
         if (!type.IsNullable() ||
             !DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var databaseType))
             throw new NotSupportedException(
-                $"Weasel.SqlServer does not (yet) support database type mapping to {type.GetFullName()}");
+                $"Weasel.SqlServer does not (yet) support database type mapping to {type.FullNameInCode()}");
 
         DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
         return databaseType;

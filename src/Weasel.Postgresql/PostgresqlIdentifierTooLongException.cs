@@ -12,11 +12,6 @@ public class PostgresqlIdentifierTooLongException: Exception
         Name = name;
     }
 
-    protected PostgresqlIdentifierTooLongException(SerializationInfo info, StreamingContext context): base(info,
-        context)
-    {
-    }
-
     public int Length { get; set; }
     public string Name { get; set; }
 }

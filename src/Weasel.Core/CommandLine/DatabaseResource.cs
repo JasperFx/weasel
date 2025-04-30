@@ -1,13 +1,12 @@
-using Oakton.Resources;
+using JasperFx.Resources;
 using Spectre.Console;
 using Spectre.Console.Rendering;
-using Weasel.Core;
 using Weasel.Core.Migrations;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 /// <summary>
-/// Exposes optional status information about a database to the Oakton
+/// Exposes optional status information about a database to the JasperFx
 /// command line report "resources statistics" model
 /// </summary>
 public interface IDatabaseWithStatistics
@@ -16,7 +15,7 @@ public interface IDatabaseWithStatistics
 }
 
 /// <summary>
-/// Exposes optional status information about a database to the Oakton
+/// Exposes optional status information about a database to the JasperFx
 /// command line report "resources clear" model
 /// </summary>
 public interface IDatabaseWithRewindableState
@@ -60,7 +59,7 @@ internal class DatabaseResource: IStatefulResource
     {
         if (_database is IDatabaseWithStatistics d) return await d.DetermineStatus(token).ConfigureAwait(false);
 
-        var migration = await _database.CreateMigrationAsync(token);
+        var migration = await _database.CreateMigrationAsync(token).ConfigureAwait(false);
         switch (migration.Difference)
         {
             case SchemaPatchDifference.None:

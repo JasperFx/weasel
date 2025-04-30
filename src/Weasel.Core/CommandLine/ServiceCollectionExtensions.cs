@@ -1,8 +1,7 @@
-
+using JasperFx.Environment;
 using Microsoft.Extensions.DependencyInjection;
-using Oakton.Environment;
 
-namespace Weasel.CommandLine;
+namespace Weasel.Core.CommandLine;
 
 public static class ServiceCollectionExtensions
 {

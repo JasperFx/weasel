@@ -1,4 +1,6 @@
 using System.Data.Common;
+using JasperFx;
+using JasperFx.Core.Descriptions;
 
 namespace Weasel.Core.Migrations;
 
@@ -8,6 +10,8 @@ namespace Weasel.Core.Migrations;
 /// </summary>
 public interface IDatabase
 {
+    DatabaseDescriptor Describe();
+
     AutoCreate AutoCreate { get; }
 
     /// <summary>

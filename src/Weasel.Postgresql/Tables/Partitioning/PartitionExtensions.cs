@@ -46,7 +46,7 @@ public static class PartitionExtensions
             suffix = suffix.Substring(identifier.Name.Length);
         }
 
-    return suffix.TrimStart('_');
+        return suffix.TrimStart('_');
     }
 
     internal static string GetStringWithinParantheses(this string raw)
@@ -54,6 +54,13 @@ public static class PartitionExtensions
         var start = raw.IndexOf('(');
         var end = raw.IndexOf(')');
         return raw.Substring(start + 1, end - start - 1);
+    }
+
+    internal static ReadOnlySpan<char> GetSpanWithinParentheses(this string raw)
+    {
+        var start = raw.IndexOf('(');
+        var end = raw.IndexOf(')');
+        return raw.AsSpan(start + 1, end - start - 1);
     }
 
 }

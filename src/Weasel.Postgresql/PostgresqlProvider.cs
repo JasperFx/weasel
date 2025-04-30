@@ -1,4 +1,5 @@
 using System.Reflection;
+using ImTools;
 using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Npgsql;
@@ -9,6 +10,8 @@ namespace Weasel.Postgresql;
 
 public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter, NpgsqlDbType>
 {
+    public const string EngineName = "PostgreSQL";
+
     public static readonly PostgresqlProvider Instance = new();
 
     private PostgresqlProvider(): base("public")
