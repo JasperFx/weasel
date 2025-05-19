@@ -78,6 +78,13 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new SqlServerObjectName(schemaName, objectName);
 
+    public override string AddApplicationNameToConnectionString(string connectionString, string applicationName)
+    {
+        var builder = new SqlConnectionStringBuilder(connectionString);
+        builder.ApplicationName = applicationName;
+        return builder.ConnectionString;
+    }
+
     public string ConvertSynonyms(string type)
     {
         switch (type.ToLower())

@@ -14,7 +14,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="JasperFx" Version="0.5.2" />
+      <PackageReference Include="JasperFx" Version="0.6.0" />
     </ItemGroup>
 
     <Import Project="../../Analysis.Build.props" />

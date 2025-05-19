@@ -12,6 +12,13 @@ namespace Weasel.Postgresql.Tests;
 public class PostgresqlProviderTests
 {
     [Fact]
+    public void add_application_name_to_connection_string()
+    {
+        PostgresqlProvider.Instance.AddApplicationNameToConnectionString(ConnectionSource.ConnectionString, "ThisApp")
+            .ShouldContain("Application Name=ThisApp");
+    }
+
+    [Fact]
     public void execute_to_db_type_as_int()
     {
         PostgresqlProvider.Instance.ToParameterType(typeof(int)).ShouldBe(NpgsqlDbType.Integer);

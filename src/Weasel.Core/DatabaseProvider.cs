@@ -29,6 +29,16 @@ public interface IDatabaseProvider
     }
 
     DbObjectName Parse(string schemaName, string objectName);
+
+
+    /// <summary>
+    /// Modifies the connection string by adding or changing the application name to the specified
+    /// applicationName argument
+    /// </summary>
+    /// <param name="connectionString"></param>
+    /// <param name="applicationName"></param>
+    /// <returns></returns>
+    string AddApplicationNameToConnectionString(string connectionString, string applicationName);
 }
 
 /// <summary>
@@ -259,4 +269,5 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
         $"{ToQualifiedName(schemaName)}.{ToQualifiedName(objectName)}";
 
     public abstract DbObjectName Parse(string schemaName, string objectName);
+    public abstract string AddApplicationNameToConnectionString(string connectionString, string applicationName);
 }

@@ -287,4 +287,11 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
 
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new PostgresqlObjectName(schemaName, objectName, ToQualifiedName(schemaName, objectName));
+
+    public override string AddApplicationNameToConnectionString(string connectionString, string applicationName)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connectionString);
+        builder.ApplicationName = applicationName;
+        return builder.ConnectionString;
+    }
 }

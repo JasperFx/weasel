@@ -264,4 +264,9 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
 
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new DbObjectName(schemaName, objectName);
+
+    public override string AddApplicationNameToConnectionString(string connectionString, string applicationName)
+    {
+        throw new NotSupportedException();
+    }
 }

@@ -11,6 +11,11 @@ public class DbObjectNameTests
 
         public DbObjectName Parse(string schemaName, string objectName) =>
             new DbObjectName(schemaName, objectName);
+
+        public string AddApplicationNameToConnectionString(string connectionString, string applicationName)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     private readonly IDatabaseProvider theProvider = new StubProvider();

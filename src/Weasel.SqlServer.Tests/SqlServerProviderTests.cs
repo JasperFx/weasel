@@ -14,6 +14,13 @@ public class SqlServerProviderTests
         SqlServerProvider.Instance.ToParameterType(typeof(int?)).ShouldBe(SqlDbType.Int);
     }
 
+    [Fact]
+    public void add_application_name_to_connection_string()
+    {
+        SqlServerProvider.Instance.AddApplicationNameToConnectionString(ConnectionSource.ConnectionString, "ThisApp")
+            .ShouldContain("Application Name=ThisApp");
+    }
+
 
     public class MappedTarget
     {
