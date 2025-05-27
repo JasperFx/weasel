@@ -1,6 +1,6 @@
 using JasperFx.Core;
-using JasperFx.Core.Descriptors;
 using JasperFx.Core.Reflection;
+using JasperFx.Descriptors;
 using NSubstitute;
 using Shouldly;
 using Spectre.Console;

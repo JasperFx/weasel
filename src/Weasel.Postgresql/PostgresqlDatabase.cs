@@ -1,7 +1,7 @@
 using JasperFx;
 using JasperFx.Core;
-using JasperFx.Core.Descriptors;
 using JasperFx.Core.Reflection;
+using JasperFx.Descriptors;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;

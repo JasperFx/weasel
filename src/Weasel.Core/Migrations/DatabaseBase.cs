@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
-using JasperFx.Core.Descriptors;
+using JasperFx.Descriptors;
 
 namespace Weasel.Core.Migrations;
 

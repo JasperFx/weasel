@@ -1,6 +1,6 @@
 using System.Data.Common;
 using JasperFx;
-using JasperFx.Core.Descriptors;
+using JasperFx.Descriptors;
 
 namespace Weasel.Core.Migrations;
 
