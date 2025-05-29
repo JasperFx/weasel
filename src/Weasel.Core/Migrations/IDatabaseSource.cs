@@ -1,3 +1,5 @@
+using JasperFx.Descriptors;
+
 namespace Weasel.Core.Migrations;
 
 /// <summary>
@@ -11,4 +13,6 @@ public interface IDatabaseSource
     /// </summary>
     /// <returns></returns>
     ValueTask<IReadOnlyList<IDatabase>> BuildDatabases();
+
+    DatabaseCardinality Cardinality { get; }
 }
