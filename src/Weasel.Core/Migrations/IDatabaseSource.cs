@@ -6,7 +6,7 @@ namespace Weasel.Core.Migrations;
 ///     Service that exposes multiple databases for migration operations. This
 ///     was intended for "database per tenant" type scenarios
 /// </summary>
-public interface IDatabaseSource
+public interface IDatabaseSource : IDatabaseUser
 {
     /// <summary>
     ///     Resolve a list of the known databases
@@ -14,5 +14,4 @@ public interface IDatabaseSource
     /// <returns></returns>
     ValueTask<IReadOnlyList<IDatabase>> BuildDatabases();
 
-    DatabaseCardinality Cardinality { get; }
 }
