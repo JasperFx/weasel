@@ -149,6 +149,34 @@ public class managed_list_partitions : IntegrationContext
     }
 
     [Fact]
+    public async Task remove_partitions_by_value_at_runtime_smoke_test()
+    {
+        var database = new ManagedListDatabase();
+        var partitions = new Dictionary<string, string> { { "red", "red_suffix" }, { "green", "green_suffix" }, { "blue", "blue_suffix" }, };
+        await database.Partitions.ResetValues(database, partitions, CancellationToken.None);
+
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        await database.Partitions.AddPartitionToAllTables(database, "purple", "purple_suffix", CancellationToken.None);
+
+        await database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, "red", CancellationToken.None);
+
+        var tables = await database.FetchExistingTablesAsync();
+
+        var teams = tables.Single(x => x.Identifier.Name == "teams");
+        var partitioning = teams.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.HasExistingDefault.ShouldBeFalse();
+        partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
+            .ShouldBe(new []{"blue_suffix", "green_suffix", "purple_suffix"});
+
+        var players = tables.Single(x => x.Identifier.Name == "players");
+        partitioning = players.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.HasExistingDefault.ShouldBeFalse();
+        partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
+            .ShouldBe(new []{"blue_suffix", "green_suffix", "purple_suffix"});
+    }
+
+    [Fact]
     public async Task apply_additive_migration_2()
     {
         var database = new ManagedListDatabase();
