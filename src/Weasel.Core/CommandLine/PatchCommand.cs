@@ -18,6 +18,8 @@ public class PatchCommand: JasperFxAsyncCommand<PatchInput>
 
     public override async Task<bool> Execute(PatchInput input)
     {
+        JasperFxEnvironment.RunQuiet = true;
+
         AnsiConsole.Write(
             new FigletText("Weasel"){Justification = Justify.Left});
 

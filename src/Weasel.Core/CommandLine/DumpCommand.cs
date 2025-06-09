@@ -30,6 +30,8 @@ public class DumpCommand: JasperFxAsyncCommand<DumpInput>
 
     public override async Task<bool> Execute(DumpInput input)
     {
+        JasperFxEnvironment.RunQuiet = true;
+
         AnsiConsole.Write(
             new FigletText("Weasel"){Justification = Justify.Left});
 

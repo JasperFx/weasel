@@ -1,5 +1,6 @@
 using JasperFx.CommandLine;
 using JasperFx.Core;
+using JasperFx.Descriptors;
 using Spectre.Console;
 using Weasel.Core.Migrations;
 
@@ -11,6 +12,8 @@ public class ListCommand: JasperFxAsyncCommand<WeaselInput>
 {
     public override async Task<bool> Execute(WeaselInput input)
     {
+        JasperFxEnvironment.RunQuiet = true;
+
         AnsiConsole.Write(
             new FigletText("Weasel"){Justification = Justify.Left});
 
@@ -23,11 +26,23 @@ public class ListCommand: JasperFxAsyncCommand<WeaselInput>
             AnsiConsole.Write("No Weasel databases are configured for this application");
         }
 
-        var descriptors = databases.Select(x => x.Describe()).ToArray();
+        RenderDatabases(databases);
+
+        return true;
+    }
+
+    internal static void RenderDatabases(List<IDatabase> databases)
+    {
+        var descriptors = new DatabaseDescriptor[databases.Count];
+        for (int i = 0; i < databases.Count; i++)
+        {
+            descriptors[i] = databases[i].Describe();
+        }
 
         var table = new Table();
-        table.AddColumn(nameof(IDatabase.Identifier));
         table.AddColumn("DatabaseUri");
+        table.AddColumn("SubjectUri");
+
         bool hasTenants = false;
 
         if (descriptors.Any(x => x.TenantIds.Any()))
@@ -38,8 +53,8 @@ public class ListCommand: JasperFxAsyncCommand<WeaselInput>
         foreach (var descriptor in descriptors)
         {
             var values = new List<string>();
-            values.Add(descriptor.Identifier);
             values.Add(descriptor.DatabaseUri().ToString());
+            values.Add(descriptor.SubjectUri?.ToString() ?? string.Empty);
 
             if (hasTenants)
             {
@@ -50,7 +65,5 @@ public class ListCommand: JasperFxAsyncCommand<WeaselInput>
         }
 
         AnsiConsole.Write(table);
-
-        return true;
     }
 }
