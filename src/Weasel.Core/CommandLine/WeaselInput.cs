@@ -35,6 +35,8 @@ public class WeaselInput: NetCoreInput
             throw new InvalidOperationException("No Weasel databases were registered in this application");
         }
 
+        if (DatabaseFlag.IsEmpty()) return databases;
+
         IList<IDatabase> filtered = [];
 
         if (DatabaseFlag.IsNotEmpty())
