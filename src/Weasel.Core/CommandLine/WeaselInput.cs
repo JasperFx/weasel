@@ -9,11 +9,8 @@ namespace Weasel.Core.CommandLine;
 
 public class WeaselInput: NetCoreInput
 {
-    [Description("Identify which database to dump in the case of multiple databases")]
+    [Description("Identify which database to dump in the case of multiple databases. Can be a partial Uri match")]
     public string? DatabaseFlag { get; set; }
-
-    [Description("Optionally choose the database interactively")]
-    public bool InteractiveFlag { get; set; }
 
     public async ValueTask<List<IDatabase>> AllDatabases(IHost host)
     {
@@ -38,46 +35,33 @@ public class WeaselInput: NetCoreInput
             throw new InvalidOperationException("No Weasel databases were registered in this application");
         }
 
-        if (InteractiveFlag)
-        {
-            var names = SelectOptions(databases);
-
-            return databases.Where(x => names.Contains(x.Identifier)).ToList();
-        }
+        IList<IDatabase> filtered = [];
 
         if (DatabaseFlag.IsNotEmpty())
         {
-            var database = databases.FirstOrDefault(x => x.Identifier.EqualsIgnoreCase(DatabaseFlag));
-            if (database == null)
+            if (Uri.TryCreate(DatabaseFlag, UriKind.Absolute, out var uri))
             {
-                AnsiConsole.MarkupLine($"[red]No matching database named '{DatabaseFlag}'[/].");
-                listDatabases(databases);
+                filtered = databases.Where(x =>
+                {
+                    var descriptor = x.Describe();
 
-                throw new InvalidOperationException(
-                    $"Specified database does not exist. Options are {databases.Select(x => $"'{x.Identifier}'").Join(", ")}");
+                    return descriptor.SubjectUri.Matches(uri) || descriptor.DatabaseUri().Matches(uri);
+                }).ToList();
             }
-
-            return new List<IDatabase> { database };
+            else
+            {
+                filtered = databases.Where(x => x.Identifier.EqualsIgnoreCase(DatabaseFlag)).ToList();
+            }
         }
-        else
+
+        if (!filtered.Any())
         {
-            return databases;
+            ListCommand.RenderDatabases(databases);
+            throw new InvalidOperationException($"No Weasel databases matched the supplied --database flag '{DatabaseFlag}'");
         }
 
-    }
+        return filtered;
 
-    public virtual List<string> SelectOptions(List<IDatabase> databases)
-    {
-        var names = AnsiConsole.Prompt(
-            new MultiSelectionPrompt<string>()
-                .Title("Which databases?")
-                .NotRequired() // Not required to have a favorite fruit
-                .PageSize(10)
-                .InstructionsText(
-                    "[grey](Press [blue]<space>[/] to toggle a database on or off, " +
-                    "[green]<enter>[/] to accept)[/]")
-                .AddChoices(databases.Select(x => x.Identifier)));
-        return names;
     }
 
     public async ValueTask<(bool, IDatabase?)> TryChooseSingleDatabase(IHost host)
@@ -95,24 +79,31 @@ public class WeaselInput: NetCoreInput
             return (false, null);
         }
 
-        if (InteractiveFlag)
-        {
-            DatabaseFlag = AnsiConsole.Prompt(new SelectionPrompt<string>()
-                .Title("Which database?")
-                .AddChoices(databases.Select(x => x.Identifier))
-            );
-        }
-
         if (DatabaseFlag.IsNotEmpty())
         {
+            if (Uri.TryCreate(DatabaseFlag, UriKind.Absolute, out var uri))
+            {
+                var first = databases.FirstOrDefault(x =>
+                {
+                    var descriptor = x.Describe();
+
+                    return descriptor.SubjectUri.Matches(uri) || descriptor.DatabaseUri().Matches(uri);
+                });
+
+                if (first != null)
+                {
+                    return (true, first);
+                }
+            }
+
             var database = databases.FirstOrDefault(x => x.Identifier.EqualsIgnoreCase(DatabaseFlag));
             if (database != null)
             {
                 return (true, database);
             }
 
-            AnsiConsole.MarkupLine($"[red]No matching database named '{DatabaseFlag}'[/].");
-            listDatabases(databases);
+            AnsiConsole.MarkupLine($"[red]No matching database with either subject or database Uri matching '{DatabaseFlag}'[/].");
+            ListCommand.RenderDatabases(databases);
 
             return (false, null);
 
@@ -124,19 +115,8 @@ public class WeaselInput: NetCoreInput
         }
 
         AnsiConsole.MarkupLine("[bold]A specific database from this list must be selected with the -d|--database flag:[/]");
-        listDatabases(databases);
+        ListCommand.RenderDatabases(databases);
 
         return (false, null);
-    }
-
-    private static void listDatabases(List<IDatabase> databases)
-    {
-        var tree = new Tree("Registered Databases");
-        foreach (var database1 in databases)
-        {
-            tree.AddNode(database1.Identifier);
-        }
-
-        AnsiConsole.Write(tree);
     }
 }

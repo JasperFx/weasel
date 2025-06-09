@@ -99,17 +99,4 @@ public class WeaselInputTests
         });
     }
 
-    [Fact]
-    public async Task interactive_filtering()
-    {
-        var input = Substitute.For<WeaselInput>();
-        input.SelectOptions(Arg.Any<List<IDatabase>>())
-            .Returns(new List<string> { database3.Identifier, database7.Identifier });
-
-        input.InteractiveFlag = true;
-
-        using var host = theInput.BuildHost();
-        (await input.FilterDatabases(host))
-            .ShouldBe(new[]{database3, database7});
-    }
 }
