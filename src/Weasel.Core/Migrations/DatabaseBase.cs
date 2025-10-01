@@ -61,6 +61,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
     public string Identifier { get; }
 
+    /// <summary>
+    /// In the case of multi-tenancy, this would hold one or more tenant ids
+    /// </summary>
+    public List<string> TenantIds { get; } = new();
+
 
     /// <summary>
     ///     All referenced schema names by the known objects in this database

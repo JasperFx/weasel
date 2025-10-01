@@ -35,6 +35,8 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
             Identifier = Identifier
         };
 
+        descriptor.TenantIds.AddRange(TenantIds);
+
         descriptor.Properties.Add(OptionsValue.Read(builder, x => x.Host));
         descriptor.Properties.Add(OptionsValue.Read(builder, x => x.Port));
         descriptor.Properties.Add(OptionsValue.Read(builder, x => x.Database));
