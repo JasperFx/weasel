@@ -25,6 +25,11 @@ public interface IDatabase
     string Identifier { get; }
 
     /// <summary>
+    /// In the case of multi-tenancy, this would hold one or more tenant ids
+    /// </summary>
+    List<string> TenantIds { get; }
+
+    /// <summary>
     ///     Create all known features in order. Dependency relationships are assumed
     ///     to be reflected in the order of the feature array
     /// </summary>
