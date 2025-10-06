@@ -22,13 +22,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         string connectionString
     ): this(logger, autoCreate, migrator, identifier, () => CreateConnection(connectionString))
     {
-        if (Identifier.IsEmpty())
+        if (DatabaseId.TryParse(identifier, out var id))
         {
-            // ReSharper disable once VirtualMemberCallInConstructor
-            var descriptor = Describe();
-            Identifier = $"{descriptor.ServerName}.{descriptor.DatabaseName}";
+            Id = id;
         }
     }
+
+    public DatabaseId Id { get; protected set; }
 
     public abstract DatabaseDescriptor Describe();
 
@@ -46,11 +46,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         Migrator = migrator;
         Identifier = identifier;
 
-        if (Identifier.IsEmpty())
+        if (DatabaseId.TryParse(identifier, out var id))
         {
-            // ReSharper disable once VirtualMemberCallInConstructor
-            var descriptor = Describe();
-            Identifier = $"{descriptor.ServerName}.{descriptor.DatabaseName}";
+            Id = id;
         }
     }
 
