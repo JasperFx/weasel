@@ -21,6 +21,10 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
     ): base(logger, autoCreate, migrator, identifier, () => dataSource.CreateConnection())
     {
         DataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
+
+        // ReSharper disable once VirtualMemberCallInConstructor
+        var descriptor = Describe();
+        Id = new DatabaseId(descriptor.ServerName, descriptor.DatabaseName);
     }
 
     public override DatabaseDescriptor Describe()

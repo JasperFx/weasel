@@ -22,7 +22,10 @@ public interface IDatabase
     /// <summary>
     ///     Identifying name for Weasel infrastructure and logging
     /// </summary>
+    [Obsolete("Try to favor the Id value object going forward")]
     string Identifier { get; }
+
+    DatabaseId Id { get; }
 
     /// <summary>
     /// In the case of multi-tenancy, this would hold one or more tenant ids
