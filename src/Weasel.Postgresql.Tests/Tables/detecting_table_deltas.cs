@@ -700,6 +700,13 @@ public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
         table2.AddColumn("created_datetime", "timestamp without time zone");
         table2.AddColumn("created_datetime_offset", "timestamp with time zone");
         table2.AddColumn("data", "jsonb");
+        table2.AddColumn("array_uuid", "uuid[]");
+        table2.AddColumn("array_short", "smallint[]");
+        table2.AddColumn("array_int", "integer[]");
+        table2.AddColumn("array_long", "bigint[]");
+        table2.AddColumn("array_float", "real[]");
+        table2.AddColumn("array_double", "double precision[]");
+        table2.AddColumn("array_string", "varchar[]");
 
         await CreateSchemaObjectInDatabase(theTable);
 
