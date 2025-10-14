@@ -254,9 +254,9 @@ order by column_index;
         var column = new TableColumn(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
             await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false));
 
-        if (column.Type.Equals("user-defined"))
+        if (column.Type.Equals("user-defined") || column.Type.Equals("array"))
         {
-            column.Type = await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
+            column.Type = NormalizeArrayType(await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false));
         }
 
         if (!await reader.IsDBNullAsync(2, ct).ConfigureAwait(false))
@@ -329,6 +329,21 @@ order by column_index;
         }
 
         return pks;
+    }
+    
+    private static string NormalizeArrayType(string udtName)
+    {
+        return udtName switch
+        {
+            "_uuid" => "uuid[]",
+            "_int2" => "smallint[]",
+            "_int4" => "integer[]",
+            "_int8" => "bigint[]",
+            "_float4" => "real[]",
+            "_float8" => "double precision[]",
+            "_varchar" => "varchar[]",
+            _ => udtName[1..] + "[]"
+        };
     }
 }
 

@@ -22,6 +22,13 @@ public abstract class IndexDeltasDetectionContext: IntegrationContext
         theTable.AddColumn<DateTime>("created_datetime");
         theTable.AddColumn<DateTimeOffset>("created_datetime_offset");
         theTable.AddColumn("data", "jsonb");
+        theTable.AddColumn<Guid[]>("array_uuid");
+        theTable.AddColumn<short[]>("array_short");
+        theTable.AddColumn<int[]>("array_int");
+        theTable.AddColumn<long[]>("array_long");
+        theTable.AddColumn<float[]>("array_float");
+        theTable.AddColumn<double[]>("array_double");
+        theTable.AddColumn<string[]>("array_string");
 
         theOtherTable = new Table($"{schemaName}.other");
         theOtherTable.AddColumn<int>("id").AsPrimaryKey();
