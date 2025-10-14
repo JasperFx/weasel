@@ -137,7 +137,8 @@ order by column_index;
         }
         catch (NpgsqlException e)
         {
-            if (e.SqlState != PostgresErrorCodes.UndefinedTable) throw;
+            if (e.SqlState != PostgresErrorCodes.UndefinedTable)
+                throw;
         }
         return result;
     }
@@ -154,7 +155,8 @@ order by column_index;
         await readIndexesAsync(reader, existing, ct).ConfigureAwait(false);
         await readConstraintsAsync(reader, existing, ct).ConfigureAwait(false);
 
-        foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
+        foreach (var pkColumn in pks)
+            existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
 
         await readMaxIdentifierLength(reader, existing, ct).ConfigureAwait(false);
         await readPartitionsAsync(reader, existing, ct).ConfigureAwait(false);
@@ -205,7 +207,8 @@ order by column_index;
         }
         catch (PostgresException e)
         {
-            if (e.SqlState == PostgresErrorCodes.InvalidSchemaName) return;
+            if (e.SqlState == PostgresErrorCodes.InvalidSchemaName)
+                return;
             throw;
         }
 
@@ -254,7 +257,11 @@ order by column_index;
         var column = new TableColumn(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
             await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false));
 
-        if (column.Type.Equals("user-defined") || column.Type.Equals("array"))
+        if (column.Type.Equals("user-defined"))
+        {
+            column.Type = await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
+        }
+        else if (column.Type.Equals("array"))
         {
             column.Type = NormalizeArrayType(await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false));
         }
@@ -330,7 +337,7 @@ order by column_index;
 
         return pks;
     }
-    
+
     private static string NormalizeArrayType(string udtName)
     {
         return udtName switch
@@ -342,7 +349,7 @@ order by column_index;
             "_float4" => "real[]",
             "_float8" => "double precision[]",
             "_varchar" => "varchar[]",
-            _ => udtName[1..] + "[]"
+            _ => udtName
         };
     }
 }
