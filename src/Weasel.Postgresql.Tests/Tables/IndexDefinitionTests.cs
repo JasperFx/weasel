@@ -150,7 +150,8 @@ public class IndexDefinitionTests
         theIndex.Predicate = "foo > 1";
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1);");
+            .ShouldBe(
+                $"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1);");
     }
 
     [Fact]
@@ -181,7 +182,10 @@ public class IndexDefinitionTests
         yield return new[] { new IndexDefinition("idx_1").AgainstColumns("name") };
         yield return new[] { new IndexDefinition("idx_1").AgainstColumns("name", "age") };
         yield return new[] { new IndexDefinition("idx_1") { IsUnique = true }.AgainstColumns("name", "age") };
-        yield return new[] { new IndexDefinition("idx_1") { IsUnique = true, NullsNotDistinct = true}.AgainstColumns("name", "age") };
+        yield return new[]
+        {
+            new IndexDefinition("idx_1") { IsUnique = true, NullsNotDistinct = true }.AgainstColumns("name", "age")
+        };
 
         yield return new[] { new IndexDefinition("idx_1") { SortOrder = SortOrder.Desc }.AgainstColumns("name") };
     }
@@ -254,11 +258,13 @@ public class IndexDefinitionTests
     public void test_multicolumn_index_with_fulltextsearch_vs_raw_sql()
     {
         var table = new Table("mt_doc_mydata");
-        var index1 = "CREATE INDEX mt_doc_mydata_idx_fulltext_search ON public.mt_doc_mydata USING gin (tenant_id, type, is_active_and_not_archived, to_tsvector('english'::regconfig, (data ->> 'SearchableValue'::text)));";
+        var index1 =
+            "CREATE INDEX mt_doc_mydata_idx_fulltext_search ON public.mt_doc_mydata USING gin (tenant_id, type, is_active_and_not_archived, to_tsvector('english'::regconfig, (data ->> 'SearchableValue'::text)));";
         var index2 = IndexDefinition.Parse(index1);
 
         IndexDefinition.CanonicizeDdl(index1, "public").ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
     }
+
     [Fact]
     public void test_multicolumn_index_with_fulltextsearch_vs_parsed_sql()
     {
@@ -567,7 +573,8 @@ public class IndexDefinitionTests
     [InlineData("((  data->'RoleIds') jsonb_path_ops)", "((data->'RoleIds') jsonb_path_ops)")]
     [InlineData("((data->'RoleIds'  ) jsonb_path_ops)", "((data->'RoleIds') jsonb_path_ops)")]
     [InlineData("( (  data->'RoleIds'  ) jsonb_path_ops  )", "((data->'RoleIds') jsonb_path_ops)")]
-    public void ensure_proper_delta_check_for_parentheses_with_spaces(string exprParenthesesWithSpaces, string exprParenthesesWithoutSpaces)
+    public void ensure_proper_delta_check_for_parentheses_with_spaces(string exprParenthesesWithSpaces,
+        string exprParenthesesWithoutSpaces)
     {
         var table = new Table("mt_doc_user");
         var index1 = IndexDefinition.Parse(
@@ -583,27 +590,24 @@ public class IndexDefinitionTests
     {
         var index = new IndexDefinition("index")
         {
-            Columns = new[]
-            {
-                "column1",
-                "column2"
-            },
-            IsUnique = true,
-            NullsNotDistinct = true
+            Columns = new[] { "column1", "column2" }, IsUnique = true, NullsNotDistinct = true
         };
 
         var ddl = index.ToDDL(new Table("table"));
-        ddl.ShouldBe($"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT ;");
+        ddl.ShouldBe(
+            $"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT ;");
     }
 
     [Fact]
     public void should_be_able_to_parse_index_with_nulls_not_distinct()
     {
-        var index = IndexDefinition.Parse($"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT;");
+        var index = IndexDefinition.Parse(
+            $"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT;");
         index.IsUnique.ShouldBeTrue();
         index.NullsNotDistinct.ShouldBeTrue();
 
-        index = IndexDefinition.Parse("CREATE UNIQUE INDEX index ON public.table USING btree (column1, column2) NULLS DISTINCT;");
+        index = IndexDefinition.Parse(
+            "CREATE UNIQUE INDEX index ON public.table USING btree (column1, column2) NULLS DISTINCT;");
         index.IsUnique.ShouldBeTrue();
         index.NullsNotDistinct.ShouldBeFalse();
     }
@@ -629,5 +633,31 @@ public class IndexDefinitionTests
             IndexDefinition.Parse(
                 "create index bwsp_idx_tomainaccountid on mt_doc_abccorp_wallets_sunshine_payments using btree (cast(data->>'tomainaccountid' as character varying))");
         IndexDefinition.CanonicizeDdl(index1, table).ShouldContain("varchar");
+    }
+
+    [Fact]
+    public void Bug191_write_index_with_prediction_and_include_columns_is_ordered_properly()
+    {
+        var index = new IndexDefinition("idx_1")
+        {
+            Columns = ["column1"],
+            Predicate = "column2 IS NOT NULL",
+            IncludeColumns = ["column3", "column4"]
+        };
+
+        var ddl = index.ToDDL(new Table("table"));
+        ddl.ShouldBe(
+            $"CREATE INDEX idx_1 ON {Instance.Parse("public.table")} USING btree (column1) INCLUDE (column3, column4) WHERE (column2 IS NOT NULL);");
+    }
+
+    [Fact]
+    public void Bug191_should_be_able_to_parse_index_with_prediction_and_include_columns()
+    {
+        var index = IndexDefinition.Parse(
+            $"CREATE INDEX idx_1 ON {Instance.Parse("public.table")} USING btree (column1) INCLUDE (column3, column4) WHERE (column2 IS NOT NULL);");
+
+        index.Columns.ShouldBe(["column1"]);
+        index.IncludeColumns.ShouldBe(["column3", "column4"]);
+        index.Predicate.ShouldBe("(column2 IS NOT NULL)");
     }
 }
