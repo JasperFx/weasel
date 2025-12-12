@@ -182,8 +182,18 @@ public class IndexDefinition: INamed
     /// <summary>
     ///     Method to get the DDL statement for the index definition
     /// </summary>
+    /// <remarks>
+    /// Ordering the statement segments matters. Ref the Postgres create index docs here: https://www.postgresql.org/docs/current/sql-createindex.html
+    /// CREATE [ UNIQUE ] INDEX [ CONCURRENTLY ] [ [ IF NOT EXISTS ] name ] ON [ ONLY ] table_name [ USING method ]
+    ///     ( { column_name | ( expression ) } [ COLLATE collation ] [ opclass [ ( opclass_parameter = value [, ... ] ) ] ] [ ASC | DESC ] [ NULLS { FIRST | LAST } ] [, ...] )
+    ///     [ INCLUDE ( column_name [, ...] ) ]
+    ///     [ NULLS [ NOT ] DISTINCT ]
+    ///     [ WITH ( storage_parameter [= value] [, ... ] ) ]
+    ///     [ TABLESPACE tablespace_name ]
+    ///     [ WHERE predicate ]
+    /// </remarks>
     /// <param name="parent"></param>
-    /// <returns></returns>
+    /// <returns>Sql statement to create the index</returns>
     public string ToDDL(Table parent)
     {
         var builder = new StringBuilder();
@@ -215,6 +225,13 @@ public class IndexDefinition: INamed
         builder.Append(Method == IndexMethod.custom ? CustomMethod : Method);
         builder.Append(" ");
         builder.Append(correctedExpression());
+
+        if (IncludeColumns != null && IncludeColumns.Any())
+        {
+            builder.Append(" INCLUDE (");
+            builder.Append(IncludeColumns.Join(", "));
+            builder.Append(')');
+        }
 
         if (NullsNotDistinct)
         {
@@ -256,12 +273,6 @@ public class IndexDefinition: INamed
             builder.Append(")");
         }
 
-        if (IncludeColumns != null && IncludeColumns.Any())
-        {
-            builder.Append(" INCLUDE (");
-            builder.Append(IncludeColumns.Join(", "));
-            builder.Append(')');
-        }
 
         builder.Append(";");
         if (IsConcurrent)
