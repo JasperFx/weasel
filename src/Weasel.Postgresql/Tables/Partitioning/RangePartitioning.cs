@@ -47,7 +47,7 @@ public class RangePartitioning: IPartitionStrategy
             if (other._ranges.Any(x => !_ranges.Contains(x))) return PartitionDelta.Rebuild;
 
             missing = _ranges.Where(x => !other._ranges.Contains(x)).OfType<IPartition>().ToArray();
-            return missing.Any() ? PartitionDelta.Additive : PartitionDelta.Rebuild;
+            return missing.Length != 0 ? PartitionDelta.Additive : PartitionDelta.Rebuild;
         }
         else
         {

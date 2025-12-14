@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
         <Description>Npgsql Helpers and Postgresql Schema Migration Tool, spin off of Marten</Description>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
@@ -14,12 +14,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Npgsql" Version="9.0.2"/>
+        <PackageReference Include="Npgsql" Version="9.0.4"/>
+        <PackageReference Include="Npgsql.NetTopologySuite" Version="9.0.4"/>
     </ItemGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Npgsql.NetTopologySuite" Version="9.0.2"/>
-    </ItemGroup>
     <ItemGroup>
         <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj"/>
     </ItemGroup>
