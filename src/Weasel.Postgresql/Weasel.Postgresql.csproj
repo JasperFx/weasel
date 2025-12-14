@@ -14,6 +14,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="DistributedLock.Postgres" Version="1.3.0" />
         <PackageReference Include="Npgsql" Version="9.0.4"/>
         <PackageReference Include="Npgsql.NetTopologySuite" Version="9.0.4"/>
     </ItemGroup>
