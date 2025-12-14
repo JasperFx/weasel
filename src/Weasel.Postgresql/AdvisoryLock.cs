@@ -6,7 +6,7 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql;
 
-internal class AdvisoryLock : IAdvisoryLock
+public class AdvisoryLock : IAdvisoryLock
 {
     private readonly string _databaseName;
     private readonly ILogger _logger;
