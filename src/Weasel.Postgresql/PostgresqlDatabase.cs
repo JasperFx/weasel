@@ -33,7 +33,7 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
         var descriptor = new DatabaseDescriptor()
         {
             Engine = PostgresqlProvider.EngineName,
-            ServerName = builder.Host ?? string.Empty,
+            ServerName = ParsePostgresHost(builder.Host),
             DatabaseName = builder.Database ?? string.Empty,
             Subject = GetType().FullNameInCode(),
             Identifier = Identifier
@@ -96,6 +96,31 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
         descriptor.Properties.RemoveAll(x => x.Name.ContainsIgnoreCase("certificate"));
 
         return descriptor;
+    }
+
+    private static string ParsePostgresHost(string? host)
+    {
+        if (string.IsNullOrEmpty(host))
+            return string.Empty;
+
+        // if the host isn't a multihost string we don't have to do anything
+        if (!host.Contains(','))
+            return host;
+
+        var hostSpan = host.AsSpan();
+
+        var commaIndex = hostSpan.IndexOf(',');
+        var firstHost = hostSpan[..commaIndex];
+
+        var colonIndex = hostSpan.IndexOf(':');
+        // check if there's any inline port definitions
+        if (colonIndex != -1)
+        {
+            return new string(firstHost[..colonIndex]);
+        }
+
+        return new string(firstHost);
+
     }
 
     public NpgsqlDataSource DataSource { get; }
