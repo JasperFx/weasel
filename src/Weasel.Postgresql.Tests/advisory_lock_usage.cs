@@ -141,13 +141,13 @@ public class advisory_lock_usage
 
 public class AdvisoryLockSpecs : IAsyncLifetime
 {
-    private SimplePostgresqlDatabase _database;
-    private AdvisoryLock theLock;
+    private NpgsqlDataSource _database = null!;
+    private AdvisoryLock theLock = null!;
 
     public Task InitializeAsync()
     {
-        _database = new SimplePostgresqlDatabase(NpgsqlDataSource.Create(ConnectionSource.ConnectionString));
-        theLock = new AdvisoryLock(_database, NullLogger.Instance);
+        _database = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+        theLock = new AdvisoryLock(_database, NullLogger.Instance, "localhost");
         return Task.CompletedTask;
     }
 
