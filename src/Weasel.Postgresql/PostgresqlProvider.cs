@@ -135,6 +135,9 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             case "varchar[]":
             case "text[]":
                 return "array";
+
+            case "_text":
+                return "array";
         }
 
         return type;
