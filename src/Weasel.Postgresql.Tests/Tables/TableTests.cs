@@ -296,4 +296,90 @@ public class TableTests
 
         sql.ShouldContain("id SMALLSERIAL");
     }
+
+    [Fact]
+    public void schema_migration_uses_create_if_not_exists_for_create_deltas()
+    {
+        var table = new Table("newschema.new_table");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("name");
+
+        var delta = new SimpleSchemaDelta(table, SchemaPatchDifference.Create);
+        var migration = new SchemaMigration(new[] { delta });
+
+        var migrator = new PostgresqlMigrator();
+
+        var writer = new StringWriter();
+        migration.WriteAllUpdates(writer, migrator, AutoCreate.CreateOrUpdate);
+
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain("CREATE TABLE IF NOT EXISTS");
+        ddl.ShouldNotContain("DROP TABLE IF EXISTS");
+    }
+
+    [Fact]
+    public void adding_new_schema_does_not_drop_existing_tables_in_other_schemas()
+    {
+        var existingTableInPublic = new Table("public.existing_table");
+        existingTableInPublic.AddColumn<int>("id").AsPrimaryKey();
+        existingTableInPublic.AddColumn<string>("name");
+
+        var existingTableInOtherSchema = new Table("otherschema.existing_table");
+        existingTableInOtherSchema.AddColumn<int>("id").AsPrimaryKey();
+        existingTableInOtherSchema.AddColumn<string>("data");
+
+        var newTableInNewSchema = new Table("newschema.new_table");
+        newTableInNewSchema.AddColumn<int>("id").AsPrimaryKey();
+        newTableInNewSchema.AddColumn<string>("value");
+
+        var deltas = new ISchemaObjectDelta[]
+        {
+            new SimpleSchemaDelta(existingTableInPublic, SchemaPatchDifference.None),
+            new SimpleSchemaDelta(existingTableInOtherSchema, SchemaPatchDifference.None),
+            new SimpleSchemaDelta(newTableInNewSchema, SchemaPatchDifference.Create),
+        };
+
+        var migration = new SchemaMigration(deltas);
+        var migrator = new PostgresqlMigrator();
+
+        var writer = new StringWriter();
+        migration.WriteAllUpdates(writer, migrator, AutoCreate.CreateOrUpdate);
+
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain("CREATE TABLE IF NOT EXISTS newschema.new_table");
+        ddl.ShouldNotContain("DROP TABLE IF EXISTS newschema.new_table");
+
+        ddl.ShouldNotContain("public.existing_table");
+        ddl.ShouldNotContain("otherschema.existing_table");
+        ddl.ShouldNotContain("DROP TABLE IF EXISTS public.existing_table");
+        ddl.ShouldNotContain("DROP TABLE IF EXISTS otherschema.existing_table");
+    }
+
+    private class SimpleSchemaDelta : ISchemaObjectDelta
+    {
+        private readonly ISchemaObject _schemaObject;
+
+        public SimpleSchemaDelta(ISchemaObject schemaObject, SchemaPatchDifference difference)
+        {
+            _schemaObject = schemaObject;
+            Difference = difference;
+        }
+
+        public ISchemaObject SchemaObject => _schemaObject;
+        public SchemaPatchDifference Difference { get; }
+
+        public void WriteUpdate(Migrator rules, TextWriter writer)
+        {
+        }
+
+        public void WriteRollback(Migrator rules, TextWriter writer)
+        {
+        }
+
+        public void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
+        {
+        }
+    }
 }
