@@ -6,14 +6,21 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql;
 
+public sealed class AdvisoryLockOptions
+{
+    public bool LockMonitoringEnabled { get; set; }
+}
+
+
 public class AdvisoryLock : IAdvisoryLock
 {
     private readonly string _databaseName;
+    private readonly AdvisoryLockOptions _options;
     private readonly ILogger _logger;
     private readonly Dictionary<int, PostgresDistributedLockHandle> _handles = new();
     private readonly LightweightCache<int, PostgresDistributedLock> _distributedLockProviders;
 
-    public AdvisoryLock(NpgsqlDataSource dataSource, ILogger logger, string databaseName)
+    public AdvisoryLock(NpgsqlDataSource dataSource, ILogger logger, string databaseName, AdvisoryLockOptions options)
     {
         _logger = logger;
 
@@ -21,6 +28,7 @@ public class AdvisoryLock : IAdvisoryLock
             (lockId => new PostgresDistributedLock(new PostgresAdvisoryLockKey(lockId),
                 EnsurePrimaryWhenMultiHost(dataSource))));
         _databaseName = databaseName;
+        _options = options;
     }
 
     private static NpgsqlDataSource EnsurePrimaryWhenMultiHost(NpgsqlDataSource source)
@@ -33,7 +41,13 @@ public class AdvisoryLock : IAdvisoryLock
 
     public bool HasLock(int lockId)
     {
-        return _handles.TryGetValue(lockId, out var handle) && !handle.HandleLostToken.IsCancellationRequested;
+        var lockState = _handles.TryGetValue(lockId, out var handle);
+        if (lockState && _options.LockMonitoringEnabled)
+        {
+            return !handle!.HandleLostToken.IsCancellationRequested;
+        }
+
+        return lockState;
     }
 
     public async Task<bool> TryAttainLockAsync(int lockId, CancellationToken token)

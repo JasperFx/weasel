@@ -147,7 +147,7 @@ public class AdvisoryLockSpecs : IAsyncLifetime
     public Task InitializeAsync()
     {
         _database = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
-        theLock = new AdvisoryLock(_database, NullLogger.Instance, "localhost");
+        theLock = new AdvisoryLock(_database, NullLogger.Instance, "localhost", new AdvisoryLockOptions());
         return Task.CompletedTask;
     }
 
