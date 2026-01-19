@@ -125,7 +125,10 @@ public class SchemaMigration
                     break;
 
                 case SchemaPatchDifference.Create:
+                    var originalCreationStyle = rules.TableCreation;
+                    rules.TableCreation = CreationStyle.CreateIfNotExists;
                     delta.SchemaObject.WriteCreateStatement(rules, writer);
+                    rules.TableCreation = originalCreationStyle;
                     break;
 
                 case SchemaPatchDifference.Update:

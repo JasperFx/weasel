@@ -160,7 +160,10 @@ public abstract class Migrator
                 return false;
 
             case SchemaPatchDifference.Create:
+                var originalCreationStyle = TableCreation;
+                TableCreation = CreationStyle.CreateIfNotExists;
                 delta.SchemaObject.WriteCreateStatement(this, writer);
+                TableCreation = originalCreationStyle;
                 return true;
 
             case SchemaPatchDifference.Update:
