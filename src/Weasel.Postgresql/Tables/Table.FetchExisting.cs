@@ -102,9 +102,13 @@ from
     on
             par.oid = pt.partrelid
         join
+    pg_namespace ns
+    on
+            ns.oid = par.relnamespace
+        join
     information_schema.columns col
     on
-                col.table_schema = par.relnamespace::regnamespace::text
+                col.table_schema = ns.nspname
             and col.table_name = par.relname
             and ordinal_position = pt.column_index
 where
@@ -115,9 +119,10 @@ order by column_index;
    select pt.relname as partition_name,
           pg_get_expr(pt.relpartbound, pt.oid, true) as partition_expression
    from pg_class base_tb
+            join pg_namespace ns on ns.oid = base_tb.relnamespace
             join pg_inherits i on i.inhparent = base_tb.oid
             join pg_class pt on pt.oid = i.inhrelid
-   where base_tb.relname = :{nameParam} and base_tb.relnamespace = :{schemaParam}::regnamespace::oid;
+   where base_tb.relname = :{nameParam} and ns.nspname = :{schemaParam};
 ");
 
     }
