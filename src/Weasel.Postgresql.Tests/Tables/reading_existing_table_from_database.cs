@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -220,5 +221,74 @@ public class reading_existing_table_from_database: IntegrationContext
         fk.ColumnNames.ShouldBe(new[] { "state_id", "tenant_id" });
         fk.LinkedNames.ShouldBe(new[] { "id", "tenant_id" });
         fk.LinkedTable.Name.ShouldBe("states");
+    }
+
+    [Fact]
+    public async Task batched_queries_with_mixed_existing_and_nonexistent_schemas_should_not_corrupt_reader()
+    {
+        // This test verifies that when batching queries with mixed existing and non-existent schemas,
+        // the reader is not corrupted by partition queries against non-existent schemas.
+        // Before the fix, partition queries used ::regnamespace::oid casts which would throw
+        // PostgresException for non-existent schemas, corrupting the reader.
+        // This mirrors the real Marten scenario: event store tables (public schema, exists) +
+        // custom schema document tables (custom schema, doesn't exist yet) + more event store tables.
+        // Test pattern: existing -> non-existent -> existing
+
+        await theConnection.OpenAsync();
+
+        // Create first existing schema with table
+        var existingSchema1Guid = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var existingSchema1Name = $"existing1_{existingSchema1Guid}";
+        await theConnection.ResetSchemaAsync(existingSchema1Name);
+
+        var existingTable1 = new Table($"{existingSchema1Name}.orders");
+        existingTable1.AddColumn<int>("id").AsPrimaryKey();
+        existingTable1.AddColumn<string>("customer");
+        await CreateSchemaObjectInDatabase(existingTable1);
+
+        // Create definition for table in NON-EXISTENT schema (schema doesn't exist in DB)
+        var nonExistentSchemaGuid = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var nonExistentSchemaName = $"nonexist_{nonExistentSchemaGuid}";
+        var nonExistentTable = new Table($"{nonExistentSchemaName}.invoices");
+        nonExistentTable.AddColumn<int>("id").AsPrimaryKey();
+        nonExistentTable.AddColumn<string>("amount");
+
+        // Create second existing schema with table
+        var existingSchema2Guid = Guid.NewGuid().ToString("N").Substring(0, 8);
+        var existingSchema2Name = $"existing2_{existingSchema2Guid}";
+        await theConnection.ResetSchemaAsync(existingSchema2Name);
+
+        var existingTable2 = new Table($"{existingSchema2Name}.products");
+        existingTable2.AddColumn<int>("id").AsPrimaryKey();
+        existingTable2.AddColumn<string>("name");
+        await CreateSchemaObjectInDatabase(existingTable2);
+
+        // Batch: existing schema/table -> non-existent schema/table -> existing schema/table
+        var builder = new DbCommandBuilder(theConnection);
+        existingTable1.ConfigureQueryCommand(builder);
+        nonExistentTable.ConfigureQueryCommand(builder);
+        existingTable2.ConfigureQueryCommand(builder);
+
+        // Execute - before fix, this would throw PostgresException on the non-existent schema's partition queries
+        await using var reader = await theConnection.ExecuteReaderAsync(builder, default);
+
+        // Read first existing schema's table - should be found
+        var delta1 = await existingTable1.CreateDeltaAsync(reader, default);
+        delta1.ShouldNotBeNull();
+        delta1.Difference.ShouldBe(SchemaPatchDifference.None);
+
+        // Read non-existent schema's table - should handle gracefully without corrupting reader
+        await reader.NextResultAsync(default);
+        var delta2 = await nonExistentTable.CreateDeltaAsync(reader, default);
+        delta2.ShouldNotBeNull();
+        delta2.Difference.ShouldBe(SchemaPatchDifference.Create);
+
+        // Read second existing schema's table AFTER non-existent - verifies reader not corrupted
+        await reader.NextResultAsync(default);
+        var delta3 = await existingTable2.CreateDeltaAsync(reader, default);
+        delta3.ShouldNotBeNull();
+        delta3.Difference.ShouldBe(SchemaPatchDifference.None);
+
+        await reader.CloseAsync();
     }
 }
