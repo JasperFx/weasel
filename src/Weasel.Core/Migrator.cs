@@ -36,7 +36,7 @@ public abstract class Migrator
     /// <summary>
     ///     Alters the syntax used to create tables in DDL
     /// </summary>
-    public CreationStyle TableCreation { get; set; } = CreationStyle.DropThenCreate;
+    public CreationStyle TableCreation { get; set; } = CreationStyle.CreateIfNotExists;
 
     /// <summary>
     ///     Alters the user rights for the upsert functions in DDL
@@ -160,10 +160,7 @@ public abstract class Migrator
                 return false;
 
             case SchemaPatchDifference.Create:
-                var originalCreationStyle = TableCreation;
-                TableCreation = CreationStyle.CreateIfNotExists;
                 delta.SchemaObject.WriteCreateStatement(this, writer);
-                TableCreation = originalCreationStyle;
                 return true;
 
             case SchemaPatchDifference.Update:
