@@ -97,15 +97,27 @@ IF NOT EXISTS ( SELECT  *
                 $"select routine_name from information_schema.routines where routine_schema = '{schemaName}' and routine_type = 'FUNCTION';")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
-        var constraints = await conn
-            .CreateCommand(
-                $"select table_name, constraint_name from information_schema.table_constraints where table_schema = '{schemaName}' order by constraint_type")
+        // Drop all FK constraints - both within schema AND from other schemas referencing this schema
+        var fkConstraints = await conn
+            .CreateCommand($@"
+SELECT
+    SCHEMA_NAME(fk.schema_id) AS fk_schema,
+    OBJECT_NAME(fk.parent_object_id) AS table_name,
+    fk.name AS constraint_name
+FROM sys.foreign_keys fk
+WHERE
+    -- FKs within the schema (outgoing)
+    SCHEMA_NAME(fk.schema_id) = '{schemaName}'
+    OR
+    -- FKs from other schemas referencing tables in this schema (incoming)
+    SCHEMA_NAME(OBJECTPROPERTY(fk.referenced_object_id, 'SchemaId')) = '{schemaName}'")
             .FetchListAsync<string>(async r =>
             {
-                var tableName = await r.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
-                var constraintName = await r.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+                var fkSchema = await r.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+                var tableName = await r.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+                var constraintName = await r.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
 
-                return $"alter table {schemaName}.{tableName} drop constraint {constraintName};";
+                return $"ALTER TABLE {SchemaUtils.QuoteName(fkSchema)}.{SchemaUtils.QuoteName(tableName)} DROP CONSTRAINT {SchemaUtils.QuoteName(constraintName)};";
             }, cancellation: ct).ConfigureAwait(false);
 
         var tables = await conn
@@ -123,19 +135,19 @@ IF NOT EXISTS ( SELECT  *
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var drops = new List<string>();
-        drops.AddRange(procedures.Select(name => $"drop procedure {schemaName}.{name};"));
-        drops.AddRange(functions.Select(name => $"drop function {schemaName}.{name};"));
-        drops.AddRange(constraints);
-        drops.AddRange(tables.Select(name => $"drop table {schemaName}.{name};"));
-        drops.AddRange(sequences.Select(name => $"drop sequence {schemaName}.{name};"));
-        drops.AddRange(tableTypes.Select(x => $"DROP TYPE {schemaName}.{x};"));
+        drops.AddRange(procedures.Select(name => $"drop procedure {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(functions.Select(name => $"drop function {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(fkConstraints);
+        drops.AddRange(tables.Select(name => $"drop table {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(sequences.Select(name => $"drop sequence {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(tableTypes.Select(x => $"DROP TYPE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(x)};"));
 
 
         foreach (var drop in drops) await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
 
         if (!schemaName.EqualsIgnoreCase(SqlServerProvider.Instance.DefaultDatabaseSchemaName))
         {
-            var sql = $"drop schema if exists {schemaName};";
+            var sql = $"drop schema if exists {SchemaUtils.QuoteName(schemaName)};";
             await conn.CreateCommand(sql).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
     }
