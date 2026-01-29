@@ -78,7 +78,9 @@ public partial class Table: ISchemaObject
         }
         else
         {
-            writer.WriteLine("CREATE TABLE IF NOT EXISTS {0} (", Identifier);
+            writer.WriteLine("IF OBJECT_ID('{0}') IS NULL", Identifier);
+            writer.WriteLine("BEGIN");
+            writer.WriteLine("CREATE TABLE {0} (", Identifier);
         }
 
         if (migrator.Formatting == SqlFormatting.Pretty)
@@ -117,7 +119,6 @@ public partial class Table: ISchemaObject
             {
                 writer.WriteLine(lines[i] + ",");
             }
-
             writer.WriteLine(lines.Last());
         }
 
@@ -130,6 +131,11 @@ public partial class Table: ISchemaObject
             case PartitionStrategy.Range:
                 writer.WriteLine($") PARTITION BY RANGE ({PartitionExpressions.Join(", ")});");
                 break;
+        }
+
+        if (migrator.TableCreation != CreationStyle.DropThenCreate)
+        {
+            writer.WriteLine("END");
         }
 
 
