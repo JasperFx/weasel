@@ -134,7 +134,7 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain("CREATE TABLE IF NOT EXISTS dbo.people (");
+        lines.ShouldContain("CREATE TABLE dbo.people (");
     }
 
     [Fact]

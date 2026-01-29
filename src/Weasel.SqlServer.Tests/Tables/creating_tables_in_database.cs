@@ -52,7 +52,7 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
@@ -63,7 +63,7 @@ public class creating_tables_in_database: IntegrationContext
             .ShouldBeTrue();
 
         await theConnection.CreateCommand(
-                "insert into people (id, first_name, last_name) values (1, 'Elton', 'John')")
+                "insert into tables.people (id, first_name, last_name) values (1, 'Elton', 'John')")
             .ExecuteNonQueryAsync();
     }
 
@@ -75,7 +75,7 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
@@ -95,7 +95,7 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("tenant_id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
@@ -140,13 +140,13 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var states = new Table("states");
+        var states = new Table("tables.states");
         states.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
 
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").NotNull().AddIndex();
         table.AddColumn<string>("last_name").NotNull().AddIndex();
@@ -165,13 +165,13 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var states = new Table("states");
+        var states = new Table("tables.states");
         states.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(states);
 
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex(x =>
         {
@@ -195,7 +195,7 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("people");
+        var table = new Table("tables.people");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name").AddIndex(x =>
         {
@@ -221,7 +221,7 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("order");
+        var table = new Table("tables.order");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
@@ -233,7 +233,7 @@ public class creating_tables_in_database: IntegrationContext
             .ShouldBeTrue();
 
         await theConnection.CreateCommand(
-                "insert into [order] (id, first_name, last_name, [order]) values (1, 'Elton', 'John',1)")
+                "insert into tables.[order] (id, first_name, last_name, [order]) values (1, 'Elton', 'John',1)")
             .ExecuteNonQueryAsync();
     }
 }
