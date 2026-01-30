@@ -10,10 +10,10 @@ Read also more in [Introducing Weasel for Database Development](https://jeremydm
 ## Support Plans
 
 <div align="center">
-    <img src="https://www.jasperfx.net/wp-content/uploads/2023/07/logo-alt-min.png" alt="JasperFx logo" width="70%">
+    <img src="https://www.jasperfx.net/logo.png" alt="JasperFx logo" width="70%">
 </div>
 
-While Weasel is open source, [JasperFx Software offers paid support and consulting contracts](https://bit.ly/3szhwT2) for Weasel. 
+While Weasel is open source, [JasperFx Software offers paid support and consulting contracts](https://jasperfx.net/support-plans/) for Weasel. 
 
 
 ## Running tests locally
