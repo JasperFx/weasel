@@ -27,11 +27,6 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
         Id = new DatabaseId(descriptor.ServerName, descriptor.DatabaseName);
     }
 
-    public override ITable CreateTable(DbObjectName identifier)
-    {
-        return new Table(identifier);
-    }
-
     public override DatabaseDescriptor Describe()
     {
         var builder = new NpgsqlConnectionStringBuilder(DataSource.ConnectionString);

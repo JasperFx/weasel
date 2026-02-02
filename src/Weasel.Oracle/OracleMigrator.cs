@@ -1,6 +1,7 @@
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
+using Oracle.ManagedDataAccess.Client;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 
@@ -10,6 +11,11 @@ public class OracleMigrator: Migrator
 {
     public OracleMigrator(): base(OracleProvider.Instance.DefaultDatabaseSchemaName)
     {
+    }
+
+    public override bool MatchesConnection(DbConnection connection)
+    {
+        return connection is OracleConnection;
     }
 
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
