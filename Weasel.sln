@@ -35,6 +35,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Build", "Build", "{28703D10
 		.github\workflows\ci-build-postgres.yml = .github\workflows\ci-build-postgres.yml
 		.github\workflows\publish_nuget.yml = .github\workflows\publish_nuget.yml
 		README.md = README.md
+		.github\workflows\ci-build-oracle.yml = .github\workflows\ci-build-oracle.yml
+		.github\workflows\ci-build-mysql.yml = .github\workflows\ci-build-mysql.yml
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CommandLine", "CommandLine", "{341239AE-ABB0-4728-9C05-875E7053CAB6}"

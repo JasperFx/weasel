@@ -140,7 +140,8 @@ public static class SchemaObjectsExtensions
             }
         }
 
-        await conn.RunSqlAsync(ct, OracleMigrator.CreateSchemaStatementFor(schemaName)).ConfigureAwait(false);
+        var sql = OracleMigrator.CreateSchemaStatementFor(schemaName);
+        await conn.RunSqlAsync(ct, sql).ConfigureAwait(false);
     }
 
     public static async Task<bool> FunctionExistsAsync(
