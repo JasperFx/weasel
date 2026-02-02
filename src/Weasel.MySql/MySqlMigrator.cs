@@ -18,6 +18,8 @@ public class MySqlMigrator: Migrator
         return connection is MySqlConnection;
     }
 
+    public override IDatabaseProvider Provider => MySqlProvider.Instance;
+
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
         writeStep(this, writer);

@@ -25,6 +25,8 @@ $$;
         return connection is SqlConnection;
     }
 
+    public override IDatabaseProvider Provider => SqlServerProvider.Instance;
+
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
         writeStep(this, writer);

@@ -18,6 +18,8 @@ public class OracleMigrator: Migrator
         return connection is OracleConnection;
     }
 
+    public override IDatabaseProvider Provider => OracleProvider.Instance;
+
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
         writeStep(this, writer);

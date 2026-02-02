@@ -27,6 +27,8 @@ public abstract class Migrator
 
     public abstract bool MatchesConnection(DbConnection connection);
 
+    public abstract IDatabaseProvider Provider { get; }
+
     public abstract ITable CreateTable(DbObjectName identifier);
 
     /// <summary>
