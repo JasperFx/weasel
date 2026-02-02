@@ -25,4 +25,14 @@ public interface ITable : ISchemaObject
 
     ITableColumn AddPrimaryKeyColumn(string name, string columnType);
     ITableColumn AddPrimaryKeyColumn(string name, Type dotnetType);
+
+    /// <summary>
+    /// The foreign key constraints defined for this table
+    /// </summary>
+    IReadOnlyList<ForeignKeyBase> ForeignKeys { get; }
+
+    /// <summary>
+    /// Add a foreign key constraint to this table
+    /// </summary>
+    ForeignKeyBase AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames);
 }

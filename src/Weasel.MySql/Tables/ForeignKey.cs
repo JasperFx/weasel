@@ -4,22 +4,16 @@ using Weasel.Core;
 
 namespace Weasel.MySql.Tables;
 
-public class ForeignKey: INamed
+public class ForeignKey: ForeignKeyBase
 {
     private readonly List<string> _columnNames = new();
     private readonly List<string> _linkedNames = new();
 
-    public ForeignKey(string name)
+    public ForeignKey(string name) : base(name)
     {
-        Name = name;
     }
 
-    public string Name { get; set; }
-    public DbObjectName? LinkedTable { get; set; }
-    public CascadeAction OnDelete { get; set; } = CascadeAction.NoAction;
-    public CascadeAction OnUpdate { get; set; } = CascadeAction.NoAction;
-
-    public string[] ColumnNames
+    public override string[] ColumnNames
     {
         get => _columnNames.ToArray();
         set
@@ -29,7 +23,7 @@ public class ForeignKey: INamed
         }
     }
 
-    public string[] LinkedNames
+    public override string[] LinkedNames
     {
         get => _linkedNames.ToArray();
         set
@@ -38,6 +32,52 @@ public class ForeignKey: INamed
             _linkedNames.AddRange(value);
         }
     }
+
+#pragma warning disable CS0618 // Type or member is obsolete
+    /// <summary>
+    /// The cascade action to take when a referenced row is deleted
+    /// </summary>
+    public CascadeAction OnDelete
+    {
+        get => ToLocalCascadeAction(DeleteAction);
+        set => DeleteAction = ToCoreAction(value);
+    }
+
+    /// <summary>
+    /// The cascade action to take when a referenced row is updated
+    /// </summary>
+    public CascadeAction OnUpdate
+    {
+        get => ToLocalCascadeAction(UpdateAction);
+        set => UpdateAction = ToCoreAction(value);
+    }
+
+    private static Core.CascadeAction ToCoreAction(CascadeAction action)
+    {
+        return action switch
+        {
+            CascadeAction.NoAction => Core.CascadeAction.NoAction,
+            CascadeAction.Restrict => Core.CascadeAction.Restrict,
+            CascadeAction.Cascade => Core.CascadeAction.Cascade,
+            CascadeAction.SetNull => Core.CascadeAction.SetNull,
+            CascadeAction.SetDefault => Core.CascadeAction.SetDefault,
+            _ => Core.CascadeAction.NoAction
+        };
+    }
+
+    private static CascadeAction ToLocalCascadeAction(Core.CascadeAction action)
+    {
+        return action switch
+        {
+            Core.CascadeAction.NoAction => CascadeAction.NoAction,
+            Core.CascadeAction.Restrict => CascadeAction.Restrict,
+            Core.CascadeAction.Cascade => CascadeAction.Cascade,
+            Core.CascadeAction.SetNull => CascadeAction.SetNull,
+            Core.CascadeAction.SetDefault => CascadeAction.SetDefault,
+            _ => CascadeAction.NoAction
+        };
+    }
+#pragma warning restore CS0618 // Type or member is obsolete
 
     public void LinkColumns(string columnName, string linkedName)
     {
