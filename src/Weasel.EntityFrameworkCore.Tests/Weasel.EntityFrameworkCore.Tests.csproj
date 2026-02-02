@@ -7,8 +7,13 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
         <PackageReference Include="NSubstitute" Version="5.3.0" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
+        <PackageReference Include="Oracle.EntityFrameworkCore" Version="9.23.60" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0-preview.2.efcore.9.0.0" />
         <PackageReference Include="Shouldly" Version="4.3.0" />
         <PackageReference Include="xunit" Version="2.9.3" />
         <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
@@ -23,6 +28,10 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Weasel.EntityFrameworkCore\Weasel.EntityFrameworkCore.csproj" />
+        <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
+        <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
+        <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
+        <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" />
     </ItemGroup>
 
 </Project>
