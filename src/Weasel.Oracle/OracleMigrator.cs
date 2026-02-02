@@ -30,6 +30,7 @@ public class OracleMigrator: Migrator
         foreach (var schemaName in schemaNames)
         {
             writer.WriteLine(CreateSchemaStatementFor(schemaName));
+            writer.WriteLine("/"); // SQL*Plus script terminator for PL/SQL blocks
         }
     }
 
@@ -108,6 +109,7 @@ public class OracleMigrator: Migrator
 
     public static string CreateSchemaStatementFor(string schemaName)
     {
+        // Note: Do not include "/" terminator - it's only for SQL*Plus scripts, not programmatic execution
         return $@"
 DECLARE
     v_count NUMBER;
@@ -117,9 +119,7 @@ BEGIN
         EXECUTE IMMEDIATE 'CREATE USER {schemaName} IDENTIFIED BY ""temp_password"" QUOTA UNLIMITED ON USERS';
         EXECUTE IMMEDIATE 'GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE VIEW TO {schemaName}';
     END IF;
-END;
-/
-";
+END;";
     }
 
     public override ITable CreateTable(DbObjectName identifier)
