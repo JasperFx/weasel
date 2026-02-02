@@ -38,7 +38,7 @@ public interface ISchemaObject
     /// <summary>
     ///     Name of this database object
     /// </summary>
-    DbObjectName Identifier { get; }
+    public DbObjectName Identifier { get; }
 
     /// <summary>
     ///     Write the SQL statement(s) to create this object in a database

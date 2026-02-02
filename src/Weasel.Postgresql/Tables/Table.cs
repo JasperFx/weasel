@@ -7,7 +7,7 @@ using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public partial class Table: ISchemaObjectWithPostProcessing
+public partial class Table: ISchemaObjectWithPostProcessing, ITable
 {
     private readonly List<TableColumn> _columns = new();
 
@@ -22,6 +22,32 @@ public partial class Table: ISchemaObjectWithPostProcessing
 
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
     {
+    }
+
+    ITableColumn ITable.AddColumn(string name, string columnType)
+    {
+        var expression = AddColumn(name, columnType);
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddColumn(string name, Type dotnetType)
+    {
+        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+        var expression = AddColumn(name, type);
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddPrimaryKeyColumn(string name, string columnType)
+    {
+        var expression = AddColumn(name, columnType).AsPrimaryKey();
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
+    {
+        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+        var expression = AddColumn(name, type).AsPrimaryKey();
+        return expression.Column;
     }
 
     /// <summary>
