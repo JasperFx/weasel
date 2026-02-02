@@ -15,6 +15,18 @@ GRANT CREATE SEQUENCE TO weasel WITH ADMIN OPTION;
 GRANT CREATE PROCEDURE TO weasel WITH ADMIN OPTION;
 GRANT CREATE VIEW TO weasel WITH ADMIN OPTION;
 
+-- Grant ability to create/drop/alter objects in ANY schema (needed for cross-schema testing)
+GRANT CREATE ANY TABLE TO weasel;
+GRANT DROP ANY TABLE TO weasel;
+GRANT ALTER ANY TABLE TO weasel;
+GRANT CREATE ANY INDEX TO weasel;
+GRANT DROP ANY INDEX TO weasel;
+GRANT CREATE ANY SEQUENCE TO weasel;
+GRANT DROP ANY SEQUENCE TO weasel;
+GRANT CREATE ANY PROCEDURE TO weasel;
+GRANT DROP ANY PROCEDURE TO weasel;
+GRANT EXECUTE ANY PROCEDURE TO weasel;
+
 -- Grant unlimited tablespace so weasel can allocate space to schemas it creates
 GRANT UNLIMITED TABLESPACE TO weasel WITH ADMIN OPTION;
 
