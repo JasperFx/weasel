@@ -49,6 +49,15 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
+    - name: Grant Oracle permissions
+      run: |
+        # Find the Oracle container ID
+        ORACLE_CONTAINER=$(docker ps --filter "ancestor=${{ matrix.oracle-image }}" --format "{{.ID}}")
+        # Copy the init script to the container
+        docker cp docker/oracle/init-weasel-permissions.sql $ORACLE_CONTAINER:/tmp/init-weasel-permissions.sql
+        # Execute the script as SYSTEM user
+        docker exec $ORACLE_CONTAINER sqlplus -s SYSTEM/${{ env.db_pwd }}@//localhost:1521/FREEPDB1 @/tmp/init-weasel-permissions.sql
+
     - name: Install .NET
       uses: actions/setup-dotnet@v5
       with:
