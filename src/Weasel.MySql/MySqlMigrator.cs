@@ -120,4 +120,9 @@ public class MySqlMigrator: Migrator
     {
         return $"CREATE DATABASE IF NOT EXISTS `{databaseName}`;";
     }
+
+    public override ITable CreateTable(DbObjectName identifier)
+    {
+        return new Tables.Table(identifier);
+    }
 }

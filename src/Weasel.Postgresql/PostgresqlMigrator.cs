@@ -169,4 +169,9 @@ $$;
 
         throw new PostgresqlIdentifierTooLongException(NameDataLength, name);
     }
+
+    public override ITable CreateTable(DbObjectName identifier)
+    {
+        return new Tables.Table(identifier);
+    }
 }

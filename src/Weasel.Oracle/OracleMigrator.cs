@@ -119,4 +119,9 @@ END;
 /
 ";
     }
+
+    public override ITable CreateTable(DbObjectName identifier)
+    {
+        return new Tables.Table(identifier);
+    }
 }
