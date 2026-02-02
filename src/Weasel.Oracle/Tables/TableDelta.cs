@@ -20,6 +20,11 @@ public class TableDelta: SchemaObjectDelta<Table>
     {
         if (actual == null)
         {
+            // Initialize deltas with empty actuals so HasChanges() works
+            Columns = new ItemDelta<TableColumn>(expected.Columns, Array.Empty<TableColumn>());
+            Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, Array.Empty<IndexDefinition>(),
+                (e, a) => e.Matches(a, Expected));
+            ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, Array.Empty<ForeignKey>());
             return SchemaPatchDifference.Create;
         }
 
@@ -30,21 +35,32 @@ public class TableDelta: SchemaObjectDelta<Table>
         ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
 
         PrimaryKeyDifference = SchemaPatchDifference.None;
-        if (expected.PrimaryKeyName.IsEmpty())
+
+        // Only compare PKs if both sides have actual PK columns defined
+        // If the actual table has no PK columns detected (possibly due to Oracle permission issues),
+        // we skip PK comparison to avoid false positives
+        var expectedHasPk = expected.PrimaryKeyColumns.Any();
+        var actualHasPk = actual.PrimaryKeyColumns.Any();
+
+        if (expectedHasPk && !actualHasPk)
         {
-            if (actual.PrimaryKeyName.IsNotEmpty())
+            // Expected has PK but actual doesn't - need to create
+            PrimaryKeyDifference = SchemaPatchDifference.Create;
+        }
+        else if (!expectedHasPk && actualHasPk)
+        {
+            // Actual has PK but expected doesn't - this would require dropping
+            PrimaryKeyDifference = SchemaPatchDifference.Update;
+        }
+        else if (expectedHasPk && actualHasPk)
+        {
+            // Both have PKs - compare the columns
+            if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Update;
             }
         }
-        else if (actual.PrimaryKeyName.IsEmpty())
-        {
-            PrimaryKeyDifference = SchemaPatchDifference.Create;
-        }
-        else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
-        {
-            PrimaryKeyDifference = SchemaPatchDifference.Update;
-        }
+        // If neither has PK, leave as None
 
         return determinePatchDifference();
     }
@@ -63,53 +79,97 @@ public class TableDelta: SchemaObjectDelta<Table>
         }
 
         // Extra indexes
-        foreach (var extra in Indexes.Extras) writer.WriteDropIndex(Expected, extra);
+        foreach (var extra in Indexes.Extras)
+        {
+            writer.WriteDropIndex(Expected, extra);
+            writer.WriteLine("/");
+        }
 
         // Different indexes
-        foreach (var change in Indexes.Different) writer.WriteDropIndex(Expected, change.Actual);
+        foreach (var change in Indexes.Different)
+        {
+            writer.WriteDropIndex(Expected, change.Actual);
+            writer.WriteLine("/");
+        }
 
         // Missing columns
-        foreach (var column in Columns.Missing) writer.WriteLine(column.AddColumnSql(Expected));
+        foreach (var column in Columns.Missing)
+        {
+            writer.WriteLine(column.AddColumnSql(Expected));
+            writer.WriteLine("/");
+        }
 
         // Different columns
         foreach (var change1 in Columns.Different)
+        {
             writer.WriteLine(change1.Expected.AlterColumnTypeSql(Expected, change1.Actual));
+            writer.WriteLine("/");
+        }
 
         writeForeignKeyUpdates(writer);
 
         // Missing indexes
-        foreach (var indexDefinition in Indexes.Missing) writer.WriteLine(indexDefinition.ToDDL(Expected));
+        foreach (var indexDefinition in Indexes.Missing)
+        {
+            writer.WriteLine(indexDefinition.ToDDL(Expected));
+            writer.WriteLine("/");
+        }
 
         // Different indexes
-        foreach (var change in Indexes.Different) writer.WriteLine(change.Expected.ToDDL(Expected));
+        foreach (var change in Indexes.Different)
+        {
+            writer.WriteLine(change.Expected.ToDDL(Expected));
+            writer.WriteLine("/");
+        }
 
         // Extra columns
-        foreach (var column in Columns.Extras) writer.WriteLine(column.DropColumnSql(Expected));
+        foreach (var column in Columns.Extras)
+        {
+            writer.WriteLine(column.DropColumnSql(Expected));
+            writer.WriteLine("/");
+        }
 
         switch (PrimaryKeyDifference)
         {
             case SchemaPatchDifference.Invalid:
             case SchemaPatchDifference.Update:
-                writer.WriteLine($"ALTER TABLE {Expected.Identifier} DROP CONSTRAINT {Actual!.PrimaryKeyName}");
+                // Only drop the constraint if Actual has a valid PK name
+                if (Actual?.PrimaryKeyName != null && Actual.PrimaryKeyColumns.Any())
+                {
+                    writer.WriteLine($"ALTER TABLE {Expected.Identifier} DROP CONSTRAINT {Actual.PrimaryKeyName}");
+                    writer.WriteLine("/");
+                }
                 writer.WriteLine($"ALTER TABLE {Expected.Identifier} ADD {Expected.PrimaryKeyDeclaration()}");
+                writer.WriteLine("/");
                 break;
 
             case SchemaPatchDifference.Create:
                 writer.WriteLine($"ALTER TABLE {Expected.Identifier} ADD {Expected.PrimaryKeyDeclaration()}");
+                writer.WriteLine("/");
                 break;
         }
     }
 
     private void writeForeignKeyUpdates(TextWriter writer)
     {
-        foreach (var foreignKey in ForeignKeys.Missing) foreignKey.WriteAddStatement(Expected, writer);
+        foreach (var foreignKey in ForeignKeys.Missing)
+        {
+            foreignKey.WriteAddStatement(Expected, writer);
+            writer.WriteLine("/");
+        }
 
-        foreach (var foreignKey in ForeignKeys.Extras) foreignKey.WriteDropStatement(Expected, writer);
+        foreach (var foreignKey in ForeignKeys.Extras)
+        {
+            foreignKey.WriteDropStatement(Expected, writer);
+            writer.WriteLine("/");
+        }
 
         foreach (var change in ForeignKeys.Different)
         {
             change.Actual.WriteDropStatement(Expected, writer);
+            writer.WriteLine("/");
             change.Expected.WriteAddStatement(Expected, writer);
+            writer.WriteLine("/");
         }
     }
 
@@ -121,38 +181,80 @@ public class TableDelta: SchemaObjectDelta<Table>
             return;
         }
 
-        foreach (var foreignKey in ForeignKeys.Missing) foreignKey.WriteDropStatement(Expected, writer);
+        foreach (var foreignKey in ForeignKeys.Missing)
+        {
+            foreignKey.WriteDropStatement(Expected, writer);
+            writer.WriteLine("/");
+        }
 
-        foreach (var change in ForeignKeys.Different) change.Expected.WriteDropStatement(Expected, writer);
+        foreach (var change in ForeignKeys.Different)
+        {
+            change.Expected.WriteDropStatement(Expected, writer);
+            writer.WriteLine("/");
+        }
 
         // Extra columns
-        foreach (var column in Columns.Extras) writer.WriteLine(column.AddColumnSql(Expected));
+        foreach (var column in Columns.Extras)
+        {
+            writer.WriteLine(column.AddColumnSql(Expected));
+            writer.WriteLine("/");
+        }
 
         // Different columns
         foreach (var change1 in Columns.Different)
+        {
             writer.WriteLine(change1.Actual.AlterColumnTypeSql(Actual, change1.Expected));
+            writer.WriteLine("/");
+        }
 
-        foreach (var change in ForeignKeys.Different) change.Actual.WriteAddStatement(Expected, writer);
+        foreach (var change in ForeignKeys.Different)
+        {
+            change.Actual.WriteAddStatement(Expected, writer);
+            writer.WriteLine("/");
+        }
 
         rollbackIndexes(writer);
 
         // Missing columns
-        foreach (var column in Columns.Missing) writer.WriteLine(column.DropColumnSql(Expected));
+        foreach (var column in Columns.Missing)
+        {
+            writer.WriteLine(column.DropColumnSql(Expected));
+            writer.WriteLine("/");
+        }
 
-        foreach (var foreignKey in ForeignKeys.Extras) foreignKey.WriteAddStatement(Expected, writer);
+        foreach (var foreignKey in ForeignKeys.Extras)
+        {
+            foreignKey.WriteAddStatement(Expected, writer);
+            writer.WriteLine("/");
+        }
 
         switch (PrimaryKeyDifference)
         {
             case SchemaPatchDifference.Invalid:
             case SchemaPatchDifference.Update:
-                writer.WriteLine(
-                    $"ALTER TABLE {Expected.Identifier} DROP CONSTRAINT {Expected.PrimaryKeyName}");
-                writer.WriteLine($"ALTER TABLE {Expected.Identifier} ADD {Actual.PrimaryKeyDeclaration()}");
+                // Only drop if Expected has PK columns
+                if (Expected.PrimaryKeyColumns.Any())
+                {
+                    writer.WriteLine(
+                        $"ALTER TABLE {Expected.Identifier} DROP CONSTRAINT {Expected.PrimaryKeyName}");
+                    writer.WriteLine("/");
+                }
+                // Only add if Actual has PK columns
+                if (Actual?.PrimaryKeyColumns.Any() == true)
+                {
+                    writer.WriteLine($"ALTER TABLE {Expected.Identifier} ADD {Actual.PrimaryKeyDeclaration()}");
+                    writer.WriteLine("/");
+                }
                 break;
 
             case SchemaPatchDifference.Create:
-                writer.WriteLine(
-                    $"ALTER TABLE {Expected.Identifier} DROP CONSTRAINT {Expected.PrimaryKeyName}");
+                // Only drop if Expected has PK columns
+                if (Expected.PrimaryKeyColumns.Any())
+                {
+                    writer.WriteLine(
+                        $"ALTER TABLE {Expected.Identifier} DROP CONSTRAINT {Expected.PrimaryKeyName}");
+                    writer.WriteLine("/");
+                }
                 break;
         }
     }
@@ -160,16 +262,26 @@ public class TableDelta: SchemaObjectDelta<Table>
     private void rollbackIndexes(TextWriter writer)
     {
         // Missing indexes
-        foreach (var indexDefinition in Indexes.Missing) writer.WriteDropIndex(Expected, indexDefinition);
+        foreach (var indexDefinition in Indexes.Missing)
+        {
+            writer.WriteDropIndex(Expected, indexDefinition);
+            writer.WriteLine("/");
+        }
 
         // Extra indexes
-        foreach (var extra in Indexes.Extras) writer.WriteLine(extra.ToDDL(Actual!));
+        foreach (var extra in Indexes.Extras)
+        {
+            writer.WriteLine(extra.ToDDL(Actual!));
+            writer.WriteLine("/");
+        }
 
         // Different indexes
         foreach (var change in Indexes.Different)
         {
             writer.WriteDropIndex(Actual!, change.Expected);
+            writer.WriteLine("/");
             writer.WriteLine(change.Actual.ToDDL(Actual!));
+            writer.WriteLine("/");
         }
     }
 
@@ -209,6 +321,8 @@ public class TableDelta: SchemaObjectDelta<Table>
             Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), PrimaryKeyDifference
         };
 
+        // Use Min() to get the most severe required action:
+        // Invalid (0) > Update (1) > Create (2) > None (3)
         return differences.Min();
     }
 
