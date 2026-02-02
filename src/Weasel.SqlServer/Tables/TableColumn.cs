@@ -1,5 +1,6 @@
 using JasperFx.Core;
 using JasperFx.Core.Reflection;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
 
@@ -8,7 +9,7 @@ public interface INamed
     string Name { get; }
 }
 
-public class TableColumn: INamed
+public class TableColumn: INamed, ITableColumn
 {
     public TableColumn(string name, string type)
     {
