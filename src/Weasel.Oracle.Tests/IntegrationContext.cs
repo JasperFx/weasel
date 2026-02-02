@@ -1,0 +1,66 @@
+using Oracle.ManagedDataAccess.Client;
+using Weasel.Core;
+using Xunit;
+
+namespace Weasel.Oracle.Tests;
+
+[Collection("integration")]
+public abstract class IntegrationContext: IDisposable, IAsyncLifetime
+{
+    private readonly string _schemaName;
+    protected readonly OracleConnection theConnection = new OracleConnection(ConnectionSource.ConnectionString);
+
+    protected IntegrationContext(string schemaName)
+    {
+        _schemaName = schemaName.ToUpperInvariant();
+    }
+
+    public void Dispose()
+    {
+        theConnection?.Dispose();
+    }
+
+    protected async Task ResetSchema()
+    {
+        await theConnection.OpenAsync();
+
+        await theConnection.ResetSchemaAsync(_schemaName);
+    }
+
+    protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
+    {
+        var rules = new OracleMigrator();
+        var writer = new StringWriter();
+        schemaObject.WriteCreateStatement(rules, writer);
+
+        try
+        {
+            await theConnection.CreateCommand(writer.ToString())
+                .ExecuteNonQueryAsync();
+        }
+        catch (Exception e)
+        {
+            throw new Exception("DDL Execution Failure.\n" + writer.ToString(), e);
+        }
+    }
+
+    protected Task DropSchemaObjectInDatabase(ISchemaObject schemaObject)
+    {
+        var rules = new OracleMigrator();
+        var writer = new StringWriter();
+        schemaObject.WriteDropStatement(rules, writer);
+
+        return theConnection.CreateCommand(writer.ToString())
+            .ExecuteNonQueryAsync();
+    }
+
+    public virtual Task InitializeAsync()
+    {
+        return Task.CompletedTask;
+    }
+
+    public virtual Task DisposeAsync()
+    {
+        return Task.CompletedTask;
+    }
+}

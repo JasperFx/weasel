@@ -17,4 +17,12 @@ services:
           - "ACCEPT_EULA=Y"
           - "SA_PASSWORD=P@55w0rd"
           - "MSSQL_PID=Developer"
+  oracle:
+      image: "gvenzl/oracle-free:23-slim"
+      ports:
+          - "1521:1521"
+      environment:
+          - "ORACLE_PASSWORD=P@55w0rd"
+          - "APP_USER=weasel"
+          - "APP_USER_PASSWORD=P@55w0rd"
 
