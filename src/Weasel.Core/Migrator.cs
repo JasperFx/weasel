@@ -27,6 +27,8 @@ public abstract class Migrator
 
     public abstract bool MatchesConnection(DbConnection connection);
 
+    public abstract ITable CreateTable(DbObjectName identifier);
+
     /// <summary>
     ///     Should all generated DDL files be written with transactional semantics
     ///     so that everything succeeds or everything fails together
