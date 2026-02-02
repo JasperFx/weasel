@@ -34,6 +34,8 @@ $$;
         return connection is NpgsqlConnection;
     }
 
+    public override IDatabaseProvider Provider => PostgresqlProvider.Instance;
+
     /// <summary>
     ///     Write out a templated SQL script with all rules
     /// </summary>
