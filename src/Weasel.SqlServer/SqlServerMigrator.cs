@@ -1,6 +1,7 @@
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
+using Microsoft.Data.SqlClient;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 
@@ -17,6 +18,11 @@ $$;
 
     public SqlServerMigrator(): base(SqlServerProvider.Instance.DefaultDatabaseSchemaName)
     {
+    }
+
+    public override bool MatchesConnection(DbConnection connection)
+    {
+        return connection is SqlConnection;
     }
 
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)

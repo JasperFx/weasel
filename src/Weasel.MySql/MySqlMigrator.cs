@@ -1,6 +1,7 @@
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
+using MySqlConnector;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 
@@ -10,6 +11,11 @@ public class MySqlMigrator: Migrator
 {
     public MySqlMigrator(): base(MySqlProvider.Instance.DefaultDatabaseSchemaName)
     {
+    }
+
+    public override bool MatchesConnection(DbConnection connection)
+    {
+        return connection is MySqlConnection;
     }
 
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
