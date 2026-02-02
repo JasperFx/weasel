@@ -1,5 +1,6 @@
 using System.Text;
 using JasperFx.Core;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
 

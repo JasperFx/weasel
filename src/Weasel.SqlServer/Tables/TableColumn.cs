@@ -4,12 +4,7 @@ using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
 
-public interface INamed
-{
-    string Name { get; }
-}
-
-public class TableColumn: INamed, ITableColumn
+public class TableColumn: ITableColumn
 {
     public TableColumn(string name, string type)
     {
