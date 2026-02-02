@@ -32,6 +32,11 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
     public abstract DatabaseDescriptor Describe();
 
+    public virtual ITable CreateTable(DbObjectName identifier)
+    {
+        throw new NotImplementedException();
+    }
+
     public DatabaseBase(
         IMigrationLogger logger,
         AutoCreate autoCreate,
