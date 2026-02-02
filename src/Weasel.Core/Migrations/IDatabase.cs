@@ -12,6 +12,11 @@ public interface IDatabase
 {
     DatabaseDescriptor Describe();
 
+    ITable CreateTable(DbObjectName identifier)
+    {
+        throw new NotImplementedException();
+    }
+
     AutoCreate AutoCreate { get; }
 
     /// <summary>
