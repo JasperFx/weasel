@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.MySql.Tables;
 using Xunit;
 
