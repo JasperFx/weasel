@@ -50,6 +50,20 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         return expression.Column;
     }
 
+    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
+
+    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
+    {
+        var fk = new ForeignKey(name)
+        {
+            LinkedTable = linkedTable,
+            ColumnNames = columnNames,
+            LinkedNames = linkedColumnNames
+        };
+        ForeignKeys.Add(fk);
+        return fk;
+    }
+
     /// <summary>
     ///     Default is false. If true, Weasel assumes that *something* else like pg_partman is controlling
     ///     the database partitions outside of Weasel control

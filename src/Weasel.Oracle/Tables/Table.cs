@@ -69,6 +69,20 @@ public partial class Table: ITable
         return expression.Column;
     }
 
+    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
+
+    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
+    {
+        var fk = new ForeignKey(name)
+        {
+            LinkedTable = linkedTable,
+            ColumnNames = columnNames,
+            LinkedNames = linkedColumnNames
+        };
+        ForeignKeys.Add(fk);
+        return fk;
+    }
+
     public IReadOnlyList<TableColumn> Columns => _columns;
 
     public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();

@@ -106,6 +106,56 @@ public static class DbContextExtensions
             }
         }
 
+        // Add foreign keys
+        foreach (var foreignKey in entityType.GetForeignKeys())
+        {
+            var principalEntityType = foreignKey.PrincipalEntityType;
+            var principalTableName = principalEntityType.GetTableName();
+            var principalSchemaName = principalEntityType.GetSchema() ?? migrator.DefaultSchemaName;
+
+            if (principalTableName == null) continue;
+
+            var principalIdentifier = migrator.Provider.Parse(principalSchemaName, principalTableName);
+            var constraintName = foreignKey.GetConstraintName(
+                storeObjectIdentifier,
+                StoreObjectIdentifier.Table(principalTableName, principalSchemaName));
+
+            if (constraintName == null) continue;
+
+            var columnNames = foreignKey.Properties
+                .Select(p => p.GetColumnName(storeObjectIdentifier))
+                .Where(n => n != null)
+                .Cast<string>()
+                .ToArray();
+
+            var principalStoreObjectIdentifier = StoreObjectIdentifier.Table(principalTableName, principalSchemaName);
+            var linkedColumnNames = foreignKey.PrincipalKey.Properties
+                .Select(p => p.GetColumnName(principalStoreObjectIdentifier))
+                .Where(n => n != null)
+                .Cast<string>()
+                .ToArray();
+
+            if (columnNames.Length == 0 || linkedColumnNames.Length == 0) continue;
+
+            var fk = table.AddForeignKey(constraintName, principalIdentifier, columnNames, linkedColumnNames);
+            fk.DeleteAction = MapDeleteBehavior(foreignKey.DeleteBehavior);
+        }
+
         return table;
+    }
+
+    private static CascadeAction MapDeleteBehavior(DeleteBehavior deleteBehavior)
+    {
+        return deleteBehavior switch
+        {
+            DeleteBehavior.Cascade => CascadeAction.Cascade,
+            DeleteBehavior.SetNull => CascadeAction.SetNull,
+            DeleteBehavior.Restrict => CascadeAction.Restrict,
+            DeleteBehavior.NoAction => CascadeAction.NoAction,
+            DeleteBehavior.ClientSetNull => CascadeAction.SetNull,
+            DeleteBehavior.ClientCascade => CascadeAction.Cascade,
+            DeleteBehavior.ClientNoAction => CascadeAction.NoAction,
+            _ => CascadeAction.NoAction
+        };
     }
 }
