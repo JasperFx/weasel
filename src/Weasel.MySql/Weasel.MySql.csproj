@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>MySql support for Weasel</Description>
+    <Description>MySql Support for Weasel</Description>
     <PackageTags>mysql;ddl;schema;migration</PackageTags>
   </PropertyGroup>
 
