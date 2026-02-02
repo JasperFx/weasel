@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Xunit;
 
 namespace Weasel.Oracle.Tests;

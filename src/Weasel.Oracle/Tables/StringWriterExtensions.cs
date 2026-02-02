@@ -1,3 +1,5 @@
+using Weasel.Core;
+
 namespace Weasel.Oracle.Tables;
 
 internal static class StringWriterExtensions
