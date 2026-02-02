@@ -25,6 +25,8 @@ services:
           - "ORACLE_PASSWORD=P@55w0rd"
           - "APP_USER=weasel"
           - "APP_USER_PASSWORD=P@55w0rd"
+      volumes:
+          - ./docker/oracle:/container-entrypoint-initdb.d
   mysql:
       image: "mysql:8.0"
       ports:

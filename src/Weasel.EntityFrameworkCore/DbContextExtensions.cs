@@ -77,74 +77,86 @@ public static class DbContextExtensions
         // Add columns from properties
         foreach (var property in entityType.GetProperties())
         {
-            var columnName = property.GetColumnName(storeObjectIdentifier);
-            if (columnName == null) continue;
-
-            var columnType = property.GetColumnType(storeObjectIdentifier);
-            var isPrimaryKey = primaryKeyPropertyNames.Contains(property.Name);
-
-            ITableColumn column;
-            if (columnType != null)
-            {
-                column = isPrimaryKey
-                    ? table.AddPrimaryKeyColumn(columnName, columnType)
-                    : table.AddColumn(columnName, columnType);
-            }
-            else
-            {
-                column = isPrimaryKey
-                    ? table.AddPrimaryKeyColumn(columnName, property.ClrType)
-                    : table.AddColumn(columnName, property.ClrType);
-            }
-
-            column.AllowNulls = property.IsNullable;
-
-            var defaultValueSql = property.GetDefaultValueSql(storeObjectIdentifier);
-            if (defaultValueSql != null)
-            {
-                column.DefaultExpression = defaultValueSql;
-            }
+            mapColumn(property, storeObjectIdentifier, primaryKeyPropertyNames, table);
         }
 
         // Add foreign keys
         foreach (var foreignKey in entityType.GetForeignKeys())
         {
-            var principalEntityType = foreignKey.PrincipalEntityType;
-            var principalTableName = principalEntityType.GetTableName();
-            var principalSchemaName = principalEntityType.GetSchema() ?? migrator.DefaultSchemaName;
-
-            if (principalTableName == null) continue;
-
-            var principalIdentifier = migrator.Provider.Parse(principalSchemaName, principalTableName);
-            var constraintName = foreignKey.GetConstraintName(
-                storeObjectIdentifier,
-                StoreObjectIdentifier.Table(principalTableName, principalSchemaName));
-
-            if (constraintName == null) continue;
-
-            var columnNames = foreignKey.Properties
-                .Select(p => p.GetColumnName(storeObjectIdentifier))
-                .Where(n => n != null)
-                .Cast<string>()
-                .ToArray();
-
-            var principalStoreObjectIdentifier = StoreObjectIdentifier.Table(principalTableName, principalSchemaName);
-            var linkedColumnNames = foreignKey.PrincipalKey.Properties
-                .Select(p => p.GetColumnName(principalStoreObjectIdentifier))
-                .Where(n => n != null)
-                .Cast<string>()
-                .ToArray();
-
-            if (columnNames.Length == 0 || linkedColumnNames.Length == 0) continue;
-
-            var fk = table.AddForeignKey(constraintName, principalIdentifier, columnNames, linkedColumnNames);
-            fk.DeleteAction = MapDeleteBehavior(foreignKey.DeleteBehavior);
+            mapForeignKey(migrator, foreignKey, storeObjectIdentifier, table);
         }
 
         return table;
     }
 
-    private static CascadeAction MapDeleteBehavior(DeleteBehavior deleteBehavior)
+    private static void mapForeignKey(Migrator migrator, IForeignKey foreignKey,
+        StoreObjectIdentifier storeObjectIdentifier, ITable table)
+    {
+        var principalEntityType = foreignKey.PrincipalEntityType;
+        var principalTableName = principalEntityType.GetTableName();
+        var principalSchemaName = principalEntityType.GetSchema() ?? migrator.DefaultSchemaName;
+
+        if (principalTableName == null) return;
+
+        var principalIdentifier = migrator.Provider.Parse(principalSchemaName, principalTableName);
+        var constraintName = foreignKey.GetConstraintName(
+            storeObjectIdentifier,
+            StoreObjectIdentifier.Table(principalTableName, principalSchemaName));
+
+        if (constraintName == null) return;
+
+        var columnNames = foreignKey.Properties
+            .Select(p => p.GetColumnName(storeObjectIdentifier))
+            .Where(n => n != null)
+            .Cast<string>()
+            .ToArray();
+
+        var principalStoreObjectIdentifier = StoreObjectIdentifier.Table(principalTableName, principalSchemaName);
+        var linkedColumnNames = foreignKey.PrincipalKey.Properties
+            .Select(p => p.GetColumnName(principalStoreObjectIdentifier))
+            .Where(n => n != null)
+            .Cast<string>()
+            .ToArray();
+
+        if (columnNames.Length == 0 || linkedColumnNames.Length == 0) return;
+
+        var fk = table.AddForeignKey(constraintName, principalIdentifier, columnNames, linkedColumnNames);
+        fk.DeleteAction = mapDeleteBehavior(foreignKey.DeleteBehavior);
+    }
+
+    private static void mapColumn(IProperty property, StoreObjectIdentifier storeObjectIdentifier,
+        HashSet<string> primaryKeyPropertyNames, ITable table)
+    {
+        var columnName = property.GetColumnName(storeObjectIdentifier);
+        if (columnName == null) return;
+
+        var columnType = property.GetColumnType(storeObjectIdentifier);
+        var isPrimaryKey = primaryKeyPropertyNames.Contains(property.Name);
+
+        ITableColumn column;
+        if (columnType != null)
+        {
+            column = isPrimaryKey
+                ? table.AddPrimaryKeyColumn(columnName, columnType)
+                : table.AddColumn(columnName, columnType);
+        }
+        else
+        {
+            column = isPrimaryKey
+                ? table.AddPrimaryKeyColumn(columnName, property.ClrType)
+                : table.AddColumn(columnName, property.ClrType);
+        }
+
+        column.AllowNulls = property.IsNullable;
+
+        var defaultValueSql = property.GetDefaultValueSql(storeObjectIdentifier);
+        if (defaultValueSql != null)
+        {
+            column.DefaultExpression = defaultValueSql;
+        }
+    }
+
+    private static CascadeAction mapDeleteBehavior(DeleteBehavior deleteBehavior)
     {
         return deleteBehavior switch
         {
