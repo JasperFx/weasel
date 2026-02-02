@@ -83,7 +83,9 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
 
     public string ConvertSynonyms(string type)
     {
-        switch (type.ToUpperInvariant())
+        var upper = type.ToUpperInvariant();
+
+        switch (upper)
         {
             case "INT":
             case "INTEGER":
@@ -105,7 +107,14 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
                 return "BINARY_DOUBLE";
         }
 
-        return type.ToUpperInvariant();
+        // Handle TIMESTAMP variants - normalize by stripping precision like (6)
+        if (upper.StartsWith("TIMESTAMP"))
+        {
+            var normalized = System.Text.RegularExpressions.Regex.Replace(upper, @"\(\d+\)", "");
+            return normalized.Replace("  ", " ");
+        }
+
+        return upper;
     }
 
     protected override bool determineParameterType(Type type, out OracleDbType dbType)

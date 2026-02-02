@@ -37,7 +37,7 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
 
         // Oracle can only execute one statement at a time
         // Split by "/" which is the Oracle statement separator
-        var statements = sql.Split(new[] { "\n/\n", "\n/" }, StringSplitOptions.RemoveEmptyEntries)
+        var statements = sql.Split(new[] { "\n/\n", "\n/", "/\n" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(s => s.Trim())
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToArray();
@@ -66,7 +66,7 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
 
         // Oracle can only execute one statement at a time
         // Split by "/" which is the Oracle statement separator
-        var statements = sql.Split(new[] { "\n/\n", "\n/" }, StringSplitOptions.RemoveEmptyEntries)
+        var statements = sql.Split(new[] { "\n/\n", "\n/", "/\n" }, StringSplitOptions.RemoveEmptyEntries)
             .Select(s => s.Trim())
             .Where(s => !string.IsNullOrWhiteSpace(s))
             .ToArray();

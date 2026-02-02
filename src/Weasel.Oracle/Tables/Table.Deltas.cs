@@ -6,9 +6,14 @@ namespace Weasel.Oracle.Tables;
 
 public partial class Table
 {
+    /// <summary>
+    /// Creates a delta from a DbDataReader. Oracle limitation: this only reads columns,
+    /// not PKs, FKs, or indexes, since Oracle doesn't support multiple result sets.
+    /// For full schema detection, use FindDeltaAsync instead.
+    /// </summary>
     public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        var existing = await readExistingAsync(reader, ct).ConfigureAwait(false);
+        var existing = await ReadExistingFromReaderAsync(reader, ct).ConfigureAwait(false);
         return new TableDelta(this, existing);
     }
 
