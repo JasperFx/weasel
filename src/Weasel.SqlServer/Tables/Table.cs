@@ -2,6 +2,7 @@ using System.Globalization;
 using JasperFx.Core;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;
+using Weasel.Core.Tables;
 
 namespace Weasel.SqlServer.Tables;
 
@@ -21,28 +22,18 @@ public enum PartitionStrategy
     //List
 }
 
-public partial class Table: ISchemaObject
+public partial class Table: TableBase<TableColumn, ForeignKey, IndexDefinition>, ISchemaObject
 {
-    private readonly List<TableColumn> _columns = new();
-
-    private string? _primaryKeyName;
-
-    public Table(DbObjectName name)
+    public Table(DbObjectName name): base(name)
     {
-        Identifier = name ?? throw new ArgumentNullException(nameof(name));
     }
 
     public Table(string tableName): this(DbObjectName.Parse(SqlServerProvider.Instance, tableName))
     {
     }
 
-    public IReadOnlyList<TableColumn> Columns => _columns;
-
-    public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
-    public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
-
-    public IReadOnlyList<string> PrimaryKeyColumns =>
-        _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
+    public override IReadOnlyList<string> PrimaryKeyColumns =>
+        Columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
 
     public IList<string> PartitionExpressions { get; } = new List<string>();
 
@@ -51,14 +42,6 @@ public partial class Table: ISchemaObject
     ///     PARTITION strategy for this table
     /// </summary>
     public PartitionStrategy PartitionStrategy { get; set; } = PartitionStrategy.None;
-
-    public string PrimaryKeyName
-    {
-        get => _primaryKeyName.IsNotEmpty()
-            ? _primaryKeyName
-            : $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
-        set => _primaryKeyName = value;
-    }
 
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
@@ -161,10 +144,7 @@ public partial class Table: ISchemaObject
         writer.WriteLine($"DROP TABLE IF EXISTS {Identifier};");
     }
 
-    public DbObjectName Identifier { get; }
-
-
-    public IEnumerable<DbObjectName> AllNames()
+    public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
 
@@ -178,7 +158,7 @@ public partial class Table: ISchemaObject
     ///     DDL rules. This is useful for quick diagnostics
     /// </summary>
     /// <returns></returns>
-    public string ToBasicCreateTableSql()
+    public override string ToBasicCreateTableSql()
     {
         var writer = new StringWriter();
         var rules = new SqlServerMigrator { Formatting = SqlFormatting.Concise };
@@ -187,31 +167,9 @@ public partial class Table: ISchemaObject
         return writer.ToString();
     }
 
-
-    internal string PrimaryKeyDeclaration()
-    {
-        return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
-    }
-
-    public TableColumn? ColumnFor(string columnName)
-    {
-        return Columns.FirstOrDefault(x => x.Name.EqualsIgnoreCase(columnName));
-    }
-
-
-    public bool HasColumn(string columnName)
-    {
-        return Columns.Any(x => x.Name == columnName);
-    }
-
-    public IndexDefinition? IndexFor(string indexName)
-    {
-        return Indexes.FirstOrDefault(x => x.Name == indexName);
-    }
-
     public ColumnExpression AddColumn(TableColumn column)
     {
-        _columns.Add(column);
+        AddColumnInternal(column);
         column.Parent = this;
 
         return new ColumnExpression(this, column);
@@ -257,22 +215,12 @@ public partial class Table: ISchemaObject
         }
     }
 
-    public void RemoveColumn(string columnName)
-    {
-        _columns.RemoveAll(x => x.Name.EqualsIgnoreCase(columnName));
-    }
-
     public ColumnExpression ModifyColumn(string columnName)
     {
         var column = ColumnFor(columnName) ??
                      throw new ArgumentOutOfRangeException(
                          $"Column '{columnName}' does not exist in table {Identifier}");
         return new ColumnExpression(this, column);
-    }
-
-    public bool HasIndex(string indexName)
-    {
-        return Indexes.Any(x => x.Name == indexName);
     }
 
     public void PartitionByRange(params string[] columnOrExpressions)

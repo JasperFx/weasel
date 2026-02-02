@@ -3,10 +3,40 @@ using System.Collections.Specialized;
 using System.Text;
 using System.Text.RegularExpressions;
 using JasperFx.Core;
+using Weasel.Core;
+using Weasel.Core.Tables;
+using CoreSortOrder = Weasel.Core.Tables.SortOrder;
 
 namespace Weasel.Postgresql.Tables;
 
-public class IndexDefinition: INamed
+/// <summary>
+/// Specifies the index method for PostgreSQL indexes
+/// </summary>
+public enum IndexMethod
+{
+    btree,
+    hash,
+    gist,
+    gin,
+    spgist,
+    brin,
+    custom
+}
+
+/// <summary>
+/// Specifies the null sort order for btree indexes
+/// </summary>
+public enum NullsSortOrder
+{
+    None,
+    First,
+    Last
+}
+
+/// <summary>
+/// PostgreSQL-specific index definition implementation
+/// </summary>
+public class IndexDefinition : IndexDefinitionBase, INamed
 {
     public const string IndexCreationBeginComment = "--WEASEL_INDEX_CREATION_BEGIN";
     public const string IndexCreationEndComment = "--WEASEL_INDEX_CREATION_END";
@@ -22,25 +52,23 @@ public class IndexDefinition: INamed
     private static readonly string[] _reserved_words = { "trim", "lower", "upper" };
     private string? _customIndexMethod;
 
-    private string? _indexName;
     private bool _isUnique;
 
-    public IndexDefinition(string indexName)
+    public IndexDefinition(string indexName) : base(indexName)
     {
-        _indexName = indexName;
     }
 
-    protected IndexDefinition()
+    protected IndexDefinition() : base()
     {
     }
 
     /// <summary>
-    ///     Set the index method using <see cref="IndexMethod" />
+    /// Set the index method using <see cref="IndexMethod" />
     /// </summary>
     public IndexMethod Method { get; set; } = IndexMethod.btree;
 
     /// <summary>
-    ///     Set custom index method not defined in <see cref="IndexMethod" />
+    /// Set custom index method not defined in <see cref="IndexMethod" />
     /// </summary>
     public string? CustomMethod
     {
@@ -53,19 +81,14 @@ public class IndexDefinition: INamed
     }
 
     /// <summary>
-    ///     Set sort order for a btree index column/expression
-    /// </summary>
-    public SortOrder SortOrder { get; set; } = SortOrder.Asc;
-
-    /// <summary>
-    ///     Set the null sort order for a btree index column/expression
+    /// Set the null sort order for a btree index column/expression
     /// </summary>
     public NullsSortOrder NullsSortOrder { get; set; } = NullsSortOrder.None;
 
     /// <summary>
-    ///     Option to create unique index
+    /// Option to create unique index
     /// </summary>
-    public bool IsUnique
+    public override bool IsUnique
     {
         get => _isUnique;
         set
@@ -78,109 +101,88 @@ public class IndexDefinition: INamed
     }
 
     /// <summary>
-    ///     Should unique index consider nulls non distinct.
+    /// Should unique index consider nulls non distinct.
     /// </summary>
     /// <remarks>
-    ///     Requires PostgreSQL version 15
+    /// Requires PostgreSQL version 15
     /// </remarks>
     public bool NullsNotDistinct { get; set; }
 
     /// <summary>
-    ///     Option to build index without taking any locks that prevent concurrent inserts, updates or deletes in table
+    /// Option to build index without taking any locks that prevent concurrent inserts, updates or deletes in table
     /// </summary>
     /// <remarks>
-    ///     From Postgresql 14, you cannot create indexes concurrently within a transaction.
-    ///     Npgsql applies batches of statements automatically as implicit transactions.
-    ///     Thus, concurrent indexes creation or update will only work if you apply them separately.
-    ///     <br/><br/>
-    ///     Read more in:<br/>
-    ///     - https://github.com/npgsql/npgsql/issues/462#issuecomment-925054226<br/>
-    ///     - https://www.migops.com/blog/important-postgresql-14-update-to-avoid-silent-corruption-of-indexes/
+    /// From Postgresql 14, you cannot create indexes concurrently within a transaction.
+    /// Npgsql applies batches of statements automatically as implicit transactions.
+    /// Thus, concurrent indexes creation or update will only work if you apply them separately.
+    /// <br/><br/>
+    /// Read more in:<br/>
+    /// - https://github.com/npgsql/npgsql/issues/462#issuecomment-925054226<br/>
+    /// - https://www.migops.com/blog/important-postgresql-14-update-to-avoid-silent-corruption-of-indexes/
     /// </remarks>
     public bool IsConcurrent { get; set; }
 
     // Define the columns part of the index definition
-    public virtual string[]? Columns { get; set; }
+    public override string[]? Columns { get; set; }
 
     /// <summary>
-    ///     Define the columns part of the include clause
+    /// Define the columns part of the include clause
     /// </summary>
     public virtual string[]? IncludeColumns { get; set; }
 
     /// <summary>
-    ///     Pattern for surrounding the columns. Use a `?` character
-    ///     for the location of the columns, like "? jsonb_path_ops"
+    /// Pattern for surrounding the columns. Use a `?` character
+    /// for the location of the columns, like "? jsonb_path_ops"
     /// </summary>
     public string? Mask { get; set; }
 
     /// <summary>
-    ///     The tablespace in which to create the index. If not specified, default_tablespace is consulted,
+    /// The tablespace in which to create the index. If not specified, default_tablespace is consulted,
     /// </summary>
     public string? TableSpace { get; set; }
 
     /// <summary>
-    ///     The constraint expression for a partial index.
-    /// </summary>
-    public string? Predicate { get; set; }
-
-    /// <summary>
-    ///     Set the collation to be used for the column/expression part of the index
+    /// Set the collation to be used for the column/expression part of the index
     /// </summary>
     public string? Collation { get; set; }
 
     /// <summary>
-    ///     Set a non-default fill factor on this index
+    /// Set a non-default fill factor on this index
     /// </summary>
-    public int? FillFactor
+    public override int? FillFactor
     {
         get => StorageParameters["fillfactor"] as int?;
         set => StorageParameters["fillfactor"] = value;
     }
 
     /// <summary>
-    ///     Method to define the index storage parameters
+    /// Method to define the index storage parameters
     /// </summary>
     public OrderedDictionary StorageParameters { get; set; } = new();
 
-
-    /// <summary>
-    ///     The index name used for the index definition
-    /// </summary>
-    public string Name
-    {
-        get
-        {
-            if (_indexName.IsNotEmpty())
-            {
-                return _indexName;
-            }
-
-            return deriveIndexName();
-        }
-        set => _indexName = value;
-    }
-
     public string QuotedName => SchemaUtils.QuoteName(Name);
 
-    protected virtual string deriveIndexName()
+    protected override string DeriveIndexName()
     {
         throw new NotSupportedException();
     }
 
     /// <summary>
-    ///     Set the Index expression against the supplied columns
+    /// Set the Index expression against the supplied columns
     /// </summary>
-    /// <param name="columns"></param>
-    /// <returns></returns>
-    public IndexDefinition AgainstColumns(params string[] columns)
+    public new IndexDefinition AgainstColumns(params string[] columns)
     {
         Columns = columns;
         return this;
     }
 
+    public string ToDDL(Table parent)
+    {
+        return ToDDL(parent.Identifier);
+    }
 
     /// <summary>
-    ///     Method to get the DDL statement for the index definition
+    /// Method to get the DDL statement for the index definition
     /// </summary>
     /// <remarks>
     /// Ordering the statement segments matters. Ref the Postgres create index docs here: https://www.postgresql.org/docs/current/sql-createindex.html
@@ -192,9 +194,7 @@ public class IndexDefinition: INamed
     ///     [ TABLESPACE tablespace_name ]
     ///     [ WHERE predicate ]
     /// </remarks>
-    /// <param name="parent"></param>
-    /// <returns>Sql statement to create the index</returns>
-    public string ToDDL(Table parent)
+    public override string ToDDL(DbObjectName tableIdentifier)
     {
         var builder = new StringBuilder();
 
@@ -220,7 +220,7 @@ public class IndexDefinition: INamed
         builder.Append(QuotedName);
 
         builder.Append(" ON ");
-        builder.Append(parent.Identifier);
+        builder.Append(tableIdentifier);
         builder.Append(" USING ");
         builder.Append(Method == IndexMethod.custom ? CustomMethod : Method);
         builder.Append(" ");
@@ -286,10 +286,8 @@ public class IndexDefinition: INamed
     }
 
     /// <summary>
-    ///     Method to normalize a column definition for checking match/equivalene
+    /// Method to normalize a column definition for checking match/equivalence
     /// </summary>
-    /// <param name="column"></param>
-    /// <returns></returns>
     public static string CanonicizeCast(string column)
     {
         if (!column.Contains("::"))
@@ -330,15 +328,15 @@ public class IndexDefinition: INamed
             // ASC is default so ignore adding in expression
             // NULLS LAST is default for ASC so ignore adding in expression
             // NULLS FIRST is default for DESC so ignore adding in expression
-            if (SortOrder == SortOrder.Asc && NullsSortOrder == NullsSortOrder.First)
+            if (SortOrder == CoreSortOrder.Asc && NullsSortOrder == NullsSortOrder.First)
             {
                 expression += $" {NullsFirst}";
             }
-            else if (SortOrder == SortOrder.Desc && NullsSortOrder is NullsSortOrder.None or NullsSortOrder.First)
+            else if (SortOrder == CoreSortOrder.Desc && NullsSortOrder is NullsSortOrder.None or NullsSortOrder.First)
             {
                 expression += $" {Descending}";
             }
-            else if (SortOrder == SortOrder.Desc && NullsSortOrder == NullsSortOrder.Last)
+            else if (SortOrder == CoreSortOrder.Desc && NullsSortOrder == NullsSortOrder.Last)
             {
                 expression += $" {DescendingNullsLast}";
             }
@@ -348,7 +346,7 @@ public class IndexDefinition: INamed
     }
 
     /// <summary>
-    ///     Makes this index use the Gin method with the jsonb_path_ops operator
+    /// Makes this index use the Gin method with the jsonb_path_ops operator
     /// </summary>
     public void ToGinWithJsonbPathOps()
     {
@@ -625,7 +623,7 @@ public class IndexDefinition: INamed
         return CanonicizeCast(expression);
     }
 
-    private static (string expression, SortOrder order, NullsSortOrder nullsOrder) removeSortOrderFromExpression(
+    private static (string expression, CoreSortOrder order, NullsSortOrder nullsOrder) removeSortOrderFromExpression(
         string expression)
     {
         const int spaceAndEndParenthesis = 2;
@@ -634,79 +632,92 @@ public class IndexDefinition: INamed
         {
             var expr when expr.EndsWith($"{Descending})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - Descending.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Desc, NullsSortOrder.None),
+                    CoreSortOrder.Desc, NullsSortOrder.None),
             var expr when expr.EndsWith($"{DescendingNullsFirst})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0,
                         expr.Length - DescendingNullsFirst.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Desc, NullsSortOrder.First),
+                    CoreSortOrder.Desc, NullsSortOrder.First),
             var expr when expr.EndsWith($"{DescendingNullsLast})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0,
                         expr.Length - DescendingNullsLast.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Desc, NullsSortOrder.Last),
+                    CoreSortOrder.Desc, NullsSortOrder.Last),
             var expr when expr.EndsWith($"{Ascending})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - Ascending.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Asc, NullsSortOrder.None),
+                    CoreSortOrder.Asc, NullsSortOrder.None),
             var expr when expr.EndsWith($"{AscendingNullsLast})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - AscendingNullsLast.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Asc, NullsSortOrder.Last),
+                    CoreSortOrder.Asc, NullsSortOrder.Last),
             var expr when expr.EndsWith($"{AscendingNullsFirst})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - AscendingNullsFirst.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Asc, NullsSortOrder.First),
+                    CoreSortOrder.Asc, NullsSortOrder.First),
             var expr when !expr.Contains(Ascending, StringComparison.InvariantCultureIgnoreCase) &&
                           !expr.Contains(Descending, StringComparison.InvariantCultureIgnoreCase) &&
                           expr.EndsWith($"{NullsFirst})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - NullsFirst.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Asc, NullsSortOrder.First),
+                    CoreSortOrder.Asc, NullsSortOrder.First),
             var expr when !expr.Contains(Ascending, StringComparison.InvariantCultureIgnoreCase) &&
                           !expr.Contains(Descending, StringComparison.InvariantCultureIgnoreCase) &&
                           expr.EndsWith($"{NullsLast})", StringComparison.InvariantCultureIgnoreCase) =>
                 (expr.Substring(0, expr.Length - NullsLast.Length - spaceAndEndParenthesis) + ")",
-                    SortOrder.Asc, NullsSortOrder.Last),
-            _ => (expression.Trim(), SortOrder.Asc, NullsSortOrder.None)
+                    CoreSortOrder.Asc, NullsSortOrder.Last),
+            _ => (expression.Trim(), CoreSortOrder.Asc, NullsSortOrder.None)
         };
     }
 
-    /// <summary>
-    ///     Method to check if the index definition matches with a passed index definition
-    /// </summary>
-    /// <param name="actual"></param>
-    /// <param name="parent"></param>
-    /// <returns></returns>
     public bool Matches(IndexDefinition actual, Table parent)
     {
-        var expectedExpression = correctedExpression();
+        return Matches(actual, parent.Identifier);
+    }
 
-        if (actual.Mask == expectedExpression)
+    /// <summary>
+    /// Method to check if the index definition matches with a passed index definition
+    /// </summary>
+    public override bool Matches(IndexDefinitionBase actual, DbObjectName tableIdentifier)
+    {
+        if (actual is not IndexDefinition pgActual)
         {
-            (actual.Mask, _, _) = removeSortOrderFromExpression(expectedExpression);
+            return false;
         }
 
-        var expectedSql = CanonicizeDdl(this, parent);
+        var expectedExpression = correctedExpression();
 
-        var actualSql = CanonicizeDdl(actual, parent);
+        if (pgActual.Mask == expectedExpression)
+        {
+            (pgActual.Mask, _, _) = removeSortOrderFromExpression(expectedExpression);
+        }
+
+        var expectedSql = CanonicizeDdl(this, tableIdentifier);
+
+        var actualSql = CanonicizeDdl(pgActual, tableIdentifier);
 
         return expectedSql == actualSql;
     }
 
-    /// <summary>
-    ///     Method to assert if the index definition matches with a passed index definition
-    /// </summary>
-    /// <param name="actual"></param>
-    /// <param name="parent"></param>
-    /// <exception cref="Exception"></exception>
     public void AssertMatches(IndexDefinition actual, Table parent)
     {
-        var expectedExpression = correctedExpression();
+        AssertMatches(actual, parent.Identifier);
+    }
 
-
-        if (actual.Mask == expectedExpression)
+    /// <summary>
+    /// Method to assert if the index definition matches with a passed index definition
+    /// </summary>
+    public override void AssertMatches(IndexDefinitionBase actual, DbObjectName tableIdentifier)
+    {
+        if (actual is not IndexDefinition pgActual)
         {
-            (actual.Mask, _, _) = removeSortOrderFromExpression(expectedExpression);
+            throw new Exception("Expected PostgreSQL IndexDefinition");
         }
 
-        var expectedSql = CanonicizeDdl(this, parent);
+        var expectedExpression = correctedExpression();
 
-        var actualSql = CanonicizeDdl(actual, parent);
+        if (pgActual.Mask == expectedExpression)
+        {
+            (pgActual.Mask, _, _) = removeSortOrderFromExpression(expectedExpression);
+        }
+
+        var expectedSql = CanonicizeDdl(this, tableIdentifier);
+
+        var actualSql = CanonicizeDdl(pgActual, tableIdentifier);
 
         if (expectedSql != actualSql)
         {
@@ -716,15 +727,20 @@ public class IndexDefinition: INamed
     }
 
     /// <summary>
-    ///     Method to normalize the index definition to use for checking match/equivalence
+    /// Method to normalize the index definition to use for checking match/equivalence
     /// </summary>
-    /// <param name="index"></param>
-    /// <param name="parent"></param>
-    /// <returns></returns>
     public static string CanonicizeDdl(IndexDefinition index, Table parent)
     {
-        var canonicizedStr = index.ToDDL(parent);
-        return CanonicizeDdl(canonicizedStr, parent.Identifier.Schema);
+        return CanonicizeDdl(index, parent.Identifier);
+    }
+
+    /// <summary>
+    /// Method to normalize the index definition to use for checking match/equivalence
+    /// </summary>
+    public static string CanonicizeDdl(IndexDefinition index, DbObjectName tableIdentifier)
+    {
+        var canonicizedStr = index.ToDDL(tableIdentifier);
+        return CanonicizeDdl(canonicizedStr, tableIdentifier.Schema);
     }
 
     public static string CanonicizeDdl(string sql, string schema)

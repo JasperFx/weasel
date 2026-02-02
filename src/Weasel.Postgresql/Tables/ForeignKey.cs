@@ -1,79 +1,50 @@
 using JasperFx.Core;
-using JasperFx.Core.Reflection;
 using Weasel.Core;
+using Weasel.Core.Tables;
+using CoreCascadeAction = Weasel.Core.Tables.CascadeAction;
 
 namespace Weasel.Postgresql.Tables;
 
-public class MisconfiguredForeignKeyException: Exception
+/// <summary>
+/// Exception thrown when a foreign key has invalid column mappings
+/// </summary>
+public class InvalidForeignKeyException : Exception
 {
-    public MisconfiguredForeignKeyException(string? message): base(message)
+    public InvalidForeignKeyException(string? message) : base(message)
     {
     }
 }
 
-public class ForeignKey: INamed
+/// <summary>
+/// PostgreSQL-specific foreign key implementation
+/// </summary>
+public class ForeignKey : ForeignKeyBase, INamed
 {
-    public ForeignKey(string name)
+    public ForeignKey(string name) : base(name)
     {
-        Name = name;
-    }
-
-    public string[] ColumnNames { get; set; } = null!;
-    public string[] LinkedNames { get; set; } = null!;
-
-    public DbObjectName LinkedTable { get; set; } = null!;
-
-    public CascadeAction OnDelete { get; set; } = CascadeAction.NoAction;
-    public CascadeAction OnUpdate { get; set; } = CascadeAction.NoAction;
-
-    public string Name { get; set; }
-
-    protected bool Equals(ForeignKey other)
-    {
-        return Name == other.Name && ColumnNames.SequenceEqual(other.ColumnNames) &&
-               LinkedNames.SequenceEqual(other.LinkedNames) && Equals(LinkedTable, other.LinkedTable) &&
-               OnDelete == other.OnDelete && OnUpdate == other.OnUpdate;
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (ReferenceEquals(null, obj))
-        {
-            return false;
-        }
-
-        if (ReferenceEquals(this, obj))
-        {
-            return true;
-        }
-
-        if (!obj.GetType().CanBeCastTo<ForeignKey>())
-        {
-            return false;
-        }
-
-        return Equals((ForeignKey)obj);
-    }
-
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            var hashCode = Name != null ? Name.GetHashCode() : 0;
-            hashCode = (hashCode * 397) ^ (ColumnNames != null ? ColumnNames.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (LinkedNames != null ? LinkedNames.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (LinkedTable != null ? LinkedTable.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (int)OnDelete;
-            hashCode = (hashCode * 397) ^ (int)OnUpdate;
-            return hashCode;
-        }
     }
 
     /// <summary>
-    ///     Read the DDL definition from the server
+    /// The referential action to take on DELETE (using PostgreSQL-specific CascadeAction)
     /// </summary>
-    /// <param name="definition"></param>
-    /// <exception cref="NotImplementedException"></exception>
+    public new CascadeAction OnDelete
+    {
+        get => (CascadeAction)base.OnDelete;
+        set => base.OnDelete = (CoreCascadeAction)value;
+    }
+
+    /// <summary>
+    /// The referential action to take on UPDATE (using PostgreSQL-specific CascadeAction)
+    /// </summary>
+    public new CascadeAction OnUpdate
+    {
+        get => (CascadeAction)base.OnUpdate;
+        set => base.OnUpdate = (CoreCascadeAction)value;
+    }
+
+    /// <summary>
+    /// Read the DDL definition from the server
+    /// </summary>
     public void Parse(string definition, string schema = "public")
     {
         var open1 = definition.IndexOf('(');
@@ -135,15 +106,25 @@ public class ForeignKey: INamed
 
     public string ToDDL(Table parent)
     {
+        return ToDDL(parent.Identifier);
+    }
+
+    public override string ToDDL(DbObjectName parentIdentifier)
+    {
         var writer = new StringWriter();
-        WriteAddStatement(parent, writer);
+        WriteAddStatement(parentIdentifier, writer);
 
         return writer.ToString();
     }
 
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
-        writer.WriteLine($"ALTER TABLE {parent.Identifier}");
+        WriteAddStatement(parent.Identifier, writer);
+    }
+
+    public override void WriteAddStatement(DbObjectName parentIdentifier, TextWriter writer)
+    {
+        writer.WriteLine($"ALTER TABLE {parentIdentifier}");
         writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
         writer.Write($"REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
@@ -154,9 +135,12 @@ public class ForeignKey: INamed
 
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
-        writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
+        WriteDropStatement(parent.Identifier, writer);
     }
 
+    /// <summary>
+    /// Tries to correct column mappings for multi-column primary key references
+    /// </summary>
     public void TryToCorrectForLink(Table parentTable, Table linkedTable)
     {
         // Depends on "id" always being first in Marten world
@@ -184,12 +168,5 @@ public class ForeignKey: INamed
                 }
             }
         }
-    }
-}
-
-public class InvalidForeignKeyException: Exception
-{
-    public InvalidForeignKeyException(string? message) : base(message)
-    {
     }
 }

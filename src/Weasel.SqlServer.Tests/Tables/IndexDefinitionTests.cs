@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core.Tables;
 using Weasel.SqlServer.Tables;
 using Xunit;
 

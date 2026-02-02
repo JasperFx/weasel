@@ -1,5 +1,6 @@
 using Shouldly;
 using Weasel.Core;
+using Weasel.Core.Tables;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
@@ -50,7 +51,7 @@ public class TableDeltaTests
             return false;
         }
 
-        public override bool CanAlter(TableColumn actual)
+        public override bool CanAlter(TableColumnBase<ColumnCheck> actual)
         {
             return false;
         }

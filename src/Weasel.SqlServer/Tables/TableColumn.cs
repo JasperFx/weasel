@@ -1,54 +1,43 @@
 using JasperFx.Core;
-using JasperFx.Core.Reflection;
+using Weasel.Core.Tables;
 
 namespace Weasel.SqlServer.Tables;
 
-public interface INamed
+/// <summary>
+/// SQL Server implementation of INamed interface
+/// </summary>
+public interface INamed : Weasel.Core.Tables.INamed
 {
-    string Name { get; }
 }
 
-public class TableColumn: INamed
+/// <summary>
+/// SQL Server-specific table column implementation
+/// </summary>
+public class TableColumn : TableColumnBase<ColumnCheck>, INamed
 {
-    public TableColumn(string name, string type)
+    public TableColumn(string name, string type) : base(name, type)
     {
-        if (string.IsNullOrEmpty(name))
-        {
-            throw new ArgumentOutOfRangeException(nameof(name));
-        }
-
-        if (string.IsNullOrEmpty(type))
-        {
-            throw new ArgumentOutOfRangeException(nameof(type));
-        }
-
-        Name = name.ToLower().Trim().Replace(' ', '_');
-        Type = type.ToLower();
     }
 
-
-    public IList<ColumnCheck> ColumnChecks { get; } = new List<ColumnCheck>();
-
-    public bool AllowNulls { get; set; } = true;
-
-    public string? DefaultExpression { get; set; }
-
-
-    public string Type { get; set; }
+    /// <summary>
+    /// Reference to the parent table
+    /// </summary>
     public Table Parent { get; internal set; } = null!;
 
-    public bool IsPrimaryKey { get; internal set; }
+    /// <summary>
+    /// Indicates whether this column is an auto-incrementing identity column
+    /// </summary>
     public bool IsAutoNumber { get; set; }
 
-    public string Name { get; }
-    public string QuotedName => SchemaUtils.QuoteName(Name);
+    /// <summary>
+    /// The quoted column name using SQL Server quoting rules
+    /// </summary>
+    public override string QuotedName => SchemaUtils.QuoteName(Name);
 
-    public string RawType()
-    {
-        return Type.Split('(')[0].Trim();
-    }
-
-    public string Declaration()
+    /// <summary>
+    /// Generates the NULL/NOT NULL, IDENTITY, and DEFAULT clause for this column
+    /// </summary>
+    public override string Declaration()
     {
         var declaration = !IsPrimaryKey && AllowNulls ? "NULL" : "NOT NULL";
         if (IsAutoNumber)
@@ -64,123 +53,62 @@ public class TableColumn: INamed
         return $"{declaration} {ColumnChecks.Select(x => x.FullDeclaration()).Join(" ")}".TrimEnd();
     }
 
-    protected bool Equals(TableColumn other)
+    protected override bool EqualsColumn(TableColumnBase<ColumnCheck> other)
     {
-        return string.Equals(QuotedName, other.QuotedName) &&
+        return string.Equals(QuotedName, ((TableColumn)other).QuotedName) &&
                string.Equals(SqlServerProvider.Instance.ConvertSynonyms(RawType()),
                    SqlServerProvider.Instance.ConvertSynonyms(other.RawType()));
     }
 
-    public override bool Equals(object? obj)
+    public override string AlterColumnTypeSql(Core.DbObjectName tableIdentifier, TableColumnBase<ColumnCheck> changeActual)
     {
-        if (ReferenceEquals(null, obj))
-        {
-            return false;
-        }
-
-        if (ReferenceEquals(this, obj))
-        {
-            return true;
-        }
-
-        if (!obj.GetType().CanBeCastTo<TableColumn>())
-        {
-            return false;
-        }
-
-        return Equals((TableColumn)obj);
+        return $"alter table {tableIdentifier} alter column {((TableColumn)changeActual).ToDeclaration()};";
     }
 
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            return (Name.GetHashCode() * 397) ^ Type.GetHashCode();
-        }
-    }
-
-    public string ToDeclaration()
-    {
-        var declaration = Declaration();
-
-        return declaration.IsEmpty()
-            ? $"{QuotedName} {Type}"
-            : $"{QuotedName} {Type} {declaration}";
-    }
-
-    public override string ToString()
-    {
-        return ToDeclaration();
-    }
-
-
+    /// <summary>
+    /// Generates the SQL to alter this column's type (convenience overload for Table)
+    /// </summary>
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
-        return $"alter table {table.Identifier} alter column {changeActual.ToDeclaration()};";
+        return AlterColumnTypeSql(table.Identifier, changeActual);
     }
 
+    public override string AddColumnSql(Core.DbObjectName tableIdentifier)
+    {
+        return $"alter table {tableIdentifier} add {ToDeclaration()};";
+    }
+
+    /// <summary>
+    /// Generates the SQL to add this column to an existing table (convenience overload for Table)
+    /// </summary>
+    public string AddColumnSql(Table table)
+    {
+        return AddColumnSql(table.Identifier);
+    }
+
+    /// <summary>
+    /// Generates the SQL to drop this column from a table (convenience overload for Table)
+    /// </summary>
     public string DropColumnSql(Table table)
     {
-        return $"alter table {table.Identifier} drop column {QuotedName};";
-    }
-
-
-    public virtual bool CanAdd()
-    {
-        return AllowNulls || DefaultExpression.IsNotEmpty();
-    }
-
-    public virtual string AddColumnSql(Table parent)
-    {
-        return $"alter table {parent.Identifier} add {ToDeclaration()};";
-    }
-
-
-    public virtual bool CanAlter(TableColumn actual)
-    {
-        // TODO -- need this to be more systematic
-        return true;
+        return DropColumnSql(table.Identifier);
     }
 }
 
-public abstract class ColumnCheck
+/// <summary>
+/// Abstract base class for SQL Server column check constraints
+/// </summary>
+public abstract class ColumnCheck : ColumnCheckBase
 {
-    /// <summary>
-    ///     The database name for the check. This can be null
-    /// </summary>
-    public string? Name { get; set; } // TODO -- validate good name
-
-    public abstract string Declaration();
-
-    public string FullDeclaration()
-    {
-        if (Name.IsEmpty())
-        {
-            return Declaration();
-        }
-
-        return $"CONSTRAINT {Name} {Declaration()}";
-    }
 }
 
-public class SerialValue: ColumnCheck
+/// <summary>
+/// SERIAL column constraint for SQL Server (for compatibility)
+/// </summary>
+public class SerialValue : ColumnCheck
 {
     public override string Declaration()
     {
         return "SERIAL";
     }
 }
-
-/*
-
-public class GeneratedAlwaysAsStored : ColumnCheck
-{
-    // GENERATED ALWAYS AS ( generation_expr ) STORED
-}
-
-public class GeneratedAsIdentity : ColumnCheck
-{
-    // GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY [ ( sequence_options ) ]
-}
-
-*/

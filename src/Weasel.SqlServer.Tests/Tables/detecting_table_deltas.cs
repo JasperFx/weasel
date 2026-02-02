@@ -4,7 +4,7 @@ using Shouldly;
 using Weasel.Core;
 using Weasel.SqlServer.Tables;
 using Xunit;
-using SortOrder = Weasel.SqlServer.Tables.SortOrder;
+using SortOrder = Weasel.Core.Tables.SortOrder;
 
 namespace Weasel.SqlServer.Tests.Tables;
 

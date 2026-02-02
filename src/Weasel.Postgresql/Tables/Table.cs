@@ -2,22 +2,18 @@ using System.Globalization;
 using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
+using Weasel.Core.Tables;
 using Weasel.Postgresql.Tables.Indexes;
 using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public partial class Table: ISchemaObjectWithPostProcessing
+public partial class Table: TableBase<TableColumn, ForeignKey, IndexDefinition>, ISchemaObjectWithPostProcessing
 {
-    private readonly List<TableColumn> _columns = new();
-
     private readonly List<string> _primaryKeyColumns = new();
 
-    private string? _primaryKeyName;
-
-    public Table(DbObjectName name)
+    public Table(DbObjectName name): base(name)
     {
-        Identifier = name ?? throw new ArgumentNullException(nameof(name));
     }
 
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
@@ -30,10 +26,6 @@ public partial class Table: ISchemaObjectWithPostProcessing
     /// </summary>
     public bool IgnorePartitionsInMigration { get; set; }
 
-    public IReadOnlyList<TableColumn> Columns => _columns;
-
-    public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
-    public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
     public ISet<string> IgnoredIndexes { get; } = new HashSet<string>();
 
     /// <summary>
@@ -41,13 +33,7 @@ public partial class Table: ISchemaObjectWithPostProcessing
     /// </summary>
     public int MaxIdentifierLength { get; set; } = 63;
 
-    public IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
-
-    public string PrimaryKeyName
-    {
-        get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
-        set => _primaryKeyName = value;
-    }
+    public override IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
 
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
@@ -134,10 +120,7 @@ public partial class Table: ISchemaObjectWithPostProcessing
         writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
     }
 
-    public DbObjectName Identifier { get; private set; }
-
-
-    public IEnumerable<DbObjectName> AllNames()
+    public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
 
@@ -163,10 +146,6 @@ public partial class Table: ISchemaObjectWithPostProcessing
         }
     }
 
-    public override string ToString()
-    {
-        return $"Table: {Identifier}";
-    }
 
     internal void ReadPrimaryKeyColumns(List<string> pks)
     {
@@ -189,7 +168,7 @@ public partial class Table: ISchemaObjectWithPostProcessing
     ///     DDL rules. This is useful for quick diagnostics
     /// </summary>
     /// <returns></returns>
-    public string ToBasicCreateTableSql()
+    public override string ToBasicCreateTableSql()
     {
         var writer = new StringWriter();
         var rules = new PostgresqlMigrator { Formatting = SqlFormatting.Concise };
@@ -198,31 +177,9 @@ public partial class Table: ISchemaObjectWithPostProcessing
         return writer.ToString();
     }
 
-
-    internal string PrimaryKeyDeclaration()
-    {
-        return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
-    }
-
-    public TableColumn? ColumnFor(string columnName)
-    {
-        return Columns.FirstOrDefault(x => x.Name == columnName);
-    }
-
-
-    public bool HasColumn(string columnName)
-    {
-        return Columns.Any(x => x.Name == columnName);
-    }
-
-    public IndexDefinition? IndexFor(string indexName)
-    {
-        return Indexes.FirstOrDefault(x => x.Name == indexName);
-    }
-
     public ColumnExpression AddColumn(TableColumn column)
     {
-        _columns.Add(column);
+        AddColumnInternal(column);
         column.Parent = this;
 
         return new ColumnExpression(this, column);
@@ -271,9 +228,9 @@ public partial class Table: ISchemaObjectWithPostProcessing
         return nameIdentifier.Substring(0, Math.Min(MaxIdentifierLength, nameIdentifier.Length));
     }
 
-    public void RemoveColumn(string columnName)
+    public override void RemoveColumn(string columnName)
     {
-        _columns.RemoveAll(x => x.Name.EqualsIgnoreCase(columnName));
+        base.RemoveColumn(columnName);
         _primaryKeyColumns.Remove(columnName);
     }
 
@@ -293,11 +250,6 @@ public partial class Table: ISchemaObjectWithPostProcessing
         }
 
         IgnoredIndexes.Add(indexName);
-    }
-
-    public bool HasIndex(string indexName)
-    {
-        return Indexes.Any(x => x.Name == indexName);
     }
 
     public bool HasIgnoredIndex(string indexName)

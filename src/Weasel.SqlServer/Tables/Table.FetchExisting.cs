@@ -1,7 +1,9 @@
 using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;
+using Weasel.Core.Tables;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
+using SortOrder = Weasel.Core.Tables.SortOrder;
 
 namespace Weasel.SqlServer.Tables;
 

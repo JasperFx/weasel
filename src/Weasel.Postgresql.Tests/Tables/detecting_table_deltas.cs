@@ -1,6 +1,7 @@
 using Shouldly;
 using JasperFx.Core.Reflection;
 using Weasel.Core;
+using Weasel.Core.Tables;
 using Weasel.Postgresql.Tables;
 using Weasel.Postgresql.Tests.Tables.Indexes;
 using Xunit;

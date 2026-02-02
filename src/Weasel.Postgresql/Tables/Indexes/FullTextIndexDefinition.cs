@@ -53,7 +53,7 @@ public class FullTextIndexDefinition: IndexDefinition
         }
     }
 
-    protected override string deriveIndexName()
+    protected override string DeriveIndexName()
     {
         var lowerValue = indexName?.ToLowerInvariant();
 

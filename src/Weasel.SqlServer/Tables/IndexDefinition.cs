@@ -1,38 +1,43 @@
 using System.Text;
 using JasperFx.Core;
+using Weasel.Core;
+using Weasel.Core.Tables;
 
 namespace Weasel.SqlServer.Tables;
 
-public class IndexDefinition: INamed
+/// <summary>
+/// SQL Server-specific index definition implementation
+/// </summary>
+public class IndexDefinition : IndexDefinitionBase, INamed
 {
     private readonly IList<string> _columns = new List<string>();
     private readonly IList<string> _includedColumns = new List<string>();
+    private int? _fillFactor;
 
-    private string? _indexName;
-
-    public IndexDefinition(string indexName)
-    {
-        _indexName = indexName;
-    }
-
-    protected IndexDefinition()
+    public IndexDefinition(string indexName) : base(indexName)
     {
     }
 
-    public SortOrder SortOrder { get; set; } = SortOrder.Asc;
+    protected IndexDefinition() : base()
+    {
+    }
 
-    public bool IsUnique { get; set; }
-
-    public string[] Columns
+    public override string[]? Columns
     {
         get => _columns.ToArray();
         set
         {
             _columns.Clear();
-            _columns.AddRange(value);
+            if (value != null)
+            {
+                _columns.AddRange(value);
+            }
         }
     }
 
+    /// <summary>
+    /// The columns to include in the index (non-key columns)
+    /// </summary>
     public string[] IncludedColumns
     {
         get => _includedColumns.ToArray();
@@ -44,50 +49,48 @@ public class IndexDefinition: INamed
     }
 
     /// <summary>
-    ///     The constraint expression for a partial index.
+    /// Set a non-default fill factor on this index
     /// </summary>
-    public string? Predicate { get; set; }
-
-    /// <summary>
-    ///     Set a non-default fill factor on this index
-    /// </summary>
-    public int? FillFactor { get; set; }
-
-    public bool IsClustered { get; set; }
-
-
-    public string Name
+    public override int? FillFactor
     {
-        get
-        {
-            if (_indexName.IsNotEmpty())
-            {
-                return _indexName;
-            }
-
-            return deriveIndexName();
-        }
-        set => _indexName = value;
+        get => _fillFactor;
+        set => _fillFactor = value;
     }
 
-    protected virtual string deriveIndexName()
+    /// <summary>
+    /// Indicates whether this is a clustered index
+    /// </summary>
+    public bool IsClustered { get; set; }
+
+    protected override string DeriveIndexName()
     {
         throw new NotSupportedException();
     }
 
     /// <summary>
-    ///     Set the Index expression against the supplied columns
+    /// Set the Index expression against the supplied columns
     /// </summary>
-    /// <param name="columns"></param>
-    /// <returns></returns>
-    public IndexDefinition AgainstColumns(params string[] columns)
+    public new IndexDefinition AgainstColumns(params string[] columns)
     {
         _columns.Clear();
         _columns.AddRange(columns);
         return this;
     }
 
+    /// <summary>
+    /// Adds a column to the index
+    /// </summary>
+    public void AddColumn(string columnName)
+    {
+        _columns.Add(columnName);
+    }
+
     public string ToDDL(Table parent)
+    {
+        return ToDDL(parent.Identifier);
+    }
+
+    public override string ToDDL(DbObjectName tableIdentifier)
     {
         var builder = new StringBuilder();
 
@@ -109,7 +112,7 @@ public class IndexDefinition: INamed
 
 
         builder.Append(" ON ");
-        builder.Append(parent.Identifier);
+        builder.Append(tableIdentifier);
 
         builder.Append(" ");
         builder.Append(correctedExpression());
@@ -140,7 +143,7 @@ public class IndexDefinition: INamed
 
     private string correctedExpression()
     {
-        if (!Columns.Any())
+        if (Columns == null || !Columns.Any())
         {
             throw new InvalidOperationException("IndexDefinition requires at least one field");
         }
@@ -157,22 +160,36 @@ public class IndexDefinition: INamed
 
     public bool Matches(IndexDefinition actual, Table parent)
     {
-        var expectedExpression = correctedExpression();
+        return Matches(actual, parent.Identifier);
+    }
 
-        var expectedSql = CanonicizeDdl(this, parent);
+    public override bool Matches(IndexDefinitionBase actual, DbObjectName tableIdentifier)
+    {
+        if (actual is not IndexDefinition sqlActual)
+        {
+            return false;
+        }
 
-        var actualSql = CanonicizeDdl(actual, parent);
+        var expectedSql = CanonicizeDdl(this, tableIdentifier);
+        var actualSql = CanonicizeDdl(sqlActual, tableIdentifier);
 
         return expectedSql == actualSql;
     }
 
     public void AssertMatches(IndexDefinition actual, Table parent)
     {
-        var expectedExpression = correctedExpression();
+        AssertMatches(actual, parent.Identifier);
+    }
 
-        var expectedSql = CanonicizeDdl(this, parent);
+    public override void AssertMatches(IndexDefinitionBase actual, DbObjectName tableIdentifier)
+    {
+        if (actual is not IndexDefinition sqlActual)
+        {
+            throw new Exception("Expected SQL Server IndexDefinition");
+        }
 
-        var actualSql = CanonicizeDdl(actual, parent);
+        var expectedSql = CanonicizeDdl(this, tableIdentifier);
+        var actualSql = CanonicizeDdl(sqlActual, tableIdentifier);
 
         if (expectedSql != actualSql)
         {
@@ -183,7 +200,12 @@ public class IndexDefinition: INamed
 
     public static string CanonicizeDdl(IndexDefinition index, Table parent)
     {
-        return index.ToDDL(parent)
+        return CanonicizeDdl(index, parent.Identifier);
+    }
+
+    public static string CanonicizeDdl(IndexDefinition index, DbObjectName tableIdentifier)
+    {
+        return index.ToDDL(tableIdentifier)
                 .Replace("\"\"", "\"")
                 .Replace("  ", " ")
                 .Replace("(", "")
@@ -193,10 +215,5 @@ public class IndexDefinition: INamed
                 .Replace(" ->> ", "->>")
                 .Replace("->", "->").TrimEnd(new[] { ';' })
             ;
-    }
-
-    public void AddColumn(string columnName)
-    {
-        _columns.Add(columnName);
     }
 }
