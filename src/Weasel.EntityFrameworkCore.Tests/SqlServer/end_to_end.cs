@@ -47,32 +47,34 @@ public class end_to_end : IAsyncLifetime
         var table = migrator.MapToTable(entityType);
 
         table.ShouldNotBeNull();
+        // SQL Server preserves table name case, but columns are lowercased
         table.Identifier.Name.ShouldBe("MyEntities");
 
+        // SQL Server lowercases column names in Weasel
         // Verify columns are mapped
-        table.HasColumn("Id").ShouldBeTrue();
-        table.HasColumn("IntValue").ShouldBeTrue();
-        table.HasColumn("BoolValue").ShouldBeTrue();
-        table.HasColumn("StringValue").ShouldBeTrue();
-        table.HasColumn("GuidValue").ShouldBeTrue();
-        table.HasColumn("DateOnlyValue").ShouldBeTrue();
-        table.HasColumn("TimeOnlyValue").ShouldBeTrue();
-        table.HasColumn("DateTimeValue").ShouldBeTrue();
-        table.HasColumn("DateTimeOffsetValue").ShouldBeTrue();
-        table.HasColumn("CascadeActionValue").ShouldBeTrue();
+        table.HasColumn("id").ShouldBeTrue();
+        table.HasColumn("intvalue").ShouldBeTrue();
+        table.HasColumn("boolvalue").ShouldBeTrue();
+        table.HasColumn("stringvalue").ShouldBeTrue();
+        table.HasColumn("guidvalue").ShouldBeTrue();
+        table.HasColumn("dateonlyvalue").ShouldBeTrue();
+        table.HasColumn("timeonlyvalue").ShouldBeTrue();
+        table.HasColumn("datetimevalue").ShouldBeTrue();
+        table.HasColumn("datetimeoffsetvalue").ShouldBeTrue();
+        table.HasColumn("cascadeactionvalue").ShouldBeTrue();
 
         // Verify nullable columns
-        table.HasColumn("NullableIntValue").ShouldBeTrue();
-        table.HasColumn("NullableBoolValue").ShouldBeTrue();
-        table.HasColumn("NullableGuidValue").ShouldBeTrue();
-        table.HasColumn("NullableDateOnlyValue").ShouldBeTrue();
-        table.HasColumn("NullableTimeOnlyValue").ShouldBeTrue();
-        table.HasColumn("NullableDateTimeValue").ShouldBeTrue();
-        table.HasColumn("NullableDateTimeOffsetValue").ShouldBeTrue();
-        table.HasColumn("NullableCascadeActionValue").ShouldBeTrue();
+        table.HasColumn("nullableintvalue").ShouldBeTrue();
+        table.HasColumn("nullableboolvalue").ShouldBeTrue();
+        table.HasColumn("nullableguidvalue").ShouldBeTrue();
+        table.HasColumn("nullabledateonlyvalue").ShouldBeTrue();
+        table.HasColumn("nullabletimeonlyvalue").ShouldBeTrue();
+        table.HasColumn("nullabledatetimevalue").ShouldBeTrue();
+        table.HasColumn("nullabledatetimeoffsetvalue").ShouldBeTrue();
+        table.HasColumn("nullablecascadeactionvalue").ShouldBeTrue();
 
         // Verify primary key
-        table.PrimaryKeyColumns.ShouldContain("Id");
+        table.PrimaryKeyColumns.ShouldContain("id");
     }
 
     [Fact]
@@ -127,8 +129,13 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<SqlServerDbContext>();
 
-        // Ensure clean state
+        // Ensure database exists then delete tables for a clean schema state
+        await context.Database.EnsureCreatedAsync();
         await context.Database.EnsureDeletedAsync();
+        await context.Database.EnsureCreatedAsync();
+
+        // Drop the table to simulate needing a migration
+        await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS [dbo].[MyEntities]");
 
         // Use Weasel to create migration
         var migration = await _host.Services.CreateMigrationAsync(context, CancellationToken.None);

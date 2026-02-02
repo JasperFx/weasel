@@ -129,8 +129,13 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<MySqlDbContext>();
 
-        // Ensure clean state
+        // Ensure database exists then delete tables for a clean schema state
+        await context.Database.EnsureCreatedAsync();
         await context.Database.EnsureDeletedAsync();
+        await context.Database.EnsureCreatedAsync();
+
+        // Drop the table to simulate needing a migration
+        await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS my_entities");
 
         // Use Weasel to create migration
         var migration = await _host.Services.CreateMigrationAsync(context, CancellationToken.None);

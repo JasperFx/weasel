@@ -30,7 +30,7 @@ public static class DbContextExtensions
         if (migrator == null)
         {
             throw new InvalidOperationException(
-                $"No matching {typeof(Migrator).FullNameInCode()} instances for DbContext {context}. Registered migrators are {migrators.Select(x => x.ToString()).Join(", ")}");
+                $"No matching {typeof(Migrator).FullNameInCode()} instances for DbContext {context}. Registered migrators are {migrators.Select(x => x.ToString() ?? x.GetType().Name).Join(", ")}");
         }
 
         var tables = context
@@ -56,17 +56,19 @@ public static class DbContextExtensions
     public static ITable MapToTable(this Migrator migrator, IEntityType entityType)
     {
         var tableName = entityType.GetTableName();
-        var schemaName = entityType.GetSchema() ?? migrator.DefaultSchemaName;
+        var efSchema = entityType.GetSchema(); // EF Core's schema (may be null)
+        var tableSchema = efSchema ?? migrator.DefaultSchemaName; // Resolved schema for table creation
 
         if (tableName == null)
         {
             throw new InvalidOperationException($"Entity type {entityType.Name} does not have a table name configured.");
         }
 
-        var identifier = migrator.Provider.Parse(schemaName, tableName);
+        var identifier = migrator.Provider.Parse(tableSchema, tableName);
         var table = migrator.CreateTable(identifier);
 
-        var storeObjectIdentifier = StoreObjectIdentifier.Table(tableName, schemaName);
+        // Use EF Core's schema (not resolved) for StoreObjectIdentifier to match EF Core's internal mappings
+        var storeObjectIdentifier = StoreObjectIdentifier.Table(tableName, efSchema);
 
         // Get primary key columns
         var primaryKey = entityType.FindPrimaryKey();
@@ -94,14 +96,18 @@ public static class DbContextExtensions
     {
         var principalEntityType = foreignKey.PrincipalEntityType;
         var principalTableName = principalEntityType.GetTableName();
-        var principalSchemaName = principalEntityType.GetSchema() ?? migrator.DefaultSchemaName;
+        var principalEfSchema = principalEntityType.GetSchema(); // EF Core's schema (may be null)
+        var principalTableSchema = principalEfSchema ?? migrator.DefaultSchemaName; // Resolved for table identifier
 
         if (principalTableName == null) return;
 
-        var principalIdentifier = migrator.Provider.Parse(principalSchemaName, principalTableName);
+        var principalIdentifier = migrator.Provider.Parse(principalTableSchema, principalTableName);
+
+        // Use EF Core's raw schema for StoreObjectIdentifier to match EF Core's internal mappings
+        var principalStoreObjectIdentifier = StoreObjectIdentifier.Table(principalTableName, principalEfSchema);
         var constraintName = foreignKey.GetConstraintName(
             storeObjectIdentifier,
-            StoreObjectIdentifier.Table(principalTableName, principalSchemaName));
+            principalStoreObjectIdentifier);
 
         if (constraintName == null) return;
 
@@ -111,7 +117,6 @@ public static class DbContextExtensions
             .Cast<string>()
             .ToArray();
 
-        var principalStoreObjectIdentifier = StoreObjectIdentifier.Table(principalTableName, principalSchemaName);
         var linkedColumnNames = foreignKey.PrincipalKey.Properties
             .Select(p => p.GetColumnName(principalStoreObjectIdentifier))
             .Where(n => n != null)
