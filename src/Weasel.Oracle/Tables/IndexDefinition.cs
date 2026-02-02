@@ -101,6 +101,8 @@ public class IndexDefinition: INamed
         }
 
         builder.Append("INDEX ");
+        builder.Append(parent.Identifier.Schema);
+        builder.Append(".");
         builder.Append(Name);
         builder.Append(" ON ");
         builder.Append(parent.Identifier);
@@ -122,7 +124,7 @@ public class IndexDefinition: INamed
             return $"({FunctionExpression})";
         }
 
-        if (!Columns.Any())
+        if (_columns == null || !_columns.Any())
         {
             throw new InvalidOperationException("IndexDefinition requires at least one field");
         }

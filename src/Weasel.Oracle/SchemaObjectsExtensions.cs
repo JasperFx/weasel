@@ -20,26 +20,44 @@ public static class SchemaObjectsExtensions
         CancellationToken ct = default
     )
     {
-        var migration = await SchemaMigration.DetermineAsync(conn, ct, schemaObject).ConfigureAwait(false);
+        // Oracle doesn't support multiple result sets, so use the Oracle-specific method
+        var migration = await DetermineOracleMigrationAsync(conn, ct, schemaObject).ConfigureAwait(false);
 
         await new OracleMigrator().ApplyAllAsync(conn, migration, AutoCreate.CreateOrUpdate, ct: ct)
             .ConfigureAwait(false);
     }
 
-    public static Task Drop(this ISchemaObject schemaObject, OracleConnection conn, CancellationToken ct = default)
+    public static async Task Drop(this ISchemaObject schemaObject, OracleConnection conn, CancellationToken ct = default)
     {
         var writer = new StringWriter();
         schemaObject.WriteDropStatement(new OracleMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
+        await ExecuteOracleSqlAsync(conn, writer.ToString(), ct).ConfigureAwait(false);
     }
 
-    public static Task CreateAsync(this ISchemaObject schemaObject, OracleConnection conn, CancellationToken ct = default)
+    public static async Task CreateAsync(this ISchemaObject schemaObject, OracleConnection conn, CancellationToken ct = default)
     {
         var writer = new StringWriter();
         schemaObject.WriteCreateStatement(new OracleMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
+        await ExecuteOracleSqlAsync(conn, writer.ToString(), ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Executes SQL on Oracle, handling "/" statement separators.
+    /// Oracle can only execute one statement at a time, so we split by "/" and execute each separately.
+    /// </summary>
+    private static async Task ExecuteOracleSqlAsync(OracleConnection conn, string sql, CancellationToken ct = default)
+    {
+        var statements = sql.Split(new[] { "\n/\n", "\n/", "/\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToArray();
+
+        foreach (var statement in statements)
+        {
+            await conn.CreateCommand(statement).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
     }
 
     public static async Task EnsureSchemaExists(this OracleConnection conn, string schemaName,
@@ -109,7 +127,17 @@ public static class SchemaObjectsExtensions
 
         foreach (var drop in drops)
         {
-            await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch (OracleException ex) when (ex.Number == 942 || ex.Number == 4043 || ex.Number == 2289)
+            {
+                // ORA-00942: table or view does not exist
+                // ORA-04043: object does not exist
+                // ORA-02289: sequence does not exist
+                // These can happen due to concurrent test execution, so we ignore them
+            }
         }
     }
 
@@ -140,8 +168,10 @@ public static class SchemaObjectsExtensions
             }
         }
 
+        // Create the schema - note that CreateSchemaStatementFor returns a PL/SQL block
+        // that should be executed directly without "/" separator handling
         var sql = OracleMigrator.CreateSchemaStatementFor(schemaName);
-        await conn.RunSqlAsync(ct, sql).ConfigureAwait(false);
+        await conn.CreateCommand(sql).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 
     public static async Task<bool> FunctionExistsAsync(
@@ -244,7 +274,8 @@ public static class SchemaObjectsExtensions
             await conn.OpenAsync(cancellationToken.Value).ConfigureAwait(false);
         }
 
-        var migration = await SchemaMigration.DetermineAsync(conn, cancellationToken.Value, schemaObject).ConfigureAwait(false);
+        // Oracle doesn't support multiple result sets, so we must query each schema object separately
+        var migration = await DetermineOracleMigrationAsync(conn, cancellationToken.Value, schemaObject).ConfigureAwait(false);
         if (migration.Difference == SchemaPatchDifference.None) return false;
 
         migration.AssertPatchingIsValid(autoCreate);
@@ -272,7 +303,8 @@ public static class SchemaObjectsExtensions
             await conn.OpenAsync(cancellationToken.Value).ConfigureAwait(false);
         }
 
-        var migration = await SchemaMigration.DetermineAsync(conn, cancellationToken.Value, schemaObjects).ConfigureAwait(false);
+        // Oracle doesn't support multiple result sets, so we must query each schema object separately
+        var migration = await DetermineOracleMigrationAsync(conn, cancellationToken.Value, schemaObjects).ConfigureAwait(false);
         if (migration.Difference == SchemaPatchDifference.None) return false;
 
         migration.AssertPatchingIsValid(autoCreate);
@@ -281,5 +313,43 @@ public static class SchemaObjectsExtensions
         await migrator.ApplyAllAsync(conn, migration, autoCreate, ct: cancellationToken.Value).ConfigureAwait(false);
 
         return true;
+    }
+
+    /// <summary>
+    /// Oracle-specific migration detection that queries each schema object separately.
+    /// Oracle doesn't support multiple result sets in a single command like PostgreSQL or SQL Server,
+    /// so we must execute each schema object's query individually.
+    /// </summary>
+    private static async Task<SchemaMigration> DetermineOracleMigrationAsync(
+        OracleConnection conn,
+        CancellationToken ct,
+        params ISchemaObject[] schemaObjects)
+    {
+        var deltas = new List<ISchemaObjectDelta>();
+
+        foreach (var schemaObject in schemaObjects)
+        {
+            // For Table objects, use the Oracle-specific FindDeltaAsync which fetches
+            // full metadata (columns, PKs, FKs, indexes) via separate queries.
+            // The generic CreateDeltaAsync only reads columns from a single result set.
+            if (schemaObject is Tables.Table table)
+            {
+                var delta = await table.FindDeltaAsync(conn, ct).ConfigureAwait(false);
+                deltas.Add(delta);
+            }
+            else
+            {
+                var builder = new Weasel.Core.DbCommandBuilder(conn);
+                schemaObject.ConfigureQueryCommand(builder);
+
+                await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
+                var delta = await schemaObject.CreateDeltaAsync(reader, ct).ConfigureAwait(false);
+                deltas.Add(delta);
+
+                await reader.CloseAsync().ConfigureAwait(false);
+            }
+        }
+
+        return new SchemaMigration(deltas);
     }
 }

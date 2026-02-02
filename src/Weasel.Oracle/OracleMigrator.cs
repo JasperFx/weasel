@@ -75,35 +75,59 @@ public class OracleMigrator: Migrator
         IMigrationLogger logger,
         CancellationToken ct = default)
     {
-        var writer = new StringWriter();
-
-        if (migration.Schemas.Any())
+        // Oracle requires each PL/SQL block to be executed separately
+        // (not batched like PostgreSQL or SQL Server)
+        foreach (var schemaName in migration.Schemas)
         {
-            new OracleMigrator().WriteSchemaCreationSql(migration.Schemas, writer);
-            if (writer.ToString().Trim().IsNotEmpty())
+            var sql = CreateSchemaStatementFor(schemaName);
+            var cmd = conn.CreateCommand(sql);
+            logger.SchemaChange(cmd.CommandText);
+
+            try
             {
-                await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
+                await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                if (logger is DefaultMigrationLogger)
+                {
+                    throw;
+                }
+
+                logger.OnFailure(cmd, e);
             }
         }
     }
 
     private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
-        var cmd = conn.CreateCommand(writer.ToString());
-        logger.SchemaChange(cmd.CommandText);
+        var sql = writer.ToString();
 
-        try
+        // Oracle can only execute one statement at a time
+        // Split by "/" which is the Oracle statement separator for PL/SQL blocks
+        var statements = sql.Split(new[] { "\n/\n", "\n/", "/\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToArray();
+
+        foreach (var statement in statements)
         {
-            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            if (logger is DefaultMigrationLogger)
+            var cmd = conn.CreateCommand(statement);
+            logger.SchemaChange(cmd.CommandText);
+
+            try
             {
-                throw;
+                await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
+            catch (Exception e)
+            {
+                if (logger is DefaultMigrationLogger)
+                {
+                    throw;
+                }
 
-            logger.OnFailure(cmd, e);
+                logger.OnFailure(cmd, e);
+            }
         }
     }
 

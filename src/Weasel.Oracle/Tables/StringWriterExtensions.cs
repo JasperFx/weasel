@@ -24,6 +24,6 @@ internal static class StringWriterExtensions
 
     public static void WriteDropIndex(this TextWriter writer, Table table, IndexDefinition index)
     {
-        writer.WriteLine($"DROP INDEX {index.Name}");
+        writer.WriteLine($"DROP INDEX {table.Identifier.Schema}.{index.Name}");
     }
 }

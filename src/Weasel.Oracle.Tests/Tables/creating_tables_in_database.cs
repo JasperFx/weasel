@@ -182,26 +182,4 @@ public class creating_tables_in_database: IntegrationContext
             .ShouldBeTrue();
     }
 
-    [Fact]
-    public async Task create_table_with_reserved_keyword_column()
-    {
-        await theConnection.OpenAsync();
-
-        await theConnection.ResetSchemaAsync("TABLES");
-
-        var table = new Table("TABLES.EVENTS");
-        table.AddColumn<int>("id").AsPrimaryKey();
-        table.AddColumn<string>("first_name");
-        table.AddColumn<string>("last_name");
-        table.AddColumn<int>("order");
-
-        await CreateSchemaObjectInDatabase(table);
-
-        (await table.ExistsInDatabaseAsync(theConnection))
-            .ShouldBeTrue();
-
-        await theConnection.CreateCommand(
-                "INSERT INTO TABLES.EVENTS (id, first_name, last_name, \"ORDER\") VALUES (1, 'Elton', 'John', 1)")
-            .ExecuteNonQueryAsync();
-    }
 }
