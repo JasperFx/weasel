@@ -1,10 +1,33 @@
+using Npgsql;
 using Shouldly;
+using Weasel.Postgresql.Tables;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests;
 
 public class PostgresqlMigratorTests
 {
+    [Fact]
+    public void matches_npgsql_connection()
+    {
+        var migrator = new PostgresqlMigrator();
+
+        using var connection = new NpgsqlConnection();
+        migrator.MatchesConnection(connection).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void create_table_returns_postgresql_table()
+    {
+        var migrator = new PostgresqlMigrator();
+        var identifier = new PostgresqlObjectName("public", "test_table");
+
+        var table = migrator.CreateTable(identifier);
+
+        table.ShouldBeOfType<Table>();
+        table.Identifier.ShouldBe(identifier);
+    }
+
     [Fact]
     public void default_name_data_length_is_64()
     {
