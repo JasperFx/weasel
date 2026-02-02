@@ -3,6 +3,7 @@ using System.Collections.Specialized;
 using System.Text;
 using System.Text.RegularExpressions;
 using JasperFx.Core;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables;
 
