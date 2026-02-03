@@ -81,7 +81,7 @@ public class TableColumnTests
     public void column_with_autoincrement_creates_correct_declaration()
     {
         var table = new Table("users");
-        table.AddColumn("id", "INTEGER").AsPrimaryKey().AutoIncrement();
+        table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
         var column = table.Columns.First();
 
         var declaration = column.Declaration();

@@ -13,9 +13,9 @@ public class TableDelta: SchemaObjectDelta<Table>
     {
     }
 
-    internal ItemDelta<TableColumn> Columns { get; private set; } = null!;
-    internal ItemDelta<IndexDefinition> Indexes { get; private set; } = null!;
-    internal ItemDelta<ForeignKey> ForeignKeys { get; private set; } = null!;
+    public ItemDelta<TableColumn> Columns { get; internal set; } = null!;
+    public ItemDelta<IndexDefinition> Indexes { get; internal set; } = null!;
+    public ItemDelta<ForeignKey> ForeignKeys { get; internal set; } = null!;
 
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
     public bool RequiresTableRecreation { get; private set; }

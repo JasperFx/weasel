@@ -6,10 +6,11 @@ namespace Weasel.Sqlite.Tests.Tables;
 
 public class IndexDefinitionTests
 {
+    private readonly Table table = new Table("users");
+
     [Fact]
-    public void can_create_simple_index()
+    public void write_basic_index()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_users_email");
         index.AgainstColumns("email");
 
@@ -23,9 +24,8 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void can_create_unique_index()
+    public void write_unique_index()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_users_email") { IsUnique = true };
         index.AgainstColumns("email");
 
@@ -35,9 +35,8 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void can_create_multi_column_index()
+    public void write_multi_column_index()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_users_name_email");
         index.AgainstColumns("last_name", "first_name", "email");
 
@@ -49,7 +48,7 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void can_create_descending_index()
+    public void write_descending_index()
     {
         var table = new Table("posts");
         var index = new IndexDefinition("idx_posts_created");
@@ -62,9 +61,8 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void can_create_partial_index()
+    public void write_partial_index()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_active_users");
         index.AgainstColumns("email");
         index.Predicate = "is_active = 1";
@@ -76,9 +74,8 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void can_create_expression_index()
+    public void write_expression_index()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_users_lower_email");
         index.WithExpression("lower(email)");
 
@@ -88,9 +85,8 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void can_create_json_path_index()
+    public void write_json_path_index()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_settings_theme");
         index.ForJsonPath("settings", "$.theme");
 
@@ -102,9 +98,8 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void can_create_json_path_index_with_collation()
+    public void write_json_path_index_with_collation()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_settings_lang");
         index.ForJsonPath("settings", "$.language");
         index.Collation = "NOCASE";
@@ -117,9 +112,8 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void should_quote_column_names()
+    public void quote_reserved_column_names()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_users_order");
         index.AgainstColumns("order"); // 'order' is a reserved keyword
 
@@ -130,18 +124,16 @@ public class IndexDefinitionTests
     }
 
     [Fact]
-    public void should_throw_if_no_columns_or_expression()
+    public void throw_if_no_columns_or_expression()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_invalid");
 
         Should.Throw<InvalidOperationException>(() => index.ToDDL(table));
     }
 
     [Fact]
-    public void can_chain_fluent_methods()
+    public void chain_fluent_methods()
     {
-        var table = new Table("users");
         var index = new IndexDefinition("idx_users_email");
 
         var result = index
@@ -150,5 +142,19 @@ public class IndexDefinitionTests
             .WithExpression("lower(name)");
 
         result.ShouldBeSameAs(index);
+    }
+
+    [Fact]
+    public void default_sort_order_is_asc()
+    {
+        var index = new IndexDefinition("idx_test");
+        index.SortOrder.ShouldBe(SortOrder.Asc);
+    }
+
+    [Fact]
+    public void is_not_unique_by_default()
+    {
+        var index = new IndexDefinition("idx_test");
+        index.IsUnique.ShouldBeFalse();
     }
 }

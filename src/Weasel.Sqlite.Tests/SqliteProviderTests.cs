@@ -7,12 +7,12 @@ namespace Weasel.Sqlite.Tests;
 
 public class SqliteProviderTests
 {
-    private readonly SqliteProvider _provider = SqliteProvider.Instance;
+    private readonly SqliteProvider provider = SqliteProvider.Instance;
 
     [Fact]
     public void default_schema_is_main()
     {
-        _provider.DefaultDatabaseSchemaName.ShouldBe("main");
+        provider.DefaultDatabaseSchemaName.ShouldBe("main");
     }
 
     [Theory]
@@ -33,30 +33,30 @@ public class SqliteProviderTests
     [InlineData(typeof(byte[]), "BLOB")]
     public void should_map_dotnet_types_to_sqlite_types(Type dotnetType, string expectedSqliteType)
     {
-        var sqliteType = _provider.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+        var sqliteType = provider.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
         sqliteType.ShouldBe(expectedSqliteType);
     }
 
     [Fact]
     public void should_map_nullable_types()
     {
-        _provider.GetDatabaseType(typeof(int?), EnumStorage.AsInteger).ShouldBe("INTEGER");
-        _provider.GetDatabaseType(typeof(DateTime?), EnumStorage.AsInteger).ShouldBe("TEXT");
-        _provider.GetDatabaseType(typeof(bool?), EnumStorage.AsInteger).ShouldBe("INTEGER");
+        provider.GetDatabaseType(typeof(int?), EnumStorage.AsInteger).ShouldBe("INTEGER");
+        provider.GetDatabaseType(typeof(DateTime?), EnumStorage.AsInteger).ShouldBe("TEXT");
+        provider.GetDatabaseType(typeof(bool?), EnumStorage.AsInteger).ShouldBe("INTEGER");
     }
 
     [Fact]
     public void should_map_enums_to_integer_or_text()
     {
-        _provider.GetDatabaseType(typeof(DayOfWeek), EnumStorage.AsInteger).ShouldBe("INTEGER");
-        _provider.GetDatabaseType(typeof(DayOfWeek), EnumStorage.AsString).ShouldBe("TEXT");
+        provider.GetDatabaseType(typeof(DayOfWeek), EnumStorage.AsInteger).ShouldBe("INTEGER");
+        provider.GetDatabaseType(typeof(DayOfWeek), EnumStorage.AsString).ShouldBe("TEXT");
     }
 
     [Fact]
     public void should_default_unmapped_types_to_text_for_json_storage()
     {
         // Complex types should map to TEXT for JSON storage
-        var type = _provider.GetDatabaseType(typeof(CustomType), EnumStorage.AsInteger);
+        var type = provider.GetDatabaseType(typeof(CustomType), EnumStorage.AsInteger);
         type.ShouldBe("TEXT");
     }
 
@@ -64,14 +64,14 @@ public class SqliteProviderTests
     public void should_not_support_array_types_except_byte_array()
     {
         // byte[] is supported as BLOB
-        _provider.GetDatabaseType(typeof(byte[]), EnumStorage.AsInteger).ShouldBe("BLOB");
+        provider.GetDatabaseType(typeof(byte[]), EnumStorage.AsInteger).ShouldBe("BLOB");
 
         // Other arrays should throw
         Should.Throw<NotSupportedException>(() =>
-            _provider.GetDatabaseType(typeof(int[]), EnumStorage.AsInteger));
+            provider.GetDatabaseType(typeof(int[]), EnumStorage.AsInteger));
 
         Should.Throw<NotSupportedException>(() =>
-            _provider.GetDatabaseType(typeof(string[]), EnumStorage.AsInteger));
+            provider.GetDatabaseType(typeof(string[]), EnumStorage.AsInteger));
     }
 
     [Theory]
@@ -83,13 +83,13 @@ public class SqliteProviderTests
     [InlineData("float", "REAL")]
     [InlineData("blob", "BLOB")]
     [InlineData("boolean", "INTEGER")]
-    public void should_convert_type_synonyms(string synonym, string expected)
+    public void convert_synonyms(string synonym, string expected)
     {
-        _provider.ConvertSynonyms(synonym).ShouldBe(expected);
+        provider.ConvertSynonyms(synonym).ShouldBe(expected);
     }
 
     [Fact]
-    public void should_read_cascade_actions()
+    public void read_cascade_actions()
     {
         SqliteProvider.ReadAction("CASCADE").ShouldBe(CascadeAction.Cascade);
         SqliteProvider.ReadAction("NO ACTION").ShouldBe(CascadeAction.NoAction);

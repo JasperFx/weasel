@@ -254,7 +254,7 @@ SELECT * FROM pragma_foreign_key_list(:{nameParam});
         }
     }
 
-    internal void ReadPrimaryKeyColumns(List<string> pks)
+    public void ReadPrimaryKeyColumns(List<string> pks)
     {
         _primaryKeyColumns.Clear();
         _primaryKeyColumns.AddRange(pks);

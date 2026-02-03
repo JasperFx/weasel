@@ -2,7 +2,7 @@ using Weasel.Core;
 
 namespace Weasel.Sqlite.Tables;
 
-internal class ItemDelta<T> where T : INamed
+public class ItemDelta<T> where T : INamed
 {
     private readonly List<Change<T>> _different = new();
     private readonly List<T> _extras = new();

@@ -242,6 +242,15 @@ public partial class Table: ISchemaObject, ITable
     }
 
     /// <summary>
+    /// Fluent API for adding columns using CLR type mapping
+    /// </summary>
+    public ColumnExpression AddColumn<T>(string name)
+    {
+        var type = SqliteProvider.Instance.GetDatabaseType(typeof(T), EnumStorage.AsInteger);
+        return AddColumn(name, type);
+    }
+
+    /// <summary>
     /// Fluent API for column configuration
     /// </summary>
     public class ColumnExpression
