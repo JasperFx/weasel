@@ -50,7 +50,13 @@ public partial class Table: ISchemaObject, ITable
     }
 
     public IReadOnlyList<TableColumn> Columns => _columns;
-    public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
+
+    private readonly List<ForeignKey> _foreignKeys = new();
+
+    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => _foreignKeys;
+
+    public IList<ForeignKey> ForeignKeys => _foreignKeys;
+
     public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
     public ISet<string> IgnoredIndexes { get; } = new HashSet<string>();
 
@@ -171,6 +177,18 @@ public partial class Table: ISchemaObject, ITable
         {
             _columns.Remove(column);
         }
+    }
+
+    public ForeignKeyBase AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
+    {
+        var fk = new ForeignKey(name)
+        {
+            LinkedTable = linkedTable,
+            ColumnNames = columnNames,
+            LinkedNames = linkedColumnNames
+        };
+        _foreignKeys.Add(fk);
+        return fk;
     }
 
     public IEnumerable<DbObjectName> AllNames()

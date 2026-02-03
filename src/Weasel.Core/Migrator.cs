@@ -25,6 +25,12 @@ public abstract class Migrator
         DefaultSchemaName = defaultSchemaName;
     }
 
+    public abstract bool MatchesConnection(DbConnection connection);
+
+    public abstract IDatabaseProvider Provider { get; }
+
+    public abstract ITable CreateTable(DbObjectName identifier);
+
     /// <summary>
     ///     Should all generated DDL files be written with transactional semantics
     ///     so that everything succeeds or everything fails together

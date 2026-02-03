@@ -162,11 +162,6 @@ public abstract class SqliteDatabase: DatabaseBase<SqliteConnection>
         await ApplyFunctionsAsync(connection, ct).ConfigureAwait(false);
     }
 
-    public override ITable CreateTable(DbObjectName identifier)
-    {
-        return new Table(identifier);
-    }
-
     public override DatabaseDescriptor Describe()
     {
         var builder = new SqliteConnectionStringBuilder(ConnectionString);

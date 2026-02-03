@@ -1,6 +1,7 @@
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
+using Microsoft.Data.SqlClient;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 
@@ -18,6 +19,13 @@ $$;
     public SqlServerMigrator(): base(SqlServerProvider.Instance.DefaultDatabaseSchemaName)
     {
     }
+
+    public override bool MatchesConnection(DbConnection connection)
+    {
+        return connection is SqlConnection;
+    }
+
+    public override IDatabaseProvider Provider => SqlServerProvider.Instance;
 
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
@@ -109,5 +117,10 @@ IF NOT EXISTS ( SELECT  *
     EXEC('CREATE SCHEMA [{schemaName}]');
 
 ";
+    }
+
+    public override ITable CreateTable(DbObjectName identifier)
+    {
+        return new Tables.Table(identifier);
     }
 }

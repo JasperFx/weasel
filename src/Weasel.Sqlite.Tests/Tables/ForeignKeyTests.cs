@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Sqlite;
 using Weasel.Sqlite.Tables;
 using Xunit;

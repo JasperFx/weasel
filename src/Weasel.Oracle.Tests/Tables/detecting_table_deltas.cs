@@ -169,7 +169,7 @@ public class detecting_table_deltas: IntegrationContext
         delta.HasChanges().ShouldBeFalse();
 
         delta.Indexes.Matched.Single()
-            .Name.ShouldBe("idx_PEOPLE_user_name");
+            .Name.ShouldBe("IDX_PEOPLE_USER_NAME");
 
         delta.Difference.ShouldBe(SchemaPatchDifference.None);
     }
@@ -209,7 +209,7 @@ public class detecting_table_deltas: IntegrationContext
         delta.HasChanges().ShouldBeTrue();
 
         delta.Indexes.Extras.Single().Name
-            .ShouldBe("idx_PEOPLE_user_name");
+            .ShouldBe("IDX_PEOPLE_USER_NAME");
 
         delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
@@ -269,7 +269,7 @@ public class detecting_table_deltas: IntegrationContext
         delta.HasChanges().ShouldBeTrue();
 
         delta.ForeignKeys.Extras.Single().Name
-            .ShouldBe("fk_PEOPLE3_state_id");
+            .ShouldBe("FK_PEOPLE3_STATE_ID");
 
         delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 
@@ -298,7 +298,7 @@ public class detecting_table_deltas: IntegrationContext
         delta.HasChanges().ShouldBeFalse();
 
         delta.ForeignKeys.Matched.Single().Name
-            .ShouldBe("fk_PEOPLE4_state_id");
+            .ShouldBe("FK_PEOPLE4_STATE_ID");
 
         delta.Difference.ShouldBe(SchemaPatchDifference.None);
 
@@ -329,7 +329,7 @@ public class detecting_table_deltas: IntegrationContext
         delta.HasChanges().ShouldBeTrue();
 
         delta.ForeignKeys.Different.Single().Actual.Name
-            .ShouldBe("fk_PEOPLE5_state_id");
+            .ShouldBe("FK_PEOPLE5_STATE_ID");
 
         delta.Difference.ShouldBe(SchemaPatchDifference.Update);
 

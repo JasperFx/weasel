@@ -69,6 +69,20 @@ public partial class Table: ITable
         return expression.Column;
     }
 
+    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
+
+    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
+    {
+        var fk = new ForeignKey(name)
+        {
+            LinkedTable = linkedTable,
+            ColumnNames = columnNames,
+            LinkedNames = linkedColumnNames
+        };
+        ForeignKeys.Add(fk);
+        return fk;
+    }
+
     public IReadOnlyList<TableColumn> Columns => _columns;
 
     public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
@@ -100,7 +114,7 @@ public partial class Table: ITable
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}' AND owner = '{Identifier.Schema.ToUpperInvariant()}';
     IF v_count > 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE {Identifier} CASCADE CONSTRAINTS';
     END IF;
@@ -115,7 +129,7 @@ END;
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}' AND owner = '{Identifier.Schema.ToUpperInvariant()}';
     IF v_count = 0 THEN
         EXECUTE IMMEDIATE '");
             writer.WriteLine($"CREATE TABLE {Identifier} (");
@@ -212,7 +226,7 @@ BEGIN
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM user_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}' AND owner = '{Identifier.Schema.ToUpperInvariant()}';
     IF v_count > 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE {Identifier} CASCADE CONSTRAINTS';
     END IF;

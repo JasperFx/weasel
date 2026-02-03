@@ -20,34 +20,25 @@ jobs:
     timeout-minutes: 45
 
     strategy:
-        # define the test matrix
         matrix:
-            oracle-image:
-                - gvenzl/oracle-free:23-slim
             framework:
                 - net8.0
                 - net9.0
                 - net10.0
 
-    name: Oracle ${{ matrix.oracle-image }} ${{ matrix.framework }}
-
-    services:
-      oracle:
-        image: ${{ matrix.oracle-image }}
-        ports:
-          - 1521:1521
-        env:
-          ORACLE_PASSWORD: ${{ env.db_pwd }}
-          APP_USER: weasel
-          APP_USER_PASSWORD: ${{ env.db_pwd }}
-        options: >-
-          --health-cmd healthcheck.sh
-          --health-interval 30s
-          --health-timeout 30s
-          --health-retries 10
+    name: Oracle ${{ matrix.framework }}
 
     steps:
     - uses: actions/checkout@v6
+
+    - name: Start Oracle via docker-compose
+      run: docker compose up -d oracle
+
+    - name: Wait for Oracle to be healthy
+      run: |
+        echo "Waiting for Oracle to be ready..."
+        timeout 300 bash -c 'until docker compose exec -T oracle healthcheck.sh; do sleep 10; done'
+        echo "Oracle is ready"
 
     - name: Install .NET
       uses: actions/setup-dotnet@v5
@@ -67,3 +58,7 @@ jobs:
       env:
         weasel_oracle_testing_database: "Data Source=localhost:1521/FREEPDB1;User Id=weasel;Password=${{ env.db_pwd }};"
       run: dotnet test src/Weasel.Oracle.Tests/Weasel.Oracle.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }}
+
+    - name: Stop Oracle
+      if: always()
+      run: docker compose down

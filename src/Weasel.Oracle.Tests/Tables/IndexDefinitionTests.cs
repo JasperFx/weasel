@@ -15,7 +15,7 @@ public class IndexDefinitionTests
             Columns = new[] { "name" }
         };
 
-        index.ToDDL(table).ShouldBe("CREATE INDEX idx_people_name ON WEASEL.PEOPLE (name)");
+        index.ToDDL(table).ShouldBe("CREATE INDEX WEASEL.idx_people_name ON WEASEL.PEOPLE (name)");
     }
 
     [Fact]
@@ -28,7 +28,7 @@ public class IndexDefinitionTests
             IsUnique = true
         };
 
-        index.ToDDL(table).ShouldBe("CREATE UNIQUE INDEX idx_people_email ON WEASEL.PEOPLE (email)");
+        index.ToDDL(table).ShouldBe("CREATE UNIQUE INDEX WEASEL.idx_people_email ON WEASEL.PEOPLE (email)");
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class IndexDefinitionTests
             SortOrder = SortOrder.Desc
         };
 
-        index.ToDDL(table).ShouldBe("CREATE INDEX idx_people_created_at ON WEASEL.PEOPLE (created_at DESC)");
+        index.ToDDL(table).ShouldBe("CREATE INDEX WEASEL.idx_people_created_at ON WEASEL.PEOPLE (created_at DESC)");
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class IndexDefinitionTests
             Columns = new[] { "first_name", "last_name" }
         };
 
-        index.ToDDL(table).ShouldBe("CREATE INDEX idx_people_name_email ON WEASEL.PEOPLE (first_name, last_name)");
+        index.ToDDL(table).ShouldBe("CREATE INDEX WEASEL.idx_people_name_email ON WEASEL.PEOPLE (first_name, last_name)");
     }
 
     [Fact]
@@ -66,7 +66,7 @@ public class IndexDefinitionTests
             IndexType = OracleIndexType.Bitmap
         };
 
-        index.ToDDL(table).ShouldBe("CREATE BITMAP INDEX idx_people_status ON WEASEL.PEOPLE (status)");
+        index.ToDDL(table).ShouldBe("CREATE BITMAP INDEX WEASEL.idx_people_status ON WEASEL.PEOPLE (status)");
     }
 
     [Fact]
@@ -79,7 +79,7 @@ public class IndexDefinitionTests
             FunctionExpression = "UPPER(name)"
         };
 
-        index.ToDDL(table).ShouldBe("CREATE INDEX idx_people_upper_name ON WEASEL.PEOPLE (UPPER(name))");
+        index.ToDDL(table).ShouldBe("CREATE INDEX WEASEL.idx_people_upper_name ON WEASEL.PEOPLE (UPPER(name))");
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public class IndexDefinitionTests
             Tablespace = "USERS"
         };
 
-        index.ToDDL(table).ShouldBe("CREATE INDEX idx_people_name ON WEASEL.PEOPLE (name) TABLESPACE USERS");
+        index.ToDDL(table).ShouldBe("CREATE INDEX WEASEL.idx_people_name ON WEASEL.PEOPLE (name) TABLESPACE USERS");
     }
 
     [Fact]

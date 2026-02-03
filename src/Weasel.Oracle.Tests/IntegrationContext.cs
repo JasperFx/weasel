@@ -33,25 +33,49 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
         var writer = new StringWriter();
         schemaObject.WriteCreateStatement(rules, writer);
 
+        var sql = writer.ToString();
+
+        // Oracle can only execute one statement at a time
+        // Split by "/" which is the Oracle statement separator
+        var statements = sql.Split(new[] { "\n/\n", "\n/", "/\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToArray();
+
         try
         {
-            await theConnection.CreateCommand(writer.ToString())
-                .ExecuteNonQueryAsync();
+            foreach (var statement in statements)
+            {
+                await theConnection.CreateCommand(statement)
+                    .ExecuteNonQueryAsync();
+            }
         }
         catch (Exception e)
         {
-            throw new Exception("DDL Execution Failure.\n" + writer.ToString(), e);
+            throw new Exception("DDL Execution Failure.\n" + sql, e);
         }
     }
 
-    protected Task DropSchemaObjectInDatabase(ISchemaObject schemaObject)
+    protected async Task DropSchemaObjectInDatabase(ISchemaObject schemaObject)
     {
         var rules = new OracleMigrator();
         var writer = new StringWriter();
         schemaObject.WriteDropStatement(rules, writer);
 
-        return theConnection.CreateCommand(writer.ToString())
-            .ExecuteNonQueryAsync();
+        var sql = writer.ToString();
+
+        // Oracle can only execute one statement at a time
+        // Split by "/" which is the Oracle statement separator
+        var statements = sql.Split(new[] { "\n/\n", "\n/", "/\n" }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToArray();
+
+        foreach (var statement in statements)
+        {
+            await theConnection.CreateCommand(statement)
+                .ExecuteNonQueryAsync();
+        }
     }
 
     public virtual Task InitializeAsync()

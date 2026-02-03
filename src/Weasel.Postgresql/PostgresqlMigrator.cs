@@ -1,6 +1,7 @@
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
+using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 using Weasel.Postgresql.Tables;
@@ -27,6 +28,13 @@ $$;
     ///     for more information. This does NOT adjust NAMEDATALEN for you.
     /// </summary>
     public int NameDataLength { get; set; } = 64;
+
+    public override bool MatchesConnection(DbConnection connection)
+    {
+        return connection is NpgsqlConnection;
+    }
+
+    public override IDatabaseProvider Provider => PostgresqlProvider.Instance;
 
     /// <summary>
     ///     Write out a templated SQL script with all rules
@@ -162,5 +170,10 @@ $$;
         }
 
         throw new PostgresqlIdentifierTooLongException(NameDataLength, name);
+    }
+
+    public override ITable CreateTable(DbObjectName identifier)
+    {
+        return new Tables.Table(identifier);
     }
 }

@@ -1,3 +1,5 @@
+using Weasel.Core;
+
 namespace Weasel.Sqlite.Tables;
 
 internal static class StringWriterExtensions

@@ -11,34 +11,38 @@ public class MisconfiguredForeignKeyException: Exception
     }
 }
 
-public class ForeignKey: INamed
+public class ForeignKey: ForeignKeyBase
 {
     private string[] _columnNames = null!;
     private string[] _linkedNames = null!;
 
-    public ForeignKey(string name)
+    public ForeignKey(string name) : base(name)
     {
-        Name = name;
     }
 
-    public string[] ColumnNames
+    public override string[] ColumnNames
     {
         get => _columnNames;
         set => _columnNames = value.OrderBy(x => x).ToArray();
     }
 
-    public string[] LinkedNames
+    public override string[] LinkedNames
     {
         get => _linkedNames;
         set => _linkedNames = value.OrderBy(x => x).ToArray();
     }
 
-    public DbObjectName LinkedTable { get; set; } = null!;
+    public CascadeAction OnDelete
+    {
+        get => DeleteAction;
+        set => DeleteAction = value;
+    }
 
-    public CascadeAction OnDelete { get; set; } = CascadeAction.NoAction;
-    public CascadeAction OnUpdate { get; set; } = CascadeAction.NoAction;
-
-    public string Name { get; set; }
+    public CascadeAction OnUpdate
+    {
+        get => UpdateAction;
+        set => UpdateAction = value;
+    }
 
     protected bool Equals(ForeignKey other)
     {
@@ -46,7 +50,7 @@ public class ForeignKey: INamed
                ColumnNames.SequenceEqual(other.ColumnNames, StringComparer.OrdinalIgnoreCase) &&
                LinkedNames.SequenceEqual(other.LinkedNames, StringComparer.OrdinalIgnoreCase) &&
                Equals(LinkedTable, other.LinkedTable) &&
-               OnDelete == other.OnDelete && OnUpdate == other.OnUpdate;
+               DeleteAction == other.DeleteAction && UpdateAction == other.UpdateAction;
     }
 
     public override bool Equals(object? obj)
@@ -77,8 +81,8 @@ public class ForeignKey: INamed
             hashCode = (hashCode * 397) ^ (ColumnNames != null ? ColumnNames.GetHashCode() : 0);
             hashCode = (hashCode * 397) ^ (LinkedNames != null ? LinkedNames.GetHashCode() : 0);
             hashCode = (hashCode * 397) ^ (LinkedTable != null ? LinkedTable.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (int)OnDelete;
-            hashCode = (hashCode * 397) ^ (int)OnUpdate;
+            hashCode = (hashCode * 397) ^ (int)DeleteAction;
+            hashCode = (hashCode * 397) ^ (int)UpdateAction;
             return hashCode;
         }
     }
@@ -158,14 +162,14 @@ public class ForeignKey: INamed
         writer.Write($"CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY ({ColumnNames.Select(SchemaUtils.QuoteName).Join(", ")})");
         writer.Write($" REFERENCES {LinkedTable.QualifiedName} ({LinkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
 
-        if (OnDelete != CascadeAction.NoAction)
+        if (DeleteAction != CascadeAction.NoAction)
         {
-            writer.WriteCascadeAction("ON DELETE", OnDelete);
+            writer.WriteCascadeAction("ON DELETE", DeleteAction);
         }
 
-        if (OnUpdate != CascadeAction.NoAction)
+        if (UpdateAction != CascadeAction.NoAction)
         {
-            writer.WriteCascadeAction("ON UPDATE", OnUpdate);
+            writer.WriteCascadeAction("ON UPDATE", UpdateAction);
         }
     }
 
@@ -210,12 +214,12 @@ public class ForeignKey: INamed
     {
         if (onDelete != null)
         {
-            OnDelete = SqliteProvider.ReadAction(onDelete);
+            DeleteAction = SqliteProvider.ReadAction(onDelete);
         }
 
         if (onUpdate != null)
         {
-            OnUpdate = SqliteProvider.ReadAction(onUpdate);
+            UpdateAction = SqliteProvider.ReadAction(onUpdate);
         }
     }
 }

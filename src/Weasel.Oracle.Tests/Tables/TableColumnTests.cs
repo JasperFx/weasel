@@ -64,7 +64,7 @@ public class TableColumnTests
         {
             DefaultExpression = "SYSDATE"
         };
-        column.Declaration().ShouldBe("NULL DEFAULT SYSDATE");
+        column.Declaration().ShouldBe("DEFAULT SYSDATE NULL");
     }
 
     [Fact]

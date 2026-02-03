@@ -38,8 +38,20 @@ public class Sequence: ISchemaObject
     {
         var startsWith = _startWith ?? 1;
 
-        writer.WriteLine(
-            $"CREATE SEQUENCE {Identifier} START WITH {startsWith}");
+        // Use PL/SQL exception handling to safely create sequence if it doesn't exist
+        // This avoids race conditions where another process creates the sequence
+        // between our check and create
+        writer.WriteLine($@"
+BEGIN
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE {Identifier} START WITH {startsWith}';
+EXCEPTION
+    WHEN OTHERS THEN
+        IF SQLCODE = -955 THEN
+            NULL; -- ORA-00955: name already used, ignore
+        ELSE
+            RAISE;
+        END IF;
+END;");
         writer.WriteLine("/");
     }
 
@@ -49,7 +61,7 @@ public class Sequence: ISchemaObject
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM user_sequences WHERE sequence_name = '{Identifier.Name.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_sequences WHERE sequence_name = '{Identifier.Name.ToUpperInvariant()}' AND sequence_owner = '{Identifier.Schema.ToUpperInvariant()}';
     IF v_count > 0 THEN
         EXECUTE IMMEDIATE 'DROP SEQUENCE {Identifier}';
     END IF;

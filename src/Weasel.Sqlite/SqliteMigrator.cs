@@ -12,6 +12,18 @@ public class SqliteMigrator: Migrator
     {
     }
 
+    public override IDatabaseProvider Provider => SqliteProvider.Instance;
+
+    public override ITable CreateTable(DbObjectName identifier)
+    {
+        return new Tables.Table(identifier);
+    }
+
+    public override bool MatchesConnection(DbConnection connection)
+    {
+        return connection is Microsoft.Data.Sqlite.SqliteConnection;
+    }
+
     /// <summary>
     ///     Write out a templated SQL script with all rules
     /// </summary>
