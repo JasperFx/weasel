@@ -117,6 +117,21 @@ public partial class Table: ITable
 
         writer.WriteLine($"CREATE TABLE IF NOT EXISTS {Identifier.QualifiedName} (");
 
+        // Find AUTO_INCREMENT columns that need inline UNIQUE KEY declarations
+        // MySQL requires AUTO_INCREMENT columns to be part of a key at CREATE TABLE time
+        var autoIncrementUniqueIndexes = Indexes
+            .Where(idx => idx.IsUnique && idx.Columns.Length == 1)
+            .Where(idx =>
+            {
+                var col = ColumnFor(idx.Columns[0]);
+                if (col == null) return false;
+                // Check if column is AUTO_INCREMENT and not already a primary key
+                var isAutoIncrement = col.IsAutoNumber ||
+                                      col.Type.Contains("AUTO_INCREMENT", StringComparison.OrdinalIgnoreCase);
+                return isAutoIncrement && !col.IsPrimaryKey;
+            })
+            .ToList();
+
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
             var columnLength = Columns.Max(x => x.QuotedName.Length) + 4;
@@ -129,6 +144,12 @@ public partial class Table: ITable
             if (PrimaryKeyColumns.Any())
             {
                 lines.Add(PrimaryKeyDeclaration());
+            }
+
+            // Add inline UNIQUE KEY declarations for AUTO_INCREMENT columns
+            foreach (var index in autoIncrementUniqueIndexes)
+            {
+                lines.Add($"    UNIQUE KEY `{index.Name}` (`{index.Columns[0]}`)");
             }
 
             for (var i = 0; i < lines.Count - 1; i++)
@@ -147,6 +168,12 @@ public partial class Table: ITable
             if (PrimaryKeyColumns.Any())
             {
                 lines.Add(PrimaryKeyDeclaration());
+            }
+
+            // Add inline UNIQUE KEY declarations for AUTO_INCREMENT columns
+            foreach (var index in autoIncrementUniqueIndexes)
+            {
+                lines.Add($"UNIQUE KEY `{index.Name}` (`{index.Columns[0]}`)");
             }
 
             for (var i = 0; i < lines.Count - 1; i++)
@@ -213,7 +240,21 @@ public partial class Table: ITable
             writer.WriteLine(foreignKey.ToDDL(this));
         }
 
-        foreach (var index in Indexes)
+        // Skip indexes that were already written inline (AUTO_INCREMENT unique indexes)
+        var autoIncrementIndexNames = Indexes
+            .Where(idx => idx.IsUnique && idx.Columns.Length == 1)
+            .Where(idx =>
+            {
+                var col = ColumnFor(idx.Columns[0]);
+                if (col == null) return false;
+                var isAutoIncrement = col.IsAutoNumber ||
+                                      col.Type.Contains("AUTO_INCREMENT", StringComparison.OrdinalIgnoreCase);
+                return isAutoIncrement && !col.IsPrimaryKey;
+            })
+            .Select(idx => idx.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var index in Indexes.Where(idx => !autoIncrementIndexNames.Contains(idx.Name)))
         {
             writer.WriteLine();
             writer.WriteLine(index.ToDDL(this));
