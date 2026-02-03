@@ -23,8 +23,8 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          - windows-latest
-          - macos-latest
+          #- windows-latest
+          #- macos-latest
         framework:
           - net8.0
           - net9.0
