@@ -39,8 +39,8 @@ jobs:
     - name: Pack Weasel.Oracle
       run: dotnet pack ./src/Weasel.Oracle/Weasel.Oracle.csproj -o ./artifacts --configuration Release --no-build
 
-    - name: Pack Weasel.Sqllite
-      run: dotnet pack ./src/Weasel.Sqllite/Weasel.Sqllite.csproj -o ./artifacts --configuration Release --no-build
+    - name: Pack Weasel.Sqlite
+      run: dotnet pack ./src/Weasel.Sqlite/Weasel.Sqlite.csproj -o ./artifacts --configuration Release --no-build
 
     - name: Pack Weasel.EntityFrameworkCore
       run: dotnet pack ./src/Weasel.EntityFrameworkCore/Weasel.EntityFrameworkCore.csproj -o ./artifacts --configuration Release --no-build
