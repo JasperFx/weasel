@@ -98,28 +98,50 @@ public class SqlitePragmaSettingsTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            await using var connection = new SqliteConnection($"Data Source={tempFile}");
-            await connection.OpenAsync();
-
-            var settings = new SqlitePragmaSettings
             {
-                JournalMode = JournalMode.WAL,
-                WalAutoCheckpoint = 2000
-            };
+                await using var connection = new SqliteConnection($"Data Source={tempFile}");
+                await connection.OpenAsync();
 
-            await settings.ApplyToConnectionAsync(connection);
+                var settings = new SqlitePragmaSettings
+                {
+                    JournalMode = JournalMode.WAL,
+                    WalAutoCheckpoint = 2000
+                };
 
-            var journalMode = await GetPragmaValueAsync(connection, "journal_mode");
-            journalMode.ToLowerInvariant().ShouldBe("wal");
+                await settings.ApplyToConnectionAsync(connection);
 
-            var autoCheckpoint = await GetPragmaValueAsync(connection, "wal_autocheckpoint");
-            autoCheckpoint.ShouldBe("2000");
+                var journalMode = await GetPragmaValueAsync(connection, "journal_mode");
+                journalMode.ToLowerInvariant().ShouldBe("wal");
+
+                var autoCheckpoint = await GetPragmaValueAsync(connection, "wal_autocheckpoint");
+                autoCheckpoint.ShouldBe("2000");
+            }
+
+            // Force garbage collection to ensure connection is fully disposed on Windows
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
         finally
         {
-            if (File.Exists(tempFile))
+            // Clean up temp file and WAL files
+            try
             {
-                File.Delete(tempFile);
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+                if (File.Exists(tempFile + "-wal"))
+                {
+                    File.Delete(tempFile + "-wal");
+                }
+                if (File.Exists(tempFile + "-shm"))
+                {
+                    File.Delete(tempFile + "-shm");
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
             }
         }
     }
@@ -207,24 +229,37 @@ public class SqlitePragmaSettingsTests
         var tempFile = Path.GetTempFileName();
         try
         {
-            await using var connection = new SqliteConnection($"Data Source={tempFile}");
-            await connection.OpenAsync();
-
-            var settings = new SqlitePragmaSettings
             {
-                MmapSize = 134217728 // 128MB
-            };
+                await using var connection = new SqliteConnection($"Data Source={tempFile}");
+                await connection.OpenAsync();
 
-            await settings.ApplyToConnectionAsync(connection);
+                var settings = new SqlitePragmaSettings
+                {
+                    MmapSize = 134217728 // 128MB
+                };
 
-            var mmapSize = await GetPragmaValueAsync(connection, "mmap_size");
-            mmapSize.ShouldBe("134217728");
+                await settings.ApplyToConnectionAsync(connection);
+
+                var mmapSize = await GetPragmaValueAsync(connection, "mmap_size");
+                mmapSize.ShouldBe("134217728");
+            }
+
+            // Force garbage collection to ensure connection is fully disposed on Windows
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
         }
         finally
         {
-            if (File.Exists(tempFile))
+            try
             {
-                File.Delete(tempFile);
+                if (File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+            }
+            catch
+            {
+                // Ignore cleanup errors
             }
         }
     }
