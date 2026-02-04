@@ -85,6 +85,14 @@ public partial class Table: ISchemaObject, ITable
 
     public DbObjectName Identifier { get; private set; }
 
+    /// <summary>
+    /// Change the table's schema (attached database)
+    /// </summary>
+    public void MoveToSchema(string schemaName)
+    {
+        Identifier = new SqliteObjectName(schemaName, Identifier.Name);
+    }
+
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
@@ -179,6 +187,30 @@ public partial class Table: ISchemaObject, ITable
         }
     }
 
+    /// <summary>
+    /// Mark an index as ignored for delta detection purposes
+    /// </summary>
+    public void IgnoreIndex(string indexName)
+    {
+        IgnoredIndexes.Add(indexName);
+    }
+
+    /// <summary>
+    /// Check if the table has an index with the given name
+    /// </summary>
+    public bool HasIndex(string indexName)
+    {
+        return Indexes.Any(x => x.Name.Equals(indexName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>
+    /// Check if an index is in the ignored list
+    /// </summary>
+    public bool HasIgnoredIndex(string indexName)
+    {
+        return IgnoredIndexes.Contains(indexName);
+    }
+
     public ForeignKeyBase AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
     {
         var fk = new ForeignKey(name)
@@ -269,6 +301,25 @@ public partial class Table: ISchemaObject, ITable
     }
 
     /// <summary>
+    /// Add a pre-configured TableColumn instance
+    /// </summary>
+    public ColumnExpression AddColumn(TableColumn column)
+    {
+        _columns.Add(column);
+        column.Parent = this;
+        return new ColumnExpression(this, column);
+    }
+
+    /// <summary>
+    /// Add a column using a custom TableColumn subclass
+    /// </summary>
+    public ColumnExpression AddColumn<T>() where T : TableColumn, new()
+    {
+        var column = new T();
+        return AddColumn(column);
+    }
+
+    /// <summary>
     /// Fluent API for column configuration
     /// </summary>
     public class ColumnExpression
@@ -300,6 +351,12 @@ public partial class Table: ISchemaObject, ITable
             return this;
         }
 
+        public ColumnExpression AllowNulls()
+        {
+            Column.AllowNulls = true;
+            return this;
+        }
+
         public ColumnExpression DefaultValue(object value)
         {
             Column.DefaultExpression = value switch
@@ -308,6 +365,42 @@ public partial class Table: ISchemaObject, ITable
                 bool b => b ? "1" : "0",
                 _ => value.ToString()
             };
+            return this;
+        }
+
+        public ColumnExpression DefaultValue(int value)
+        {
+            Column.DefaultExpression = value.ToString();
+            return this;
+        }
+
+        public ColumnExpression DefaultValue(long value)
+        {
+            Column.DefaultExpression = value.ToString();
+            return this;
+        }
+
+        public ColumnExpression DefaultValue(double value)
+        {
+            Column.DefaultExpression = value.ToString();
+            return this;
+        }
+
+        public ColumnExpression DefaultValue(bool value)
+        {
+            Column.DefaultExpression = value ? "1" : "0";
+            return this;
+        }
+
+        public ColumnExpression DefaultValueByString(string value)
+        {
+            Column.DefaultExpression = $"'{value}'";
+            return this;
+        }
+
+        public ColumnExpression DefaultValueByExpression(string expression)
+        {
+            Column.DefaultExpression = expression;
             return this;
         }
 
@@ -322,6 +415,83 @@ public partial class Table: ISchemaObject, ITable
             Column.GeneratedExpression = expression;
             Column.GeneratedType = type;
             return this;
+        }
+
+        /// <summary>
+        /// Add an index on this column
+        /// </summary>
+        public ColumnExpression AddIndex(Action<IndexDefinition>? configure = null)
+        {
+            var index = new IndexDefinition(_table.Identifier.ToIndexName("idx", Column.Name))
+            {
+                Columns = new[] { Column.Name }
+            };
+
+            if (_table.HasIgnoredIndex(index.Name))
+            {
+                throw new ArgumentException($"Cannot add ignored index {index.Name} on table {_table.Identifier}");
+            }
+
+            _table.Indexes.Add(index);
+
+            configure?.Invoke(index);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Create a foreign key relationship to another table using a string table name
+        /// </summary>
+        public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName,
+            string? fkName = null,
+            CascadeAction onDelete = CascadeAction.NoAction,
+            CascadeAction onUpdate = CascadeAction.NoAction)
+        {
+            var referencedIdentifier = DbObjectName.Parse(SqliteProvider.Instance, referencedTableName);
+            return ForeignKeyTo(referencedIdentifier, referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <summary>
+        /// Create a foreign key relationship to another table using a Table object
+        /// </summary>
+        public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName, string? fkName = null,
+            CascadeAction onDelete = CascadeAction.NoAction,
+            CascadeAction onUpdate = CascadeAction.NoAction)
+        {
+            return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <summary>
+        /// Create a foreign key relationship to another table using a DbObjectName
+        /// </summary>
+        public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
+            string? fkName = null,
+            CascadeAction onDelete = CascadeAction.NoAction,
+            CascadeAction onUpdate = CascadeAction.NoAction)
+        {
+            var fk = new ForeignKey(fkName ?? _table.Identifier.ToIndexName("fkey", Column.Name))
+            {
+                LinkedTable = referencedIdentifier,
+                ColumnNames = new[] { Column.Name },
+                LinkedNames = new[] { referencedColumnName },
+                DeleteAction = onDelete,
+                UpdateAction = onUpdate
+            };
+
+            _table.ForeignKeys.Add(fk);
+
+            return this;
+        }
+
+        /// <summary>
+        /// Create a foreign key relationship to another table using a SqliteObjectName
+        /// </summary>
+        public ColumnExpression ForeignKeyTo(SqliteObjectName referencedIdentifier, string referencedColumnName,
+            string? fkName = null,
+            CascadeAction onDelete = CascadeAction.NoAction,
+            CascadeAction onUpdate = CascadeAction.NoAction)
+        {
+            return ForeignKeyTo((DbObjectName)referencedIdentifier, referencedColumnName, fkName, onDelete, onUpdate);
         }
     }
 }

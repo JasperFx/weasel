@@ -9,46 +9,64 @@ public partial class Table
 {
     public void ConfigureQueryCommand(DbCommandBuilder builder)
     {
-        var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
+        // SQLite PRAGMA statements don't support parameter binding, so we use the table name directly
+        // Sanitize the table name to prevent SQL injection by escaping single quotes
+        var sanitizedName = Identifier.Name.Replace("'", "''");
 
-        // SQLite uses sqlite_master for schema information
-        // We'll query multiple result sets for complete table information
         builder.Append($@"
 -- Get table SQL definition
 SELECT sql FROM sqlite_master
-WHERE type = 'table' AND name = :{nameParam};
+WHERE type = 'table' AND name = '{sanitizedName}';
 
--- Get column information using PRAGMA
-SELECT * FROM pragma_table_info(:{nameParam});
+-- Get column information using PRAGMA (PRAGMA doesn't support parameter binding)
+SELECT * FROM pragma_table_info('{sanitizedName}');
 
 -- Get index information
 SELECT name, sql FROM sqlite_master
-WHERE type = 'index' AND tbl_name = :{nameParam} AND sql IS NOT NULL;
+WHERE type = 'index' AND tbl_name = '{sanitizedName}' AND sql IS NOT NULL;
 
--- Get foreign key information
-SELECT * FROM pragma_foreign_key_list(:{nameParam});
+-- Get foreign key information (PRAGMA doesn't support parameter binding)
+SELECT * FROM pragma_foreign_key_list('{sanitizedName}');
 ");
     }
 
     public async Task<Table?> FetchExistingAsync(SqliteConnection conn, CancellationToken ct = default)
     {
-        var builder = new DbCommandBuilder(conn);
-        ConfigureQueryCommand(builder);
+        // SQLite PRAGMAs don't support parameter binding, so we build the query directly
+        // We sanitize the table name to prevent SQL injection
+        var tableName = Identifier.Name.Replace("'", "''"); // Escape single quotes
 
-        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
-        var result = await readExistingAsync(reader, ct).ConfigureAwait(false);
+        var sql = $@"
+-- Get table SQL definition
+SELECT sql FROM sqlite_master
+WHERE type = 'table' AND name = '{tableName}';
+
+-- Get column information using PRAGMA
+SELECT * FROM pragma_table_info('{tableName}');
+
+-- Get index information
+SELECT name, sql FROM sqlite_master
+WHERE type = 'index' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
+
+-- Get foreign key information
+SELECT * FROM pragma_foreign_key_list('{tableName}');
+";
+
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
 
         try
         {
+            await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            var result = await readExistingAsync(reader, ct).ConfigureAwait(false);
             await reader.CloseAsync().ConfigureAwait(false);
+            return result;
         }
         catch (SqliteException)
         {
             // Table doesn't exist
             return null;
         }
-
-        return result;
     }
 
     private async Task<Table?> readExistingAsync(DbDataReader reader, CancellationToken ct = default)

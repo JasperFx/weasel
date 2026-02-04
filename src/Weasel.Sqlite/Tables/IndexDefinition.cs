@@ -121,7 +121,8 @@ public class IndexDefinition: INamed
         builder.Append("INDEX IF NOT EXISTS ");
         builder.Append(QuotedName);
         builder.Append(" ON ");
-        builder.Append(parent.Identifier);
+        // SQLite: Use only the table name, not the qualified name (schema.table)
+        builder.Append(SchemaUtils.QuoteName(parent.Identifier.Name));
         builder.Append(" ");
 
         // Build the index columns/expression
@@ -215,5 +216,45 @@ public class IndexDefinition: INamed
     public override string ToString()
     {
         return $"Index '{Name}' {(IsUnique ? "UNIQUE " : "")}on columns: {Columns?.Join(", ") ?? Expression ?? ""}";
+    }
+
+    /// <summary>
+    /// Check if this index definition matches another index definition by comparing normalized DDL
+    /// </summary>
+    public bool Matches(IndexDefinition actual, Table parent)
+    {
+        var expectedSql = CanonicizeDdl(this, parent);
+        var actualSql = CanonicizeDdl(actual, parent);
+        return expectedSql == actualSql;
+    }
+
+    /// <summary>
+    /// Normalize index DDL for comparison by removing whitespace differences and schema qualifiers
+    /// </summary>
+    public static string CanonicizeDdl(IndexDefinition index, Table parent)
+    {
+        var sql = index.ToDDL(parent);
+        return CanonicizeDdl(sql, parent.Identifier.Schema);
+    }
+
+    /// <summary>
+    /// Normalize SQL string for comparison
+    /// </summary>
+    public static string CanonicizeDdl(string sql, string schema)
+    {
+        // Remove common variations that don't affect semantics
+        sql = sql.Replace("IF NOT EXISTS", "", StringComparison.OrdinalIgnoreCase);
+        sql = sql.Replace($"{schema}.", "", StringComparison.OrdinalIgnoreCase);
+        sql = sql.Replace("main.", "", StringComparison.OrdinalIgnoreCase);
+
+        // Normalize whitespace
+        sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+", " ");
+        sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\(\s+", "(");
+        sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+\)", ")");
+
+        // Remove parentheses for comparison (columns are inside parens)
+        sql = sql.Replace("(", "").Replace(")", "");
+
+        return sql.Trim().ToLowerInvariant();
     }
 }

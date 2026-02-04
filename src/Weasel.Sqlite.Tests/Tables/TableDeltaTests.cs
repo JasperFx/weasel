@@ -244,4 +244,167 @@ public class TableDeltaTests
         ddl.ShouldContain("id");
         ddl.ShouldContain("name");
     }
+
+    [Fact]
+    public void has_changes_returns_false_when_tables_match()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("name");
+
+        var actual = new Table("users");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn<string>("name");
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.HasChanges().ShouldBeFalse();
+    }
+
+    [Fact]
+    public void has_changes_returns_true_when_column_added()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("name");
+        expected.AddColumn<string>("email");
+
+        var actual = new Table("users");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn<string>("name");
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.HasChanges().ShouldBeTrue();
+    }
+
+    [Fact]
+    public void has_changes_returns_true_when_index_added()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("email");
+        var index = new IndexDefinition("idx_email");
+        index.AgainstColumns("email");
+        expected.Indexes.Add(index);
+
+        var actual = new Table("users");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn<string>("email");
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.HasChanges().ShouldBeTrue();
+    }
+
+    [Fact]
+    public void has_changes_returns_true_when_primary_key_changed()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("email");
+
+        var actual = new Table("users");
+        actual.AddColumn<int>("id");
+        actual.AddColumn<string>("email").AsPrimaryKey();
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.HasChanges().ShouldBeTrue();
+    }
+
+    [Fact]
+    public void write_rollback_for_new_table()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("name");
+
+        var delta = new TableDelta(expected, null);
+        var writer = new StringWriter();
+        var migrator = new SqliteMigrator();
+
+        delta.WriteRollback(migrator, writer);
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain("DROP TABLE");
+        ddl.ShouldContain("users");
+    }
+
+    [Fact]
+    public void write_rollback_for_simple_column_add()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("name");
+        expected.AddColumn<string>("email");
+
+        var actual = new Table("users");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn<string>("name");
+
+        var delta = new TableDelta(expected, actual);
+        var writer = new StringWriter();
+        var migrator = new SqliteMigrator();
+
+        delta.WriteRollback(migrator, writer);
+        var ddl = writer.ToString();
+
+        // Rollback of adding email column should drop it
+        ddl.ShouldContain("DROP COLUMN");
+        ddl.ShouldContain("email");
+    }
+
+    [Fact]
+    public void write_rollback_for_index_add()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("email");
+
+        var index = new IndexDefinition("idx_users_email");
+        index.AgainstColumns("email");
+        expected.Indexes.Add(index);
+
+        var actual = new Table("users");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn<string>("email");
+
+        var delta = new TableDelta(expected, actual);
+        var writer = new StringWriter();
+        var migrator = new SqliteMigrator();
+
+        delta.WriteRollback(migrator, writer);
+        var ddl = writer.ToString();
+
+        // Rollback of adding index should drop it
+        ddl.ShouldContain("DROP INDEX");
+        ddl.ShouldContain("idx_users_email");
+    }
+
+    [Fact]
+    public void write_rollback_for_table_recreation()
+    {
+        var expected = new Table("users");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<string>("age");
+
+        var actual = new Table("users");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn<int>("age");
+
+        var delta = new TableDelta(expected, actual);
+        var writer = new StringWriter();
+        var migrator = new SqliteMigrator();
+
+        delta.WriteRollback(migrator, writer);
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain("Rollback");
+        ddl.ShouldContain("users_rollback");
+        ddl.ShouldContain("INSERT INTO");
+        ddl.ShouldContain("DROP TABLE");
+        ddl.ShouldContain("ALTER TABLE");
+        ddl.ShouldContain("RENAME TO");
+    }
 }

@@ -70,9 +70,16 @@ public class TableColumn: ITableColumn
         }
 
         // PRIMARY KEY with optional AUTOINCREMENT
-        if (IsPrimaryKey && IsAutoNumber)
+        if (IsPrimaryKey)
         {
-            parts.Add("PRIMARY KEY AUTOINCREMENT");
+            if (IsAutoNumber)
+            {
+                parts.Add("PRIMARY KEY AUTOINCREMENT");
+            }
+            else
+            {
+                parts.Add("PRIMARY KEY");
+            }
         }
 
         // DEFAULT expression

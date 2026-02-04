@@ -243,4 +243,131 @@ public class TableDelta: SchemaObjectDelta<Table>
             writer.WriteLine(index.ToDDL(Expected));
         }
     }
+
+    public bool HasChanges()
+    {
+        return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() ||
+               PrimaryKeyDifference != SchemaPatchDifference.None;
+    }
+
+    public override void WriteRollback(Migrator rules, TextWriter writer)
+    {
+        // If the table doesn't exist in the database (Actual == null), rollback means dropping it
+        if (Actual == null)
+        {
+            Expected.WriteDropStatement(rules, writer);
+            return;
+        }
+
+        // For SQLite, many changes require table recreation due to ALTER TABLE limitations
+        // If table recreation was required for the forward migration, rollback also requires recreation
+        if (RequiresTableRecreation)
+        {
+            // Rollback to the actual (previous) state by recreating with old schema
+            writeTableRecreationRollback(rules, writer);
+            return;
+        }
+
+        // For simple changes (add/drop columns and indexes), we can rollback incrementally
+
+        // Rollback indexes first
+        rollbackIndexes(writer);
+
+        // Rollback columns: reverse the operations
+        // If we added columns, drop them
+        foreach (var column in Columns.Missing)
+        {
+            writer.WriteLine(column.DropColumnSql(Expected));
+        }
+
+        // If we dropped columns, add them back
+        foreach (var column in Columns.Extras)
+        {
+            if (column.CanAdd())
+            {
+                writer.WriteLine(column.AddColumnSql(Actual));
+            }
+        }
+    }
+
+    private void rollbackIndexes(TextWriter writer)
+    {
+        // Rollback missing indexes (we created them, so drop them)
+        foreach (var index in Indexes.Missing)
+        {
+            writer.WriteDropIndex(Expected, index);
+        }
+
+        // Rollback extra indexes (we dropped them, so recreate them)
+        foreach (var index in Indexes.Extras)
+        {
+            writer.WriteLine(index.ToDDL(Actual!));
+        }
+
+        // Rollback different indexes (we changed them, so restore original)
+        foreach (var change in Indexes.Different)
+        {
+            writer.WriteDropIndex(Expected, change.Expected);
+            writer.WriteLine(change.Actual.ToDDL(Actual!));
+        }
+    }
+
+    private void writeTableRecreationRollback(Migrator rules, TextWriter writer)
+    {
+        // SQLite rollback for table recreation: restore the Actual (previous) schema
+        // This is the reverse of writeTableRecreation()
+
+        var tempName = new SqliteObjectName(Actual!.Identifier.Schema, Actual.Identifier.Name + "_rollback");
+
+        writer.WriteLine("-- Rollback: Table recreation required due to SQLite ALTER TABLE limitations");
+        writer.WriteLine();
+
+        // Create temp table with actual (old) schema
+        var tempTable = new Table(tempName);
+        foreach (var column in Actual.Columns)
+        {
+            tempTable._columns.Add(column);
+        }
+        foreach (var pk in Actual.PrimaryKeyColumns)
+        {
+            tempTable._primaryKeyColumns.Add(pk);
+        }
+        tempTable.PrimaryKeyName = Actual.PrimaryKeyName;
+        foreach (var fk in Actual.ForeignKeys)
+        {
+            tempTable.ForeignKeys.Add(fk);
+        }
+
+        tempTable.WriteCreateStatement(rules, writer);
+        writer.WriteLine();
+
+        // Copy data - only copy columns that exist in both tables
+        var commonColumns = Actual.Columns
+            .Where(a => Expected.Columns.Any(e =>
+                e.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase)))
+            .Select(c => SchemaUtils.QuoteName(c.Name))
+            .ToList();
+
+        if (commonColumns.Any())
+        {
+            var columnList = commonColumns.Join(", ");
+            writer.WriteLine($"INSERT INTO {tempName.QualifiedName} ({columnList})");
+            writer.WriteLine($"SELECT {columnList} FROM {Expected.Identifier.QualifiedName};");
+            writer.WriteLine();
+        }
+
+        // Drop current table
+        writer.WriteLine($"DROP TABLE {Expected.Identifier.QualifiedName};");
+        writer.WriteLine();
+
+        // Rename temp table to original name
+        writer.WriteLine($"ALTER TABLE {tempName.QualifiedName} RENAME TO {SchemaUtils.QuoteName(Actual.Identifier.Name)};");
+        writer.WriteLine();
+
+        // Recreate indexes from actual (old) schema
+        foreach (var index in Actual.Indexes)
+        {
+            writer.WriteLine(index.ToDDL(Actual));
+        }
+    }
 }

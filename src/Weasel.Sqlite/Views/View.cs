@@ -33,11 +33,19 @@ public class View : ISchemaObject
         _viewSql = viewSql ?? throw new ArgumentNullException(nameof(viewSql));
     }
 
-    public DbObjectName Identifier { get; }
+    public DbObjectName Identifier { get; private set; }
 
     public IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
+    }
+
+    /// <summary>
+    /// Change the view's schema (attached database)
+    /// </summary>
+    public void MoveToSchema(string schemaName)
+    {
+        Identifier = new SqliteObjectName(schemaName, Identifier.Name);
     }
 
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
