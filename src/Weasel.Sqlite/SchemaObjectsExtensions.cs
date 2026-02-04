@@ -190,7 +190,9 @@ public static class SchemaObjectsExtensions
 
             builder.Append(" ORDER BY name;");
 
-            var schemaResults = await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct: ct).ConfigureAwait(false);
+            var schemaResults = await conn.FetchListAsync(builder, async (reader, ct) =>
+                new SqliteObjectName(schema, await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false)),
+                ct: ct).ConfigureAwait(false);
             results.AddRange(schemaResults);
         }
 
@@ -211,7 +213,7 @@ public static class SchemaObjectsExtensions
         foreach (var schema in schemaList)
         {
             var builder = new CommandBuilder();
-            builder.Append($"SELECT '{schema}' as schema_name, name FROM {SchemaUtils.QuoteName(schema)}.sqlite_master WHERE type = 'view'");
+            builder.Append($"SELECT name FROM {SchemaUtils.QuoteName(schema)}.sqlite_master WHERE type = 'view'");
 
             if (namePattern.IsNotEmpty())
             {
@@ -221,7 +223,9 @@ public static class SchemaObjectsExtensions
 
             builder.Append(" ORDER BY name;");
 
-            var schemaResults = await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct: ct).ConfigureAwait(false);
+            var schemaResults = await conn.FetchListAsync(builder, async (reader, ct) =>
+                new SqliteObjectName(schema, await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false)),
+                ct: ct).ConfigureAwait(false);
             results.AddRange(schemaResults);
         }
 
@@ -242,13 +246,6 @@ public static class SchemaObjectsExtensions
         // SQLite doesn't store user-defined functions in sqlite_master
         // Functions are registered programmatically via CreateFunction/CreateAggregate
         return Task.FromResult<IReadOnlyList<DbObjectName>>(Array.Empty<DbObjectName>());
-    }
-
-    private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        return new SqliteObjectName(
-            await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false)
-        );
     }
 
     /// <summary>
