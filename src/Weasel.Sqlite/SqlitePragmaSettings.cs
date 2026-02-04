@@ -133,6 +133,7 @@ public class SqlitePragmaSettings
 
     /// <summary>
     /// Apply these PRAGMA settings to a connection.
+    /// All PRAGMA statements are executed in a single batch for better performance.
     /// </summary>
     public async Task ApplyToConnectionAsync(Microsoft.Data.Sqlite.SqliteConnection connection, CancellationToken ct = default)
     {
@@ -141,50 +142,32 @@ public class SqlitePragmaSettings
             throw new ArgumentNullException(nameof(connection));
         }
 
-        // Journal mode
-        await ExecutePragmaAsync(connection, $"PRAGMA journal_mode = {JournalMode.ToString().ToUpperInvariant()}", ct).ConfigureAwait(false);
+        // Build all PRAGMA statements
+        var pragmas = new List<string>
+        {
+            $"PRAGMA journal_mode = {JournalMode.ToString().ToUpperInvariant()}",
+            $"PRAGMA synchronous = {Synchronous.ToString().ToUpperInvariant()}",
+            $"PRAGMA cache_size = {CacheSize}",
+            $"PRAGMA temp_store = {(int)TempStore}",
+            $"PRAGMA mmap_size = {MmapSize}",
+            $"PRAGMA page_size = {PageSize}",
+            $"PRAGMA foreign_keys = {(ForeignKeys ? "ON" : "OFF")}",
+            $"PRAGMA auto_vacuum = {(int)AutoVacuum}",
+            $"PRAGMA busy_timeout = {BusyTimeout}",
+            $"PRAGMA secure_delete = {(SecureDelete ? "ON" : "OFF")}",
+            $"PRAGMA case_sensitive_like = {(CaseSensitiveLike ? "ON" : "OFF")}"
+        };
 
-        // Synchronous mode
-        await ExecutePragmaAsync(connection, $"PRAGMA synchronous = {Synchronous.ToString().ToUpperInvariant()}", ct).ConfigureAwait(false);
-
-        // Cache size
-        await ExecutePragmaAsync(connection, $"PRAGMA cache_size = {CacheSize}", ct).ConfigureAwait(false);
-
-        // Temp store
-        await ExecutePragmaAsync(connection, $"PRAGMA temp_store = {(int)TempStore}", ct).ConfigureAwait(false);
-
-        // Memory-mapped I/O
-        await ExecutePragmaAsync(connection, $"PRAGMA mmap_size = {MmapSize}", ct).ConfigureAwait(false);
-
-        // Page size (only effective before database is created)
-        await ExecutePragmaAsync(connection, $"PRAGMA page_size = {PageSize}", ct).ConfigureAwait(false);
-
-        // Foreign keys
-        await ExecutePragmaAsync(connection, $"PRAGMA foreign_keys = {(ForeignKeys ? "ON" : "OFF")}", ct).ConfigureAwait(false);
-
-        // Auto vacuum
-        await ExecutePragmaAsync(connection, $"PRAGMA auto_vacuum = {(int)AutoVacuum}", ct).ConfigureAwait(false);
-
-        // Busy timeout
-        await ExecutePragmaAsync(connection, $"PRAGMA busy_timeout = {BusyTimeout}", ct).ConfigureAwait(false);
-
-        // Secure delete
-        await ExecutePragmaAsync(connection, $"PRAGMA secure_delete = {(SecureDelete ? "ON" : "OFF")}", ct).ConfigureAwait(false);
-
-        // Case sensitive LIKE
-        await ExecutePragmaAsync(connection, $"PRAGMA case_sensitive_like = {(CaseSensitiveLike ? "ON" : "OFF")}", ct).ConfigureAwait(false);
-
-        // WAL auto-checkpoint
         if (WalAutoCheckpoint.HasValue && JournalMode == JournalMode.WAL)
         {
-            await ExecutePragmaAsync(connection, $"PRAGMA wal_autocheckpoint = {WalAutoCheckpoint.Value}", ct).ConfigureAwait(false);
+            pragmas.Add($"PRAGMA wal_autocheckpoint = {WalAutoCheckpoint.Value}");
         }
-    }
 
-    private static async Task ExecutePragmaAsync(Microsoft.Data.Sqlite.SqliteConnection connection, string pragma, CancellationToken ct)
-    {
+        // Execute all PRAGMAs in a single batch
+        var batchSql = string.Join(";\n", pragmas) + ";";
+
         await using var cmd = connection.CreateCommand();
-        cmd.CommandText = pragma;
+        cmd.CommandText = batchSql;
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 

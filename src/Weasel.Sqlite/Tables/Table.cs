@@ -7,7 +7,7 @@ namespace Weasel.Sqlite.Tables;
 /// Represents a SQLite table with support for JSON columns, foreign keys, indexes, and generated columns.
 /// Note: SQLite has limited ALTER TABLE support, many schema changes require table recreation.
 /// </summary>
-public partial class Table: ISchemaObject, ITable
+public partial class Table: ITable
 {
     internal readonly List<TableColumn> _columns = new();
     internal readonly List<string> _primaryKeyColumns = new();
@@ -86,7 +86,7 @@ public partial class Table: ISchemaObject, ITable
     public DbObjectName Identifier { get; private set; }
 
     /// <summary>
-    /// Change the table's schema (attached database)
+    /// Change the table's schema (supports "main" and "temp" schemas in SQLite)
     /// </summary>
     public void MoveToSchema(string schemaName)
     {
@@ -229,7 +229,7 @@ public partial class Table: ISchemaObject, ITable
 
         foreach (var index in Indexes)
         {
-            yield return new SqliteObjectName(Identifier.Schema, index.Name);
+            yield return new SqliteObjectName(index.Name);
         }
     }
 

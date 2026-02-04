@@ -75,7 +75,7 @@ public class TableTests
 
         var fk = new ForeignKey("fk_orders_users");
         fk.ColumnNames = new[] { "user_id" };
-        fk.LinkedTable = new SqliteObjectName("main", "users");
+        fk.LinkedTable = new SqliteObjectName("users");
         fk.LinkedNames = new[] { "id" };
         fk.OnDelete = CascadeAction.Cascade;
 
@@ -187,7 +187,7 @@ public class TableTests
 
         var fk = new ForeignKey("fk_orders_users");
         fk.ColumnNames = new[] { "user_id" };
-        fk.LinkedTable = new SqliteObjectName("main", "users");
+        fk.LinkedTable = new SqliteObjectName("users");
         fk.LinkedNames = new[] { "id" };
         fk.OnDelete = CascadeAction.Cascade;
         table.ForeignKeys.Add(fk);

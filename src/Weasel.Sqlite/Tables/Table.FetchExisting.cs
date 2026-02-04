@@ -192,7 +192,7 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
             {
                 fk = new ForeignKey($"fk_{existing.Identifier.Name}_{table}_{id}")
                 {
-                    LinkedTable = new SqliteObjectName(Identifier.Schema, table)
+                    LinkedTable = new SqliteObjectName(table)
                 };
                 fk.ReadReferentialActions(onDelete, onUpdate);
                 foreignKeyGroups[id] = fk;
@@ -284,7 +284,13 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
     public async Task<bool> ExistsInDatabaseAsync(SqliteConnection conn, CancellationToken ct = default)
     {
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = @name";
+
+        var schema = Identifier.Schema;
+        var sqliteMaster = schema.Equals("main", StringComparison.OrdinalIgnoreCase)
+            ? "sqlite_master"
+            : $"{schema}.sqlite_master";
+
+        cmd.CommandText = $"SELECT COUNT(*) FROM {sqliteMaster} WHERE type = 'table' AND name = @name";
         cmd.Parameters.AddWithValue("@name", Identifier.Name);
 
         var count = (long)(await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false) ?? 0L);

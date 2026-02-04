@@ -12,7 +12,7 @@ public class ForeignKeyTests
     public void can_create_simple_foreign_key()
     {
         var fk = new ForeignKey("fk_posts_user_id");
-        fk.LinkedTable = new SqliteObjectName("main", "users");
+        fk.LinkedTable = new SqliteObjectName("users");
         fk.LinkColumns("user_id", "id");
 
         var writer = new StringWriter();
@@ -32,7 +32,7 @@ public class ForeignKeyTests
     public void can_create_composite_foreign_key()
     {
         var fk = new ForeignKey("fk_order_items");
-        fk.LinkedTable = new SqliteObjectName("main", "orders");
+        fk.LinkedTable = new SqliteObjectName("orders");
         fk.LinkColumns("order_id", "id");
         fk.LinkColumns("tenant_id", "tenant_id");
 
@@ -48,7 +48,7 @@ public class ForeignKeyTests
     public void can_set_on_delete_cascade()
     {
         var fk = new ForeignKey("fk_posts_user");
-        fk.LinkedTable = new SqliteObjectName("main", "users");
+        fk.LinkedTable = new SqliteObjectName("users");
         fk.LinkColumns("user_id", "id");
         fk.OnDelete = CascadeAction.Cascade;
 
@@ -63,7 +63,7 @@ public class ForeignKeyTests
     public void can_set_on_update_set_null()
     {
         var fk = new ForeignKey("fk_posts_category");
-        fk.LinkedTable = new SqliteObjectName("main", "categories");
+        fk.LinkedTable = new SqliteObjectName("categories");
         fk.LinkColumns("category_id", "id");
         fk.OnUpdate = CascadeAction.SetNull;
 
@@ -78,7 +78,7 @@ public class ForeignKeyTests
     public void can_set_both_cascade_actions()
     {
         var fk = new ForeignKey("fk_order_items_order");
-        fk.LinkedTable = new SqliteObjectName("main", "orders");
+        fk.LinkedTable = new SqliteObjectName("orders");
         fk.LinkColumns("order_id", "id");
         fk.OnDelete = CascadeAction.Cascade;
         fk.OnUpdate = CascadeAction.Restrict;
@@ -125,11 +125,11 @@ public class ForeignKeyTests
     public void foreign_key_equality_by_name()
     {
         var fk1 = new ForeignKey("fk_test");
-        fk1.LinkedTable = new SqliteObjectName("main", "users");
+        fk1.LinkedTable = new SqliteObjectName("users");
         fk1.LinkColumns("user_id", "id");
 
         var fk2 = new ForeignKey("fk_test");
-        fk2.LinkedTable = new SqliteObjectName("main", "users");
+        fk2.LinkedTable = new SqliteObjectName("users");
         fk2.LinkColumns("user_id", "id");
 
         fk1.Equals(fk2).ShouldBeTrue();
@@ -139,11 +139,11 @@ public class ForeignKeyTests
     public void foreign_keys_with_different_tables_are_not_equal()
     {
         var fk1 = new ForeignKey("fk_test");
-        fk1.LinkedTable = new SqliteObjectName("main", "users");
+        fk1.LinkedTable = new SqliteObjectName("users");
         fk1.LinkColumns("user_id", "id");
 
         var fk2 = new ForeignKey("fk_test");
-        fk2.LinkedTable = new SqliteObjectName("main", "accounts");
+        fk2.LinkedTable = new SqliteObjectName("accounts");
         fk2.LinkColumns("user_id", "id");
 
         fk1.Equals(fk2).ShouldBeFalse();

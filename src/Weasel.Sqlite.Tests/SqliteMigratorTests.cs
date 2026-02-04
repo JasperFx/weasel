@@ -65,28 +65,16 @@ public class SqliteMigratorTests
     }
 
     [Fact]
-    public void write_schema_creation_for_non_main()
+    public void write_schema_creation_does_nothing()
     {
         var migrator = new SqliteMigrator();
         var writer = new StringWriter();
 
-        migrator.WriteSchemaCreationSql(new[] { "mydb" }, writer);
+        migrator.WriteSchemaCreationSql(new[] { "mydb", "main" }, writer);
 
         var script = writer.ToString();
-        script.ShouldContain("ATTACH DATABASE");
-        script.ShouldContain("mydb");
-    }
-
-    [Fact]
-    public void write_schema_creation_for_main_does_nothing()
-    {
-        var migrator = new SqliteMigrator();
-        var writer = new StringWriter();
-
-        migrator.WriteSchemaCreationSql(new[] { "main" }, writer);
-
-        var script = writer.ToString();
-        script.ShouldBeEmpty();
+        // WriteSchemaCreationSql is a no-op - schema attachment is handled at connection level
+        script.Trim().ShouldBeEmpty();
     }
 
     [Fact]
@@ -115,14 +103,5 @@ public class SqliteMigratorTests
         var longName = new string('a', 300);
 
         Should.Throw<InvalidOperationException>(() => migrator.AssertValidIdentifier(longName));
-    }
-
-    [Fact]
-    public void create_schema_statement_for_non_main()
-    {
-        var statement = SqliteMigrator.CreateSchemaStatementFor("mydb");
-
-        statement.ShouldContain("ATTACH DATABASE");
-        statement.ShouldContain("mydb");
     }
 }

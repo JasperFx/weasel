@@ -160,7 +160,9 @@ public class ForeignKey: ForeignKeyBase
     public void WriteInlineDefinition(TextWriter writer)
     {
         writer.Write($"CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY ({ColumnNames.Select(SchemaUtils.QuoteName).Join(", ")})");
-        writer.Write($" REFERENCES {LinkedTable.QualifiedName} ({LinkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
+        // SQLite FOREIGN KEY REFERENCES only supports table name, not schema-qualified names
+        // The referenced table must be in the same database as the current table
+        writer.Write($" REFERENCES {SchemaUtils.QuoteName(LinkedTable.Name)} ({LinkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
 
         if (DeleteAction != CascadeAction.NoAction)
         {

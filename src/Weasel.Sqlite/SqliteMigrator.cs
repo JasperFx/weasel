@@ -48,12 +48,8 @@ public class SqliteMigrator: Migrator
 
     public override void WriteSchemaCreationSql(IEnumerable<string> schemaNames, TextWriter writer)
     {
-        // SQLite uses ATTACH DATABASE for multiple schemas
-        // The "main" schema is the default database and doesn't need to be created
-        foreach (var schemaName in schemaNames.Where(s => s != "main"))
-        {
-            writer.WriteLine(CreateSchemaStatementFor(schemaName));
-        }
+        // SQLite doesn't support CREATE SCHEMA like PostgreSQL
+        // SQLite only uses the "main" schema - no schema creation needed
     }
 
     protected override async Task executeDelta(
@@ -64,8 +60,6 @@ public class SqliteMigrator: Migrator
         CancellationToken ct = default
     )
     {
-        await createSchemas(migration, conn, logger, ct).ConfigureAwait(false);
-
         foreach (var delta in migration.Deltas)
         {
             var writer = new StringWriter();
@@ -100,24 +94,6 @@ public class SqliteMigrator: Migrator
         }
     }
 
-    private static async Task createSchemas(
-        SchemaMigration migration,
-        DbConnection conn,
-        IMigrationLogger logger,
-        CancellationToken ct = default)
-    {
-        var writer = new StringWriter();
-
-        if (migration.Schemas.Any())
-        {
-            new SqliteMigrator().WriteSchemaCreationSql(migration.Schemas, writer);
-            if (writer.ToString().Trim().IsNotEmpty())
-            {
-                await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
-            }
-        }
-    }
-
     private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
         var cmd = conn.CreateCommand(writer.ToString());
@@ -136,15 +112,5 @@ public class SqliteMigrator: Migrator
 
             logger.OnFailure(cmd, e);
         }
-    }
-
-    public static string CreateSchemaStatementFor(string schemaName)
-    {
-        // SQLite schemas are separate database files attached to the connection
-        // In practice, most SQLite usage sticks with the main database
-        // For multi-schema support, we would use: ATTACH DATABASE 'filename.db' AS schemaName
-        // However, this requires a physical file path which we don't have here
-        // So we'll return an empty statement and rely on the consumer to handle schema creation
-        return $"-- SQLite schema '{schemaName}': Use ATTACH DATABASE 'path/to/{schemaName}.db' AS {schemaName};";
     }
 }

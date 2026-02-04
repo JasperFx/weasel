@@ -49,7 +49,7 @@ public static class SchemaObjectsExtensions
     /// <summary>
     /// SQLite doesn't have separate schemas like PostgreSQL/SQL Server.
     /// This method is a no-op for SQLite but provided for API compatibility.
-    /// In SQLite, "schema" typically refers to attached databases (e.g., "main", "temp").
+    /// SQLite only uses the "main" schema.
     /// </summary>
     public static Task EnsureSchemaExists(
         this SqliteConnection conn,
@@ -58,13 +58,12 @@ public static class SchemaObjectsExtensions
     )
     {
         // SQLite doesn't support CREATE SCHEMA. The main database is the default schema.
-        // Attached databases would need ATTACH DATABASE statement instead.
         // This is a no-op for API compatibility.
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// Returns active schema names in SQLite. This includes the "main" database and any attached databases.
+    /// Returns active schema names in SQLite. Typically returns "main" and "temp".
     /// </summary>
     public static Task<IReadOnlyList<string?>> ActiveSchemaNamesAsync(
         this SqliteConnection conn,
@@ -181,7 +180,7 @@ public static class SchemaObjectsExtensions
         foreach (var schema in schemaList)
         {
             var builder = new CommandBuilder();
-            builder.Append($"SELECT '{schema}' as schema_name, name FROM {SchemaUtils.QuoteName(schema)}.sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'");
+            builder.Append($"SELECT name FROM {SchemaUtils.QuoteName(schema)}.sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'");
 
             if (namePattern.IsNotEmpty())
             {
@@ -248,8 +247,7 @@ public static class SchemaObjectsExtensions
     private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)
     {
         return new SqliteObjectName(
-            await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
-            await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false)
+            await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false)
         );
     }
 

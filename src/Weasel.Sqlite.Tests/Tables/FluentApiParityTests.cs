@@ -115,7 +115,7 @@ public class FluentApiParityTests
     [Fact]
     public void foreign_key_to_with_sqlite_object_name()
     {
-        var referencedName = new SqliteObjectName("main", "users");
+        var referencedName = new SqliteObjectName("users");
         var table = new Table("posts");
         table.AddColumn<int>("user_id").ForeignKeyTo(referencedName, "id");
 
@@ -143,9 +143,9 @@ public class FluentApiParityTests
         table.Identifier.Schema.ShouldBe("main");
         table.Identifier.Name.ShouldBe("users");
 
-        table.MoveToSchema("attached_db");
+        table.MoveToSchema("temp");
 
-        table.Identifier.Schema.ShouldBe("attached_db");
+        table.Identifier.Schema.ShouldBe("temp");
         table.Identifier.Name.ShouldBe("users");
     }
 

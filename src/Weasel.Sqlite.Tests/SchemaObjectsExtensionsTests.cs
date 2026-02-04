@@ -157,7 +157,7 @@ public class SchemaObjectsExtensionsTests
     {
         await using var connection = await OpenConnectionAsync();
 
-        var functionName = new SqliteObjectName("main", "my_function");
+        var functionName = new SqliteObjectName("my_function");
         var exists = await connection.FunctionExistsAsync(functionName);
 
         exists.ShouldBeFalse();

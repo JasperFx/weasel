@@ -34,7 +34,8 @@ public class ViewTests
         var sql = view.ToBasicCreateViewSql();
 
         sql.ShouldContain("DROP VIEW IF EXISTS");
-        sql.ShouldContain("main.active_users");
+        sql.ShouldContain("active_users");
+        sql.ShouldNotContain("main."); // Main schema views don't have schema prefix
         sql.ShouldContain("CREATE VIEW");
         sql.ShouldContain("SELECT id, name FROM users WHERE active = 1");
     }
@@ -72,7 +73,8 @@ public class ViewTests
         var sql = writer.ToString();
 
         sql.ShouldContain("DROP VIEW IF EXISTS");
-        sql.ShouldContain("main.active_users");
+        sql.ShouldContain("active_users");
+        sql.ShouldNotContain("main."); // Main schema views don't have schema prefix
     }
 
     [Fact]

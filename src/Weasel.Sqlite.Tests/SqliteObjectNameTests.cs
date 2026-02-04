@@ -1,6 +1,6 @@
 using Shouldly;
-using Weasel.Core;
 using Weasel.Sqlite;
+using Weasel.Sqlite.Tables;
 using Xunit;
 
 namespace Weasel.Sqlite.Tests;
@@ -8,81 +8,67 @@ namespace Weasel.Sqlite.Tests;
 public class SqliteObjectNameTests
 {
     [Fact]
-    public void parse_simple_name()
+    public void main_schema_omits_schema_prefix()
     {
-        var name = DbObjectName.Parse(SqliteProvider.Instance, "users");
+        var name = new SqliteObjectName("main", "users");
 
-        name.Name.ShouldBe("users");
+        name.ToString().ShouldBe("users");
         name.Schema.ShouldBe("main");
-    }
-
-    [Fact]
-    public void parse_qualified_name()
-    {
-        var name = DbObjectName.Parse(SqliteProvider.Instance, "mydb.users");
-
         name.Name.ShouldBe("users");
-        name.Schema.ShouldBe("mydb");
     }
 
     [Fact]
-    public void qualified_name_uses_schema_and_name()
+    public void main_schema_case_insensitive()
     {
-        var name = new SqliteObjectName("mydb", "users");
+        var name1 = new SqliteObjectName("MAIN", "users");
+        var name2 = new SqliteObjectName("Main", "users");
+        var name3 = new SqliteObjectName("main", "users");
 
-        name.QualifiedName.ShouldBe("mydb.users");
+        name1.ToString().ShouldBe("users");
+        name2.ToString().ShouldBe("users");
+        name3.ToString().ShouldBe("users");
     }
 
     [Fact]
-    public void qualified_name_with_reserved_word()
+    public void temp_schema_includes_schema_prefix()
     {
-        var name = new SqliteObjectName("main", "order");
+        var name = new SqliteObjectName("temp", "users");
 
-        // QualifiedName returns the schema.name format
-        name.QualifiedName.ShouldBe("main.order");
+        name.ToString().ShouldBe("\"temp\".users");
+        name.Schema.ShouldBe("temp");
+        name.Name.ShouldBe("users");
     }
 
     [Fact]
-    public void comparison_is_case_insensitive()
+    public void equality_is_case_insensitive()
     {
         var name1 = new SqliteObjectName("main", "Users");
         var name2 = new SqliteObjectName("main", "users");
 
         name1.Equals(name2).ShouldBeTrue();
+        name1.GetHashCode().ShouldBe(name2.GetHashCode());
     }
 
     [Fact]
-    public void schema_comparison_is_case_insensitive()
+    public void create_table_in_main_omits_schema()
     {
-        var name1 = new SqliteObjectName("Main", "users");
-        var name2 = new SqliteObjectName("main", "users");
+        var table = new Table("main.users");
+        table.AddColumn<int>("id").AsPrimaryKey();
 
-        name1.Equals(name2).ShouldBeTrue();
+        var sql = table.ToBasicCreateTableSql();
+
+        sql.ShouldContain("CREATE TABLE IF NOT EXISTS users");
+        sql.ShouldNotContain("main.");
     }
 
     [Fact]
-    public void different_names_are_not_equal()
+    public void create_table_in_temp_includes_schema()
     {
-        var name1 = new SqliteObjectName("main", "users");
-        var name2 = new SqliteObjectName("main", "posts");
+        var table = new Table(new SqliteObjectName("temp", "users"));
+        table.AddColumn<int>("id").AsPrimaryKey();
 
-        name1.Equals(name2).ShouldBeFalse();
-    }
+        var sql = table.ToBasicCreateTableSql();
 
-    [Fact]
-    public void different_schemas_are_not_equal()
-    {
-        var name1 = new SqliteObjectName("main", "users");
-        var name2 = new SqliteObjectName("temp", "users");
-
-        name1.Equals(name2).ShouldBeFalse();
-    }
-
-    [Fact]
-    public void to_string_returns_qualified_name()
-    {
-        var name = new SqliteObjectName("mydb", "users");
-
-        name.ToString().ShouldBe("mydb.users");
+        sql.ShouldContain("CREATE TABLE IF NOT EXISTS \"temp\".users");
     }
 }

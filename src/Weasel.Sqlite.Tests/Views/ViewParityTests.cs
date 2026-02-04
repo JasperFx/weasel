@@ -17,9 +17,9 @@ public class ViewParityTests
         view.Identifier.Schema.ShouldBe("main");
         view.Identifier.Name.ShouldBe("user_summary");
 
-        view.MoveToSchema("attached_db");
+        view.MoveToSchema("temp");
 
-        view.Identifier.Schema.ShouldBe("attached_db");
+        view.Identifier.Schema.ShouldBe("temp");
         view.Identifier.Name.ShouldBe("user_summary");
     }
 
@@ -29,7 +29,7 @@ public class ViewParityTests
         var sql = "SELECT id, name, email FROM users WHERE active = 1";
         var view = new View("active_users", sql);
 
-        view.MoveToSchema("other_db");
+        view.MoveToSchema("temp");
 
         view.ViewSql.ShouldBe(sql);
     }
@@ -39,8 +39,8 @@ public class ViewParityTests
     {
         var view = new View("user_summary", "SELECT * FROM users");
 
-        view.MoveToSchema("analytics");
+        view.MoveToSchema("temp");
 
-        view.Identifier.QualifiedName.ShouldBe("analytics.user_summary");
+        view.Identifier.QualifiedName.ShouldBe("\"temp\".user_summary");
     }
 }

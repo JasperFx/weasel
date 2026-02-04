@@ -139,6 +139,10 @@ Configured via `.editorconfig`:
 | `Weasel.Core/SchemaMigration.cs` | Schema change detection and aggregation |
 | `Weasel.Postgresql/PostgresqlDatabase.cs` | PostgreSQL implementation |
 | `Weasel.SqlServer/SqlServerMigrator.cs` | SQL Server formatting rules |
+| `Weasel.Sqlite/SqliteHelper.cs` | Simplified connection and migrator creation with PRAGMA configuration |
+| `Weasel.Sqlite/SqliteObjectName.cs` | Schema-aware object naming (main/temp schemas) |
+| `Weasel.Sqlite/Tables/Table.cs` | SQLite table definition with JSON, indexes, and foreign keys |
+| `Weasel.Sqlite/Views/View.cs` | SQLite view definition with delta detection |
 
 ## CI/CD
 
@@ -164,6 +168,7 @@ Weasel.Sqlite provides full support for SQLite databases with JSON1 extension co
 
 ### Key Features
 
+- **Schema Support**: Full support for "main" and "temp" schemas
 - **JSON Support**: Full TEXT-based JSON storage with JSON1 extension functions
 - **AUTOINCREMENT**: INTEGER PRIMARY KEY AUTOINCREMENT support
 - **Generated Columns**: GENERATED ALWAYS AS ... STORED/VIRTUAL (SQLite 3.31+)
@@ -172,6 +177,8 @@ Weasel.Sqlite provides full support for SQLite databases with JSON1 extension co
 - **Partial Indexes**: WHERE clause support for filtered indexes
 - **STRICT Tables**: Strict type checking (SQLite 3.37+)
 - **WITHOUT ROWID**: Performance optimization for tables
+- **PRAGMA Configuration**: Comprehensive settings via SqliteHelper with Action-based API
+- **Views**: Full CREATE/DROP/ALTER (via drop+recreate) with delta detection
 
 ### SQLite-Specific Limitations
 
@@ -191,13 +198,24 @@ using Weasel.Sqlite;
 using Weasel.Sqlite.Tables;
 using Microsoft.Data.Sqlite;
 
+// Create connection with PRAGMA settings using SqliteHelper
+await using var connection = await SqliteHelper.CreateConnectionAsync(
+    "Data Source=myapp.db",
+    configurePragmas: settings =>
+    {
+        settings.JournalMode = JournalMode.WAL;
+        settings.ForeignKeys = true;
+        settings.CacheSize = -64000; // 64MB
+    }
+);
+
 // Create a table with JSON support
 var table = new Table("users");
 
 // Add columns
-table.AddColumn("id", "INTEGER").AsPrimaryKey().AutoIncrement();
-table.AddColumn("name", "TEXT").NotNull();
-table.AddColumn("email", "TEXT").NotNull();
+table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
+table.AddColumn<string>("name").NotNull();
+table.AddColumn<string>("email").NotNull();
 table.AddColumn("settings", "TEXT"); // JSON column
 
 // Add a generated column
@@ -217,11 +235,15 @@ table.Indexes.Add(settingsIndex);
 // Enable STRICT mode for type safety
 table.StrictTypes = true;
 
-// Generate DDL
-using var writer = new StringWriter();
-var migrator = new SqliteMigrator();
+// Generate DDL using migrator from SqliteHelper
+var migrator = SqliteHelper.CreateMigrator();
+var writer = new StringWriter();
 table.WriteCreateStatement(migrator, writer);
-Console.WriteLine(writer.ToString());
+
+// Execute DDL
+var cmd = connection.CreateCommand();
+cmd.CommandText = writer.ToString();
+await cmd.ExecuteNonQueryAsync();
 ```
 
 ### Testing
@@ -260,26 +282,73 @@ Most SQLite builds include JSON1 by default. If not available, you'll need to re
 ### Implemented Components
 
 ✅ **Complete:**
-- SqliteProvider - Type mappings with TEXT fallback for JSON
-- SqliteMigrator - DDL generation with transaction support
-- SqliteObjectName - Case-insensitive name parsing
-- SchemaUtils - Identifier quoting with reserved keywords
-- CommandBuilder & CommandExtensions - SQL helpers
-- TableColumn - AUTOINCREMENT, generated columns, constraints
-- ForeignKey - Inline FK definitions (no ALTER TABLE)
-- IndexDefinition - Expression indexes, JSON path support, partial indexes
-- Table - Basic DDL generation and fluent API
-- **View** - Full view support with CREATE/DROP/ALTER (via drop+recreate)
+- **SqliteProvider** - Type mappings with TEXT fallback for JSON
+- **SqliteMigrator** - DDL generation with transaction support (no schema SQL generation)
+- **SqliteObjectName** - Schema-aware name parsing supporting "main" and "temp" schemas
+- **SqliteHelper** - Simplified connection creation with Action-based PRAGMA configuration
+- **SchemaUtils** - Identifier quoting with reserved keywords
+- **CommandBuilder & CommandExtensions** - SQL helpers
+- **TableColumn** - AUTOINCREMENT, generated columns, constraints
+- **ForeignKey** - Inline FK definitions (no ALTER TABLE)
+- **IndexDefinition** - Expression indexes, JSON path support, partial indexes
+- **Table** - Full DDL generation and fluent API with schema support
+- **View** - Full view support with CREATE/DROP/ALTER (via drop+recreate) and schema support
 - **ViewDelta** - View change detection and migration generation
 - **SqlitePragmaSettings** - Comprehensive PRAGMA configuration with Default, HighPerformance, and HighSafety presets
-- **SqliteExtensionSettings** - Extension loading support for SpatiaLite, FTS5, ICU, and custom extensions
-- **SqliteDatabase** - PRAGMA settings and extension integration with automatic application to connections
 
 🚧 **To Be Implemented:**
 - Table.Deltas.cs - Delta detection logic
 - Table.FetchExisting.cs - Schema introspection from sqlite_master
 - TableDelta.cs - Difference calculation and migration generation
 - Full integration tests for tables
+
+### Schema Support
+
+SQLite supports two built-in schemas:
+
+1. **main** - The primary database schema (default)
+2. **temp** - Temporary objects that exist only for the connection lifetime
+
+```csharp
+using Weasel.Sqlite;
+using Weasel.Sqlite.Tables;
+
+// Default: Create table in "main" schema (no schema prefix in DDL)
+var usersTable = new Table("users");
+var usersIdentifier = usersTable.Identifier; // Schema: "main", Name: "users"
+// DDL: CREATE TABLE IF NOT EXISTS "users" (...)
+
+// Explicitly specify main schema
+var mainTable = new Table(new SqliteObjectName("main", "products"));
+// DDL: CREATE TABLE IF NOT EXISTS "products" (...)
+// Note: "main" schema does NOT add schema prefix
+
+// Create temporary table in "temp" schema
+var tempTable = new Table(new SqliteObjectName("temp", "session_data"));
+// DDL: CREATE TABLE IF NOT EXISTS "temp"."session_data" (...)
+// Note: "temp" schema DOES add quoted schema prefix
+
+// Move table to different schema
+var cacheTable = new Table("cache");
+cacheTable.MoveToSchema("temp"); // Now in temp schema
+// DDL: CREATE TABLE IF NOT EXISTS "temp"."cache" (...)
+
+// Convenience constructor defaults to "main" schema
+var table1 = new Table("my_table");
+var table2 = new Table(new SqliteObjectName("my_table"));
+// Both create the same table in "main" schema
+```
+
+**Schema Prefix Behavior:**
+- Objects in `main` schema: No schema prefix (e.g., `"users"`)
+- Objects in `temp` schema: Quoted schema prefix (e.g., `"temp"."session_data"`)
+- All other schemas: Quoted schema prefix (e.g., `"attached_db"."table_name"`)
+
+**Temporary Schema (`temp`):**
+- Objects automatically dropped when connection closes
+- Useful for session-scoped data, intermediate calculations, or caching
+- Cannot be referenced by views in the main schema
+- Faster than main schema (typically stored in memory)
 
 ### Migration Strategy
 
@@ -292,6 +361,51 @@ Due to SQLite's ALTER TABLE limitations, schema changes often require table recr
 
 This is handled automatically by the delta detection system (when fully implemented).
 
+### SqliteHelper - Simplified Connection and Configuration
+
+The `SqliteHelper` class provides a streamlined API for creating connections with PRAGMA configuration and creating migrators:
+
+```csharp
+using Weasel.Sqlite;
+using Microsoft.Data.Sqlite;
+
+// Basic connection (uses default PRAGMA settings)
+await using var connection = await SqliteHelper.CreateConnectionAsync(
+    "Data Source=myapp.db"
+);
+
+// Connection with custom PRAGMA settings via Action
+await using var connection = await SqliteHelper.CreateConnectionAsync(
+    "Data Source=myapp.db",
+    configurePragmas: settings =>
+    {
+        settings.JournalMode = JournalMode.WAL;
+        settings.Synchronous = SynchronousMode.NORMAL;
+        settings.ForeignKeys = true;
+        settings.CacheSize = -64000; // 64MB cache
+        settings.TempStore = TempStoreMode.MEMORY;
+    }
+);
+
+// Using predefined profiles
+await using var highPerfConn = await SqliteHelper.CreateConnectionAsync(
+    "Data Source=myapp.db",
+    configurePragmas: settings => settings.ApplyHighPerformance()
+);
+
+await using var highSafetyConn = await SqliteHelper.CreateConnectionAsync(
+    "Data Source=myapp.db",
+    configurePragmas: settings => settings.ApplyHighSafety()
+);
+
+// Create a migrator
+var migrator = SqliteHelper.CreateMigrator();
+```
+
+**SqliteHelper Methods:**
+- `CreateConnectionAsync(connectionString, configurePragmas?, ct?)` - Creates and opens connection with PRAGMA settings
+- `CreateMigrator()` - Creates a SqliteMigrator instance for DDL generation
+
 ### Connection String
 
 ```csharp
@@ -301,9 +415,14 @@ var connectionString = "Data Source=:memory:";
 // File-based database
 var connectionString = "Data Source=myapp.db";
 
-// With foreign keys enabled
-var connectionString = "Data Source=myapp.db;Foreign Keys=True";
+// Shared cache mode
+var connectionString = "Data Source=myapp.db;Cache=Shared";
+
+// Read-only mode
+var connectionString = "Data Source=myapp.db;Mode=ReadOnly";
 ```
+
+**Note:** Foreign keys and other settings should be configured via SqliteHelper's `configurePragmas` Action rather than in the connection string, as this provides better type safety and validation.
 
 ### PRAGMA Settings
 
@@ -331,52 +450,46 @@ Weasel.Sqlite provides comprehensive PRAGMA configuration for optimal database p
    - Full auto-vacuum
    - Longer busy timeout (10 seconds)
 
-**Usage with SqliteDatabase:**
+**Usage with SqliteHelper:**
 
 ```csharp
 // Use default settings
-var database = new MyDatabase(
-    logger,
-    AutoCreate.CreateOrUpdate,
-    new SqliteMigrator(),
-    "my-db",
+await using var connection = await SqliteHelper.CreateConnectionAsync(
     "Data Source=myapp.db"
+    // configurePragmas not specified = uses SqlitePragmaSettings.Default
 );
 
-// Use high-performance settings
-var database = new MyDatabase(
-    logger,
-    AutoCreate.CreateOrUpdate,
-    new SqliteMigrator(),
-    "my-db",
+// Use high-performance profile
+await using var connection = await SqliteHelper.CreateConnectionAsync(
     "Data Source=myapp.db",
-    SqlitePragmaSettings.HighPerformance
+    configurePragmas: settings => settings.ApplyHighPerformance()
 );
 
-// Custom settings
-var customSettings = new SqlitePragmaSettings
-{
-    JournalMode = JournalMode.WAL,
-    Synchronous = SynchronousMode.NORMAL,
-    CacheSize = -32000, // 32MB (negative = KiB)
-    ForeignKeys = true,
-    BusyTimeout = 5000,
-    WalAutoCheckpoint = 1000 // Checkpoint every 1000 pages
-};
-
-var database = new MyDatabase(
-    logger,
-    AutoCreate.CreateOrUpdate,
-    new SqliteMigrator(),
-    "my-db",
+// Use high-safety profile
+await using var connection = await SqliteHelper.CreateConnectionAsync(
     "Data Source=myapp.db",
-    customSettings
+    configurePragmas: settings => settings.ApplyHighSafety()
 );
 
-// Apply PRAGMA settings to a connection
+// Custom settings via Action
+await using var connection = await SqliteHelper.CreateConnectionAsync(
+    "Data Source=myapp.db",
+    configurePragmas: settings =>
+    {
+        settings.JournalMode = JournalMode.WAL;
+        settings.Synchronous = SynchronousMode.NORMAL;
+        settings.CacheSize = -32000; // 32MB (negative = KiB)
+        settings.ForeignKeys = true;
+        settings.BusyTimeout = 5000;
+        settings.WalAutoCheckpoint = 1000; // Checkpoint every 1000 pages
+    }
+);
+
+// Manually apply PRAGMA settings to an existing connection
+var settings = SqlitePragmaSettings.Default;
 await using var connection = new SqliteConnection("Data Source=myapp.db");
 await connection.OpenAsync();
-await database.ApplyPragmaSettingsAsync(connection);
+await settings.ApplyToConnectionAsync(connection);
 ```
 
 **Important PRAGMA Settings:**
@@ -424,135 +537,7 @@ Console.WriteLine(script);
 - WAL mode doesn't work with in-memory databases (`:memory:`)
 - PRAGMA settings don't persist in SQLite - they must be applied each time a connection opens
 - Foreign key constraints are disabled by default in SQLite and must be explicitly enabled
-
-### SQLite Extensions
-
-Weasel.Sqlite provides support for loading SQLite extensions to add additional functionality like spatial data support (SpatiaLite), full-text search, encryption, or custom functions.
-
-**Extension Configuration:**
-
-```csharp
-// Configure extensions to load
-var extensionSettings = new SqliteExtensionSettings();
-
-// Add SpatiaLite extension (spatial data support)
-extensionSettings.AddExtension("mod_spatialite");
-
-// Add extension with custom entry point
-extensionSettings.AddExtension("my_custom_extension", "sqlite3_my_extension_init");
-
-// Add multiple extensions
-extensionSettings.AddExtension("extension1");
-extensionSettings.AddExtension("extension2");
-```
-
-**Using Extensions with SqliteDatabase:**
-
-```csharp
-// Create database with extension support
-var extensionSettings = new SqliteExtensionSettings();
-extensionSettings.AddExtension("mod_spatialite");
-
-var database = new MyDatabase(
-    logger,
-    AutoCreate.CreateOrUpdate,
-    new SqliteMigrator(),
-    "my-db",
-    "Data Source=myapp.db",
-    SqlitePragmaSettings.Default,
-    extensionSettings
-);
-
-// Apply extensions to a connection
-await using var connection = new SqliteConnection("Data Source=myapp.db");
-await connection.OpenAsync();
-await database.ApplyExtensionsAsync(connection);
-
-// Or apply both PRAGMA settings and extensions
-await database.ApplyConnectionSettingsAsync(connection);
-
-// Now you can use extension functions
-var cmd = connection.CreateCommand();
-cmd.CommandText = "SELECT spatialite_version()";
-var version = (string)cmd.ExecuteScalar();
-```
-
-**Directly Using Extension Settings:**
-
-```csharp
-// Apply extension settings to any connection
-var settings = new SqliteExtensionSettings();
-settings.AddExtension("mod_spatialite");
-
-await using var connection = new SqliteConnection("Data Source=myapp.db");
-await connection.OpenAsync();
-await settings.ApplyToConnectionAsync(connection);
-```
-
-**Common SQLite Extensions:**
-
-| Extension | Library Name | Description |
-|-----------|--------------|-------------|
-| **SpatiaLite** | `mod_spatialite` | Spatial data support (geometry types, spatial indexes, GIS functions) |
-| **FTS5** | Built-in | Full-text search (compile-time option, usually included) |
-| **JSON1** | Built-in | JSON functions (usually included by default) |
-| **R*Tree** | Built-in | Spatial indexing (compile-time option) |
-| **ICU** | `icu` | International Components for Unicode (collation, case mapping) |
-| **SQLCipher** | Custom build | Database encryption |
-
-**Platform Considerations:**
-
-SQLite loads extensions using platform-specific native library loading mechanisms. You may need to configure environment variables:
-
-- **Windows**: Add extension directory to `PATH`
-- **Linux**: Add extension directory to `LD_LIBRARY_PATH`
-- **macOS**: Add extension directory to `DYLD_LIBRARY_PATH`
-
-```bash
-# Linux example
-export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-
-# macOS example
-export DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH
-
-# Windows PowerShell example
-$env:PATH += ";C:\sqlite\extensions"
-```
-
-**Full Path vs Library Name:**
-
-```csharp
-// Use library name (must be in system path)
-settings.AddExtension("mod_spatialite");
-
-// Or use full path
-settings.AddExtension("/usr/local/lib/mod_spatialite.so");
-settings.AddExtension("/usr/local/lib/mod_spatialite.dylib"); // macOS
-settings.AddExtension("C:\\sqlite\\extensions\\mod_spatialite.dll"); // Windows
-```
-
-**Security:**
-
-For security, `EnableExtensions` is automatically disabled after all extensions are loaded. This prevents dynamic extension loading during query execution.
-
-**Error Handling:**
-
-If an extension fails to load, an `InvalidOperationException` is thrown with details about the library path and suggestions for fixing path issues:
-
-```csharp
-try
-{
-    await settings.ApplyToConnectionAsync(connection);
-}
-catch (InvalidOperationException ex)
-{
-    // Message will include:
-    // - Extension library path
-    // - Entry point (if specified)
-    // - Guidance about PATH/LD_LIBRARY_PATH/DYLD_LIBRARY_PATH
-    Console.WriteLine(ex.Message);
-}
-```
+- Use SqliteHelper for consistent PRAGMA application across your application
 
 ### Views
 
@@ -561,17 +546,25 @@ Weasel.Sqlite provides comprehensive support for SQLite views with schema migrat
 ```csharp
 using Weasel.Sqlite.Views;
 
-// Create a simple view
+// Create a simple view (defaults to "main" schema)
 var view = new View("active_users", "SELECT id, name, email FROM users WHERE active = 1");
 
 // Generate DDL
-var migrator = new SqliteMigrator();
+var migrator = SqliteHelper.CreateMigrator();
 var writer = new StringWriter();
 view.WriteCreateStatement(migrator, writer);
 Console.WriteLine(writer.ToString());
 // Output:
-// DROP VIEW IF EXISTS main.active_users;
-// CREATE VIEW main.active_users AS SELECT id, name, email FROM users WHERE active = 1;
+// DROP VIEW IF EXISTS "active_users";
+// CREATE VIEW "active_users" AS SELECT id, name, email FROM users WHERE active = 1;
+
+// Create a view in temp schema
+var tempView = new View(new SqliteObjectName("temp", "session_summary"),
+    "SELECT session_id, COUNT(*) as event_count FROM temp.session_data GROUP BY session_id");
+view.WriteCreateStatement(migrator, writer);
+// Output:
+// DROP VIEW IF EXISTS "temp"."session_summary";
+// CREATE VIEW "temp"."session_summary" AS SELECT ...
 
 // Create a view with JOIN
 var orderSummaryView = new View("user_order_summary", @"
@@ -678,9 +671,11 @@ connection.CreateAggregate(
 
 ### Important Notes
 
-- **Foreign Keys**: Disabled by default in SQLite. Enable with `PRAGMA foreign_keys = ON` or connection string parameter
+- **Schemas**: SQLite supports "main" (default/primary) and "temp" (temporary) schemas. Objects in "main" don't need schema prefix in DDL, "temp" objects do
+- **Foreign Keys**: Disabled by default in SQLite. Enable via SqliteHelper's PRAGMA configuration
 - **Case Sensitivity**: SQLite is case-insensitive by default for identifiers
 - **Type Affinity**: SQLite uses type affinity rather than strict typing (unless STRICT mode is enabled)
 - **JSON Storage**: Uses TEXT columns with JSON1 functions for querying
 - **Views**: Read-only, no ALTER VIEW support (changes require drop+recreate)
 - **Custom Functions**: Registered programmatically per connection (not stored in database)
+- **SqliteHelper**: Use `CreateConnectionAsync()` for consistent PRAGMA application and `CreateMigrator()` for DDL generation

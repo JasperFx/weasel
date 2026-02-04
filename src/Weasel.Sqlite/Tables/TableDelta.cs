@@ -190,7 +190,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         // 3. Drop old table
         // 4. Rename new table
 
-        var tempName = new SqliteObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_new");
+        var tempName = new SqliteObjectName(Expected.Identifier.Name + "_new");
 
         writer.WriteLine("-- Table recreation required due to SQLite ALTER TABLE limitations");
         writer.WriteLine();
@@ -317,7 +317,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         // SQLite rollback for table recreation: restore the Actual (previous) schema
         // This is the reverse of writeTableRecreation()
 
-        var tempName = new SqliteObjectName(Actual!.Identifier.Schema, Actual.Identifier.Name + "_rollback");
+        var tempName = new SqliteObjectName(Actual.Identifier.Name + "_rollback");
 
         writer.WriteLine("-- Rollback: Table recreation required due to SQLite ALTER TABLE limitations");
         writer.WriteLine();

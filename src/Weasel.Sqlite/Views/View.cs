@@ -41,7 +41,7 @@ public class View : ISchemaObject
     }
 
     /// <summary>
-    /// Change the view's schema (attached database)
+    /// Change the view's schema (supports "main" and "temp" schemas in SQLite)
     /// </summary>
     public void MoveToSchema(string schemaName)
     {
@@ -72,7 +72,6 @@ public class View : ISchemaObject
     public void ConfigureQueryCommand(Core.DbCommandBuilder builder)
     {
         // SQLite stores view definitions in sqlite_master table
-        // For attached databases, we need to query the appropriate schema
         var schema = Identifier.Schema;
         var masterTable = schema == "main" ? "sqlite_master" : $"{schema}.sqlite_master";
 

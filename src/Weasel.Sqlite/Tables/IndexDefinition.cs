@@ -66,7 +66,25 @@ public class IndexDefinition: INamed
         set => _indexName = value;
     }
 
+    /// <summary>
+    /// Get the quoted index name
+    /// </summary>
     public string QuotedName => SchemaUtils.QuoteName(Name);
+
+    /// <summary>
+    /// Get the fully qualified index name including schema.
+    /// </summary>
+    public string GetQualifiedName(Table parent)
+    {
+        var schema = parent.Identifier.Schema;
+        // Omit "main" schema prefix as it's the default
+        if (schema.Equals("main", StringComparison.OrdinalIgnoreCase))
+        {
+            return SchemaUtils.QuoteName(Name);
+        }
+
+        return $"{SchemaUtils.QuoteName(schema)}.{SchemaUtils.QuoteName(Name)}";
+    }
 
     protected virtual string deriveIndexName()
     {
@@ -119,9 +137,9 @@ public class IndexDefinition: INamed
         }
 
         builder.Append("INDEX IF NOT EXISTS ");
-        builder.Append(QuotedName);
+        builder.Append(GetQualifiedName(parent));
         builder.Append(" ON ");
-        // SQLite: Use only the table name, not the qualified name (schema.table)
+        // SQLite: Use only the table name in ON clause, not the qualified name (schema.table)
         builder.Append(SchemaUtils.QuoteName(parent.Identifier.Name));
         builder.Append(" ");
 

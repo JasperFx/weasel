@@ -142,7 +142,7 @@ public class TableDeltaTests
 
         var fk = new ForeignKey("fk_posts_user");
         fk.ColumnNames = new[] { "user_id" };
-        fk.LinkedTable = new SqliteObjectName("main", "users");
+        fk.LinkedTable = new SqliteObjectName("users");
         fk.LinkedNames = new[] { "id" };
         expected.ForeignKeys.Add(fk);
 

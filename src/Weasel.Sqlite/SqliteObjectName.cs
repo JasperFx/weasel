@@ -5,10 +5,25 @@ namespace Weasel.Sqlite;
 
 public class SqliteObjectName: DbObjectName
 {
-    protected override string QuotedQualifiedName => $"{SchemaUtils.QuoteName(Schema)}.{SchemaUtils.QuoteName(Name)}";
+    protected override string QuotedQualifiedName =>
+        Schema.Equals("main", StringComparison.OrdinalIgnoreCase)
+            ? SchemaUtils.QuoteName(Name)
+            : $"{SchemaUtils.QuoteName(Schema)}.{SchemaUtils.QuoteName(Name)}";
 
     public SqliteObjectName(string schema, string name)
-        : base(schema, name, SqliteProvider.Instance.As<IDatabaseProvider>().ToQualifiedName(schema, name))
+        : base(schema, name, BuildQualifiedName(schema, name))
+    {
+    }
+
+    private static string BuildQualifiedName(string schema, string name)
+    {
+        return schema.Equals("main", StringComparison.OrdinalIgnoreCase)
+            ? SchemaUtils.QuoteName(name)
+            : $"{SchemaUtils.QuoteName(schema)}.{SchemaUtils.QuoteName(name)}";
+    }
+
+    public SqliteObjectName(string name)
+        : this("main", name)
     {
     }
 
@@ -16,8 +31,7 @@ public class SqliteObjectName: DbObjectName
     {
     }
 
-    public static SqliteObjectName From(DbObjectName dbObjectName) =>
-        new SqliteObjectName(dbObjectName);
+    public static SqliteObjectName From(DbObjectName dbObjectName) => new(dbObjectName);
 
     private new bool Equals(DbObjectName other)
     {
