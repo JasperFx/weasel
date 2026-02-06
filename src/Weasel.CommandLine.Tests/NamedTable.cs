@@ -38,10 +38,10 @@ public class NamedTableFeature: FeatureSchemaBase
     }
 }
 
-public class DatabaseWithTables: PostgresqlDatabase
+public class TestDatabaseWithTables: PostgresqlDatabase
 {
     /// <inheritdoc />
-    public DatabaseWithTables(AutoCreate autoCreate, string identifier) :
+    public TestDatabaseWithTables(AutoCreate autoCreate, string identifier) :
         base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, new NpgsqlDataSourceBuilder(ConnectionSource.ConnectionString).Build())
     {
     }

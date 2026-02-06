@@ -150,4 +150,15 @@ END;";
     {
         return new Tables.Table(identifier);
     }
+
+    public DatabaseWithTables CreateDatabase(DbConnection connection)
+    {
+        if (connection is not OracleConnection)
+        {
+            throw new ArgumentException("Expected OracleConnection", nameof(connection));
+        }
+
+        var builder = new OracleConnectionStringBuilder(connection.ConnectionString);
+        return new DatabaseWithTables(builder.UserID ?? "weasel", connection.ConnectionString);
+    }
 }

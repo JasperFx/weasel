@@ -17,11 +17,11 @@ namespace Weasel.Postgresql.Tests.Migrations;
 [Collection("migrations")]
 public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
 {
-    private readonly DatabaseWithTables theDatabase;
+    private readonly TestDatabaseWithTables theDatabase;
 
     public SchemaMigrationTests() : base("migrations")
     {
-        theDatabase = new DatabaseWithTables(AutoCreate.None, "Migrations", theDataSource);
+        theDatabase = new TestDatabaseWithTables(AutoCreate.None, "Migrations", theDataSource);
     }
 
     public override Task InitializeAsync()
@@ -150,30 +150,30 @@ public class NamedTableFeature: FeatureSchemaBase
     }
 }
 
-public class DatabaseWithTables: PostgresqlDatabase
+public class TestDatabaseWithTables: PostgresqlDatabase
 {
-    public static DatabaseWithTables ForDataSource(NpgsqlDataSource dataSource)
+    public static TestDatabaseWithTables ForDataSource(NpgsqlDataSource dataSource)
     {
         var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);
         var identifier = builder.Database!;
 
-        return new DatabaseWithTables(identifier, dataSource);
+        return new TestDatabaseWithTables(identifier, dataSource);
     }
 
-    public static DatabaseWithTables ForConnectionString(string connectionString)
+    public static TestDatabaseWithTables ForConnectionString(string connectionString)
     {
         var builder = new NpgsqlDataSourceBuilder(connectionString);
         var identifier = builder.ConnectionStringBuilder.Database!;
 
-        return new DatabaseWithTables(identifier, builder.Build());
+        return new TestDatabaseWithTables(identifier, builder.Build());
     }
 
-    public DatabaseWithTables(string identifier, NpgsqlDataSource dataSource)
+    public TestDatabaseWithTables(string identifier, NpgsqlDataSource dataSource)
         : base(new DefaultMigrationLogger(), AutoCreate.All, new PostgresqlMigrator(), identifier, dataSource)
     {
     }
 
-    public DatabaseWithTables(AutoCreate autoCreate, string identifier, NpgsqlDataSource dataSource)
+    public TestDatabaseWithTables(AutoCreate autoCreate, string identifier, NpgsqlDataSource dataSource)
         : base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, dataSource)
     {
     }

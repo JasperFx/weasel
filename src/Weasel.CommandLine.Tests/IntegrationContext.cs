@@ -16,9 +16,9 @@ namespace Weasel.CommandLine.Tests;
 [Collection("integration")]
 public abstract class IntegrationContext
 {
-    internal readonly LightweightCache<string, DatabaseWithTables> Databases
-        = new LightweightCache<string, DatabaseWithTables>(name =>
-            new DatabaseWithTables(JasperFx.AutoCreate.CreateOrUpdate, name));
+    internal readonly LightweightCache<string, TestDatabaseWithTables> Databases
+        = new LightweightCache<string, TestDatabaseWithTables>(name =>
+            new TestDatabaseWithTables(JasperFx.AutoCreate.CreateOrUpdate, name));
 
     internal async Task DropSchema(string schemaName)
     {

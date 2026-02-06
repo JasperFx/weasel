@@ -33,15 +33,15 @@ public class SingleInstanceDatabaseCollectionTests
         (await theDatabases.FindOrCreateDatabase("three")).ShouldBeSameAs(three);
     }
 
-    public class Databases: SingleServerDatabaseCollection<DatabaseWithTables>
+    public class Databases: SingleServerDatabaseCollection<TestDatabaseWithTables>
     {
         public Databases() : base(new DefaultNpgsqlDataSourceFactory(), ConnectionSource.ConnectionString)
         {
         }
 
-        protected override DatabaseWithTables buildDatabase(string databaseName, NpgsqlDataSource dataSource)
+        protected override TestDatabaseWithTables buildDatabase(string databaseName, NpgsqlDataSource dataSource)
         {
-            return new DatabaseWithTables(databaseName, dataSource);
+            return new TestDatabaseWithTables(databaseName, dataSource);
         }
     }
 }
