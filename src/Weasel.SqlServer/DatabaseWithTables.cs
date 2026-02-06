@@ -8,7 +8,7 @@ using Weasel.Core.Migrations;
 
 namespace Weasel.SqlServer;
 
-public class DatabaseWithTables: DatabaseBase<SqlConnection>
+public class DatabaseWithTables: DatabaseBase<SqlConnection>, IDatabaseWithTables
 {
     private readonly List<ITable> _tables = new();
     private readonly string _connectionString;
@@ -27,7 +27,7 @@ public class DatabaseWithTables: DatabaseBase<SqlConnection>
 
     public IReadOnlyList<ITable> Tables => _tables;
 
-    public ITable CreateTable(DbObjectName identifier)
+    public ITable AddTable(DbObjectName identifier)
     {
         var table = Migrator.CreateTable(identifier);
         _tables.Add(table);

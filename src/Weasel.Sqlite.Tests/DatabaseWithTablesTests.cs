@@ -20,7 +20,7 @@ public class DatabaseWithTablesTests
     public void create_table_returns_configurable_table()
     {
         var db = new DatabaseWithTables("test", "Data Source=:memory:");
-        var table = db.CreateTable(new DbObjectName("main", "dwt_people"));
+        var table = db.AddTable(new DbObjectName("main", "dwt_people"));
         table.ShouldNotBeNull();
         db.Tables.Count.ShouldBe(1);
         db.Tables[0].ShouldBeSameAs(table);
@@ -32,7 +32,7 @@ public class DatabaseWithTablesTests
         var connectionString = $"Data Source={Path.GetTempFileName()};";
 
         var db = new DatabaseWithTables("test", connectionString);
-        var table = db.CreateTable(new DbObjectName("main", "dwt_users"));
+        var table = db.AddTable(new DbObjectName("main", "dwt_users"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 
@@ -46,7 +46,7 @@ public class DatabaseWithTablesTests
         var connectionString = $"Data Source={Path.GetTempFileName()};";
 
         var db = new DatabaseWithTables("test", connectionString);
-        var table = db.CreateTable(new DbObjectName("main", "dwt_contacts"));
+        var table = db.AddTable(new DbObjectName("main", "dwt_contacts"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 

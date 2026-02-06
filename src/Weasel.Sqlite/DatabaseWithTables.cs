@@ -4,7 +4,7 @@ using Weasel.Core.Migrations;
 
 namespace Weasel.Sqlite;
 
-public class DatabaseWithTables: SqliteDatabase
+public class DatabaseWithTables: SqliteDatabase, IDatabaseWithTables
 {
     private readonly List<ITable> _tables = new();
 
@@ -20,7 +20,7 @@ public class DatabaseWithTables: SqliteDatabase
 
     public IReadOnlyList<ITable> Tables => _tables;
 
-    public ITable CreateTable(DbObjectName identifier)
+    public ITable AddTable(DbObjectName identifier)
     {
         var table = Migrator.CreateTable(identifier);
         _tables.Add(table);

@@ -21,7 +21,7 @@ public class DatabaseWithTablesTests
     public void create_table_returns_configurable_table()
     {
         var db = new DatabaseWithTables("test", ConnectionSource.ConnectionString);
-        var table = db.CreateTable(new DbObjectName("WEASEL", "DWT_PEOPLE"));
+        var table = db.AddTable(new DbObjectName("WEASEL", "DWT_PEOPLE"));
         table.ShouldNotBeNull();
         db.Tables.Count.ShouldBe(1);
         db.Tables[0].ShouldBeSameAs(table);
@@ -42,7 +42,7 @@ public class DatabaseWithTablesTests
         }
 
         var db = new DatabaseWithTables("test", ConnectionSource.ConnectionString);
-        var table = db.CreateTable(new DbObjectName("WEASEL", "DWT_USERS"));
+        var table = db.AddTable(new DbObjectName("WEASEL", "DWT_USERS"));
         table.AddPrimaryKeyColumn("ID", typeof(int));
         table.AddColumn("NAME", typeof(string));
 
@@ -65,7 +65,7 @@ public class DatabaseWithTablesTests
         }
 
         var db = new DatabaseWithTables("test", ConnectionSource.ConnectionString);
-        var table = db.CreateTable(new DbObjectName("WEASEL", "DWT_CONTACTS"));
+        var table = db.AddTable(new DbObjectName("WEASEL", "DWT_CONTACTS"));
         table.AddPrimaryKeyColumn("ID", typeof(int));
         table.AddColumn("NAME", typeof(string));
 
