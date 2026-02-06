@@ -5,7 +5,7 @@ using Weasel.Core.Migrations;
 
 namespace Weasel.Postgresql;
 
-public class DatabaseWithTables: PostgresqlDatabase
+public class DatabaseWithTables: PostgresqlDatabase, IDatabaseWithTables
 {
     private readonly List<ITable> _tables = new();
 
@@ -21,7 +21,7 @@ public class DatabaseWithTables: PostgresqlDatabase
 
     public IReadOnlyList<ITable> Tables => _tables;
 
-    public ITable CreateTable(DbObjectName identifier)
+    public ITable AddTable(DbObjectName identifier)
     {
         var table = Migrator.CreateTable(identifier);
         _tables.Add(table);

@@ -21,7 +21,7 @@ public class DatabaseWithTablesTests
     public void create_table_returns_configurable_table()
     {
         var db = new DatabaseWithTables("test", ConnectionSource.ConnectionString);
-        var table = db.CreateTable(new DbObjectName("dbo", "dwt_people"));
+        var table = db.AddTable(new DbObjectName("dbo", "dwt_people"));
         table.ShouldNotBeNull();
         db.Tables.Count.ShouldBe(1);
         db.Tables[0].ShouldBeSameAs(table);
@@ -36,7 +36,7 @@ public class DatabaseWithTablesTests
             .ExecuteNonQueryAsync();
 
         var db = new DatabaseWithTables("test", ConnectionSource.ConnectionString);
-        var table = db.CreateTable(new DbObjectName("dbo", "dwt_users"));
+        var table = db.AddTable(new DbObjectName("dbo", "dwt_users"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 
@@ -53,7 +53,7 @@ public class DatabaseWithTablesTests
             .ExecuteNonQueryAsync();
 
         var db = new DatabaseWithTables("test", ConnectionSource.ConnectionString);
-        var table = db.CreateTable(new DbObjectName("dbo", "dwt_contacts"));
+        var table = db.AddTable(new DbObjectName("dbo", "dwt_contacts"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 

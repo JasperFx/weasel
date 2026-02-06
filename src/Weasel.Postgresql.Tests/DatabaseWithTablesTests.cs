@@ -33,7 +33,7 @@ public class DatabaseWithTablesTests: IntegrationContext
     public void create_table_returns_configurable_table()
     {
         var db = new DatabaseWithTables("test", theDataSource);
-        var table = db.CreateTable(new PostgresqlObjectName("public", "dwt_people"));
+        var table = db.AddTable(new PostgresqlObjectName("public", "dwt_people"));
         table.ShouldNotBeNull();
         db.Tables.Count.ShouldBe(1);
         db.Tables[0].ShouldBeSameAs(table);
@@ -45,7 +45,7 @@ public class DatabaseWithTablesTests: IntegrationContext
         await ResetSchema();
 
         var db = new DatabaseWithTables("test", theDataSource);
-        var table = db.CreateTable(new PostgresqlObjectName("public", "dwt_users"));
+        var table = db.AddTable(new PostgresqlObjectName("public", "dwt_users"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 
@@ -59,7 +59,7 @@ public class DatabaseWithTablesTests: IntegrationContext
         await ResetSchema();
 
         var db = new DatabaseWithTables("test", theDataSource);
-        var table = db.CreateTable(new PostgresqlObjectName("public", "dwt_contacts"));
+        var table = db.AddTable(new PostgresqlObjectName("public", "dwt_contacts"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 
