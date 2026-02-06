@@ -113,4 +113,15 @@ public class SqliteMigrator: Migrator
             logger.OnFailure(cmd, e);
         }
     }
+
+    public DatabaseWithTables CreateDatabase(DbConnection connection)
+    {
+        if (connection is not Microsoft.Data.Sqlite.SqliteConnection)
+        {
+            throw new ArgumentException("Expected SqliteConnection", nameof(connection));
+        }
+
+        var builder = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connection.ConnectionString);
+        return new DatabaseWithTables(builder.DataSource ?? "sqlite", connection.ConnectionString);
+    }
 }

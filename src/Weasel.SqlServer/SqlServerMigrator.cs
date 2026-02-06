@@ -123,4 +123,15 @@ IF NOT EXISTS ( SELECT  *
     {
         return new Tables.Table(identifier);
     }
+
+    public DatabaseWithTables CreateDatabase(DbConnection connection)
+    {
+        if (connection is not SqlConnection)
+        {
+            throw new ArgumentException("Expected SqlConnection", nameof(connection));
+        }
+
+        var builder = new SqlConnectionStringBuilder(connection.ConnectionString);
+        return new DatabaseWithTables(builder.InitialCatalog ?? "weasel", connection.ConnectionString);
+    }
 }

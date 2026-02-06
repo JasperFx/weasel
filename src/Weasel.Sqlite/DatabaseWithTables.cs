@@ -1,0 +1,39 @@
+using JasperFx;
+using Weasel.Core;
+using Weasel.Core.Migrations;
+
+namespace Weasel.Sqlite;
+
+public class DatabaseWithTables: SqliteDatabase
+{
+    private readonly List<ITable> _tables = new();
+
+    public DatabaseWithTables(string identifier, string connectionString)
+        : base(new DefaultMigrationLogger(), AutoCreate.All, new SqliteMigrator(), identifier, connectionString)
+    {
+    }
+
+    public DatabaseWithTables(string identifier, string connectionString, AutoCreate autoCreate)
+        : base(new DefaultMigrationLogger(), autoCreate, new SqliteMigrator(), identifier, connectionString)
+    {
+    }
+
+    public IReadOnlyList<ITable> Tables => _tables;
+
+    public ITable CreateTable(DbObjectName identifier)
+    {
+        var table = Migrator.CreateTable(identifier);
+        _tables.Add(table);
+        return table;
+    }
+
+    public override IFeatureSchema[] BuildFeatureSchemas()
+        => [new TableFeatureSchema(Migrator, _tables)];
+
+    private class TableFeatureSchema(Migrator migrator, List<ITable> tables)
+        : FeatureSchemaBase("Tables", migrator)
+    {
+        public override Type StorageType => typeof(DatabaseWithTables);
+        protected override IEnumerable<ISchemaObject> schemaObjects() => tables;
+    }
+}

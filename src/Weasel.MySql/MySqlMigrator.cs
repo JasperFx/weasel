@@ -127,4 +127,15 @@ public class MySqlMigrator: Migrator
     {
         return new Tables.Table(identifier);
     }
+
+    public DatabaseWithTables CreateDatabase(DbConnection connection)
+    {
+        if (connection is not MySqlConnection)
+        {
+            throw new ArgumentException("Expected MySqlConnection", nameof(connection));
+        }
+
+        var builder = new MySqlConnectionStringBuilder(connection.ConnectionString);
+        return new DatabaseWithTables(builder.Database ?? "weasel", connection.ConnectionString);
+    }
 }

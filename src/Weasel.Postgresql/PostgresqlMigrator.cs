@@ -176,4 +176,22 @@ $$;
     {
         return new Tables.Table(identifier);
     }
+
+    public DatabaseWithTables CreateDatabase(NpgsqlDataSource dataSource)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);
+        return new DatabaseWithTables(builder.Database ?? "weasel", dataSource);
+    }
+
+    public DatabaseWithTables CreateDatabase(DbConnection connection)
+    {
+        if (connection is not NpgsqlConnection)
+        {
+            throw new ArgumentException("Expected NpgsqlConnection", nameof(connection));
+        }
+
+        var dataSource = new NpgsqlDataSourceBuilder(connection.ConnectionString).Build();
+        var builder = new NpgsqlConnectionStringBuilder(connection.ConnectionString);
+        return new DatabaseWithTables(builder.Database ?? "weasel", dataSource);
+    }
 }
