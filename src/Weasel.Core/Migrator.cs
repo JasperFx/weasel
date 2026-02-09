@@ -8,7 +8,8 @@ namespace Weasel.Core;
 /// <summary>
 ///     Governs the rules and formatting for generating SQL exports of schema objects
 /// </summary>
-public abstract class Migrator
+public abstract class
+    Migrator
 {
     public static readonly string SCHEMA = "%SCHEMA%";
     public static readonly string TABLENAME = "%TABLENAME%";
@@ -24,6 +25,8 @@ public abstract class Migrator
     {
         DefaultSchemaName = defaultSchemaName;
     }
+
+    public abstract IDatabaseWithTables CreateDatabase(DbConnection connection);
 
     public abstract bool MatchesConnection(DbConnection connection);
 

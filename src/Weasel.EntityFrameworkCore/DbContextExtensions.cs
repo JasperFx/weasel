@@ -19,24 +19,14 @@ public static class DbContextExtensions
         DbContext context,
         CancellationToken cancellation)
     {
-        var migrators = services.GetServices<Migrator>().ToList();
-        if (!migrators.Any())
-        {
-            throw new InvalidOperationException($"No {typeof(Migrator).FullNameInCode()} services are registered!");
-        }
+        var (conn, migrator) = services.FindMigratorForDbContext(context);
 
-        await using var conn = context.Database.GetDbConnection();
-        var migrator = migrators.FirstOrDefault(x => x.MatchesConnection(conn));
-        if (migrator == null)
-        {
-            throw new InvalidOperationException(
-                $"No matching {typeof(Migrator).FullNameInCode()} instances for DbContext {context}. Registered migrators are {migrators.Select(x => x.ToString() ?? x.GetType().Name).Join(", ")}");
-        }
+        await using var dbConnection = conn;
 
         var tables = context
             .Model
             .GetEntityTypes()
-            .Select(x => migrator.MapToTable(x))
+            .Select(x => migrator!.MapToTable(x))
             .OfType<ISchemaObject>()
             .ToArray();
 
@@ -51,6 +41,25 @@ public static class DbContextExtensions
         {
             await conn.CloseAsync().ConfigureAwait(false);
         }
+    }
+
+    public static (DbConnection conn, Migrator? migrator) FindMigratorForDbContext(this IServiceProvider services, DbContext context)
+    {
+        var migrators = services.GetServices<Migrator>().ToList();
+        if (!migrators.Any())
+        {
+            throw new InvalidOperationException($"No {typeof(Migrator).FullNameInCode()} services are registered!");
+        }
+
+        var conn = context.Database.GetDbConnection();
+        var migrator = migrators.FirstOrDefault(x => x.MatchesConnection(conn));
+        if (migrator == null)
+        {
+            throw new InvalidOperationException(
+                $"No matching {typeof(Migrator).FullNameInCode()} instances for DbContext {context}. Registered migrators are {migrators.Select(x => x.ToString() ?? x.GetType().Name).Join(", ")}");
+        }
+
+        return (conn, migrator);
     }
 
     public static ITable MapToTable(this Migrator migrator, IEntityType entityType)

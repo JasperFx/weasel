@@ -183,7 +183,7 @@ $$;
         return new DatabaseWithTables(builder.Database ?? "weasel", dataSource);
     }
 
-    public DatabaseWithTables CreateDatabase(DbConnection connection)
+    public override IDatabaseWithTables CreateDatabase(DbConnection connection)
     {
         if (connection is not NpgsqlConnection)
         {

@@ -128,7 +128,7 @@ public class MySqlMigrator: Migrator
         return new Tables.Table(identifier);
     }
 
-    public DatabaseWithTables CreateDatabase(DbConnection connection)
+    public override IDatabaseWithTables CreateDatabase(DbConnection connection)
     {
         if (connection is not MySqlConnection)
         {
