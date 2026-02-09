@@ -26,7 +26,7 @@ public abstract class
         DefaultSchemaName = defaultSchemaName;
     }
 
-    public abstract IDatabaseWithTables CreateDatabase(DbConnection connection);
+    public abstract IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null);
 
     public abstract bool MatchesConnection(DbConnection connection);
 

@@ -114,7 +114,7 @@ public class SqliteMigrator: Migrator
         }
     }
 
-    public override IDatabaseWithTables CreateDatabase(DbConnection connection)
+    public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
     {
         if (connection is not Microsoft.Data.Sqlite.SqliteConnection)
         {
@@ -122,6 +122,6 @@ public class SqliteMigrator: Migrator
         }
 
         var builder = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connection.ConnectionString);
-        return new DatabaseWithTables(builder.DataSource ?? "sqlite", connection.ConnectionString);
+        return new DatabaseWithTables(identifier ?? builder.DataSource ?? "sqlite", connection.ConnectionString);
     }
 }

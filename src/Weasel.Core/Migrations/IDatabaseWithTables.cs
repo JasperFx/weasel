@@ -7,4 +7,5 @@ public interface IDatabaseWithTables: IDatabase
 {
     IReadOnlyList<ITable> Tables { get; }
     ITable AddTable(DbObjectName identifier);
+    void AddTable(ITable table);
 }

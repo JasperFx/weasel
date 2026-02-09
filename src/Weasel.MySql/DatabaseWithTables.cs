@@ -34,6 +34,11 @@ public class DatabaseWithTables: DatabaseBase<MySqlConnection>, IDatabaseWithTab
         return table;
     }
 
+    public void AddTable(ITable table)
+    {
+        _tables.Add(table);
+    }
+
     public override IFeatureSchema[] BuildFeatureSchemas()
         => [new TableFeatureSchema(Migrator, _tables)];
 
