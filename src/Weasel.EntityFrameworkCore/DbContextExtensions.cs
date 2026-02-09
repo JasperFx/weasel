@@ -14,6 +14,27 @@ public record DbContextMigration(DbConnection connection, Migrator Migrator, Sch
 
 public static class DbContextExtensions
 {
+    public static IDatabaseWithTables CreateDatabase(this IServiceProvider services, DbContext context, string? identifier = null)
+    {
+        identifier ??= context.GetType().FullNameInCode();
+        var (conn, migrator) = services.FindMigratorForDbContext(context);
+        try
+        {
+            var database = migrator!.CreateDatabase(conn, identifier);
+            foreach (var entityType in context.Model.GetEntityTypes())
+            {
+                var table = migrator.MapToTable(entityType);
+                database.AddTable(table);
+            }
+
+            return database;
+        }
+        finally
+        {
+            conn.Dispose();
+        }
+    }
+
     public static async Task<DbContextMigration> CreateMigrationAsync(
         this IServiceProvider services,
         DbContext context,

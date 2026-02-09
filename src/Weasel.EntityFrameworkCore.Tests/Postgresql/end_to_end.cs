@@ -146,4 +146,15 @@ public class end_to_end : IAsyncLifetime
         // The migration should indicate tables need to be created
         migration.Migration.Difference.ShouldNotBe(SchemaPatchDifference.None);
     }
+
+    [Fact]
+    public void can_build_a_database_for_db_context()
+    {
+        using var scope = _host.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<PostgresqlDbContext>();
+
+        var database = scope.ServiceProvider.CreateDatabase(context, "Ralph");
+        database.ShouldNotBeNull();
+        database.Tables.Single().Identifier.Name.ShouldBe("my_entities");
+    }
 }

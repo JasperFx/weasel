@@ -151,7 +151,7 @@ END;";
         return new Tables.Table(identifier);
     }
 
-    public override IDatabaseWithTables CreateDatabase(DbConnection connection)
+    public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
     {
         if (connection is not OracleConnection)
         {
@@ -159,6 +159,6 @@ END;";
         }
 
         var builder = new OracleConnectionStringBuilder(connection.ConnectionString);
-        return new DatabaseWithTables(builder.UserID ?? "weasel", connection.ConnectionString);
+        return new DatabaseWithTables(identifier ?? builder.UserID ?? "weasel", connection.ConnectionString);
     }
 }

@@ -124,7 +124,7 @@ IF NOT EXISTS ( SELECT  *
         return new Tables.Table(identifier);
     }
 
-    public override IDatabaseWithTables CreateDatabase(DbConnection connection)
+    public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
     {
         if (connection is not SqlConnection)
         {
@@ -132,6 +132,6 @@ IF NOT EXISTS ( SELECT  *
         }
 
         var builder = new SqlConnectionStringBuilder(connection.ConnectionString);
-        return new DatabaseWithTables(builder.InitialCatalog ?? "weasel", connection.ConnectionString);
+        return new DatabaseWithTables(identifier ?? builder.InitialCatalog ?? "weasel", connection.ConnectionString);
     }
 }

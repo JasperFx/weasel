@@ -128,7 +128,7 @@ public class MySqlMigrator: Migrator
         return new Tables.Table(identifier);
     }
 
-    public override IDatabaseWithTables CreateDatabase(DbConnection connection)
+    public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
     {
         if (connection is not MySqlConnection)
         {
@@ -136,6 +136,6 @@ public class MySqlMigrator: Migrator
         }
 
         var builder = new MySqlConnectionStringBuilder(connection.ConnectionString);
-        return new DatabaseWithTables(builder.Database ?? "weasel", connection.ConnectionString);
+        return new DatabaseWithTables(identifier ?? builder.Database ?? "weasel", connection.ConnectionString);
     }
 }
