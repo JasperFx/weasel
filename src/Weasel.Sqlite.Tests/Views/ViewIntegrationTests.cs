@@ -58,6 +58,16 @@ public class ViewIntegrationTests
 
         var view = new View("active_users", "SELECT id, name, email FROM users WHERE active = 1");
 
+        // Verify delta detects missing view before creation
+        var queryCmd = connection.CreateCommand();
+        var builder = new Core.DbCommandBuilder(queryCmd);
+        view.ConfigureQueryCommand(builder);
+        builder.Compile();
+
+        await using var reader = await queryCmd.ExecuteReaderAsync();
+        var delta = await view.CreateDeltaAsync(reader, CancellationToken.None);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
         var writer = new StringWriter();
         var migrator = new SqliteMigrator();
         view.WriteCreateStatement(migrator, writer);
@@ -127,6 +137,16 @@ public class ViewIntegrationTests
         fetched.ShouldNotBeNull();
         fetched!.Identifier.Name.ShouldBe("active_users");
         fetched.ViewSql.ShouldContain("SELECT * FROM users WHERE active = 1");
+
+        // Verify delta shows no changes when view matches
+        var queryCmd = connection.CreateCommand();
+        var builder = new Core.DbCommandBuilder(queryCmd);
+        view.ConfigureQueryCommand(builder);
+        builder.Compile();
+
+        await using var reader = await queryCmd.ExecuteReaderAsync();
+        var delta = await view.CreateDeltaAsync(reader, CancellationToken.None);
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
     [Fact]
@@ -138,54 +158,6 @@ public class ViewIntegrationTests
         var fetched = await view.FetchExistingAsync(connection);
 
         fetched.ShouldBeNull();
-    }
-
-    [Fact]
-    public async Task create_delta_when_view_does_not_exist()
-    {
-        await using var connection = await OpenConnectionAsync();
-        await CreateUsersTable(connection);
-
-        var view = new View("active_users", "SELECT * FROM users WHERE active = 1");
-
-        var cmd = connection.CreateCommand();
-        var builder = new Core.DbCommandBuilder(cmd);
-        view.ConfigureQueryCommand(builder);
-        builder.Compile();
-
-        await using var reader = await cmd.ExecuteReaderAsync();
-        var delta = await view.CreateDeltaAsync(reader, CancellationToken.None);
-
-        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
-    }
-
-    [Fact]
-    public async Task create_delta_when_view_matches()
-    {
-        await using var connection = await OpenConnectionAsync();
-        await CreateUsersTable(connection);
-
-        var view = new View("active_users", "SELECT * FROM users WHERE active = 1");
-
-        // Create the view first
-        var createWriter = new StringWriter();
-        var migrator = new SqliteMigrator();
-        view.WriteCreateStatement(migrator, createWriter);
-
-        var createCmd = connection.CreateCommand();
-        createCmd.CommandText = createWriter.ToString();
-        await createCmd.ExecuteNonQueryAsync();
-
-        // Now check delta
-        var queryCmd = connection.CreateCommand();
-        var builder = new Core.DbCommandBuilder(queryCmd);
-        view.ConfigureQueryCommand(builder);
-        builder.Compile();
-
-        await using var reader = await queryCmd.ExecuteReaderAsync();
-        var delta = await view.CreateDeltaAsync(reader, CancellationToken.None);
-
-        delta.Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
     [Fact]
@@ -288,9 +260,19 @@ public class ViewIntegrationTests
         createCmd.CommandText = createWriter.ToString();
         await createCmd.ExecuteNonQueryAsync();
 
-        // Update the view with new definition
+        // Verify delta detects the view change
         var view2 = new View("active_users", "SELECT id, name, email FROM users WHERE active = 1");
 
+        var queryCmd = connection.CreateCommand();
+        var builder = new Core.DbCommandBuilder(queryCmd);
+        view2.ConfigureQueryCommand(builder);
+        builder.Compile();
+
+        await using var reader = await queryCmd.ExecuteReaderAsync();
+        var delta = await view2.CreateDeltaAsync(reader, CancellationToken.None);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        // Apply the update
         var updateWriter = new StringWriter();
         view2.WriteCreateStatement(migrator, updateWriter);
 

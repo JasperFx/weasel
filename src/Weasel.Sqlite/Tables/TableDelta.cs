@@ -17,6 +17,14 @@ public class TableDelta: SchemaObjectDelta<Table>
     public ItemDelta<IndexDefinition> Indexes { get; internal set; } = null!;
     public ItemDelta<ForeignKey> ForeignKeys { get; internal set; } = null!;
 
+    /// <summary>
+    /// Columns detected as renames: Expected has the new name, Actual has the old name.
+    /// These are excluded from Missing/Extras processing in DDL generation.
+    /// </summary>
+    public IReadOnlyList<Change<TableColumn>> RenamedColumns => _renamedColumns;
+
+    private readonly List<Change<TableColumn>> _renamedColumns = new();
+
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
     public bool RequiresTableRecreation { get; private set; }
 
@@ -34,6 +42,9 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
 
+        // Detect column renames: match Missing (new name) with Extras (old name) by structural equality
+        detectRenamedColumns();
+
         // Check primary key differences
         PrimaryKeyDifference = SchemaPatchDifference.None;
         if (expected.PrimaryKeyColumns.Any() != actual.PrimaryKeyColumns.Any())
@@ -49,6 +60,46 @@ public class TableDelta: SchemaObjectDelta<Table>
         return determinePatchDifference();
     }
 
+    /// <summary>
+    /// Detects column renames by pairing Missing columns (new names) with Extra columns (old names)
+    /// that have the same type and constraints. Only unambiguous 1:1 matches are treated as renames.
+    /// </summary>
+    private void detectRenamedColumns()
+    {
+        var unmatchedMissing = Columns.Missing.ToList();
+        var unmatchedExtras = Columns.Extras.ToList();
+
+        // For each missing column, find extra columns with matching structure
+        foreach (var missing in Columns.Missing)
+        {
+            var candidates = unmatchedExtras
+                .Where(extra => missing.IsStructuralMatch(extra))
+                .ToList();
+
+            // Only accept unambiguous 1:1 matches
+            if (candidates.Count != 1)
+            {
+                continue;
+            }
+
+            var match = candidates[0];
+
+            // Verify the reverse is also unambiguous: the extra column should only match this one missing
+            var reverseCandidates = unmatchedMissing
+                .Where(m => m.IsStructuralMatch(match))
+                .ToList();
+
+            if (reverseCandidates.Count != 1)
+            {
+                continue;
+            }
+
+            _renamedColumns.Add(new Change<TableColumn>(missing, match));
+            unmatchedMissing.Remove(missing);
+            unmatchedExtras.Remove(match);
+        }
+    }
+
     private SchemaPatchDifference determinePatchDifference()
     {
         // Check if table recreation is required due to SQLite limitations
@@ -60,7 +111,16 @@ public class TableDelta: SchemaObjectDelta<Table>
             return SchemaPatchDifference.Invalid;
         }
 
-        if (Columns.Missing.Any() || Columns.Extras.Any() || Columns.Different.Any())
+        var renamedMissingNames = new HashSet<string>(
+            _renamedColumns.Select(r => r.Expected.Name), StringComparer.OrdinalIgnoreCase);
+        var renamedExtraNames = new HashSet<string>(
+            _renamedColumns.Select(r => r.Actual.Name), StringComparer.OrdinalIgnoreCase);
+
+        var nonRenameMissing = Columns.Missing.Where(c => !renamedMissingNames.Contains(c.Name));
+        var nonRenameExtras = Columns.Extras.Where(c => !renamedExtraNames.Contains(c.Name));
+
+        if (nonRenameMissing.Any() || nonRenameExtras.Any() || Columns.Different.Any() ||
+            _renamedColumns.Any())
         {
             return SchemaPatchDifference.Update;
         }
@@ -110,12 +170,34 @@ public class TableDelta: SchemaObjectDelta<Table>
             return true;
         }
 
-        // Check if we need to drop columns that might be referenced
+        // Check if columns being dropped are referenced by FKs or are part of the PK
         if (Columns.Extras.Any())
         {
-            // Dropping columns is supported in SQLite 3.35+, but we should check dependencies
-            // For now, we'll allow simple column drops
-            // TODO: Check if dropped columns are referenced by indexes or FKs
+            var renamedExtraNames = new HashSet<string>(
+                _renamedColumns.Select(r => r.Actual.Name), StringComparer.OrdinalIgnoreCase);
+
+            foreach (var extra in Columns.Extras)
+            {
+                // Skip columns handled as renames
+                if (renamedExtraNames.Contains(extra.Name))
+                {
+                    continue;
+                }
+
+                // Column is part of primary key — requires recreation
+                if (extra.IsPrimaryKey)
+                {
+                    return true;
+                }
+
+                // Column is referenced by a foreign key — requires recreation
+                if (Actual!.ForeignKeys.Any(fk =>
+                        fk.ColumnNames.Any(cn =>
+                            cn.Equals(extra.Name, StringComparison.OrdinalIgnoreCase))))
+                {
+                    return true;
+                }
+            }
         }
 
         return false;
@@ -136,20 +218,31 @@ public class TableDelta: SchemaObjectDelta<Table>
             return;
         }
 
-        // Drop extra indexes first (these are separate objects)
+        // Build sets of renamed column names for filtering
+        var renamedMissingNames = new HashSet<string>(
+            _renamedColumns.Select(r => r.Expected.Name), StringComparer.OrdinalIgnoreCase);
+        var renamedExtraNames = new HashSet<string>(
+            _renamedColumns.Select(r => r.Actual.Name), StringComparer.OrdinalIgnoreCase);
+
+        // 1. Drop extra indexes and indexes on columns being renamed/dropped
         foreach (var extra in Indexes.Extras)
         {
             writer.WriteDropIndex(Expected, extra);
         }
 
-        // Drop different indexes
         foreach (var change in Indexes.Different)
         {
             writer.WriteDropIndex(Expected, change.Actual);
         }
 
-        // Add missing columns (SQLite supports ADD COLUMN with restrictions)
-        foreach (var column in Columns.Missing)
+        // 2. Rename columns (SQLite 3.25+)
+        foreach (var rename in _renamedColumns)
+        {
+            writer.WriteLine(rename.Expected.RenameColumnSql(Expected, rename.Actual.Name));
+        }
+
+        // 3. Add missing columns, excluding those handled as renames
+        foreach (var column in Columns.Missing.Where(c => !renamedMissingNames.Contains(c.Name)))
         {
             if (column.CanAdd())
             {
@@ -163,19 +256,18 @@ public class TableDelta: SchemaObjectDelta<Table>
             }
         }
 
-        // Drop extra columns (SQLite 3.35+)
-        foreach (var column in Columns.Extras)
+        // 4. Drop extra columns (SQLite 3.35+), excluding those handled as renames
+        foreach (var column in Columns.Extras.Where(c => !renamedExtraNames.Contains(c.Name)))
         {
             writer.WriteLine(column.DropColumnSql(Expected));
         }
 
-        // Create missing indexes
+        // 5. Recreate/add indexes
         foreach (var index in Indexes.Missing)
         {
             writer.WriteLine(index.ToDDL(Expected));
         }
 
-        // Recreate different indexes
         foreach (var change in Indexes.Different)
         {
             writer.WriteLine(change.Expected.ToDDL(Expected));
@@ -214,18 +306,34 @@ public class TableDelta: SchemaObjectDelta<Table>
         tempTable.WriteCreateStatement(rules, writer);
         writer.WriteLine();
 
-        // Copy data - only copy columns that exist in both tables
-        var commonColumns = Expected.Columns
-            .Where(e => Actual?.Columns.Any(a =>
-                a.Name.Equals(e.Name, StringComparison.OrdinalIgnoreCase)) ?? false)
-            .Select(c => SchemaUtils.QuoteName(c.Name))
-            .ToList();
+        // Copy data - only copy columns that exist in both tables (accounting for renames)
+        var renameMap = _renamedColumns.ToDictionary(
+            r => r.Expected.Name, r => r.Actual.Name, StringComparer.OrdinalIgnoreCase);
 
-        if (commonColumns.Any())
+        var targetColumns = new List<string>();
+        var sourceColumns = new List<string>();
+
+        foreach (var expectedCol in Expected.Columns)
         {
-            var columnList = commonColumns.Join(", ");
-            writer.WriteLine($"INSERT INTO {tempName.QualifiedName} ({columnList})");
-            writer.WriteLine($"SELECT {columnList} FROM {Expected.Identifier.QualifiedName};");
+            if (renameMap.TryGetValue(expectedCol.Name, out var oldName))
+            {
+                // Renamed column: select from old name into new name
+                targetColumns.Add(SchemaUtils.QuoteName(expectedCol.Name));
+                sourceColumns.Add(SchemaUtils.QuoteName(oldName));
+            }
+            else if (Actual?.Columns.Any(a =>
+                         a.Name.Equals(expectedCol.Name, StringComparison.OrdinalIgnoreCase)) ?? false)
+            {
+                // Unchanged column
+                targetColumns.Add(SchemaUtils.QuoteName(expectedCol.Name));
+                sourceColumns.Add(SchemaUtils.QuoteName(expectedCol.Name));
+            }
+        }
+
+        if (targetColumns.Any())
+        {
+            writer.WriteLine($"INSERT INTO {tempName.QualifiedName} ({targetColumns.Join(", ")})");
+            writer.WriteLine($"SELECT {sourceColumns.Join(", ")} FROM {Expected.Identifier.QualifiedName};");
             writer.WriteLine();
         }
 
@@ -247,7 +355,7 @@ public class TableDelta: SchemaObjectDelta<Table>
     public bool HasChanges()
     {
         return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() ||
-               PrimaryKeyDifference != SchemaPatchDifference.None;
+               PrimaryKeyDifference != SchemaPatchDifference.None || _renamedColumns.Any();
     }
 
     public override void WriteRollback(Migrator rules, TextWriter writer)
@@ -269,24 +377,34 @@ public class TableDelta: SchemaObjectDelta<Table>
         }
 
         // For simple changes (add/drop columns and indexes), we can rollback incrementally
+        var renamedMissingNames = new HashSet<string>(
+            _renamedColumns.Select(r => r.Expected.Name), StringComparer.OrdinalIgnoreCase);
+        var renamedExtraNames = new HashSet<string>(
+            _renamedColumns.Select(r => r.Actual.Name), StringComparer.OrdinalIgnoreCase);
 
         // Rollback indexes first
         rollbackIndexes(writer);
 
         // Rollback columns: reverse the operations
-        // If we added columns, drop them
-        foreach (var column in Columns.Missing)
+        // If we added columns, drop them (excluding renames)
+        foreach (var column in Columns.Missing.Where(c => !renamedMissingNames.Contains(c.Name)))
         {
             writer.WriteLine(column.DropColumnSql(Expected));
         }
 
-        // If we dropped columns, add them back
-        foreach (var column in Columns.Extras)
+        // If we dropped columns, add them back (excluding renames)
+        foreach (var column in Columns.Extras.Where(c => !renamedExtraNames.Contains(c.Name)))
         {
             if (column.CanAdd())
             {
                 writer.WriteLine(column.AddColumnSql(Actual));
             }
+        }
+
+        // Reverse renames
+        foreach (var rename in _renamedColumns)
+        {
+            writer.WriteLine(rename.Actual.RenameColumnSql(Expected, rename.Expected.Name));
         }
     }
 

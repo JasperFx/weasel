@@ -157,4 +157,16 @@ public class IndexDefinitionTests
         var index = new IndexDefinition("idx_test");
         index.IsUnique.ShouldBeFalse();
     }
+
+    [Fact]
+    public void write_index_with_collation()
+    {
+        var index = new IndexDefinition("idx_users_name");
+        index.AgainstColumns("name");
+        index.Collation = "NOCASE";
+
+        var ddl = index.ToDDL(table);
+
+        ddl.ShouldContain("COLLATE NOCASE");
+    }
 }

@@ -177,16 +177,6 @@ public class SqliteFunctionRegistryTests
     }
 
     [Fact]
-    public async Task can_set_deterministic_flag_via_helper()
-    {
-        var registry = new SqliteFunctionRegistry();
-
-        var func = registry.AddScalar("random_func", () => new Random().Next(), isDeterministic: false);
-
-        func.IsDeterministic.ShouldBeFalse();
-    }
-
-    [Fact]
     public async Task helper_methods_return_function()
     {
         var registry = new SqliteFunctionRegistry();

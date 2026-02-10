@@ -326,27 +326,6 @@ public class SchemaObjectsExtensionsTests
     }
 
     [Fact]
-    public async Task migrate_async_creates_table()
-    {
-        await using var connection = await OpenConnectionAsync();
-
-        var table = new Table("users");
-        table.AddColumn<int>("id").AsPrimaryKey();
-        table.AddColumn<string>("name");
-
-        // First migration
-        var migrated1 = await table.MigrateAsync(connection);
-        migrated1.ShouldBeTrue();
-
-        // Verify table exists
-        var tables = await connection.ExistingTablesAsync();
-        tables.ShouldContain(x => x.Name == "users");
-
-        // Note: Delta detection for tables is not yet fully implemented (Table.Deltas.cs)
-        // so we cannot test "no changes" scenario yet
-    }
-
-    [Fact]
     public async Task migrate_async_with_array_of_schema_objects()
     {
         await using var connection = await OpenConnectionAsync();
@@ -368,32 +347,6 @@ public class SchemaObjectsExtensionsTests
         var tables = await connection.ExistingTablesAsync();
         tables.ShouldContain(x => x.Name == "users");
         tables.ShouldContain(x => x.Name == "orders");
-    }
-
-    [Fact]
-    public async Task migrate_async_array_creates_multiple_tables()
-    {
-        await using var connection = await OpenConnectionAsync();
-
-        var table1 = new Table("customers");
-        table1.AddColumn<int>("id").AsPrimaryKey();
-
-        var table2 = new Table("invoices");
-        table2.AddColumn<int>("id").AsPrimaryKey();
-
-        ISchemaObject[] objects = { table1, table2 };
-
-        // First migration
-        var migrated1 = await objects.MigrateAsync(connection);
-        migrated1.ShouldBeTrue();
-
-        // Verify tables exist
-        var tables = await connection.ExistingTablesAsync();
-        tables.ShouldContain(x => x.Name == "customers");
-        tables.ShouldContain(x => x.Name == "invoices");
-
-        // Note: Delta detection for tables is not yet fully implemented (Table.Deltas.cs)
-        // so we cannot test "no changes" scenario yet
     }
 
     [Fact]

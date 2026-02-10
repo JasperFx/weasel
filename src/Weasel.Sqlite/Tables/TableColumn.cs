@@ -170,7 +170,7 @@ public class TableColumn: ITableColumn
     /// </summary>
     public string DropColumnSql(Table table)
     {
-        return $"ALTER TABLE {table.Identifier} DROP COLUMN {QuotedName}";
+        return $"ALTER TABLE {table.Identifier} DROP COLUMN {QuotedName};";
     }
 
     public virtual bool CanAdd()
@@ -184,7 +184,7 @@ public class TableColumn: ITableColumn
     /// </summary>
     public virtual string AddColumnSql(Table parent)
     {
-        return $"ALTER TABLE {parent.Identifier} ADD COLUMN {ToDeclaration()}";
+        return $"ALTER TABLE {parent.Identifier} ADD COLUMN {ToDeclaration()};";
     }
 
     public virtual bool CanAlter(TableColumn actual)
@@ -192,6 +192,29 @@ public class TableColumn: ITableColumn
         // SQLite has very limited ALTER COLUMN support
         // Most changes require table recreation
         return false;
+    }
+
+    /// <summary>
+    /// SQLite 3.25+ supports ALTER TABLE RENAME COLUMN
+    /// </summary>
+    public string RenameColumnSql(Table table, string oldName)
+    {
+        return $"ALTER TABLE {table.Identifier} RENAME COLUMN {SchemaUtils.QuoteName(oldName)} TO {QuotedName};";
+    }
+
+    /// <summary>
+    /// Checks if this column has the same type and constraints as another column (ignoring name).
+    /// Used for rename detection heuristics.
+    /// </summary>
+    public bool IsStructuralMatch(TableColumn other)
+    {
+        return string.Equals(
+                   SqliteProvider.Instance.ConvertSynonyms(RawType()),
+                   SqliteProvider.Instance.ConvertSynonyms(other.RawType()),
+                   StringComparison.OrdinalIgnoreCase) &&
+               AllowNulls == other.AllowNulls &&
+               IsPrimaryKey == other.IsPrimaryKey &&
+               IsAutoNumber == other.IsAutoNumber;
     }
 }
 

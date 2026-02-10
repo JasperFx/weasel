@@ -209,11 +209,9 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
         }
     }
 
-    private IndexDefinition? ParseIndexFromSql(string indexName, string sql)
+    private IndexDefinition ParseIndexFromSql(string indexName, string sql)
     {
-        // Basic parsing of CREATE INDEX statements
-        // Example: CREATE INDEX idx_name ON table_name (column1, column2)
-        // Example: CREATE UNIQUE INDEX idx_name ON table_name (column1 DESC) WHERE condition
+        // Parse CREATE [UNIQUE] INDEX name ON table (columns/expressions) [WHERE predicate]
 
         try
         {
@@ -225,56 +223,157 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
                 index.IsUnique = true;
             }
 
-            // Extract WHERE clause for partial indexes
-            var whereIndex = sql.IndexOf(" WHERE ", StringComparison.OrdinalIgnoreCase);
-            if (whereIndex > 0)
+            // Find the column list opening paren and its balanced closing paren
+            var openParen = sql.IndexOf('(');
+            if (openParen < 0)
             {
-                var endIndex = sql.LastIndexOf(')');
-                if (endIndex > whereIndex)
-                {
-                    index.Predicate = sql.Substring(whereIndex + 7, endIndex - whereIndex - 7).Trim();
-                }
-                else
-                {
-                    index.Predicate = sql.Substring(whereIndex + 7).Trim();
-                }
+                // Unparseable — store raw SQL as expression for fallback comparison
+                index.Expression = sql;
+                return index;
             }
 
-            // Extract columns from between parentheses
-            var openParen = sql.IndexOf('(');
-            var closeParen = whereIndex > 0 ? whereIndex : sql.LastIndexOf(')');
-
-            if (openParen > 0 && closeParen > openParen)
+            var closeParen = findMatchingParen(sql, openParen);
+            if (closeParen < 0)
             {
-                var columnsPart = sql.Substring(openParen + 1, closeParen - openParen - 1).Trim();
+                index.Expression = sql;
+                return index;
+            }
 
-                // Check if this is an expression index (contains functions)
-                if (columnsPart.Contains("(") || columnsPart.Contains("json_extract"))
-                {
-                    index.Expression = columnsPart;
-                }
-                else
-                {
-                    // Simple column index
-                    var columns = columnsPart.Split(',')
-                        .Select(c => c.Trim().Split(' ')[0].Trim('"', '[', ']'))
-                        .ToArray();
-                    index.Columns = columns;
+            var columnsPart = sql.Substring(openParen + 1, closeParen - openParen - 1).Trim();
 
-                    // Check for DESC
-                    if (columnsPart.Contains(" DESC", StringComparison.OrdinalIgnoreCase))
-                    {
-                        index.SortOrder = SortOrder.Desc;
-                    }
-                }
+            // Everything after the closing paren is the tail (may contain WHERE clause)
+            var tail = sql.Substring(closeParen + 1);
+            var whereMatch = tail.IndexOf(" WHERE ", StringComparison.OrdinalIgnoreCase);
+            if (whereMatch < 0)
+            {
+                // Also check if tail starts with "WHERE" (no leading space after paren)
+                whereMatch = tail.TrimStart().StartsWith("WHERE ", StringComparison.OrdinalIgnoreCase)
+                    ? 0
+                    : -1;
+            }
+
+            if (whereMatch >= 0)
+            {
+                var predicateStart = tail.IndexOf("WHERE", whereMatch, StringComparison.OrdinalIgnoreCase) + 5;
+                index.Predicate = tail.Substring(predicateStart).Trim().TrimEnd(';');
+            }
+
+            // Determine if this is an expression index (contains nested parentheses or function calls)
+            if (columnsPart.Contains('('))
+            {
+                index.Expression = columnsPart;
+            }
+            else
+            {
+                // Simple column index — parse individual columns
+                parseSimpleColumns(index, columnsPart);
             }
 
             return index;
         }
         catch
         {
-            // If parsing fails, return null and skip this index
-            return null;
+            // On parse failure, return an index with the raw SQL as expression for fallback comparison
+            var fallback = new IndexDefinition(indexName) { Expression = sql };
+            return fallback;
+        }
+    }
+
+    /// <summary>
+    /// Find the position of the closing parenthesis that matches the opening paren at <paramref name="openPos"/>.
+    /// </summary>
+    private static int findMatchingParen(string sql, int openPos)
+    {
+        var depth = 1;
+        for (var i = openPos + 1; i < sql.Length; i++)
+        {
+            switch (sql[i])
+            {
+                case '(':
+                    depth++;
+                    break;
+                case ')':
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return i;
+                    }
+
+                    break;
+                case '\'':
+                    // Skip string literals
+                    i = sql.IndexOf('\'', i + 1);
+                    if (i < 0)
+                    {
+                        return -1;
+                    }
+
+                    break;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// Parse simple (non-expression) column definitions from the index column list.
+    /// Handles per-column sort orders (ASC/DESC) and COLLATE clauses.
+    /// </summary>
+    private static void parseSimpleColumns(IndexDefinition index, string columnsPart)
+    {
+        var columnNames = new List<string>();
+        var hasDesc = false;
+        var hasAsc = false;
+        string? collation = null;
+
+        foreach (var raw in columnsPart.Split(','))
+        {
+            var parts = raw.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 0)
+            {
+                continue;
+            }
+
+            // First token is the column name (strip quotes)
+            columnNames.Add(parts[0].Trim('"', '[', ']'));
+
+            // Scan remaining tokens for sort order and collation
+            for (var i = 1; i < parts.Length; i++)
+            {
+                if (parts[i].Equals("DESC", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasDesc = true;
+                }
+                else if (parts[i].Equals("ASC", StringComparison.OrdinalIgnoreCase))
+                {
+                    hasAsc = true;
+                }
+                else if (parts[i].Equals("COLLATE", StringComparison.OrdinalIgnoreCase) && i + 1 < parts.Length)
+                {
+                    collation = parts[i + 1];
+                    i++; // skip the collation name
+                }
+            }
+        }
+
+        index.Columns = columnNames.ToArray();
+
+        // If all columns share the same sort order, set it on the index.
+        // Mixed sort orders (some ASC, some DESC) are stored as expression for accurate DDL round-tripping.
+        if (hasDesc && hasAsc)
+        {
+            // Mixed sort orders — store as expression to preserve per-column ordering
+            index.Columns = null;
+            index.Expression = columnsPart;
+        }
+        else if (hasDesc)
+        {
+            index.SortOrder = SortOrder.Desc;
+        }
+
+        if (collation != null)
+        {
+            index.Collation = collation;
         }
     }
 

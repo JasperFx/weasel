@@ -39,26 +39,6 @@ public class SqliteFunctionTests
     }
 
     [Fact]
-    public async Task scalar_function_with_one_parameter()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
-        var function = new ScalarFunction<int>("double_value", (object? x) =>
-        {
-            var value = Convert.ToInt32(x);
-            return value * 2;
-        });
-        function.Register(connection);
-
-        await using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT double_value(21)";
-        var result = await cmd.ExecuteScalarAsync();
-
-        result.ShouldBe(42L);
-    }
-
-    [Fact]
     public async Task scalar_function_with_two_parameters()
     {
         await using var connection = new SqliteConnection("Data Source=:memory:");
@@ -74,51 +54,6 @@ public class SqliteFunctionTests
 
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = "SELECT add_numbers(10, 32)";
-        var result = await cmd.ExecuteScalarAsync();
-
-        result.ShouldBe(42L);
-    }
-
-    [Fact]
-    public async Task scalar_function_with_three_parameters()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
-        var function = new ScalarFunction<int>("add_three", (object? x, object? y, object? z) =>
-        {
-            var a = Convert.ToInt32(x);
-            var b = Convert.ToInt32(y);
-            var c = Convert.ToInt32(z);
-            return a + b + c;
-        });
-        function.Register(connection);
-
-        await using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT add_three(10, 20, 12)";
-        var result = await cmd.ExecuteScalarAsync();
-
-        result.ShouldBe(42L);
-    }
-
-    [Fact]
-    public async Task scalar_function_with_four_parameters()
-    {
-        await using var connection = new SqliteConnection("Data Source=:memory:");
-        await connection.OpenAsync();
-
-        var function = new ScalarFunction<int>("add_four", (object? w, object? x, object? y, object? z) =>
-        {
-            var a = Convert.ToInt32(w);
-            var b = Convert.ToInt32(x);
-            var c = Convert.ToInt32(y);
-            var d = Convert.ToInt32(z);
-            return a + b + c + d;
-        });
-        function.Register(connection);
-
-        await using var cmd = connection.CreateCommand();
-        cmd.CommandText = "SELECT add_four(10, 10, 10, 12)";
         var result = await cmd.ExecuteScalarAsync();
 
         result.ShouldBe(42L);

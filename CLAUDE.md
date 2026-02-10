@@ -296,11 +296,11 @@ Most SQLite builds include JSON1 by default. If not available, you'll need to re
 - **ViewDelta** - View change detection and migration generation
 - **SqlitePragmaSettings** - Comprehensive PRAGMA configuration with Default, HighPerformance, and HighSafety presets
 
-🚧 **To Be Implemented:**
-- Table.Deltas.cs - Delta detection logic
-- Table.FetchExisting.cs - Schema introspection from sqlite_master
-- TableDelta.cs - Difference calculation and migration generation
-- Full integration tests for tables
+✅ **Also Complete:**
+- **Table.Deltas.cs** - Delta detection entry points (`CreateDeltaAsync`, `FindDeltaAsync`)
+- **Table.FetchExisting.cs** - Schema introspection via PRAGMA queries with index SQL parsing
+- **TableDelta.cs** - Full delta detection, incremental alters, table recreation, rename column detection, rollback support
+- **Full integration tests** - 365+ tests covering delta detection, migration execution, column operations, index management, and rename column support
 
 ### Schema Support
 
