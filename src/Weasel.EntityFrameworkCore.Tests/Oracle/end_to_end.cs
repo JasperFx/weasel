@@ -75,6 +75,7 @@ public class end_to_end : IAsyncLifetime
 
         // Verify primary key
         table.PrimaryKeyColumns.ShouldContain("id");
+        table.PrimaryKeyName.ShouldBe("PK_MY_ENTITIES");
     }
 
     [Fact]
@@ -161,6 +162,6 @@ public class end_to_end : IAsyncLifetime
 
         var database = scope.ServiceProvider.CreateDatabase(context, "Ralph");
         database.ShouldNotBeNull();
-        database.Tables.Single().Identifier.Name.ShouldBe("my_entities");
+        database.Tables.Single().Identifier.Name.ShouldBe("MY_ENTITIES");
     }
 }

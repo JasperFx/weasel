@@ -124,11 +124,14 @@ public class TableColumnTests
     {
         var table = new Table("people");
         const string columnName = "order";
-        table.AddColumn<string>(columnName).NotNull();
+        // The expected/desired column type is varchar(200) NOT NULL
+        table.AddColumn(columnName, "varchar(200)").NotNull();
 
-        var updatedColumn = new TableColumn(columnName, "varchar(200)") { AllowNulls = true };
+        // The actual column in the database is varchar(100)
+        var actualColumn = new TableColumn(columnName, "varchar(100)") { AllowNulls = true };
 
-        table.ColumnFor(columnName)!.AlterColumnTypeSql(table, updatedColumn)
-            .ShouldBe($"alter table dbo.people alter column [{columnName}] varchar(200) NULL;");
+        // AlterColumnTypeSql should generate SQL to change TO the expected type (this), not the actual
+        table.ColumnFor(columnName)!.AlterColumnTypeSql(table, actualColumn)
+            .ShouldBe($"alter table dbo.people alter column [{columnName}] varchar(200) NOT NULL;");
     }
 }
