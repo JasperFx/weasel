@@ -28,6 +28,16 @@ public abstract class
 
     public abstract IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null);
 
+    /// <summary>
+    /// Creates a database using a DbDataSource for connection management.
+    /// Override in provider-specific migrators to preserve data source authentication.
+    /// </summary>
+    public virtual IDatabaseWithTables CreateDatabase(DbDataSource dataSource, string? identifier = null)
+    {
+        using var conn = dataSource.CreateConnection();
+        return CreateDatabase(conn, identifier);
+    }
+
     public abstract bool MatchesConnection(DbConnection connection);
 
     public abstract IDatabaseProvider Provider { get; }

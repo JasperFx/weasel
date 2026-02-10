@@ -194,4 +194,15 @@ $$;
         var builder = new NpgsqlConnectionStringBuilder(connection.ConnectionString);
         return new DatabaseWithTables(identifier ?? builder.Database ?? "weasel", dataSource);
     }
+
+    public override IDatabaseWithTables CreateDatabase(DbDataSource dataSource, string? identifier = null)
+    {
+        if (dataSource is not NpgsqlDataSource npgsqlDataSource)
+        {
+            return base.CreateDatabase(dataSource, identifier);
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);
+        return new DatabaseWithTables(identifier ?? builder.Database ?? "weasel", npgsqlDataSource);
+    }
 }

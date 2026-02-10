@@ -171,7 +171,8 @@ order by
         if (!await reader.IsDBNullAsync(2, ct).ConfigureAwait(false))
         {
             var length = await reader.GetFieldValueAsync<int>(2, ct).ConfigureAwait(false);
-            column.Type = $"{column.Type}({length})";
+            // SQL Server returns -1 for MAX length columns (nvarchar(max), varbinary(max), etc.)
+            column.Type = length == -1 ? $"{column.Type}(max)" : $"{column.Type}({length})";
         }
 
         return column;

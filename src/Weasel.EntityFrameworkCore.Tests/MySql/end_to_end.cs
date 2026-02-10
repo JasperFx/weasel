@@ -75,6 +75,7 @@ public class end_to_end : IAsyncLifetime
 
         // Verify primary key
         table.PrimaryKeyColumns.ShouldContain("Id");
+        table.PrimaryKeyName.ShouldBe("PK_my_entities");
     }
 
     [Fact]
