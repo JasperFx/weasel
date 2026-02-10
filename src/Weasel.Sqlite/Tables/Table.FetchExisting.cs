@@ -77,7 +77,13 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
         var tableSql = await readTableSqlAsync(reader, ct).ConfigureAwait(false);
         if (string.IsNullOrEmpty(tableSql))
         {
-            return null; // Table doesn't exist
+            // Table doesn't exist. readTableSqlAsync already advanced past result set 1 to result set 2.
+            // We must skip the remaining result sets (columns, indexes) to leave the reader on result set 4
+            // (foreign keys), matching the position after reading all 4 result sets in the happy path.
+            // This keeps the reader in sync when SchemaMigration.DetermineAsync batches multiple tables.
+            await reader.NextResultAsync(ct).ConfigureAwait(false); // Skip columns → indexes
+            await reader.NextResultAsync(ct).ConfigureAwait(false); // Skip indexes → foreign keys
+            return null;
         }
 
         // Read columns (second result set)
