@@ -193,6 +193,13 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
 
     public override void AddParameter(OracleCommand command, OracleParameter parameter)
     {
+        // Oracle cannot handle raw Guid values - convert to byte[] for RAW(16) storage
+        if (parameter.Value is Guid guidValue)
+        {
+            parameter.Value = guidValue.ToByteArray();
+            parameter.OracleDbType = OracleDbType.Raw;
+        }
+
         command.Parameters.Add(parameter);
     }
 
