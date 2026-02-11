@@ -13,6 +13,28 @@ public class CommandBuilder: CommandBuilderBase<OracleCommand, OracleParameter, 
     public CommandBuilder(OracleCommand command): base(OracleProvider.Instance, ':', command)
     {
     }
+
+    /// <summary>
+    /// Oracle-specific override: converts Guid to byte[] before setting parameter value,
+    /// since Oracle stores Guids as RAW(16) and OracleParameter.Value rejects raw Guid objects.
+    /// </summary>
+    public new void AppendParameter(Guid value)
+    {
+        AppendParameter((object)value.ToByteArray(), OracleDbType.Raw);
+    }
+
+    /// <summary>
+    /// Oracle-specific override: converts Guid values to byte[] before setting parameter value.
+    /// </summary>
+    public new OracleParameter AddParameter(object? value, OracleDbType? dbType = null)
+    {
+        if (value is Guid guidValue)
+        {
+            return base.AddParameter(guidValue.ToByteArray(), OracleDbType.Raw);
+        }
+
+        return base.AddParameter(value, dbType);
+    }
 }
 
 public static class CommandBuilderExtensions

@@ -36,6 +36,7 @@ public static class CommandExtensions
     public static OracleCommand CreateCommand(this OracleConnection conn, string command, OracleTransaction? tx = null)
     {
         var cmd = new OracleCommand(command, conn);
+        cmd.BindByName = true;
         if (tx != null)
         {
             cmd.Transaction = tx;
@@ -53,6 +54,8 @@ public static class CommandExtensions
     /// <returns></returns>
     public static OracleCommand With(this OracleCommand command, string name, object value, OracleDbType? dbType = null)
     {
+        if (value is Guid guidValue)
+            return With(command, name, guidValue);
         OracleProvider.Instance.AddNamedParameter(command, name, value, dbType);
         return command;
     }
@@ -66,6 +69,12 @@ public static class CommandExtensions
     public static OracleCommand With(this OracleCommand command, string name, DateTimeOffset value)
     {
         OracleProvider.Instance.AddNamedParameter(command, name, value, OracleDbType.TimeStampTZ);
+        return command;
+    }
+
+    public static OracleCommand With(this OracleCommand command, string name, Guid value)
+    {
+        command.Parameters.Add(new OracleParameter(name, OracleDbType.Raw) { Value = value.ToByteArray() });
         return command;
     }
 }
