@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Weasel.Core;
+using Weasel.Postgresql;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
@@ -29,7 +30,10 @@ public class RangePartition : IPartition
 
     void IPartition.WriteCreateStatement(TextWriter writer, Table parent)
     {
-        writer.WriteLine($"CREATE TABLE {parent.Identifier}_{Suffix} PARTITION OF {parent.Identifier} FOR VALUES FROM ({From}) TO ({To});");
+        var partitionName = PostgresqlObjectName.From(
+            new DbObjectName(parent.Identifier.Schema, parent.Identifier.Name + "_" + Suffix));
+        var parentName = PostgresqlObjectName.From(parent.Identifier);
+        writer.WriteLine($"CREATE TABLE {partitionName} PARTITION OF {parentName} FOR VALUES FROM ({From}) TO ({To});");
     }
 
     protected bool Equals(RangePartition other)

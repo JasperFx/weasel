@@ -3,6 +3,7 @@ using System.Text;
 using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
+using Weasel.Postgresql;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql.Functions;
@@ -16,18 +17,18 @@ public class Function: ISchemaObject
     {
         _body = body;
         _dropStatements = dropStatements;
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function);
     }
 
     public Function(DbObjectName identifier, string? body)
     {
         _body = body;
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function);
     }
 
     protected Function(DbObjectName identifier)
     {
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function);
     }
 
 

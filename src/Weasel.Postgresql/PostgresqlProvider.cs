@@ -22,6 +22,7 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
     public List<Type> TimespanTypes { get; } = new();
     public List<Type> TimespanZTypes { get; } = new();
 
+    [Obsolete("This property no longer has any effect. Identifiers are now always quoted when they are keywords or contain uppercase characters. This property will be removed in a future version.")]
     public bool UseCaseSensitiveQualifiedNames { get; set; } = false;
 
     protected override void storeMappings()
@@ -283,10 +284,13 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         ContainmentOperatorTypes.AddRange(typesWithNullables);
     }
 
-    public override string ToQualifiedName(string objectName) =>
-        !UseCaseSensitiveQualifiedNames || string.IsNullOrEmpty(objectName) || objectName[0] == '"' || objectName[^1] == '"'
-            ? objectName
-            : $"\"{objectName}\"";
+    public override string ToQualifiedName(string objectName)
+    {
+        if (string.IsNullOrEmpty(objectName) || (objectName.Length >= 2 && objectName[0] == '"' && objectName[^1] == '"'))
+            return objectName;
+
+        return SchemaUtils.QuoteName(objectName);
+    }
 
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new PostgresqlObjectName(schemaName, objectName, ToQualifiedName(schemaName, objectName));

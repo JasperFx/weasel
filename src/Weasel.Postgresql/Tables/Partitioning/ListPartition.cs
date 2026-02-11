@@ -1,5 +1,6 @@
 using JasperFx.Core;
 using Weasel.Core;
+using Weasel.Postgresql;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
@@ -23,7 +24,10 @@ public class ListPartition : IPartition
 
     void IPartition.WriteCreateStatement(TextWriter writer, Table parent)
     {
-        writer.WriteLine($"CREATE TABLE {parent.Identifier}_{Suffix} partition of {parent.Identifier} for values in ({Values.Join(", ")});");
+        var partitionName = PostgresqlObjectName.From(
+            new DbObjectName(parent.Identifier.Schema, parent.Identifier.Name + "_" + Suffix));
+        var parentName = PostgresqlObjectName.From(parent.Identifier);
+        writer.WriteLine($"CREATE TABLE {partitionName} partition of {parentName} for values in ({Values.Join(", ")});");
     }
 
     internal static ListPartition Parse(DbObjectName dbObjectName, string partitionTableName, string postgresExpression)

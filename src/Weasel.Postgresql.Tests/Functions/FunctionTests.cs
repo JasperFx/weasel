@@ -8,8 +8,6 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests.Functions;
 
-using static PostgresqlProvider;
-
 [Collection("functions")]
 public class FunctionTests: IntegrationContext
 {
@@ -93,7 +91,7 @@ $$ LANGUAGE plpgsql;
     {
         var function = Function.ForRemoval("functions.mt_hilo");
         function.IsRemoved.ShouldBeTrue();
-        function.Identifier.QualifiedName.ShouldBe(Instance.Parse("functions.mt_hilo").QualifiedName);
+        function.Identifier.QualifiedName.ShouldBe("functions.mt_hilo");
     }
 
     [Fact]

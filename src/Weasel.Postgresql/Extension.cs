@@ -26,7 +26,8 @@ public class Extension: ISchemaObject
         writer.WriteLine($"DROP EXTENSION IF EXISTS {ExtensionName} CASCADE;");
     }
 
-    public DbObjectName Identifier => new PostgresqlObjectName("public", ExtensionName);
+    public DbObjectName Identifier =>
+        PostgresqlObjectName.From(new DbObjectName("public", ExtensionName));
 
     public void ConfigureQueryCommand(DbCommandBuilder builder)
     {

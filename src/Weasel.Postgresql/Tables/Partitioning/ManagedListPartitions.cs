@@ -11,8 +11,11 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
+using Weasel.Postgresql;
+using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
+
 
 public interface IListPartitionManager
 {
@@ -140,7 +143,8 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         {
             foreach (var suffixName in suffixNames)
             {
-                var partitionName = $"{table.Identifier}_{suffixName}";
+                var partitionName = PostgresqlObjectName.From(
+                    new DbObjectName(table.Identifier.Schema, table.Identifier.Name + "_" + suffixName));
 
                 try
                 {

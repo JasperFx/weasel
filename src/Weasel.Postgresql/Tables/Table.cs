@@ -17,7 +17,12 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
 
     public Table(DbObjectName name)
     {
-        Identifier = name ?? throw new ArgumentNullException(nameof(name));
+        if (name == null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        Identifier = PostgresqlObjectName.From(name);
     }
 
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
@@ -220,8 +225,7 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
     /// <param name="schemaName"></param>
     public void MoveToSchema(string schemaName)
     {
-        var identifier = new PostgresqlObjectName(schemaName, Identifier.Name);
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(new DbObjectName(schemaName, Identifier.Name));
     }
 
     /// <summary>
