@@ -6,7 +6,6 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables.partitioning;
 
-
 [Collection("partitions")]
 public class range_partitions: IntegrationContext
 {

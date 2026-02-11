@@ -1,5 +1,6 @@
 using JasperFx.Core.Reflection;
 using Weasel.Core;
+using Weasel.Postgresql;
 
 namespace Weasel.Postgresql.Tables.Partitioning;
 
@@ -12,7 +13,10 @@ public static class PartitionExtensions
     /// <param name="identifier"></param>
     public static void WriteDefaultPartition(this TextWriter writer, DbObjectName identifier)
     {
-        writer.WriteLine($"CREATE TABLE {identifier}_default PARTITION OF {identifier} DEFAULT;");
+        var partitionName = PostgresqlObjectName.From(
+            new DbObjectName(identifier.Schema, identifier.Name + "_default"));
+        var parentName = PostgresqlObjectName.From(identifier);
+        writer.WriteLine($"CREATE TABLE {partitionName} PARTITION OF {parentName} DEFAULT;");
     }
 
     /// <summary>

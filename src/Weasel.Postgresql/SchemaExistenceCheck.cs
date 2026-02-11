@@ -84,7 +84,7 @@ public class SchemaExistenceCheck : ISchemaObject
         {
             foreach (var schemaName in _missing)
             {
-                writer.WriteLine($"drop schema if exists {schemaName};");
+                writer.WriteLine($"drop schema if exists {PostgresqlProvider.Instance.ToQualifiedName(schemaName)};");
             }
         }
 

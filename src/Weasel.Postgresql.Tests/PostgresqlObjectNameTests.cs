@@ -17,9 +17,8 @@ public class PostgresqlObjectNameTests
         //When
         var pgObjectName = PostgresqlObjectName.From(dbObjectName);
 
-        var expectedQualifiedName = PostgresqlProvider.Instance.UseCaseSensitiveQualifiedNames
-            ? $"\"{schema}\".\"{name}\""
-            : $"{schema}.{name}";
+        // Mixed-case identifiers are always quoted to preserve case
+        var expectedQualifiedName = $"\"{schema}\".\"{name}\"";
 
         pgObjectName.Schema.ShouldBe(schema);
         pgObjectName.Name.ShouldBe(name);

@@ -1,11 +1,10 @@
 using Shouldly;
 using Weasel.Core;
+using Weasel.Postgresql;
 using Weasel.Postgresql.Tables;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables;
-
-using static PostgresqlProvider;
 
 public class IndexDefinitionTests
 {
@@ -66,7 +65,7 @@ public class IndexDefinitionTests
     public void write_basic_index()
     {
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1);");
+            .ShouldBe($"CREATE INDEX idx_1 ON public.people USING btree (column1);");
     }
 
     [Fact]
@@ -75,7 +74,7 @@ public class IndexDefinitionTests
         theIndex.IsUnique = true;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE UNIQUE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1);");
+            .ShouldBe($"CREATE UNIQUE INDEX idx_1 ON public.people USING btree (column1);");
     }
 
     [Fact]
@@ -85,7 +84,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
-                      $"CREATE INDEX CONCURRENTLY idx_1 ON {Instance.Parse("public.people")} USING btree (column1);{Environment.NewLine}" +
+                      $"CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -97,7 +96,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
-                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON {Instance.Parse("public.people")} USING btree (column1);{Environment.NewLine}" +
+                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -110,7 +109,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
-                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON {Instance.Parse("public.people")} USING btree (column1) NULLS NOT DISTINCT ;{Environment.NewLine}" +
+                      $"CREATE UNIQUE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1) NULLS NOT DISTINCT ;{Environment.NewLine}" +
                       "--WEASEL_INDEX_CREATION_END");
     }
 
@@ -120,7 +119,7 @@ public class IndexDefinitionTests
         theIndex.SortOrder = SortOrder.Desc;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1 DESC);");
+            .ShouldBe($"CREATE INDEX idx_1 ON public.people USING btree (column1 DESC);");
     }
 
     [Fact]
@@ -129,7 +128,7 @@ public class IndexDefinitionTests
         theIndex.Method = IndexMethod.gin;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1);");
+            .ShouldBe($"CREATE INDEX idx_1 ON public.people USING gin (column1);");
     }
 
     [Fact]
@@ -139,7 +138,7 @@ public class IndexDefinitionTests
         theIndex.Method = IndexMethod.gin;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green;");
+            .ShouldBe($"CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green;");
     }
 
     [Fact]
@@ -151,7 +150,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe(
-                $"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1);");
+                $"CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1);");
     }
 
     [Fact]
@@ -164,7 +163,7 @@ public class IndexDefinitionTests
 
         theIndex.ToDDL(parent)
             .ShouldBe(
-                $"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor='70');");
+                $"CREATE INDEX idx_1 ON public.people USING gin (column1) TABLESPACE green WHERE (foo > 1) WITH (fillfactor='70');");
     }
 
     [Fact]
@@ -173,7 +172,7 @@ public class IndexDefinitionTests
         theIndex.SortOrder = SortOrder.Desc;
 
         theIndex.ToDDL(parent)
-            .ShouldBe($"CREATE INDEX idx_1 ON {Instance.Parse("public.people")} USING btree (column1 DESC);");
+            .ShouldBe($"CREATE INDEX idx_1 ON public.people USING btree (column1 DESC);");
     }
 
 
@@ -258,11 +257,11 @@ public class IndexDefinitionTests
     public void test_multicolumn_index_with_fulltextsearch_vs_raw_sql()
     {
         var table = new Table("mt_doc_mydata");
-        var index1 =
-            "CREATE INDEX mt_doc_mydata_idx_fulltext_search ON public.mt_doc_mydata USING gin (tenant_id, type, is_active_and_not_archived, to_tsvector('english'::regconfig, (data ->> 'SearchableValue'::text)));";
-        var index2 = IndexDefinition.Parse(index1);
+        var rawSql =
+            $"CREATE INDEX mt_doc_mydata_idx_fulltext_search ON public.mt_doc_mydata USING gin (tenant_id, type, is_active_and_not_archived, to_tsvector('english'::regconfig, (data ->> 'SearchableValue'::text)));";
+        var index2 = IndexDefinition.Parse(rawSql);
 
-        IndexDefinition.CanonicizeDdl(index1, "public").ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
+        IndexDefinition.CanonicizeDdl(rawSql, "public").ShouldBe(IndexDefinition.CanonicizeDdl(index2, table));
     }
 
     [Fact]
@@ -595,14 +594,14 @@ public class IndexDefinitionTests
 
         var ddl = index.ToDDL(new Table("table"));
         ddl.ShouldBe(
-            $"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT ;");
+            $"CREATE UNIQUE INDEX index ON public.\"table\" USING btree (column1, column2) NULLS NOT DISTINCT ;");
     }
 
     [Fact]
     public void should_be_able_to_parse_index_with_nulls_not_distinct()
     {
         var index = IndexDefinition.Parse(
-            $"CREATE UNIQUE INDEX index ON {Instance.Parse("public.table")} USING btree (column1, column2) NULLS NOT DISTINCT;");
+            $"CREATE UNIQUE INDEX index ON public.\"table\" USING btree (column1, column2) NULLS NOT DISTINCT;");
         index.IsUnique.ShouldBeTrue();
         index.NullsNotDistinct.ShouldBeTrue();
 
@@ -647,14 +646,14 @@ public class IndexDefinitionTests
 
         var ddl = index.ToDDL(new Table("table"));
         ddl.ShouldBe(
-            $"CREATE INDEX idx_1 ON {Instance.Parse("public.table")} USING btree (column1) INCLUDE (column3, column4) WHERE (column2 IS NOT NULL);");
+            $"CREATE INDEX idx_1 ON public.\"table\" USING btree (column1) INCLUDE (column3, column4) WHERE (column2 IS NOT NULL);");
     }
 
     [Fact]
     public void Bug191_should_be_able_to_parse_index_with_prediction_and_include_columns()
     {
         var index = IndexDefinition.Parse(
-            $"CREATE INDEX idx_1 ON {Instance.Parse("public.table")} USING btree (column1) INCLUDE (column3, column4) WHERE (column2 IS NOT NULL);");
+            $"CREATE INDEX idx_1 ON public.\"table\" USING btree (column1) INCLUDE (column3, column4) WHERE (column2 IS NOT NULL);");
 
         index.Columns.ShouldBe(["column1"]);
         index.IncludeColumns.ShouldBe(["column3", "column4"]);

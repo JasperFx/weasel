@@ -121,8 +121,8 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain($"DROP TABLE IF EXISTS {Instance.Parse("public.people")} CASCADE;");
-        lines.ShouldContain($"CREATE TABLE {Instance.Parse("public.people")} (");
+        lines.ShouldContain("DROP TABLE IF EXISTS public.people CASCADE;");
+        lines.ShouldContain("CREATE TABLE public.people (");
     }
 
     [Fact]
@@ -144,7 +144,7 @@ public class TableTests
 
         var lines = ddl.ReadLines().ToArray();
 
-        lines.ShouldContain($"CREATE TABLE IF NOT EXISTS {Instance.Parse("public.people")} (");
+        lines.ShouldContain("CREATE TABLE IF NOT EXISTS public.people (");
     }
 
     [Fact]

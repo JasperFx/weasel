@@ -1,5 +1,6 @@
 using JasperFx.Core;
 using Weasel.Core;
+using Weasel.Postgresql;
 using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
@@ -138,7 +139,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         {
             var columns = Expected.Columns.Select(x => x.Name).Join(", ");
 
-            var tempName = new DbObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_temp");
+            var tempName = PostgresqlObjectName.From(
+                new DbObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_temp"));
             writer.WriteLine($"create table {tempName} as select * from {Expected.Identifier};");
             writer.WriteLine($"drop table {Expected.Identifier} cascade;");
 

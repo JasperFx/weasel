@@ -1,5 +1,8 @@
 namespace Weasel.Postgresql.Tables.Partitioning;
 
+using Weasel.Core;
+using Weasel.Postgresql;
+
 public record HashPartition
 {
     public HashPartition(string suffix, int modulus, int remainder)
@@ -15,7 +18,10 @@ public record HashPartition
 
     public void WriteCreateStatement(TextWriter writer, Table parent)
     {
-        writer.WriteLine($"create table {parent.Identifier}_{Suffix} partition of {parent.Identifier} for values with (modulus {Modulus}, remainder {Remainder});");
+        var partitionName = PostgresqlObjectName.From(
+            new DbObjectName(parent.Identifier.Schema, parent.Identifier.Name + "_" + Suffix));
+        var parentName = PostgresqlObjectName.From(parent.Identifier);
+        writer.WriteLine($"create table {partitionName} partition of {parentName} for values with (modulus {Modulus}, remainder {Remainder});");
     }
 
     public static HashPartition Parse(string suffix, string expression)
