@@ -8,38 +8,68 @@ namespace Weasel.Oracle.Tables;
 public partial class Table
 {
     // Oracle doesn't support multiple result sets in a single command like PostgreSQL or SQL Server.
-    // ConfigureQueryCommand provides only the columns query for basic compatibility with
-    // SchemaMigration.DetermineAsync. For full schema detection (including PKs, FKs, indexes),
-    // use FetchExistingAsync directly.
+    // ConfigureQueryCommand includes columns and primary key info in a single query via LEFT JOIN.
+    // For full schema detection (including FKs and indexes), use FetchExistingAsync directly.
     public void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         var schemaParam = builder.AddParameter(Identifier.Schema.ToUpperInvariant()).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name.ToUpperInvariant()).ParameterName;
 
         builder.Append($@"
-SELECT column_name, data_type, data_length, data_precision, data_scale, nullable
-FROM all_tab_columns
-WHERE owner = :{schemaParam} AND table_name = :{nameParam}
-ORDER BY column_id
+SELECT c.column_name, c.data_type, c.data_length, c.data_precision, c.data_scale, c.nullable,
+       CASE WHEN pk_cols.column_name IS NOT NULL THEN 1 ELSE 0 END AS is_pk,
+       pk_cons.constraint_name AS pk_name
+FROM all_tab_columns c
+LEFT JOIN all_constraints pk_cons
+    ON pk_cons.owner = c.owner AND pk_cons.table_name = c.table_name AND pk_cons.constraint_type = 'P'
+LEFT JOIN all_cons_columns pk_cols
+    ON pk_cols.owner = pk_cons.owner AND pk_cols.constraint_name = pk_cons.constraint_name AND pk_cols.column_name = c.column_name
+WHERE c.owner = :{schemaParam} AND c.table_name = :{nameParam}
+ORDER BY c.column_id
 ");
     }
 
     /// <summary>
-    /// Reads table metadata from a DbDataReader. Oracle limitation: this only reads columns,
-    /// not PKs, FKs, or indexes, since Oracle doesn't support multiple result sets.
-    /// For full schema detection, use FetchExistingAsync instead.
+    /// Reads table metadata from a DbDataReader including columns and primary key info.
+    /// Oracle limitation: FKs and indexes are not included since Oracle doesn't support
+    /// multiple result sets. For full schema detection, use FetchExistingAsync instead.
     /// </summary>
     internal async Task<Table?> ReadExistingFromReaderAsync(DbDataReader reader, CancellationToken ct = default)
     {
         var existing = new Table(Identifier);
+        string? pkName = null;
 
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var column = await readColumnAsync(reader, ct).ConfigureAwait(false);
+
+            // Read PK info from the additional columns in the query
+            if (reader.FieldCount > 6)
+            {
+                var isPk = !await reader.IsDBNullAsync(6, ct).ConfigureAwait(false)
+                    && Convert.ToInt32(await reader.GetFieldValueAsync<decimal>(6, ct).ConfigureAwait(false)) == 1;
+                if (isPk)
+                {
+                    column.IsPrimaryKey = true;
+                }
+
+                if (!await reader.IsDBNullAsync(7, ct).ConfigureAwait(false))
+                {
+                    pkName = await reader.GetFieldValueAsync<string>(7, ct).ConfigureAwait(false);
+                }
+            }
+
             existing._columns.Add(column);
         }
 
-        return !existing.Columns.Any() ? null : existing;
+        if (!existing.Columns.Any()) return null;
+
+        if (pkName != null)
+        {
+            existing.PrimaryKeyName = pkName;
+        }
+
+        return existing;
     }
 
     public async Task<Table?> FetchExistingAsync(OracleConnection conn, CancellationToken ct = default)
