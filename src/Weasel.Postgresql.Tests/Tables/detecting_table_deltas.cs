@@ -715,6 +715,59 @@ public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
     }
 
     [Fact]
+    public async Task no_delta_with_guid_array_column()
+    {
+        var table = new Table("deltas.guid_array_test");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<Guid[]>("guids");
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var delta = await table.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeFalse();
+
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    [Fact]
+    public async Task no_delta_with_int_array_column()
+    {
+        var table = new Table("deltas.int_array_test");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<int[]>("numbers");
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var delta = await table.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeFalse();
+
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    [Fact]
+    public async Task no_delta_with_multiple_array_columns_using_generic_addcolumn()
+    {
+        var table = new Table("deltas.multi_array_test");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<Guid[]>("guids");
+        table.AddColumn<int[]>("numbers");
+        table.AddColumn<long[]>("big_numbers");
+        table.AddColumn<short[]>("small_numbers");
+        table.AddColumn<float[]>("floats");
+        table.AddColumn<double[]>("doubles");
+        table.AddColumn<string[]>("strings");
+        table.AddColumn<bool[]>("flags");
+        table.AddColumn<decimal[]>("amounts");
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var delta = await table.FindDeltaAsync(theConnection);
+        delta.HasChanges().ShouldBeFalse();
+
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    [Fact]
     public async Task no_change_with_jsonb_path_ops()
     {
         var table2 = new Table("deltas.people");

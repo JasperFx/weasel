@@ -354,7 +354,18 @@ order by column_index;
             "_float4" => "real[]",
             "_float8" => "double precision[]",
             "_varchar" => "varchar[]",
-            _ => udtName
+            "_bool" => "boolean[]",
+            "_numeric" => "decimal[]",
+            "_text" => "text[]",
+            "_timestamp" => "timestamp without time zone[]",
+            "_timestamptz" => "timestamp with time zone[]",
+            "_date" => "date[]",
+            "_time" => "time without time zone[]",
+            "_timetz" => "time with time zone[]",
+            "_jsonb" => "jsonb[]",
+            "_json" => "json[]",
+            "_bytea" => "bytea[]",
+            _ => udtName.StartsWith('_') ? udtName.Substring(1) + "[]" : udtName
         };
     }
 }

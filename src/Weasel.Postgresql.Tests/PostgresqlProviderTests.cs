@@ -96,6 +96,49 @@ public class PostgresqlProviderTests
         inputString.ReplaceMultiSpace(" ").ShouldBe(expectedString);
     }
 
+    [Theory]
+    [InlineData(typeof(Guid[]), "uuid[]")]
+    [InlineData(typeof(int[]), "integer[]")]
+    [InlineData(typeof(long[]), "bigint[]")]
+    [InlineData(typeof(short[]), "smallint[]")]
+    [InlineData(typeof(float[]), "real[]")]
+    [InlineData(typeof(double[]), "double precision[]")]
+    [InlineData(typeof(string[]), "varchar[]")]
+    [InlineData(typeof(bool[]), "boolean[]")]
+    [InlineData(typeof(decimal[]), "decimal[]")]
+    public void get_database_type_for_array_types(Type type, string expected)
+    {
+        PostgresqlProvider.Instance.GetDatabaseType(type, EnumStorage.AsInteger).ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(typeof(Guid[]), NpgsqlDbType.Array | NpgsqlDbType.Uuid)]
+    [InlineData(typeof(int[]), NpgsqlDbType.Array | NpgsqlDbType.Integer)]
+    [InlineData(typeof(long[]), NpgsqlDbType.Array | NpgsqlDbType.Bigint)]
+    [InlineData(typeof(short[]), NpgsqlDbType.Array | NpgsqlDbType.Smallint)]
+    [InlineData(typeof(float[]), NpgsqlDbType.Array | NpgsqlDbType.Real)]
+    [InlineData(typeof(double[]), NpgsqlDbType.Array | NpgsqlDbType.Double)]
+    [InlineData(typeof(string[]), NpgsqlDbType.Array | NpgsqlDbType.Text)]
+    [InlineData(typeof(bool[]), NpgsqlDbType.Array | NpgsqlDbType.Boolean)]
+    public void to_parameter_type_for_array_types(Type type, NpgsqlDbType expected)
+    {
+        PostgresqlProvider.Instance.ToParameterType(type).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void table_columns_should_match_for_uuid_array()
+    {
+        var uuidArray = new TableColumn("ids", "uuid[]");
+        uuidArray.ShouldBe(new TableColumn("ids", "uuid[]"));
+    }
+
+    [Fact]
+    public void table_columns_should_match_for_integer_array()
+    {
+        var intArray = new TableColumn("ids", "integer[]");
+        intArray.ShouldBe(new TableColumn("ids", "int[]"));
+    }
+
     [Fact]
     public void table_columns_should_match_raw_types()
     {
@@ -136,6 +179,17 @@ public class PostgresqlProviderTests
     [InlineData("character varying[]", "array")]
     [InlineData("varchar[]", "array")]
     [InlineData("text[]", "array")]
+    [InlineData("uuid[]", "uuid[]")]
+    [InlineData("boolean[]", "boolean[]")]
+    [InlineData("bool[]", "boolean[]")]
+    [InlineData("decimal[]", "decimal[]")]
+    [InlineData("numeric[]", "decimal[]")]
+    [InlineData("smallint[]", "smallint[]")]
+    [InlineData("bigint[]", "bigint[]")]
+    [InlineData("real[]", "real[]")]
+    [InlineData("double precision[]", "double precision[]")]
+    [InlineData("timestamp without time zone[]", "timestamp[]")]
+    [InlineData("timestamp with time zone[]", "timestamptz[]")]
     public void convert_synonyms(string type, string synonym)
     {
         PostgresqlProvider.Instance.ConvertSynonyms(type).ShouldBe(synonym);
