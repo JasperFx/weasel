@@ -121,6 +121,35 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             case "integer[]":
                 return "int[]";
 
+            case "boolean[]":
+            case "bool[]":
+                return "boolean[]";
+
+            case "decimal[]":
+            case "numeric[]":
+                return "decimal[]";
+
+            case "uuid[]":
+                return "uuid[]";
+
+            case "smallint[]":
+                return "smallint[]";
+
+            case "bigint[]":
+                return "bigint[]";
+
+            case "real[]":
+                return "real[]";
+
+            case "double precision[]":
+                return "double precision[]";
+
+            case "timestamp without time zone[]":
+                return "timestamp[]";
+
+            case "timestamp with time zone[]":
+                return "timestamptz[]";
+
             case "decimal":
             case "numeric":
                 return "decimal";
