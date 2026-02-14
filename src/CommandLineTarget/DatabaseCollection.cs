@@ -11,9 +11,9 @@ namespace CommandLineTarget;
 
 public class DatabaseCollection
 {
-    internal readonly LightweightCache<string, DatabaseWithTables> Databases
+    internal readonly LightweightCache<string, TestDatabaseWithTables> Databases
         = new(name =>
-            new DatabaseWithTables(AutoCreate.CreateOrUpdate, name));
+            new TestDatabaseWithTables(AutoCreate.CreateOrUpdate, name));
 
     public void AddTable(string databaseName, string featureName, string tableName)
     {

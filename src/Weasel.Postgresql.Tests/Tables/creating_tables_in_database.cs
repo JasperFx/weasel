@@ -218,7 +218,7 @@ public class creating_tables_in_database: IntegrationContext
 
         await theConnection.ResetSchemaAsync("tables");
 
-        var table = new Table("order");
+        var table = new Table("tables.order");
         table.AddColumn<int>("id").AsPrimaryKey();
         table.AddColumn<string>("first_name");
         table.AddColumn<string>("last_name");
@@ -230,7 +230,7 @@ public class creating_tables_in_database: IntegrationContext
             .ShouldBeTrue();
 
         await theConnection.CreateCommand(
-                "insert into \"order\" (id, first_name, last_name, \"order\") values (1, 'Elton', 'John',1)")
+                "insert into tables.\"order\" (id, first_name, last_name, \"order\") values (1, 'Elton', 'John',1)")
             .ExecuteNonQueryAsync();
     }
 }

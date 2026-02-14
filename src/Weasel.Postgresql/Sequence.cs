@@ -16,12 +16,12 @@ public class Sequence: ISchemaObject
 
     public Sequence(DbObjectName identifier)
     {
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(identifier);
     }
 
     public Sequence(DbObjectName identifier, long startWith)
     {
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(identifier);
         _startWith = startWith;
     }
 

@@ -8,7 +8,8 @@ namespace Weasel.Core;
 /// <summary>
 ///     Governs the rules and formatting for generating SQL exports of schema objects
 /// </summary>
-public abstract class Migrator
+public abstract class
+    Migrator
 {
     public static readonly string SCHEMA = "%SCHEMA%";
     public static readonly string TABLENAME = "%TABLENAME%";
@@ -24,6 +25,24 @@ public abstract class Migrator
     {
         DefaultSchemaName = defaultSchemaName;
     }
+
+    public abstract IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null);
+
+    /// <summary>
+    /// Creates a database using a DbDataSource for connection management.
+    /// Override in provider-specific migrators to preserve data source authentication.
+    /// </summary>
+    public virtual IDatabaseWithTables CreateDatabase(DbDataSource dataSource, string? identifier = null)
+    {
+        using var conn = dataSource.CreateConnection();
+        return CreateDatabase(conn, identifier);
+    }
+
+    public abstract bool MatchesConnection(DbConnection connection);
+
+    public abstract IDatabaseProvider Provider { get; }
+
+    public abstract ITable CreateTable(DbObjectName identifier);
 
     /// <summary>
     ///     Should all generated DDL files be written with transactional semantics

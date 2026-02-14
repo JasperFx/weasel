@@ -762,4 +762,113 @@ public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
 
         await AssertNoDeltasAfterPatching(table);
     }
+
+    [Fact]
+    public async Task table_with_reserved_keyword_column_should_generate_properly_quoted_ddl()
+    {
+        var table = new Table("deltas.test_table");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<int>("select");
+        table.AddColumn<int>("from");
+        table.AddColumn<int>("where");
+
+        var writer = new StringWriter();
+        table.WriteCreateStatement(new PostgresqlMigrator { Formatting = SqlFormatting.Concise }, writer);
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain("\"select\" integer");
+        ddl.ShouldContain("\"from\" integer");
+        ddl.ShouldContain("\"where\" integer");
+    }
+
+    [Fact]
+    public async Task table_with_reserved_keyword_table_name_should_generate_properly_quoted_ddl()
+    {
+        var table = new Table("deltas.\"order\"");
+        table.AddColumn<int>("id").AsPrimaryKey();
+
+        var writer = new StringWriter();
+        table.WriteCreateStatement(new PostgresqlMigrator { Formatting = SqlFormatting.Concise }, writer);
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain($"CREATE TABLE IF NOT EXISTS {table.Identifier}");
+        ddl.ShouldContain("\"order\"");
+    }
+
+    [Fact]
+    public async Task table_with_category_c_keyword_column_should_not_quote_for_general_usage()
+    {
+        var table = new Table("deltas.test_table");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<int>("time");
+        table.AddColumn<int>("integer");
+        table.AddColumn<string>("varchar");
+
+        var writer = new StringWriter();
+        table.WriteCreateStatement(new PostgresqlMigrator { Formatting = SqlFormatting.Concise }, writer);
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain("time integer");
+        ddl.ShouldContain("integer integer");
+        ddl.ShouldContain("varchar varchar");
+    }
+
+    [Fact]
+    public async Task table_with_category_t_keyword_column_should_be_quoted()
+    {
+        var table = new Table("deltas.test_table");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<int>("authorization");
+        table.AddColumn<int>("join");
+        table.AddColumn<int>("like");
+
+        var writer = new StringWriter();
+        table.WriteCreateStatement(new PostgresqlMigrator { Formatting = SqlFormatting.Concise }, writer);
+        var ddl = writer.ToString();
+
+        ddl.ShouldContain("\"authorization\" integer");
+        ddl.ShouldContain("\"join\" integer");
+        ddl.ShouldContain("\"like\" integer");
+    }
+
+    [Fact]
+    public async Task adding_column_with_reserved_keyword_should_detect_delta()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.AddColumn<int>("select");
+        var delta = await theTable.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeTrue();
+        delta.Columns.Missing.ShouldContain(c => c.Name == "select");
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task adding_column_with_category_t_keyword_should_detect_delta()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.AddColumn<int>("authorization");
+        var delta = await theTable.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeTrue();
+        delta.Columns.Missing.ShouldContain(c => c.Name == "authorization");
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
+    public async Task adding_column_with_category_c_keyword_should_not_detect_delta()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.AddColumn<int>("time");
+        var delta = await theTable.FindDeltaAsync(theConnection);
+
+        delta.HasChanges().ShouldBeTrue();
+        delta.Columns.Missing.ShouldContain(c => c.Name == "time");
+        await AssertNoDeltasAfterPatching();
+    }
 }

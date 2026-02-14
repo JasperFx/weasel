@@ -356,3 +356,6 @@ MigrationBackup/
 /.idea/.idea.Weasel/.idea/vcs.xml
 
 /.idea
+
+# macOS
+.DS_Store

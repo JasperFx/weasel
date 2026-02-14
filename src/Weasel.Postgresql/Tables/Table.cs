@@ -7,7 +7,7 @@ using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public partial class Table: ISchemaObjectWithPostProcessing
+public partial class Table: ISchemaObjectWithPostProcessing, ITable
 {
     private readonly List<TableColumn> _columns = new();
 
@@ -17,11 +17,56 @@ public partial class Table: ISchemaObjectWithPostProcessing
 
     public Table(DbObjectName name)
     {
-        Identifier = name ?? throw new ArgumentNullException(nameof(name));
+        if (name == null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        Identifier = PostgresqlObjectName.From(name);
     }
 
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
     {
+    }
+
+    ITableColumn ITable.AddColumn(string name, string columnType)
+    {
+        var expression = AddColumn(name, columnType);
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddColumn(string name, Type dotnetType)
+    {
+        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+        var expression = AddColumn(name, type);
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddPrimaryKeyColumn(string name, string columnType)
+    {
+        var expression = AddColumn(name, columnType).AsPrimaryKey();
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
+    {
+        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+        var expression = AddColumn(name, type).AsPrimaryKey();
+        return expression.Column;
+    }
+
+    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
+
+    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
+    {
+        var fk = new ForeignKey(name)
+        {
+            LinkedTable = linkedTable,
+            ColumnNames = columnNames,
+            LinkedNames = linkedColumnNames
+        };
+        ForeignKeys.Add(fk);
+        return fk;
     }
 
     /// <summary>
@@ -180,8 +225,7 @@ public partial class Table: ISchemaObjectWithPostProcessing
     /// <param name="schemaName"></param>
     public void MoveToSchema(string schemaName)
     {
-        var identifier = new PostgresqlObjectName(schemaName, Identifier.Name);
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(new DbObjectName(schemaName, Identifier.Name));
     }
 
     /// <summary>

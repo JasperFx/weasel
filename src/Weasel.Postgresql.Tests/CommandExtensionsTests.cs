@@ -52,7 +52,7 @@ public class CommandExtensionsTests
         var command = new NpgsqlCommand();
         command.CallsSproc(new PostgresqlObjectName("foo", "proc")).ShouldBeSameAs(command);
         command.CommandType.ShouldBe(CommandType.StoredProcedure);
-        command.CommandText.ShouldBe(Instance.UseCaseSensitiveQualifiedNames ? "\"foo\".\"proc\"" : "foo.proc");
+        command.CommandText.ShouldBe("foo.proc");
     }
 
     [Fact]

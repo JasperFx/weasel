@@ -21,7 +21,8 @@ public enum PartitionStrategy
     //List
 }
 
-public partial class Table: ISchemaObject
+
+public partial class Table: ITable
 {
     private readonly List<TableColumn> _columns = new();
 
@@ -34,6 +35,46 @@ public partial class Table: ISchemaObject
 
     public Table(string tableName): this(DbObjectName.Parse(SqlServerProvider.Instance, tableName))
     {
+    }
+
+    ITableColumn ITable.AddColumn(string name, string columnType)
+    {
+        var expression = AddColumn(name, columnType);
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddColumn(string name, Type dotnetType)
+    {
+        var type = SqlServerProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+        var expression = AddColumn(name, type);
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddPrimaryKeyColumn(string name, string columnType)
+    {
+        var expression = AddColumn(name, columnType).AsPrimaryKey();
+        return expression.Column;
+    }
+
+    ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
+    {
+        var type = SqlServerProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+        var expression = AddColumn(name, type).AsPrimaryKey();
+        return expression.Column;
+    }
+
+    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
+
+    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
+    {
+        var fk = new ForeignKey(name)
+        {
+            LinkedTable = linkedTable,
+            ColumnNames = columnNames,
+            LinkedNames = linkedColumnNames
+        };
+        ForeignKeys.Add(fk);
+        return fk;
     }
 
     public IReadOnlyList<TableColumn> Columns => _columns;

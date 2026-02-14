@@ -103,7 +103,7 @@ public static class SchemaObjectsExtensions
 
     public static string DropStatementFor(string schemaName, CascadeAction option = CascadeAction.Cascade)
     {
-        return $"drop schema if exists {schemaName} {option.ToString().ToUpperInvariant()};";
+        return $"drop schema if exists {PostgresqlProvider.Instance.ToQualifiedName(schemaName)} {option.ToString().ToUpperInvariant()};";
     }
 
     public static Task CreateSchemaAsync(this NpgsqlConnection conn, string schemaName, CancellationToken ct = default)
@@ -169,7 +169,9 @@ public static class SchemaObjectsExtensions
 
         builder.Append(";");
 
-        return await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct: ct).ConfigureAwait(false);
+        return await conn.FetchListAsync(builder,
+            (reader, token) => ReadDbObjectNameAsync(reader, SchemaUtils.IdentifierUsage.General, token),
+            ct: ct).ConfigureAwait(false);
     }
 
     public static async Task<IReadOnlyList<DbObjectName>> ExistingFunctionsAsync(
@@ -197,15 +199,17 @@ public static class SchemaObjectsExtensions
 
         builder.Append(";");
 
-        return await conn.FetchListAsync(builder, ReadDbObjectNameAsync, ct: ct).ConfigureAwait(false);
+        return await conn.FetchListAsync(builder,
+            (reader, token) => ReadDbObjectNameAsync(reader, SchemaUtils.IdentifierUsage.Function, token),
+            ct: ct).ConfigureAwait(false);
     }
 
-    private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader, CancellationToken ct = default)
+    private static async Task<DbObjectName> ReadDbObjectNameAsync(DbDataReader reader,
+        SchemaUtils.IdentifierUsage usage, CancellationToken ct = default)
     {
-        return new PostgresqlObjectName(
-            await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
-            await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false)
-        );
+        var schema = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+        var name = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+        return PostgresqlObjectName.From(new DbObjectName(schema, name), usage);
     }
 
     /// <summary>

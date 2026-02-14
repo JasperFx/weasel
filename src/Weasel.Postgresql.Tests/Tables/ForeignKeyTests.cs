@@ -5,8 +5,6 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests.Tables;
 
-using static PostgresqlProvider;
-
 public class ForeignKeyTests
 {
     [Fact]
@@ -24,9 +22,9 @@ public class ForeignKeyTests
         ddl.ShouldNotContain("ON DELETE");
         ddl.ShouldNotContain("ON UPDATE");
 
-        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
+        ddl.ShouldContain("ALTER TABLE public.people");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
-        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id)");
+        ddl.ShouldContain("REFERENCES public.states(id)");
     }
 
     [Fact]
@@ -46,9 +44,9 @@ public class ForeignKeyTests
         ddl.ShouldNotContain("ON DELETE");
         ddl.ShouldNotContain("ON UPDATE");
 
-        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
+        ddl.ShouldContain("ALTER TABLE public.people");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
-        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id)");
+        ddl.ShouldContain("REFERENCES public.states(id)");
     }
 
     [Fact]
@@ -68,9 +66,9 @@ public class ForeignKeyTests
         ddl.ShouldNotContain("ON DELETE");
         ddl.ShouldNotContain("ON UPDATE");
 
-        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
+        ddl.ShouldContain("ALTER TABLE public.people");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id)");
-        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id)");
+        ddl.ShouldContain("REFERENCES public.states(id)");
     }
 
     [Fact]
@@ -120,9 +118,9 @@ public class ForeignKeyTests
 
         var ddl = fk.ToDDL(table);
 
-        ddl.ShouldContain($"ALTER TABLE {Instance.Parse("public.people")}");
+        ddl.ShouldContain("ALTER TABLE public.people");
         ddl.ShouldContain("ADD CONSTRAINT fk_state FOREIGN KEY(state_id, tenant_id)");
-        ddl.ShouldContain($"REFERENCES {Instance.Parse("public.states")}(id, tenant_id)");
+        ddl.ShouldContain("REFERENCES public.states(id, tenant_id)");
     }
 
     [Theory]

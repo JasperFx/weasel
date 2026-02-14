@@ -1,14 +1,10 @@
 using JasperFx.Core;
 using JasperFx.Core.Reflection;
+using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
 
-public interface INamed
-{
-    string Name { get; }
-}
-
-public class TableColumn: INamed
+public class TableColumn: ITableColumn
 {
     public TableColumn(string name, string type)
     {
@@ -116,7 +112,7 @@ public class TableColumn: INamed
 
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
-        return $"alter table {table.Identifier} alter column {changeActual.ToDeclaration()};";
+        return $"alter table {table.Identifier} alter column {ToDeclaration()};";
     }
 
     public string DropColumnSql(Table table)

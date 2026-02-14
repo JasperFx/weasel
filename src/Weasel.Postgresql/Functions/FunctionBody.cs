@@ -1,5 +1,6 @@
 using JasperFx.Core;
 using Weasel.Core;
+using Weasel.Postgresql;
 
 namespace Weasel.Postgresql.Functions;
 
@@ -7,7 +8,7 @@ public class FunctionBody
 {
     public FunctionBody(DbObjectName identifier, string[] dropStatements, string body)
     {
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function);
         DropStatements = dropStatements;
         Body = body;
     }

@@ -1,6 +1,7 @@
 using System.Data.Common;
 using JasperFx;
 using JasperFx.Core;
+using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 using Weasel.Postgresql.Tables;
@@ -27,6 +28,13 @@ $$;
     ///     for more information. This does NOT adjust NAMEDATALEN for you.
     /// </summary>
     public int NameDataLength { get; set; } = 64;
+
+    public override bool MatchesConnection(DbConnection connection)
+    {
+        return connection is NpgsqlConnection;
+    }
+
+    public override IDatabaseProvider Provider => PostgresqlProvider.Instance;
 
     /// <summary>
     ///     Write out a templated SQL script with all rules
@@ -140,8 +148,7 @@ $$;
 
     public static string CreateSchemaStatementFor(string schemaName)
     {
-        Console.WriteLine("I AM WRITING OUT SCHEMA CREATION FOR " + schemaName);
-        return $"create schema if not exists {schemaName};";
+        return $"create schema if not exists {PostgresqlProvider.Instance.ToQualifiedName(schemaName)};";
     }
 
     public override void AssertValidIdentifier(string name)
@@ -162,5 +169,39 @@ $$;
         }
 
         throw new PostgresqlIdentifierTooLongException(NameDataLength, name);
+    }
+
+    public override ITable CreateTable(DbObjectName identifier)
+    {
+        return new Tables.Table(identifier);
+    }
+
+    public DatabaseWithTables CreateDatabase(NpgsqlDataSource dataSource)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);
+        return new DatabaseWithTables(builder.Database ?? "weasel", dataSource);
+    }
+
+    public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
+    {
+        if (connection is not NpgsqlConnection)
+        {
+            throw new ArgumentException("Expected NpgsqlConnection", nameof(connection));
+        }
+
+        var dataSource = new NpgsqlDataSourceBuilder(connection.ConnectionString).Build();
+        var builder = new NpgsqlConnectionStringBuilder(connection.ConnectionString);
+        return new DatabaseWithTables(identifier ?? builder.Database ?? "weasel", dataSource);
+    }
+
+    public override IDatabaseWithTables CreateDatabase(DbDataSource dataSource, string? identifier = null)
+    {
+        if (dataSource is not NpgsqlDataSource npgsqlDataSource)
+        {
+            return base.CreateDatabase(dataSource, identifier);
+        }
+
+        var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);
+        return new DatabaseWithTables(identifier ?? builder.Database ?? "weasel", npgsqlDataSource);
     }
 }

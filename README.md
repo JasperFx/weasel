@@ -15,8 +15,16 @@ Read also more in [Introducing Weasel for Database Development](https://jeremydm
 
 While Weasel is open source, [JasperFx Software offers paid support and consulting contracts](https://jasperfx.net/support-plans/) for Weasel. 
 
+## Key Components
 
-## Running tests locally
+*   **Core**: Foundational interfaces and base classes for database interactions.
+*   **Postgresql**: Types and classes specific to PostgreSQL database features.
+*   **SqlServer**: Types and classes specific to SQL Server database features.
+*   **Schema**: Tools for managing database schema.
+
+## Usage
+
+### Setting up databases locally
 
 To run tests, you need to set up databases locally. The easiest option is to do it by running Docker images. You can use [predefined Docker Compose setup](./docker-compose.yml) by calling in your terminal:
 
@@ -42,30 +50,16 @@ Some of our tests are run against a particular PostgreSQL version. If you'd like
 POSTGRES_IMAGE=postgres:15.3-alpine MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-latest docker compose up
 ```
 
-Tests explorer should be able to detect database version automatically, but if it's not able to do it, you can enforce it by setting `postgresql_version` to a specific one (e.g.)
-
-```shell
-postgresql_version=15.3
-```
-
 By default Postgres tests are run with case insensitive names. To run tests against case sensitive, set environment variable:
 
 ```
 USE_CASE_SENSITIVE_QUALIFIED_NAMES=true
 ```
 
-### Nuke
+## Support Plans
 
-There's now a very rudimentary Nuke build, but it just compiles the solution. What it **does** do is provide two tasks for development:
+<div align="center">
+    <img src="https://www.jasperfx.net/wp-content/uploads/2023/07/logo-alt-min.png" alt="JasperFx logo" width="70%">
+</div>
 
-```shell
-nuke attach
-```
-
-and 
-
-```shell
-nuke detach
-```
-
-To switch back and forth between using JasperFx as a project reference (Attach) or Nuget reference (Detach).
+While Weasel is open source, [JasperFx Software offers paid support and consulting contracts](https://bit.ly/3szhwT2) for Weasel.

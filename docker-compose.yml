@@ -17,4 +17,23 @@ services:
           - "ACCEPT_EULA=Y"
           - "SA_PASSWORD=P@55w0rd"
           - "MSSQL_PID=Developer"
+  oracle:
+      image: "gvenzl/oracle-free:23-slim"
+      ports:
+          - "1521:1521"
+      environment:
+          - "ORACLE_PASSWORD=P@55w0rd"
+          - "APP_USER=weasel"
+          - "APP_USER_PASSWORD=P@55w0rd"
+      volumes:
+          - ./docker/oracle:/container-entrypoint-initdb.d
+  mysql:
+      image: "mysql:8.0"
+      ports:
+          - "3306:3306"
+      environment:
+          - "MYSQL_ROOT_PASSWORD=P@55w0rd"
+          - "MYSQL_DATABASE=weasel_testing"
+          - "MYSQL_USER=weasel"
+          - "MYSQL_PASSWORD=P@55w0rd"
 

@@ -17,7 +17,7 @@ public class generating_database_descriptor : IntegrationContext
     [Fact]
     public void can_generate_the_descriptor()
     {
-        var database = new DatabaseWithTables("Foo", NpgsqlDataSource.Create(ConnectionSource.ConnectionString));
+        var database = new TestDatabaseWithTables("Foo", NpgsqlDataSource.Create(ConnectionSource.ConnectionString));
 
         var descriptor = database.Describe();
 
@@ -31,7 +31,7 @@ public class generating_database_descriptor : IntegrationContext
     [Fact]
     public void can_generate_the_descriptor_multihost()
     {
-        var database = new DatabaseWithTables("Foo", NpgsqlDataSource.Create("Host=localhost:5432,localhost:5444;Database=marten_testing;Username=postgres;password=postgres;SSL Mode=Disable"));
+        var database = new TestDatabaseWithTables("Foo", NpgsqlDataSource.Create("Host=localhost:5432,localhost:5444;Database=marten_testing;Username=postgres;password=postgres;SSL Mode=Disable"));
 
         var descriptor = database.Describe();
 
@@ -45,7 +45,7 @@ public class generating_database_descriptor : IntegrationContext
     [Fact]
     public void can_generate_the_descriptor_multihost_portlessdomains()
     {
-        var database = new DatabaseWithTables("Foo", NpgsqlDataSource.Create("Host=my-db-host.com,my-db-host-ro.com;Database=marten_testing;Username=postgres;password=postgres;SSL Mode=Disable"));
+        var database = new TestDatabaseWithTables("Foo", NpgsqlDataSource.Create("Host=my-db-host.com,my-db-host-ro.com;Database=marten_testing;Username=postgres;password=postgres;SSL Mode=Disable"));
 
         var descriptor = database.Describe();
 

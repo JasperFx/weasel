@@ -28,19 +28,19 @@ public class WeaselInputTests
     {
         var builder = new HostBuilder();
 
-        database1 = new DatabaseWithTables(AutoCreate.All, "One");
-        database2 = new DatabaseWithTables(AutoCreate.All, "Two");
-        database3 = new DatabaseWithTables(AutoCreate.All, "Three");
+        database1 = new TestDatabaseWithTables(AutoCreate.All, "One");
+        database2 = new TestDatabaseWithTables(AutoCreate.All, "Two");
+        database3 = new TestDatabaseWithTables(AutoCreate.All, "Three");
 
         source1 = Substitute.For<IDatabaseSource>();
-        database4 = new DatabaseWithTables(AutoCreate.All, "Four");
-        database5 = new DatabaseWithTables(AutoCreate.All, "Five");
+        database4 = new TestDatabaseWithTables(AutoCreate.All, "Four");
+        database5 = new TestDatabaseWithTables(AutoCreate.All, "Five");
 
         source1.BuildDatabases().Returns(new[] { database4, database5 });
 
         source2 = Substitute.For<IDatabaseSource>();
-        database6 = new DatabaseWithTables(AutoCreate.All, "Six");
-        database7 = new DatabaseWithTables(AutoCreate.All, "Seven");
+        database6 = new TestDatabaseWithTables(AutoCreate.All, "Six");
+        database7 = new TestDatabaseWithTables(AutoCreate.All, "Seven");
 
         source2.BuildDatabases().Returns(new[] { database6, database7 });
 

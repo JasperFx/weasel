@@ -14,7 +14,12 @@ public class View: ISchemaObject
 
     public View(DbObjectName name, string viewSql)
     {
-        Identifier = name ?? throw new ArgumentNullException(nameof(name));
+        if (name == null)
+        {
+            throw new ArgumentNullException(nameof(name));
+        }
+
+        Identifier = PostgresqlObjectName.From(name);
         this.viewSql = viewSql ?? throw new ArgumentNullException(nameof(viewSql));
     }
 
@@ -32,8 +37,7 @@ public class View: ISchemaObject
     /// <param name="schemaName"></param>
     public void MoveToSchema(string schemaName)
     {
-        var identifier = new PostgresqlObjectName(schemaName, Identifier.Name);
-        Identifier = identifier;
+        Identifier = PostgresqlObjectName.From(new DbObjectName(schemaName, Identifier.Name));
     }
 
     /// <summary>

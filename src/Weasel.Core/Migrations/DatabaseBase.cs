@@ -70,7 +70,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     public AutoCreate AutoCreate { get; set; }
     public Migrator Migrator { get; }
 
-    public string Identifier { get; }
+    public string Identifier { get; protected set; }
 
     /// <summary>
     /// In the case of multi-tenancy, this would hold one or more tenant ids
