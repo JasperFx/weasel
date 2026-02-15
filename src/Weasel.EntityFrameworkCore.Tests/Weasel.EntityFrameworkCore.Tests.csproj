@@ -7,20 +7,20 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
-        <PackageReference Include="NSubstitute" Version="5.3.0" />
-        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
-        <PackageReference Include="Oracle.EntityFrameworkCore" Version="9.23.60" />
-        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0-preview.2.efcore.9.0.0" />
-        <PackageReference Include="Shouldly" Version="4.3.0" />
-        <PackageReference Include="xunit" Version="2.9.3" />
-        <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+        <PackageReference Include="Microsoft.Extensions.Hosting" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+        <PackageReference Include="Oracle.EntityFrameworkCore" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
+        <PackageReference Include="Shouldly" />
+        <PackageReference Include="xunit" />
+        <PackageReference Include="xunit.runner.visualstudio">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="coverlet.collector" Version="6.0.0">
+        <PackageReference Include="coverlet.collector">
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
             <PrivateAssets>all</PrivateAssets>
         </PackageReference>
