@@ -4,6 +4,7 @@ using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
 using Weasel.Core.Migrations;
+using Weasel.Postgresql.Migrations;
 using Weasel.Postgresql.Tables;
 
 namespace Weasel.Postgresql;
@@ -169,6 +170,26 @@ $$;
         }
 
         throw new PostgresqlIdentifierTooLongException(NameDataLength, name);
+    }
+
+    public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        var builder = new NpgsqlConnectionStringBuilder(connection.ConnectionString);
+        var databaseName = builder.Database;
+
+        if (string.IsNullOrEmpty(databaseName))
+        {
+            throw new ArgumentException("The connection string does not specify a database name.");
+        }
+
+        builder.Database = "postgres";
+        await using var adminConn = new NpgsqlConnection(builder.ConnectionString);
+        await adminConn.OpenAsync(ct).ConfigureAwait(false);
+
+        if (!await adminConn.DatabaseExists(databaseName, ct).ConfigureAwait(false))
+        {
+            await new DatabaseSpecification().BuildDatabase(adminConn, databaseName, ct).ConfigureAwait(false);
+        }
     }
 
     public override ITable CreateTable(DbObjectName identifier)

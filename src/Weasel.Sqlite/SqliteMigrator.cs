@@ -114,6 +114,14 @@ public class SqliteMigrator: Migrator
         }
     }
 
+    /// <summary>
+    ///     No-op for SQLite. SQLite databases are automatically created when the connection is opened.
+    /// </summary>
+    public override Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        return Task.CompletedTask;
+    }
+
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
     {
         if (connection is not Microsoft.Data.Sqlite.SqliteConnection)

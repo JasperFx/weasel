@@ -104,4 +104,37 @@ public class SqliteMigratorTests
 
         Should.Throw<InvalidOperationException>(() => migrator.AssertValidIdentifier(longName));
     }
+
+    [Fact]
+    public async Task ensure_database_exists_is_noop_for_memory()
+    {
+        var migrator = new SqliteMigrator();
+        await using var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+
+        // Should not throw - SQLite databases are auto-created
+        await migrator.EnsureDatabaseExistsAsync(connection);
+    }
+
+    [Fact]
+    public async Task ensure_database_exists_is_noop_for_file()
+    {
+        var migrator = new SqliteMigrator();
+        var tempFile = Path.Combine(Path.GetTempPath(), $"weasel_test_{Guid.NewGuid():N}.db");
+
+        try
+        {
+            await using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={tempFile}");
+
+            // Should not throw - SQLite databases are auto-created
+            await migrator.EnsureDatabaseExistsAsync(connection);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
 }

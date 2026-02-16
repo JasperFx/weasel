@@ -233,4 +233,17 @@ public abstract class
     /// </summary>
     /// <param name="name"></param>
     public abstract void AssertValidIdentifier(string name);
+
+    /// <summary>
+    ///     Ensures that the database referenced by the supplied connection's connection string exists,
+    ///     creating it if necessary. This is a lightweight operation that only creates the database --
+    ///     it does not run any schema migrations or DDL.
+    /// </summary>
+    /// <param name="connection">A connection whose ConnectionString identifies the target database</param>
+    /// <param name="ct">Cancellation token</param>
+    public virtual Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        throw new NotSupportedException(
+            $"EnsureDatabaseExistsAsync is not supported by {GetType().Name}. Override this method in a provider-specific migrator.");
+    }
 }
