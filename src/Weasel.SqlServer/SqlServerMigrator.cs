@@ -119,6 +119,37 @@ IF NOT EXISTS ( SELECT  *
 ";
     }
 
+    public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        var builder = new SqlConnectionStringBuilder(connection.ConnectionString);
+        var databaseName = builder.InitialCatalog;
+
+        if (string.IsNullOrEmpty(databaseName))
+        {
+            throw new ArgumentException("The connection string does not specify a database name (Initial Catalog).");
+        }
+
+        builder.InitialCatalog = "master";
+        await using var adminConn = new SqlConnection(builder.ConnectionString);
+        await adminConn.OpenAsync(ct).ConfigureAwait(false);
+
+        var cmd = adminConn.CreateCommand();
+        cmd.CommandText = "SELECT DB_ID(@name)";
+        var param = cmd.CreateParameter();
+        param.ParameterName = "@name";
+        param.Value = databaseName;
+        cmd.Parameters.Add(param);
+
+        var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+
+        if (result is null or DBNull)
+        {
+            var createCmd = adminConn.CreateCommand();
+            createCmd.CommandText = $"CREATE DATABASE [{databaseName}]";
+            await createCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+    }
+
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);

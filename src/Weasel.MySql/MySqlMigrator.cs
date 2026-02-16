@@ -123,6 +123,25 @@ public class MySqlMigrator: Migrator
         return $"CREATE DATABASE IF NOT EXISTS `{databaseName}`;";
     }
 
+    public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        var builder = new MySqlConnectionStringBuilder(connection.ConnectionString);
+        var databaseName = builder.Database;
+
+        if (string.IsNullOrEmpty(databaseName))
+        {
+            throw new ArgumentException("The connection string does not specify a database name.");
+        }
+
+        builder.Database = "";
+        await using var adminConn = new MySqlConnection(builder.ConnectionString);
+        await adminConn.OpenAsync(ct).ConfigureAwait(false);
+
+        var cmd = adminConn.CreateCommand();
+        cmd.CommandText = $"CREATE DATABASE IF NOT EXISTS `{databaseName}`";
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);

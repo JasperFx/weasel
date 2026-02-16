@@ -146,6 +146,37 @@ BEGIN
 END;";
     }
 
+    public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        var builder = new OracleConnectionStringBuilder(connection.ConnectionString);
+        var schemaName = builder.UserID;
+
+        if (string.IsNullOrEmpty(schemaName))
+        {
+            throw new ArgumentException("The connection string does not specify a User ID (schema name).");
+        }
+
+        var wasOpen = connection.State == System.Data.ConnectionState.Open;
+        if (!wasOpen)
+        {
+            await connection.OpenAsync(ct).ConfigureAwait(false);
+        }
+
+        try
+        {
+            var cmd = connection.CreateCommand();
+            cmd.CommandText = CreateSchemaStatementFor(schemaName);
+            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            if (!wasOpen)
+            {
+                await connection.CloseAsync().ConfigureAwait(false);
+            }
+        }
+    }
+
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);

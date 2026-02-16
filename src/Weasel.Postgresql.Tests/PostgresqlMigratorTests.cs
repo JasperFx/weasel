@@ -98,4 +98,52 @@ public class PostgresqlMigratorTests
             options.AssertValidIdentifier(text);
         });
     }
+
+    [Fact]
+    public async Task can_ensure_database_that_does_not_exist()
+    {
+        var migrator = new PostgresqlMigrator();
+        var databaseName = $"weasel_ensure_test_{Guid.NewGuid():N}";
+
+        var builder = new NpgsqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+        {
+            Database = databaseName
+        };
+
+        try
+        {
+            await using var targetConn = new NpgsqlConnection(builder.ConnectionString);
+            await migrator.EnsureDatabaseExistsAsync(targetConn);
+
+            // Verify the database was created
+            var adminBuilder = new NpgsqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+            {
+                Database = "postgres"
+            };
+            await using var adminConn = new NpgsqlConnection(adminBuilder.ConnectionString);
+            await adminConn.OpenAsync();
+            (await adminConn.DatabaseExists(databaseName)).ShouldBeTrue();
+        }
+        finally
+        {
+            var adminBuilder = new NpgsqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+            {
+                Database = "postgres"
+            };
+            await using var adminConn = new NpgsqlConnection(adminBuilder.ConnectionString);
+            await adminConn.OpenAsync();
+            await adminConn.KillIdleSessions(databaseName);
+            await adminConn.DropDatabase(databaseName);
+        }
+    }
+
+    [Fact]
+    public async Task ensure_database_is_idempotent()
+    {
+        var migrator = new PostgresqlMigrator();
+
+        // Use the existing test database - should not throw
+        await using var connection = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await migrator.EnsureDatabaseExistsAsync(connection);
+    }
 }

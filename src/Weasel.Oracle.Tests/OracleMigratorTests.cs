@@ -27,4 +27,14 @@ public class OracleMigratorTests
         table.ShouldBeOfType<Table>();
         table.Identifier.ShouldBe(identifier);
     }
+
+    [Fact]
+    public async Task ensure_database_is_idempotent()
+    {
+        var migrator = new OracleMigrator();
+
+        // Use the existing test connection/schema - should not throw
+        await using var connection = new OracleConnection(ConnectionSource.ConnectionString);
+        await migrator.EnsureDatabaseExistsAsync(connection);
+    }
 }
