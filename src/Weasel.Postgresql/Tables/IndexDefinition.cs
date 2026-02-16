@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using JasperFx.Core;
 using Weasel.Core;
+using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
@@ -225,7 +226,7 @@ public class IndexDefinition: INamed
         builder.Append(" USING ");
         builder.Append(Method == IndexMethod.custom ? CustomMethod : Method);
         builder.Append(" ");
-        builder.Append(correctedExpression());
+        builder.Append(correctedExpression(parent));
 
         if (IncludeColumns != null && IncludeColumns.Any())
         {
@@ -305,7 +306,7 @@ public class IndexDefinition: INamed
         return $"CAST({expression} as {type})";
     }
 
-    private string correctedExpression()
+    private string correctedExpression(Table? parent = null)
     {
         if (Columns == null || !Columns.Any())
         {
@@ -342,6 +343,19 @@ public class IndexDefinition: INamed
             else if (SortOrder == SortOrder.Desc && NullsSortOrder == NullsSortOrder.Last)
             {
                 expression += $" {DescendingNullsLast}";
+            }
+        }
+
+        // PostgreSQL requires unique indexes on partitioned tables to include all partitioning columns
+        if (IsUnique && parent?.Partitioning != null)
+        {
+            var existingColumns = new HashSet<string>(Columns, StringComparer.OrdinalIgnoreCase);
+            foreach (var partitionColumn in parent.Partitioning.Columns)
+            {
+                if (!existingColumns.Contains(partitionColumn))
+                {
+                    expression += $", {partitionColumn}";
+                }
             }
         }
 
