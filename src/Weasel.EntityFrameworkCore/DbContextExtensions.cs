@@ -232,13 +232,17 @@ public static class DbContextExtensions
             mapColumn(property, storeObjectIdentifier, primaryKeyPropertyNames, table);
         }
 
-        // Set primary key constraint name from EF Core metadata
+        // Set primary key constraint name from EF Core metadata.
+        // Normalize to lowercase to match PostgreSQL's convention of folding unquoted
+        // identifiers to lowercase. This prevents spurious RENAME CONSTRAINT migrations
+        // when EF Core generates PascalCase names (e.g., "PK_items") but PostgreSQL
+        // stores them as lowercase ("pk_items").
         if (primaryKey != null)
         {
             var pkName = primaryKey.GetName(storeObjectIdentifier);
             if (pkName != null)
             {
-                table.PrimaryKeyName = pkName;
+                table.PrimaryKeyName = pkName.ToLowerInvariant();
             }
         }
 
@@ -285,7 +289,7 @@ public static class DbContextExtensions
 
         if (columnNames.Length == 0 || linkedColumnNames.Length == 0) return;
 
-        var fk = table.AddForeignKey(constraintName, principalIdentifier, columnNames, linkedColumnNames);
+        var fk = table.AddForeignKey(constraintName.ToLowerInvariant(), principalIdentifier, columnNames, linkedColumnNames);
         fk.DeleteAction = mapDeleteBehavior(foreignKey.DeleteBehavior);
     }
 
