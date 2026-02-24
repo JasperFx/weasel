@@ -16,21 +16,21 @@ public class SchemaObjectExtensionsTests: IntegrationContext
     {
         await ResetSchema();
 
-        await theConnection.CreateCommand($"drop schema if exists one cascade").ExecuteNonQueryAsync();
-        await theConnection.CreateCommand($"drop schema if exists two cascade").ExecuteNonQueryAsync();
-        await theConnection.CreateCommand($"drop schema if exists three cascade").ExecuteNonQueryAsync();
+        await theConnection.CreateCommand($"drop schema if exists ext_one cascade").ExecuteNonQueryAsync();
+        await theConnection.CreateCommand($"drop schema if exists ext_two cascade").ExecuteNonQueryAsync();
+        await theConnection.CreateCommand($"drop schema if exists ext_three cascade").ExecuteNonQueryAsync();
 
         var schemaNames = await theConnection.ActiveSchemaNamesAsync();
 
-        schemaNames.ShouldNotContain("one");
-        schemaNames.ShouldNotContain("two");
-        schemaNames.ShouldNotContain("three");
+        schemaNames.ShouldNotContain("ext_one");
+        schemaNames.ShouldNotContain("ext_two");
+        schemaNames.ShouldNotContain("ext_three");
 
-        await theConnection.EnsureSchemaExists("one");
-        await theConnection.EnsureSchemaExists("one");
-        await theConnection.EnsureSchemaExists("one");
+        await theConnection.EnsureSchemaExists("ext_one");
+        await theConnection.EnsureSchemaExists("ext_one");
+        await theConnection.EnsureSchemaExists("ext_one");
 
-        (await theConnection.ActiveSchemaNamesAsync()).ShouldContain("one");
+        (await theConnection.ActiveSchemaNamesAsync()).ShouldContain("ext_one");
     }
 
     [Fact]

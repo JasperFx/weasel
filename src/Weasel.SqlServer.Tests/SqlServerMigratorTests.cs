@@ -73,8 +73,14 @@ public class SqlServerMigratorTests
     {
         var migrator = new SqlServerMigrator();
 
-        // Use the existing test database - should not throw
-        await using var connection = new SqlConnection(ConnectionSource.ConnectionString);
+        // Ensure the connection string has an Initial Catalog (CI may omit it)
+        var builder = new SqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+        {
+            InitialCatalog = "master"
+        };
+
+        // Use the existing master database - should not throw
+        await using var connection = new SqlConnection(builder.ConnectionString);
         await migrator.EnsureDatabaseExistsAsync(connection);
     }
 }
