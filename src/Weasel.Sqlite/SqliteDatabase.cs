@@ -41,14 +41,6 @@ public abstract class SqliteDatabase: DatabaseBase<SqliteConnection>
 
         descriptor.TenantIds.AddRange(TenantIds);
 
-        descriptor.Properties.Add(OptionsValue.Read(builder, x => x.DataSource));
-        descriptor.Properties.Add(OptionsValue.Read(builder, x => x.Mode));
-        descriptor.Properties.Add(OptionsValue.Read(builder, x => x.Cache));
-        descriptor.Properties.Add(OptionsValue.Read(builder, x => x.Pooling));
-        descriptor.Properties.Add(OptionsValue.Read(builder, x => x.RecursiveTriggers));
-
-        descriptor.Properties.RemoveAll(x => x.Name.ContainsIgnoreCase("password"));
-
         return descriptor;
     }
 }
