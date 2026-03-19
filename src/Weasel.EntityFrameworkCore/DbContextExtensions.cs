@@ -192,6 +192,8 @@ public static class DbContextExtensions
     /// Gets entity types eligible for Weasel migration, filtering out those
     /// excluded from migrations via EF Core's ExcludeFromMigrations().
     /// Uses the design-time model to access migration annotations.
+    /// For TPH (Table Per Hierarchy) hierarchies where multiple entity types share
+    /// the same table, only the root entity type is returned to avoid duplicate table definitions.
     /// </summary>
     public static IEnumerable<IEntityType> GetEntityTypesForMigration(DbContext context)
     {
@@ -200,7 +202,13 @@ public static class DbContextExtensions
         var designTimeModel = context.GetService<IDesignTimeModel>();
         var model = designTimeModel?.Model ?? context.Model;
 
-        return model.GetEntityTypes().Where(e => !e.IsTableExcludedFromMigrations());
+        return model.GetEntityTypes()
+            .Where(e => !e.IsTableExcludedFromMigrations())
+            .Where(e => e.GetTableName() != null)
+            // For TPH, multiple entity types share a table. Only keep root types
+            // (those without a base type mapped to the same table) to avoid duplicates.
+            .GroupBy(e => (e.GetTableName(), e.GetSchema()))
+            .Select(g => g.First(e => e.BaseType == null || e.GetTableName() != e.BaseType.GetTableName()));
     }
 
     public static ITable MapToTable(this Migrator migrator, IEntityType entityType)
@@ -226,10 +234,24 @@ public static class DbContextExtensions
             .Select(p => p.Name)
             .ToHashSet() ?? [];
 
-        // Add columns from properties
-        foreach (var property in entityType.GetProperties())
+        // Collect all entity types sharing this table (for TPH hierarchies).
+        // This includes the root entity type and all derived types mapped to the same table.
+        var allEntityTypes = entityType.GetDerivedTypesInclusive()
+            .Where(e => e.GetTableName() == tableName && e.GetSchema() == efSchema)
+            .ToList();
+
+        // Add columns from all entity types in the hierarchy
+        var addedColumns = new HashSet<string>();
+        foreach (var et in allEntityTypes)
         {
-            mapColumn(property, storeObjectIdentifier, primaryKeyPropertyNames, table);
+            foreach (var property in et.GetProperties())
+            {
+                var columnName = property.GetColumnName(storeObjectIdentifier);
+                if (columnName != null && addedColumns.Add(columnName))
+                {
+                    mapColumn(property, storeObjectIdentifier, primaryKeyPropertyNames, table);
+                }
+            }
         }
 
         // Set primary key constraint name from EF Core metadata.
@@ -246,10 +268,22 @@ public static class DbContextExtensions
             }
         }
 
-        // Add foreign keys
-        foreach (var foreignKey in entityType.GetForeignKeys())
+        // Add foreign keys from all entity types in the hierarchy
+        var addedForeignKeys = new HashSet<string>();
+        foreach (var et in allEntityTypes)
         {
-            mapForeignKey(migrator, foreignKey, storeObjectIdentifier, table);
+            foreach (var foreignKey in et.GetForeignKeys())
+            {
+                var constraintName = foreignKey.GetConstraintName(
+                    storeObjectIdentifier,
+                    StoreObjectIdentifier.Table(
+                        foreignKey.PrincipalEntityType.GetTableName()!,
+                        foreignKey.PrincipalEntityType.GetSchema()));
+                if (constraintName != null && addedForeignKeys.Add(constraintName))
+                {
+                    mapForeignKey(migrator, foreignKey, storeObjectIdentifier, table);
+                }
+            }
         }
 
         return table;
