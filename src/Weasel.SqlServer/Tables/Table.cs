@@ -93,6 +93,22 @@ public partial class Table: ITable
     /// </summary>
     public PartitionStrategy PartitionStrategy { get; set; } = PartitionStrategy.None;
 
+    /// <summary>
+    ///     SQL Server partitioning configuration (partition function + scheme).
+    ///     When set, the table will be created ON the partition scheme.
+    /// </summary>
+    public Partitioning.ISqlServerPartitioning? SqlServerPartitioning { get; set; }
+
+    /// <summary>
+    ///     Configure SQL Server RANGE partitioning on a column.
+    /// </summary>
+    public Partitioning.RangePartitioning PartitionByRange(string column, string sqlDataType)
+    {
+        var partitioning = new Partitioning.RangePartitioning(column, sqlDataType);
+        SqlServerPartitioning = partitioning;
+        return partitioning;
+    }
+
     public string PrimaryKeyName
     {
         get => _primaryKeyName.IsNotEmpty()
@@ -103,6 +119,12 @@ public partial class Table: ITable
 
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
+        // Write partition function and scheme DDL before the table if partitioning is configured
+        if (SqlServerPartitioning != null)
+        {
+            SqlServerPartitioning.WritePartitionDdl(writer, this);
+        }
+
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
             // drop all FK constraints
@@ -163,15 +185,24 @@ public partial class Table: ITable
             writer.WriteLine(lines.Last());
         }
 
-        switch (PartitionStrategy)
+        if (SqlServerPartitioning != null)
         {
-            case PartitionStrategy.None:
-                writer.WriteLine(");");
-                break;
+            writer.Write(")");
+            SqlServerPartitioning.WriteOnClause(writer, this);
+            writer.WriteLine(";");
+        }
+        else
+        {
+            switch (PartitionStrategy)
+            {
+                case PartitionStrategy.None:
+                    writer.WriteLine(");");
+                    break;
 
-            case PartitionStrategy.Range:
-                writer.WriteLine($") PARTITION BY RANGE ({PartitionExpressions.Join(", ")});");
-                break;
+                case PartitionStrategy.Range:
+                    writer.WriteLine($") PARTITION BY RANGE ({PartitionExpressions.Join(", ")});");
+                    break;
+            }
         }
 
         if (migrator.TableCreation != CreationStyle.DropThenCreate)
