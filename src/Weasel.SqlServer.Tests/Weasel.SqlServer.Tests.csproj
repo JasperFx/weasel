@@ -24,4 +24,8 @@
       <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>

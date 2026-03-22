@@ -135,12 +135,12 @@ WHERE
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var drops = new List<string>();
-        drops.AddRange(procedures.Select(name => $"drop procedure {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
-        drops.AddRange(functions.Select(name => $"drop function {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(procedures.Select(name => $"drop procedure if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(functions.Select(name => $"drop function if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(fkConstraints);
-        drops.AddRange(tables.Select(name => $"drop table {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
-        drops.AddRange(sequences.Select(name => $"drop sequence {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
-        drops.AddRange(tableTypes.Select(x => $"DROP TYPE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(x)};"));
+        drops.AddRange(tables.Select(name => $"drop table if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(sequences.Select(name => $"drop sequence if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
+        drops.AddRange(tableTypes.Select(x => $"DROP TYPE IF EXISTS {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(x)};"));
 
 
         foreach (var drop in drops) await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
