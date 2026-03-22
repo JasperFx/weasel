@@ -143,7 +143,17 @@ WHERE
         drops.AddRange(tableTypes.Select(x => $"DROP TYPE IF EXISTS {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(x)};"));
 
 
-        foreach (var drop in drops) await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        foreach (var drop in drops)
+        {
+            try
+            {
+                await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch (SqlException)
+            {
+                // Ignore errors from concurrent TFM test runs racing to drop the same objects
+            }
+        }
 
         if (!schemaName.EqualsIgnoreCase(SqlServerProvider.Instance.DefaultDatabaseSchemaName))
         {
