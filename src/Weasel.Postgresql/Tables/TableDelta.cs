@@ -51,9 +51,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         {
             PrimaryKeyDifference = SchemaPatchDifference.Create;
         }
-        else if (actual.PrimaryKeyName != expected.PrimaryKeyName &&
-                 actual.TruncatedNameIdentifier(actual.PrimaryKeyName) !=
-                 expected.TruncatedNameIdentifier(expected.PrimaryKeyName))
+        // Use case-insensitive comparison because PostgreSQL lowercases unquoted identifiers.
+        // A table named "TestRecords" generates PK name pkey_TestRecords_id in code,
+        // but PostgreSQL stores it as pkey_testrecords_id. See https://github.com/JasperFx/weasel/issues/224
+        else if (!string.Equals(actual.PrimaryKeyName, expected.PrimaryKeyName, StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(actual.TruncatedNameIdentifier(actual.PrimaryKeyName),
+                     expected.TruncatedNameIdentifier(expected.PrimaryKeyName), StringComparison.OrdinalIgnoreCase))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
