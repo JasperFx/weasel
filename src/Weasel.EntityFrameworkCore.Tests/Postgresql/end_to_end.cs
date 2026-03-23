@@ -159,3 +159,92 @@ public class end_to_end : IAsyncLifetime
         database.Tables.Single().Identifier.Name.ShouldBe("my_entities");
     }
 }
+
+/// <summary>
+/// Tests that entity types with foreign key dependencies are returned in
+/// topological order so that referenced tables are created before referencing tables.
+/// See https://github.com/JasperFx/marten/issues/4180
+/// </summary>
+public class fk_dependency_ordering : IAsyncLifetime
+{
+    private IHost _host = null!;
+
+    public async Task InitializeAsync()
+    {
+        _host = Host.CreateDefaultBuilder()
+            .ConfigureServices(services =>
+            {
+                services.AddDbContext<FkDependencyDbContext>(options =>
+                    options.UseNpgsql(FkDependencyDbContext.ConnectionString));
+
+                services.AddSingleton<Migrator, PostgresqlMigrator>();
+            })
+            .Build();
+
+        await _host.StartAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _host.StopAsync();
+        _host.Dispose();
+    }
+
+    [Fact]
+    public void entity_types_are_sorted_by_fk_dependencies()
+    {
+        using var scope = _host.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<FkDependencyDbContext>();
+
+        var entityTypes = DbContextExtensions.GetEntityTypesForMigration(context);
+
+        var names = entityTypes.Select(e => e.GetTableName()).ToList();
+
+        // entity_category must come before dependent_entity because
+        // dependent_entity has a FK referencing entity_category
+        var categoryIndex = names.IndexOf("entity_category");
+        var dependentIndex = names.IndexOf("dependent_entity");
+
+        categoryIndex.ShouldBeGreaterThanOrEqualTo(0, "entity_category should be in the list");
+        dependentIndex.ShouldBeGreaterThanOrEqualTo(0, "dependent_entity should be in the list");
+        categoryIndex.ShouldBeLessThan(dependentIndex,
+            "entity_category should come before dependent_entity due to FK dependency");
+    }
+
+    [Fact]
+    public async Task can_apply_migration_with_fk_dependencies()
+    {
+        using var scope = _host.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<FkDependencyDbContext>();
+
+        // Clean up any previous test schema
+        await context.Database.ExecuteSqlRawAsync(
+            $"DROP SCHEMA IF EXISTS {FkDependencyDbContext.TestSchema} CASCADE");
+
+        // Use Weasel to create migration and apply it - this should succeed
+        // because tables are created in dependency order
+        var migration = await _host.Services.CreateMigrationAsync(context, CancellationToken.None);
+        migration.ShouldNotBeNull();
+
+        await migration.ExecuteAsync(JasperFx.AutoCreate.CreateOrUpdate, CancellationToken.None);
+
+        // Verify both tables exist by inserting data
+        var category = new EntityCategory { Id = 1, Key = "test", Name = "Test Category" };
+        context.EntityCategories.Add(category);
+        await context.SaveChangesAsync();
+
+        var entity = new DependentEntity
+        {
+            Id = Guid.NewGuid(),
+            CategoryId = 1,
+            Featured = true,
+            InternalName = "test-entity"
+        };
+        context.DependentEntities.Add(entity);
+        await context.SaveChangesAsync();
+
+        // Clean up
+        await context.Database.ExecuteSqlRawAsync(
+            $"DROP SCHEMA IF EXISTS {FkDependencyDbContext.TestSchema} CASCADE");
+    }
+}
