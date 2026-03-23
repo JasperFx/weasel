@@ -14,6 +14,13 @@ public partial class Table
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
         var nameWithSchemaParam = builder.AddParameter($"{Identifier.Schema}.{Identifier.Name}").ParameterName;
 
+        // PostgreSQL's regclassout returns quoted identifiers for mixed-case names.
+        // We need to also match against the quoted form to handle tables like "TestRecords".
+        // See https://github.com/JasperFx/weasel/issues/224
+        var quotedName = $"\"{Identifier.Name}\"";
+        var quotedNameParam = builder.AddParameter(quotedName).ParameterName;
+        var nameWithSchemaQuotedParam = builder.AddParameter($"{Identifier.Schema}.{quotedName}").ParameterName;
+
         builder.Append($@"
 select column_name, data_type, character_maximum_length, udt_name
 from information_schema.columns where table_schema = :{schemaParam} and table_name = :{nameParam}
@@ -61,7 +68,9 @@ FROM (
 ) ind
 WHERE
       ind.table_name = :{nameParam} OR
-      ind.table_name = :{nameWithSchemaParam};
+      ind.table_name = :{nameWithSchemaParam} OR
+      ind.table_name = :{quotedNameParam} OR
+      ind.table_name = :{nameWithSchemaQuotedParam};
 
 SELECT c.conname                                     AS constraint_name,
        c.contype                                     AS constraint_type,
