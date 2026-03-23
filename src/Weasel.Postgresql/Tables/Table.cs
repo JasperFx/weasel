@@ -220,12 +220,26 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
     }
 
     /// <summary>
-    ///     Mutate this table to change the identifier to being in a different schema
+    ///     Mutate this table to change the identifier to being in a different schema.
+    ///     Also updates any foreign key LinkedTable references that were in the table's
+    ///     original schema to point to the new schema, so that FK references remain
+    ///     consistent when tables are moved together.
     /// </summary>
     /// <param name="schemaName"></param>
     public void MoveToSchema(string schemaName)
     {
+        var oldSchema = Identifier.Schema;
         Identifier = PostgresqlObjectName.From(new DbObjectName(schemaName, Identifier.Name));
+
+        // Update FK references that pointed to the old schema so they follow the move
+        foreach (var fk in ForeignKeys)
+        {
+            if (fk.LinkedTable != null &&
+                string.Equals(fk.LinkedTable.Schema, oldSchema, StringComparison.OrdinalIgnoreCase))
+            {
+                fk.LinkedTable = new DbObjectName(schemaName, fk.LinkedTable.Name);
+            }
+        }
     }
 
     /// <summary>
