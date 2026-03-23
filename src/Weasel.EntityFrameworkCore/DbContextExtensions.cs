@@ -194,21 +194,123 @@ public static class DbContextExtensions
     /// Uses the design-time model to access migration annotations.
     /// For TPH (Table Per Hierarchy) hierarchies where multiple entity types share
     /// the same table, only the root entity type is returned to avoid duplicate table definitions.
+    /// Results are topologically sorted by foreign key dependencies so that referenced tables
+    /// are created before the tables that reference them.
     /// </summary>
-    public static IEnumerable<IEntityType> GetEntityTypesForMigration(DbContext context)
+    public static IReadOnlyList<IEntityType> GetEntityTypesForMigration(DbContext context)
     {
         // The design-time model has full annotation access including IsTableExcludedFromMigrations.
         // The default read-optimized model throws when accessing migration-related annotations.
         var designTimeModel = context.GetService<IDesignTimeModel>();
         var model = designTimeModel?.Model ?? context.Model;
 
-        return model.GetEntityTypes()
+        var entityTypes = model.GetEntityTypes()
             .Where(e => !e.IsTableExcludedFromMigrations())
             .Where(e => e.GetTableName() != null)
             // For TPH, multiple entity types share a table. Only keep root types
             // (those without a base type mapped to the same table) to avoid duplicates.
             .GroupBy(e => (e.GetTableName(), e.GetSchema()))
-            .Select(g => g.First(e => e.BaseType == null || e.GetTableName() != e.BaseType.GetTableName()));
+            .Select(g => g.First(e => e.BaseType == null || e.GetTableName() != e.BaseType.GetTableName()))
+            .ToList();
+
+        return TopologicalSortByForeignKeys(entityTypes);
+    }
+
+    /// <summary>
+    /// Topologically sorts entity types so that entities referenced by foreign keys
+    /// appear before the entities that reference them. This ensures DDL statements
+    /// create referenced tables before referencing tables.
+    /// Falls back to the original order if a cycle is detected.
+    /// </summary>
+    internal static IReadOnlyList<IEntityType> TopologicalSortByForeignKeys(List<IEntityType> entityTypes)
+    {
+        if (entityTypes.Count <= 1) return entityTypes;
+
+        // Build a lookup from (TableName, Schema) to entity type for resolving FK targets
+        var tableToEntity = new Dictionary<(string? tableName, string? schema), IEntityType>();
+        foreach (var et in entityTypes)
+        {
+            var key = (et.GetTableName(), et.GetSchema());
+            tableToEntity.TryAdd(key, et);
+        }
+
+        // Build adjacency: for each entity, find which other entities it depends on (via FKs)
+        var dependencies = new Dictionary<IEntityType, List<IEntityType>>();
+        foreach (var et in entityTypes)
+        {
+            var deps = new List<IEntityType>();
+            foreach (var fk in et.GetForeignKeys())
+            {
+                var principalKey = (fk.PrincipalEntityType.GetTableName(), fk.PrincipalEntityType.GetSchema());
+                if (tableToEntity.TryGetValue(principalKey, out var principalEntity) && principalEntity != et)
+                {
+                    deps.Add(principalEntity);
+                }
+            }
+
+            // Also check derived types in TPH hierarchies for FKs
+            foreach (var derived in et.GetDerivedTypesInclusive())
+            {
+                if (derived == et) continue;
+                if (derived.GetTableName() != et.GetTableName() || derived.GetSchema() != et.GetSchema()) continue;
+
+                foreach (var fk in derived.GetForeignKeys())
+                {
+                    var principalKey = (fk.PrincipalEntityType.GetTableName(), fk.PrincipalEntityType.GetSchema());
+                    if (tableToEntity.TryGetValue(principalKey, out var principalEntity) && principalEntity != et)
+                    {
+                        deps.Add(principalEntity);
+                    }
+                }
+            }
+
+            dependencies[et] = deps;
+        }
+
+        // Kahn's algorithm for topological sort
+        var inDegree = entityTypes.ToDictionary(e => e, _ => 0);
+        foreach (var et in entityTypes)
+        {
+            foreach (var dep in dependencies[et])
+            {
+                if (inDegree.ContainsKey(dep))
+                {
+                    inDegree[et]++;
+                }
+            }
+        }
+
+        var queue = new Queue<IEntityType>();
+        foreach (var et in entityTypes)
+        {
+            if (inDegree[et] == 0)
+            {
+                queue.Enqueue(et);
+            }
+        }
+
+        var sorted = new List<IEntityType>(entityTypes.Count);
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            sorted.Add(current);
+
+            // Find entities that depend on 'current' and reduce their in-degree
+            foreach (var et in entityTypes)
+            {
+                if (dependencies[et].Contains(current))
+                {
+                    inDegree[et]--;
+                    if (inDegree[et] == 0)
+                    {
+                        queue.Enqueue(et);
+                    }
+                }
+            }
+        }
+
+        // If cycle detected, fall back to original order
+        return sorted.Count == entityTypes.Count ? sorted : entityTypes;
     }
 
     public static ITable MapToTable(this Migrator migrator, IEntityType entityType)
