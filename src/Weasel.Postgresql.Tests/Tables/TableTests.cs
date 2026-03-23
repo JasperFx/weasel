@@ -28,6 +28,63 @@ public class TableTests
     }
 
     [Fact]
+    public void move_to_different_schema_updates_fk_linked_table_in_same_schema()
+    {
+        // Issue https://github.com/JasperFx/marten/issues/4192
+        // When a table is moved to a different schema, FK references to tables
+        // that were in the same original schema should also be updated.
+        var child = new Table("child");
+        child.AddColumn<Guid>("id").AsPrimaryKey();
+        child.AddColumn<int>("parent_id");
+
+        var parentIdentifier = new DbObjectName("public", "parent");
+        var fk = new ForeignKey("fk_child_parent")
+        {
+            LinkedTable = parentIdentifier,
+            ColumnNames = new[] { "parent_id" },
+            LinkedNames = new[] { "id" }
+        };
+        child.ForeignKeys.Add(fk);
+
+        // Verify FK points to public.parent before move
+        child.ForeignKeys[0].LinkedTable!.Schema.ShouldBe("public");
+
+        // Move the child table to a new schema
+        child.MoveToSchema("app");
+
+        // Table itself should be in new schema
+        child.Identifier.Schema.ShouldBe("app");
+
+        // FK LinkedTable should also be updated since it was in the same schema
+        child.ForeignKeys[0].LinkedTable!.Schema.ShouldBe("app");
+        child.ForeignKeys[0].LinkedTable!.Name.ShouldBe("parent");
+    }
+
+    [Fact]
+    public void move_to_different_schema_preserves_fk_to_different_schema()
+    {
+        // FK references to tables in a DIFFERENT schema should NOT be updated
+        var child = new Table("child");
+        child.AddColumn<Guid>("id").AsPrimaryKey();
+        child.AddColumn<int>("other_id");
+
+        var otherSchemaTable = new DbObjectName("other_schema", "other_table");
+        var fk = new ForeignKey("fk_child_other")
+        {
+            LinkedTable = otherSchemaTable,
+            ColumnNames = new[] { "other_id" },
+            LinkedNames = new[] { "id" }
+        };
+        child.ForeignKeys.Add(fk);
+
+        child.MoveToSchema("app");
+
+        // FK to a different schema should remain unchanged
+        child.ForeignKeys[0].LinkedTable!.Schema.ShouldBe("other_schema");
+        child.ForeignKeys[0].LinkedTable!.Name.ShouldBe("other_table");
+    }
+
+    [Fact]
     public void build_table_by_name_only_puts_it_in_public()
     {
         var table = new Table("mytable");
