@@ -121,6 +121,25 @@ public class detecting_table_deltas: IntegrationContext
     }
 
     [Fact]
+    public async Task can_patch_existing_primary_key_column_type_change()
+    {
+        var actual = new Table("deltas.string_pk_patch");
+        actual.AddColumn("id", "varchar(100)").AsPrimaryKey();
+        actual.AddColumn<string>("first_name");
+
+        await CreateSchemaObjectInDatabase(actual);
+
+        var expected = new Table("deltas.string_pk_patch");
+        expected.AddColumn("id", "nvarchar(100)").AsPrimaryKey();
+        expected.AddColumn<string>("first_name");
+
+        var delta = await expected.FindDeltaAsync(theConnection);
+        delta.Columns.Different.Select(x => x.Expected.Name).ShouldContain("id");
+
+        await AssertNoDeltasAfterPatching(expected);
+    }
+
+    [Fact]
     public async Task using_reserved_keywords_for_columns()
     {
         await CreateSchemaObjectInDatabase(theTable);
@@ -496,5 +515,36 @@ public class detecting_table_deltas: IntegrationContext
         table.AddColumn<string>("first_name").NotNull();
         table.AddColumn<string>("last_name").NotNull();
         await AssertNoDeltasAfterPatching(table);
+    }
+}
+
+public class table_delta_sql_ordering
+{
+    [Fact]
+    public void update_sql_drops_pk_constraint_before_altering_changed_pk_column_type()
+    {
+        var actual = new Table("deltas.string_pk_ordering");
+        actual.AddColumn("id", "varchar(100)").AsPrimaryKey();
+        actual.AddColumn<string>("first_name");
+
+        var expected = new Table("deltas.string_pk_ordering");
+        expected.AddColumn("id", "nvarchar(100)").AsPrimaryKey();
+        expected.AddColumn<string>("first_name");
+
+        var delta = new TableDelta(expected, actual);
+
+        var writer = new StringWriter();
+        delta.WriteUpdate(new SqlServerMigrator(), writer);
+
+        var sql = writer.ToString();
+        var drop = $"alter table {expected.Identifier} drop constraint {actual.PrimaryKeyName};";
+        var alter = $"alter table {expected.Identifier} alter column id nvarchar(100) NOT NULL;";
+        var add = $"alter table {expected.Identifier} add CONSTRAINT {expected.PrimaryKeyName} PRIMARY KEY (id);";
+
+        sql.IndexOf(drop, StringComparison.OrdinalIgnoreCase).ShouldBeGreaterThanOrEqualTo(0);
+        sql.IndexOf(alter, StringComparison.OrdinalIgnoreCase)
+            .ShouldBeGreaterThan(sql.IndexOf(drop, StringComparison.OrdinalIgnoreCase));
+        sql.IndexOf(add, StringComparison.OrdinalIgnoreCase)
+            .ShouldBeGreaterThan(sql.IndexOf(alter, StringComparison.OrdinalIgnoreCase));
     }
 }
