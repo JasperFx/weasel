@@ -235,10 +235,11 @@ public static class DbContextExtensions
         }
 
         // Build adjacency: for each entity, find which other entities it depends on (via FKs)
-        var dependencies = new Dictionary<IEntityType, List<IEntityType>>();
+        // Use HashSet to avoid duplicate edges from TPH derived types inheriting the same FK
+        var dependencies = new Dictionary<IEntityType, HashSet<IEntityType>>();
         foreach (var et in entityTypes)
         {
-            var deps = new List<IEntityType>();
+            var deps = new HashSet<IEntityType>();
             foreach (var fk in et.GetForeignKeys())
             {
                 var principalKey = (fk.PrincipalEntityType.GetTableName(), fk.PrincipalEntityType.GetSchema());
