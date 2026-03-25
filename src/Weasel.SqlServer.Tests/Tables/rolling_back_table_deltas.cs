@@ -113,4 +113,36 @@ public class rolling_back_table_deltas: IntegrationContext
 
         await AssertRollbackIsSuccessful();
     }
+
+}
+
+public class table_delta_rollback_sql_ordering
+{
+    [Fact]
+    public void rollback_sql_drops_pk_constraint_before_altering_changed_pk_column_type()
+    {
+        var initial = new Table("rollbacks.string_pk_ordering");
+        initial.AddColumn("id", "varchar(100)").AsPrimaryKey();
+        initial.AddColumn<string>("first_name");
+
+        var configured = new Table("rollbacks.string_pk_ordering");
+        configured.AddColumn("id", "nvarchar(100)").AsPrimaryKey();
+        configured.AddColumn<string>("first_name");
+
+        var delta = new TableDelta(configured, initial);
+
+        var writer = new StringWriter();
+        delta.WriteRollback(new SqlServerMigrator(), writer);
+
+        var sql = writer.ToString();
+        var drop = $"alter table {configured.Identifier} drop constraint if exists {configured.PrimaryKeyName};";
+        var alter = $"alter table {configured.Identifier} alter column id varchar(100) NOT NULL;";
+        var add = $"alter table {configured.Identifier} add CONSTRAINT {initial.PrimaryKeyName} PRIMARY KEY (id);";
+
+        sql.IndexOf(drop, StringComparison.OrdinalIgnoreCase).ShouldBeGreaterThanOrEqualTo(0);
+        sql.IndexOf(alter, StringComparison.OrdinalIgnoreCase)
+            .ShouldBeGreaterThan(sql.IndexOf(drop, StringComparison.OrdinalIgnoreCase));
+        sql.IndexOf(add, StringComparison.OrdinalIgnoreCase)
+            .ShouldBeGreaterThan(sql.IndexOf(alter, StringComparison.OrdinalIgnoreCase));
+    }
 }
