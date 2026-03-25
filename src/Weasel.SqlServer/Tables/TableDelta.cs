@@ -94,8 +94,29 @@ public class TableDelta: SchemaObjectDelta<Table>
         // Extra columns
         foreach (var column in Columns.Extras) writer.WriteLine(column.DropColumnSql(Expected));
 
+        switch (PrimaryKeyDifference)
+        {
+            case SchemaPatchDifference.Invalid:
+            case SchemaPatchDifference.Update:
+                if (!primaryKeyDroppedBeforeColumnChanges)
+                {
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName};");
+                }
 
-        writePrimaryKeyUpdates(writer, primaryKeyDroppedBeforeColumnChanges);
+                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                break;
+
+            case SchemaPatchDifference.Create:
+                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                break;
+
+            case SchemaPatchDifference.None:
+                if (primaryKeyDroppedBeforeColumnChanges)
+                {
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                }
+                break;
+        }
     }
 
     private void writeForeignKeyUpdates(TextWriter writer)
@@ -146,8 +167,32 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         foreach (var foreignKey in ForeignKeys.Extras) foreignKey.WriteAddStatement(Expected, writer);
 
+        switch (PrimaryKeyDifference)
+        {
+            case SchemaPatchDifference.Invalid:
+            case SchemaPatchDifference.Update:
+                if (!primaryKeyDroppedBeforeColumnChanges)
+                {
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                }
 
-        writePrimaryKeyRollback(writer, primaryKeyDroppedBeforeColumnChanges);
+                writer.WriteLine($"alter table {Expected.Identifier} add {Actual!.PrimaryKeyDeclaration()};");
+                break;
+
+            case SchemaPatchDifference.Create:
+                if (!primaryKeyDroppedBeforeColumnChanges)
+                {
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                }
+                break;
+
+            case SchemaPatchDifference.None:
+                if (primaryKeyDroppedBeforeColumnChanges)
+                {
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Actual!.PrimaryKeyDeclaration()};");
+                }
+                break;
+        }
     }
 
     private void rollbackIndexes(TextWriter writer)
@@ -217,80 +262,6 @@ public class TableDelta: SchemaObjectDelta<Table>
     {
         return Expected.PrimaryKeyColumns.Any() &&
                Columns.Different.Any(change => Expected.PrimaryKeyColumns.Contains(change.Expected.Name));
-    }
-
-    private void writePrimaryKeyUpdates(TextWriter writer, bool primaryKeyDroppedBeforeColumnChanges)
-    {
-        switch (PrimaryKeyDifference)
-        {
-            case SchemaPatchDifference.Invalid:
-            case SchemaPatchDifference.Update:
-                if (!primaryKeyDroppedBeforeColumnChanges && Actual!.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual.PrimaryKeyName};");
-                }
-
-                if (Expected.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
-                }
-
-                break;
-
-            case SchemaPatchDifference.Create:
-                if (Expected.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
-                }
-
-                break;
-
-            case SchemaPatchDifference.None:
-                if (primaryKeyDroppedBeforeColumnChanges && Expected.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
-                }
-
-                break;
-        }
-    }
-
-    private void writePrimaryKeyRollback(TextWriter writer, bool primaryKeyDroppedBeforeColumnChanges)
-    {
-        switch (PrimaryKeyDifference)
-        {
-            case SchemaPatchDifference.Invalid:
-            case SchemaPatchDifference.Update:
-                if (!primaryKeyDroppedBeforeColumnChanges && Expected.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine(
-                        $"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
-                }
-
-                if (Actual!.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Actual.PrimaryKeyDeclaration()};");
-                }
-
-                break;
-
-            case SchemaPatchDifference.Create:
-                if (!primaryKeyDroppedBeforeColumnChanges && Expected.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine(
-                        $"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
-                }
-
-                break;
-
-            case SchemaPatchDifference.None:
-                if (primaryKeyDroppedBeforeColumnChanges && Actual!.PrimaryKeyColumns.Any())
-                {
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Actual.PrimaryKeyDeclaration()};");
-                }
-
-                break;
-        }
     }
 
     public bool HasChanges()
