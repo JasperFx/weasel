@@ -83,6 +83,14 @@ $$;
         writer.WriteLine();
     }
 
+    public override void WriteSchemaDropSql(IEnumerable<string> schemaNames, TextWriter writer)
+    {
+        foreach (var schemaName in schemaNames)
+        {
+            writer.WriteLine(SchemaObjectsExtensions.DropStatementFor(schemaName));
+        }
+    }
+
     private static void WriteSql(string databaseSchemaName, TextWriter writer)
     {
         writer.WriteLine(

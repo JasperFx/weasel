@@ -122,6 +122,13 @@ public abstract class
     public abstract void WriteSchemaCreationSql(IEnumerable<string> schemaNames, TextWriter writer);
 
     /// <summary>
+    ///     Writes the necessary SQL to drop the supplied schema names
+    /// </summary>
+    /// <param name="schemaNames"></param>
+    /// <param name="writer"></param>
+    public abstract void WriteSchemaDropSql(IEnumerable<string> schemaNames, TextWriter writer);
+
+    /// <summary>
     ///     Apply all the differences in the supplied SchemaMigration to the supplied database connection
     /// </summary>
     /// <param name="conn"></param>

@@ -33,6 +33,14 @@ public class MySqlMigrator: Migrator
         }
     }
 
+    public override void WriteSchemaDropSql(IEnumerable<string> schemaNames, TextWriter writer)
+    {
+        foreach (var schemaName in schemaNames)
+        {
+            writer.WriteLine($"DROP DATABASE IF EXISTS `{schemaName}`;");
+        }
+    }
+
     protected override async Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,
