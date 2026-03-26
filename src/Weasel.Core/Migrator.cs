@@ -224,12 +224,22 @@ public abstract class
 
         await WriteTemplatedFile(filename, (r, w) =>
         {
+            if (patch.Schemas.Any())
+            {
+                WriteSchemaCreationSql(patch.Schemas, w);
+            }
+
             patch.WriteAllUpdates(w, r, AutoCreate.All);
         }, ct).ConfigureAwait(false);
 
         var dropFile = SchemaMigration.ToDropFileName(filename);
         await WriteTemplatedFile(dropFile, (r, w) =>
         {
+            if (patch.Schemas.Any())
+            {
+                WriteSchemaDropSql(patch.Schemas, w);
+            }
+
             patch.WriteAllRollbacks(w, r);
         }, ct).ConfigureAwait(false);
     }
