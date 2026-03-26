@@ -34,6 +34,18 @@ public class OracleMigrator: Migrator
         }
     }
 
+    public override void WriteSchemaDropSql(IEnumerable<string> schemaNames, TextWriter writer)
+    {
+        foreach (var schemaName in schemaNames)
+        {
+            writer.WriteLine($@"DECLARE
+BEGIN
+    EXECUTE IMMEDIATE 'DROP USER {schemaName} CASCADE';
+END;");
+            writer.WriteLine("/");
+        }
+    }
+
     protected override async Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,

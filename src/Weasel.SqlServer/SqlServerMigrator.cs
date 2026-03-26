@@ -37,6 +37,18 @@ $$;
         foreach (var schemaName in schemaNames) writer.WriteLine(CreateSchemaStatementFor(schemaName));
     }
 
+    public override void WriteSchemaDropSql(IEnumerable<string> schemaNames, TextWriter writer)
+    {
+        foreach (var schemaName in schemaNames)
+        {
+            writer.WriteLine($@"IF EXISTS ( SELECT  *
+                    FROM    sys.schemas
+                    WHERE   name = N'{schemaName}' )
+        EXEC('DROP SCHEMA [{schemaName}]');
+");
+        }
+    }
+
     protected override async Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,

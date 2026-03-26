@@ -52,6 +52,11 @@ public class SqliteMigrator: Migrator
         // SQLite only uses the "main" schema - no schema creation needed
     }
 
+    public override void WriteSchemaDropSql(IEnumerable<string> schemaNames, TextWriter writer)
+    {
+        // SQLite doesn't support dropping schemas
+    }
+
     protected override async Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,
