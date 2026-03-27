@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using JasperFx.MultiTenancy;
 
 namespace Weasel.Core.MultiTenancy;
 
@@ -15,20 +16,5 @@ public class ExplicitTenantAssignment : ITenantAssignmentStrategy
         string tenantId, IReadOnlyList<PooledDatabase> availableDatabases)
     {
         throw new UnknownTenantIdException(tenantId);
-    }
-}
-
-/// <summary>
-/// Thrown when a tenant ID is not found in the tenant assignment table
-/// and the assignment strategy does not support auto-assignment.
-/// </summary>
-public class UnknownTenantIdException : Exception
-{
-    public string TenantId { get; }
-
-    public UnknownTenantIdException(string tenantId)
-        : base($"Unknown tenant id '{tenantId}'. This tenant must be explicitly assigned to a database before use.")
-    {
-        TenantId = tenantId;
     }
 }
