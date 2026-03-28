@@ -355,6 +355,9 @@ public static class DbContextExtensions
                     mapColumn(property, storeObjectIdentifier, primaryKeyPropertyNames, table);
                 }
             }
+
+            // Add JSON columns from owned entities mapped via OwnsOne().ToJson()
+            mapJsonColumns(et, addedColumns, table);
         }
 
         // Set primary key constraint name from EF Core metadata.
@@ -459,6 +462,22 @@ public static class DbContextExtensions
         if (defaultValueSql != null)
         {
             column.DefaultExpression = defaultValueSql;
+        }
+    }
+
+    private static void mapJsonColumns(IEntityType entityType, HashSet<string> addedColumns, ITable table)
+    {
+        foreach (var navigation in entityType.GetNavigations())
+        {
+            var targetType = navigation.TargetEntityType;
+            if (!targetType.IsMappedToJson()) continue;
+
+            var columnName = targetType.GetContainerColumnName();
+            if (columnName == null || !addedColumns.Add(columnName)) continue;
+
+            var columnType = targetType.GetContainerColumnType() ?? "jsonb";
+            var column = table.AddColumn(columnName, columnType);
+            column.AllowNulls = !navigation.ForeignKey.IsRequired;
         }
     }
 
