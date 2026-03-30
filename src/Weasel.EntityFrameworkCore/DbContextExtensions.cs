@@ -207,6 +207,9 @@ public static class DbContextExtensions
         var entityTypes = model.GetEntityTypes()
             .Where(e => !e.IsTableExcludedFromMigrations())
             .Where(e => e.GetTableName() != null)
+            // Also exclude owned entity types since they don't have their own tables.
+            // fixes https://github.com/JasperFx/weasel/issues/234
+            .Where(e => !e.IsOwned())
             // For TPH, multiple entity types share a table. Only keep root types
             // (those without a base type mapped to the same table) to avoid duplicates.
             .GroupBy(e => (e.GetTableName(), e.GetSchema()))

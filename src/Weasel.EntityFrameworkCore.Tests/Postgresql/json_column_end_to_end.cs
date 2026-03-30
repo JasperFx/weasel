@@ -45,13 +45,13 @@ public class json_column_end_to_end : IAsyncLifetime
         var context = scope.ServiceProvider.GetRequiredService<JsonColumnDbContext>();
         var migrator = scope.ServiceProvider.GetRequiredService<Migrator>();
 
-        var entityType = context.Model.FindEntityType(typeof(EntityWithJsonColumn));
+        var entityType = context.Model.FindEntityType(typeof(ZEntityWithJsonColumn));
         entityType.ShouldNotBeNull();
 
         var table = migrator.MapToTable(entityType);
 
         table.ShouldNotBeNull();
-        table.Identifier.Name.ShouldBe("entities");
+        table.Identifier.Name.ShouldBe("zentities");
 
         // Scalar columns should be mapped
         table.HasColumn("id").ShouldBeTrue();
@@ -60,7 +60,7 @@ public class json_column_end_to_end : IAsyncLifetime
         table.HasColumn("description").ShouldBeTrue();
 
         // The JSON column from OwnsOne().ToJson() should be mapped
-        table.HasColumn("extended_properties").ShouldBeTrue("The JSON column 'extended_properties' should be mapped from OwnsOne().ToJson()");
+        table.HasColumn("aextended_properties").ShouldBeTrue("The JSON column 'aextended_properties' should be mapped from OwnsOne().ToJson()");
     }
 
     [Fact]
@@ -70,15 +70,15 @@ public class json_column_end_to_end : IAsyncLifetime
         var context = scope.ServiceProvider.GetRequiredService<JsonColumnDbContext>();
         var migrator = scope.ServiceProvider.GetRequiredService<Migrator>();
 
-        var entityType = context.Model.FindEntityType(typeof(EntityWithJsonColumn));
+        var entityType = context.Model.FindEntityType(typeof(ZEntityWithJsonColumn));
         entityType.ShouldNotBeNull();
 
         var table = migrator.MapToTable(entityType);
 
         // The JSON column should exist and have the correct type
-        table.HasColumn("extended_properties").ShouldBeTrue();
+        table.HasColumn("aextended_properties").ShouldBeTrue();
         var pgTable = table.ShouldBeOfType<Weasel.Postgresql.Tables.Table>();
-        var column = pgTable.ColumnFor("extended_properties");
+        var column = pgTable.ColumnFor("aextended_properties");
         column.ShouldNotBeNull();
         column.Type.ShouldBe("jsonb");
     }
@@ -99,13 +99,13 @@ public class json_column_end_to_end : IAsyncLifetime
         await migration.ExecuteAsync(JasperFx.AutoCreate.CreateOrUpdate, CancellationToken.None);
 
         // Verify data round-trip with JSON column
-        var entity = new EntityWithJsonColumn
+        var entity = new ZEntityWithJsonColumn
         {
             Id = Guid.NewGuid(),
             InternalName = "test-entity",
             Name = "Test Entity",
             Description = "A test entity with JSON properties",
-            ExtendedProperties = new ExtendedProperties
+            AExtendedProperties = new AExtendedProperties
             {
                 Theme = "dark",
                 Language = "en",
@@ -113,14 +113,14 @@ public class json_column_end_to_end : IAsyncLifetime
             }
         };
 
-        context.Entities.Add(entity);
+        context.ZEntities.Add(entity);
         await context.SaveChangesAsync();
 
-        var retrieved = await context.Entities.FindAsync(entity.Id);
+        var retrieved = await context.ZEntities.FindAsync(entity.Id);
         retrieved.ShouldNotBeNull();
-        retrieved.ExtendedProperties.Theme.ShouldBe("dark");
-        retrieved.ExtendedProperties.Language.ShouldBe("en");
-        retrieved.ExtendedProperties.MaxItems.ShouldBe(50);
+        retrieved.AExtendedProperties.Theme.ShouldBe("dark");
+        retrieved.AExtendedProperties.Language.ShouldBe("en");
+        retrieved.AExtendedProperties.MaxItems.ShouldBe(50);
 
         // Clean up
         await context.Database.ExecuteSqlRawAsync("DROP SCHEMA IF EXISTS ef_json_test CASCADE");
