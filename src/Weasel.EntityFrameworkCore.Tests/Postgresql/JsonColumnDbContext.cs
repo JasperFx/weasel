@@ -10,21 +10,21 @@ public class JsonColumnDbContext : DbContext
     {
     }
 
-    public DbSet<EntityWithJsonColumn> Entities => Set<EntityWithJsonColumn>();
+    public DbSet<ZEntityWithJsonColumn> ZEntities => Set<ZEntityWithJsonColumn>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<EntityWithJsonColumn>(entity =>
+        modelBuilder.Entity<ZEntityWithJsonColumn>(entity =>
         {
-            entity.ToTable("entities", "ef_json_test");
+            entity.ToTable("zentities", "ef_json_test");
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).HasColumnName("id");
             entity.Property(e => e.InternalName).HasColumnName("internal_name");
             entity.Property(e => e.Name).HasColumnName("name").HasMaxLength(100);
             entity.Property(e => e.Description).HasColumnName("description").HasMaxLength(2000);
-            entity.OwnsOne(e => e.ExtendedProperties, b =>
+            entity.OwnsOne(e => e.AExtendedProperties, b =>
             {
-                b.ToJson("extended_properties");
+                b.ToJson("aextended_properties");
             });
         });
     }
