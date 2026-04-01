@@ -359,3 +359,7 @@ MigrationBackup/
 
 # macOS
 .DS_Store
+
+# VitePress documentation
+docs/.vitepress/cache
+docs/.vitepress/dist

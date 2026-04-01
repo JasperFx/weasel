@@ -1,0 +1,8 @@
+{
+    "Convention": "InPlaceOverwrite",
+    "LinkFormat": "GitHub",
+    "UrlPrefix": "https://github.com/JasperFx/weasel/blob/master",
+    "ExcludeMarkdownDirectories": [],
+    "ExcludeSnippetDirectories": ["./src/Weasel.Core", "./src/Weasel.Postgresql", "./src/Weasel.SqlServer", "./src/Weasel.Oracle", "./src/Weasel.MySql", "./src/Weasel.Sqlite", "./src/Weasel.EntityFrameworkCore", "./src/Weasel.CommandLine"],
+    "TreatMissingAsWarning": false
+}

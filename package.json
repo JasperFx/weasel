@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "scripts": {
+    "mdsnippets": "mdsnippets",
+    "docs": "concurrently --group mdsnippets \"vitepress dev docs --port 5050 --open\"",
+    "docs-build": "concurrently --group mdsnippets \"vitepress build docs\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "vitepress": "^1.6.3",
+    "vitepress-plugin-mermaid": "^2.0.17",
+    "mermaid": "^11.4.1"
+  }
+}
