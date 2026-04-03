@@ -20,9 +20,8 @@ public class IndexDefinition: INamed
     private const string AscendingNullsLast = "ASC NULLS LAST";
     private const string DescendingNullsFirst = "DESC NULLS FIRST";
     private const string DescendingNullsLast = "DESC NULLS LAST";
-    private static readonly string[] _reserved_words = { "trim", "lower", "upper" };
-    private string? _customIndexMethod;
 
+    private string? _customIndexMethod;
     private string? _indexName;
     private bool _isUnique;
 
