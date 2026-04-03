@@ -83,6 +83,12 @@ public static class SchemaUtils
     }
 
     /// <summary>
+    /// Returns true if the given identifier is a PostgreSQL reserved keyword (catcode 'R')
+    /// that must always be quoted when used as an identifier.
+    /// </summary>
+    public static bool IsReservedKeyword(string name) => ReservedKeywords.Contains(name);
+
+    /// <summary>
     /// PostgreSQL reserved keywords (catcode 'R').
     /// These keywords are always reserved and must be quoted when used as identifiers.
     /// Source: pg_get_keywords() from PostgreSQL 10-17

@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using JasperFx.Core;
 using Weasel.Core;
-using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
@@ -315,7 +314,10 @@ public class IndexDefinition: INamed
 
         var expression = Columns.Select(x =>
         {
-            return _reserved_words.Contains(x) ? $"\"{x}\"" : x;
+            if (x.StartsWith('(') || x.Contains(' ') || x.Contains('-') || x.Contains('\''))
+                return x;
+
+            return SchemaUtils.IsReservedKeyword(x) ? $"\"{x}\"" : x;
         }).Join(", ");
         if (Mask.IsNotEmpty())
         {
