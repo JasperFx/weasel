@@ -82,9 +82,9 @@ public class NpgsqlTypeMapper
         {NpgsqlDbType.Multirange | NpgsqlDbType.TimestampTz, new NpgsqlTypeMapping(NpgsqlDbType.Multirange | NpgsqlDbType.TimestampTz, DbType.Object, "tstzmultirange")},
 
         // Network types
-        {NpgsqlDbType.Cidr, new NpgsqlTypeMapping(NpgsqlDbType.Cidr, DbType.Object, "cidr")},
+        {NpgsqlDbType.Cidr, new NpgsqlTypeMapping(NpgsqlDbType.Cidr, DbType.Object, "cidr", typeof(IPNetwork))},
         {NpgsqlDbType.Inet, new NpgsqlTypeMapping(NpgsqlDbType.Inet, DbType.Object, "inet", typeof(IPAddress),
-            typeof((IPAddress Address, int Subnet)), typeof(NpgsqlInet), IPAddress.Loopback.GetType())},
+            typeof((IPAddress Address, int Subnet)), typeof(NpgsqlInet), typeof(IPNetwork), IPAddress.Loopback.GetType())},
         {NpgsqlDbType.MacAddr, new NpgsqlTypeMapping(NpgsqlDbType.MacAddr, DbType.Object, "macaddr", typeof(PhysicalAddress))},
         {NpgsqlDbType.MacAddr8, new NpgsqlTypeMapping(NpgsqlDbType.MacAddr8, DbType.Object, "macaddr8")},
 

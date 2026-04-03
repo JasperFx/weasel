@@ -1,4 +1,5 @@
 using System.Data;
+using System.Net;
 using Npgsql;
 using NpgsqlTypes;
 using Shouldly;
@@ -53,7 +54,7 @@ public class PostgresqlProviderTests
     [Fact]
     public void execute_get_pg_type_custom_mappings_resolve_or_default_to_jsonb()
     {
-        NpgsqlConnection.GlobalTypeMapper.MapComposite<MappedTarget>("varchar");
+        PostgresqlProvider.Instance.RegisterMapping(typeof(MappedTarget), "varchar", NpgsqlDbType.Varchar);
 
         PostgresqlProvider.Instance.GetDatabaseType(typeof(MappedTarget), EnumStorage.AsString).ShouldBe("varchar");
         PostgresqlProvider.Instance.GetDatabaseType(typeof(UnmappedTarget), EnumStorage.AsString).ShouldBe("jsonb");
@@ -62,7 +63,7 @@ public class PostgresqlProviderTests
     [Fact]
     public void execute_has_type_mapping_resolves_custom_types()
     {
-        NpgsqlConnection.GlobalTypeMapper.MapComposite<MappedTarget>("varchar");
+        PostgresqlProvider.Instance.RegisterMapping(typeof(MappedTarget), "varchar", NpgsqlDbType.Varchar);
 
         PostgresqlProvider.Instance.HasTypeMapping(typeof(MappedTarget)).ShouldBeTrue();
         PostgresqlProvider.Instance.HasTypeMapping(typeof(UnmappedTarget)).ShouldBeFalse();
@@ -74,6 +75,14 @@ public class PostgresqlProviderTests
 
     public class UnmappedTarget
     {
+    }
+
+    [Fact]
+    public void ipnetwork_resolves_to_cidr()
+    {
+        PostgresqlProvider.Instance
+            .GetDatabaseType(typeof(IPNetwork), EnumStorage.AsString)
+            .ShouldBe("cidr");
     }
 
     [Fact]
