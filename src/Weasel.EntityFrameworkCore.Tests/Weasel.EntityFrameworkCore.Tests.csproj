@@ -12,8 +12,8 @@
         <PackageReference Include="NSubstitute" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
-        <PackageReference Include="Oracle.EntityFrameworkCore" />
-        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" />
+        <PackageReference Include="Oracle.EntityFrameworkCore" Condition="'$(TargetFramework)' != 'net10.0'" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Condition="'$(TargetFramework)' != 'net10.0'" />
         <PackageReference Include="Shouldly" />
         <PackageReference Include="xunit" />
         <PackageReference Include="xunit.runner.visualstudio">
@@ -26,12 +26,18 @@
         </PackageReference>
     </ItemGroup>
 
+    <!-- Exclude Oracle and MySql test files on net10.0 where those providers aren't available -->
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <Compile Remove="Oracle\**" />
+        <Compile Remove="MySql\**" />
+    </ItemGroup>
+
     <ItemGroup>
         <ProjectReference Include="..\Weasel.EntityFrameworkCore\Weasel.EntityFrameworkCore.csproj" />
         <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
         <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
-        <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
-        <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" />
+        <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" Condition="'$(TargetFramework)' != 'net10.0'" />
+        <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" Condition="'$(TargetFramework)' != 'net10.0'" />
     </ItemGroup>
 
 </Project>

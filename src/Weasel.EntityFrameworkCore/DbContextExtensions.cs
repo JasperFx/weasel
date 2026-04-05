@@ -475,10 +475,19 @@ public static class DbContextExtensions
             var targetType = navigation.TargetEntityType;
             if (!targetType.IsMappedToJson()) continue;
 
+            // EF Core 10 moved GetContainerColumnName/GetContainerColumnType from
+            // RelationalEntityTypeExtensions to RelationalTypeBaseExtensions
+#if NET10_0_OR_GREATER
             var columnName = targetType.GetContainerColumnName();
             if (columnName == null || !addedColumns.Add(columnName)) continue;
 
             var columnType = targetType.GetContainerColumnType() ?? "jsonb";
+#else
+            var columnName = RelationalEntityTypeExtensions.GetContainerColumnName(targetType);
+            if (columnName == null || !addedColumns.Add(columnName)) continue;
+
+            var columnType = RelationalEntityTypeExtensions.GetContainerColumnType(targetType) ?? "jsonb";
+#endif
             var column = table.AddColumn(columnName, columnType);
             column.AllowNulls = !navigation.ForeignKey.IsRequired;
         }
