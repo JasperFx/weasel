@@ -63,6 +63,47 @@ public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
         await AssertNoDeltasAfterPatching();
     }
 
+    [Theory]
+    [MemberData(nameof(PostgresReservedKeywords))]
+    public async Task verify_all_postgres_reserved_keywords_work_as_column_names(string keyword)
+    {
+        var tableName = $"deltas.keyword_{keyword.ToLower()}";
+        var table = new Table(tableName);
+        table.AddColumn<int>("id").AsPrimaryKey();
+
+        await CreateSchemaObjectInDatabase(table);
+
+        table.AddColumn<string>(keyword.ToLower());
+
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    public static TheoryData<string> PostgresReservedKeywords()
+    {
+        var data = new TheoryData<string>();
+
+        var keywords = new[]
+        {
+            "ALL", "ANALYSE", "ANALYZE", "AND", "ANY", "ARRAY", "AS", "ASC", "ASYMMETRIC", "BOTH",
+            "CASE", "CAST", "CHECK", "COLLATE", "COLUMN", "CONSTRAINT", "CREATE", "CURRENT_CATALOG",
+            "CURRENT_DATE", "CURRENT_ROLE", "CURRENT_TIME", "CURRENT_TIMESTAMP", "CURRENT_USER",
+            "DEFAULT", "DEFERRABLE", "DESC", "DISTINCT", "DO", "ELSE", "END", "EXCEPT", "FALSE",
+            "FETCH", "FOR", "FOREIGN", "FROM", "GRANT", "GROUP", "HAVING", "IN", "INITIALLY",
+            "INTERSECT", "INTO", "LATERAL", "LEADING", "LIMIT", "LOCALTIME", "LOCALTIMESTAMP",
+            "NOT", "NULL", "OFFSET", "ON", "ONLY", "OR", "ORDER", "PLACING", "PRIMARY",
+            "REFERENCES", "RETURNING", "SELECT", "SESSION_USER", "SOME", "SYMMETRIC", "SYSTEM_USER",
+            "TABLE", "THEN", "TO", "TRAILING", "TRUE", "UNION", "UNIQUE", "USER", "USING",
+            "VARIADIC", "WHEN", "WHERE", "WINDOW", "WITH"
+        };
+
+        foreach (var keyword in keywords)
+        {
+            data.Add(keyword);
+        }
+
+        return data;
+    }
+
     [Fact]
     public async Task extra_column()
     {
