@@ -26,7 +26,9 @@ public class UpsertFunction: Function
 
         var columns = _columns.Select(x => _table.ColumnFor(x)).ToArray();
 
-        var inserts = _table.PrimaryKeyColumns.Concat(_columns).Join(", ");
+        var inserts = _table.PrimaryKeyColumns.Concat(_columns)
+            .Select(x => _table.ColumnFor(x)!.QuotedName)
+            .Join(", ");
         var argList = pkColumns.Concat(columns).Select(x => x.ToFunctionArgumentDeclaration()).Join(", ");
         var valueList = pkColumns.Concat(columns).Select(x => x.ToArgumentName()).Join(", ");
         var updates = columns.Select(x => x.ToFunctionUpdate()).Join(", ");

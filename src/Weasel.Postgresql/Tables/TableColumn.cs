@@ -156,7 +156,7 @@ public class TableColumn: ITableColumn
 
     public string ToFunctionUpdate()
     {
-        return $"{Name} = {ToArgumentName()}";
+        return $"{QuotedName} = {ToArgumentName()}";
     }
 }
 
