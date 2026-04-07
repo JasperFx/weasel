@@ -129,4 +129,18 @@ public class TableColumnTests
         column.AddColumnSql(table)
             .ShouldBe("alter table public.map add column geom geometry NOT NULL;");
     }
+
+    [Theory]
+    [InlineData("offset")]
+    [InlineData("limit")]
+    [InlineData("select")]
+    [InlineData("user")]
+    [InlineData("order")]
+    [InlineData("all")]
+    public void to_function_update_should_quote_reserved_keywords(string keyword)
+    {
+        var column = new TableColumn(keyword, "varchar");
+
+        column.ToFunctionUpdate().ShouldBe($"\"{keyword}\" = p_{keyword}");
+    }
 }
