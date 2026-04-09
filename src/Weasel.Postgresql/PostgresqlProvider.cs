@@ -98,7 +98,7 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
 
     public string ConvertSynonyms(string type)
     {
-        switch (type.ToLower())
+        switch (type.ToLowerInvariant())
         {
             case "character varying":
             case "varchar":

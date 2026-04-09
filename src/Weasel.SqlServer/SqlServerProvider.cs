@@ -87,7 +87,7 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
 
     public string ConvertSynonyms(string type)
     {
-        switch (type.ToLower())
+        switch (type.ToLowerInvariant())
         {
             case "text":
             case "varchar":
@@ -189,7 +189,7 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
 
     public static CascadeAction ReadAction(string description)
     {
-        switch (description.ToUpper().Trim())
+        switch (description.ToUpperInvariant().Trim())
         {
             case "CASCADE":
                 return CascadeAction.Cascade;

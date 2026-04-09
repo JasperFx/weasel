@@ -1,3 +1,4 @@
+using System.Globalization;
 using NetTopologySuite.Geometries;
 using Shouldly;
 using Weasel.Postgresql.Tables;
@@ -142,5 +143,24 @@ public class TableColumnTests
         var column = new TableColumn(keyword, "varchar");
 
         column.ToFunctionUpdate().ShouldBe($"\"{keyword}\" = p_{keyword}");
+    }
+
+    [Fact]
+    public void column_name_normalization_is_culture_invariant()
+    {
+        // In Turkish locale, "I".ToLower() produces dotless 'ı' (U+0131) instead of 'i',
+        // which would corrupt SQL identifiers like "INFORMATION_SCHEMA" → "ınformation_schema".
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("tr-TR");
+            var column = new TableColumn("INFORMATION_SCHEMA", "VARCHAR");
+            column.Name.ShouldBe("information_schema");
+            column.Type.ShouldBe("varchar");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 }

@@ -78,13 +78,13 @@ public abstract class
     {
         foreach (var file in FileSystem.FindFiles(directory, FileSet.Shallow("*.function")))
         {
-            var name = Path.GetFileNameWithoutExtension(file).ToLower();
+            var name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
             Templates[name].FunctionCreation = await File.ReadAllTextAsync(file, ct).ConfigureAwait(false);
         }
 
         foreach (var file in FileSystem.FindFiles(directory, FileSet.Shallow("*.table")))
         {
-            var name = Path.GetFileNameWithoutExtension(file).ToLower();
+            var name = Path.GetFileNameWithoutExtension(file).ToLowerInvariant();
 
             Templates[name].TableCreation = await File.ReadAllTextAsync(file, ct).ConfigureAwait(false);
         }

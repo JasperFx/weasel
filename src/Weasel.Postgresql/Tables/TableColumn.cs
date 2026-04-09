@@ -19,8 +19,8 @@ public class TableColumn: ITableColumn
             throw new ArgumentOutOfRangeException(nameof(type));
         }
 
-        Name = name.ToLower().Trim().Replace(' ', '_');
-        Type = type.ToLower();
+        Name = name.ToLowerInvariant().Trim().Replace(' ', '_');
+        Type = type.ToLowerInvariant();
     }
 
 
