@@ -137,6 +137,10 @@ await manager.DropPartitionFromAllTablesForValue(database, logger, "tenant_a", c
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlPartitioningSamples.cs#L103-L110' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_drop_partition' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Thread Safety
+
+`ManagedListPartitions` uses double-checked locking with a semaphore to safely initialize the partition map from the database. It is safe to call `InitializeAsync`, `AddPartitionToAllTables`, and `DropPartitionFromAllTablesForValue` concurrently from multiple threads.
+
 ## Delta Detection
 
 Weasel detects partition changes during migration. The `PartitionDelta` enum indicates:
