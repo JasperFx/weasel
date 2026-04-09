@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using JasperFx;
 using JasperFx.Core;
 using Npgsql;
@@ -221,6 +222,27 @@ $$;
         var dataSource = new NpgsqlDataSourceBuilder(connection.ConnectionString).Build();
         var builder = new NpgsqlConnectionStringBuilder(connection.ConnectionString);
         return new DatabaseWithTables(identifier ?? builder.Database ?? "weasel", dataSource);
+    }
+
+    public override string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true)
+    {
+        if (tables.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        sb.Append("TRUNCATE TABLE ");
+        sb.Append(string.Join(", ", tables.Select(t => t.QualifiedName)));
+
+        if (resetIdentity)
+        {
+            sb.Append(" RESTART IDENTITY");
+        }
+
+        sb.Append(" CASCADE;");
+
+        return sb.ToString();
     }
 
     public override IDatabaseWithTables CreateDatabase(DbDataSource dataSource, string? identifier = null)

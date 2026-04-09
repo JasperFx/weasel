@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using JasperFx;
 using JasperFx.Core;
 using Microsoft.Data.SqlClient;
@@ -165,6 +166,31 @@ IF NOT EXISTS ( SELECT  *
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);
+    }
+
+    public override string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true)
+    {
+        if (tables.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+
+        foreach (var table in tables)
+        {
+            sb.AppendLine($"DELETE FROM {table.QualifiedName};");
+        }
+
+        if (resetIdentity)
+        {
+            foreach (var table in tables)
+            {
+                sb.AppendLine($"BEGIN TRY DBCC CHECKIDENT('{table.QualifiedName}', RESEED, 0); END TRY BEGIN CATCH END CATCH;");
+            }
+        }
+
+        return sb.ToString();
     }
 
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
