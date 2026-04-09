@@ -133,7 +133,8 @@ export default withMermaid(
             { text: 'Table Mapping', link: '/efcore/table-mapping' },
             { text: 'Migrations', link: '/efcore/migrations' },
             { text: 'JSON Columns', link: '/efcore/json-columns' },
-            { text: 'Database Reset for Testing', link: '/efcore/database-cleaner' }
+            { text: 'Database Reset for Testing', link: '/efcore/database-cleaner' },
+            { text: 'Batch Queries', link: '/efcore/batch-queries' }
           ]
         }
       ],
