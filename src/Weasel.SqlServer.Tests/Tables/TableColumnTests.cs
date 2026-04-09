@@ -1,3 +1,4 @@
+using System.Globalization;
 using Shouldly;
 using Weasel.SqlServer.Tables;
 using Xunit;
@@ -133,5 +134,24 @@ public class TableColumnTests
         // AlterColumnTypeSql should generate SQL to change TO the expected type (this), not the actual
         table.ColumnFor(columnName)!.AlterColumnTypeSql(table, actualColumn)
             .ShouldBe($"alter table dbo.people alter column [{columnName}] varchar(200) NOT NULL;");
+    }
+
+    [Fact]
+    public void column_name_normalization_is_culture_invariant()
+    {
+        // In Turkish locale, "I".ToLower() produces dotless 'ı' (U+0131) instead of 'i',
+        // which would corrupt SQL identifiers like "INFORMATION_SCHEMA" → "ınformation_schema".
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("tr-TR");
+            var column = new TableColumn("INFORMATION_SCHEMA", "VARCHAR");
+            column.Name.ShouldBe("information_schema");
+            column.Type.ShouldBe("varchar");
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 }

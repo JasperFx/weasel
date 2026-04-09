@@ -11,7 +11,7 @@ public class Extension: ISchemaObject
 {
     public Extension(string extensionName)
     {
-        ExtensionName = extensionName.Trim().ToLower();
+        ExtensionName = extensionName.Trim().ToLowerInvariant();
     }
 
     public string ExtensionName { get; }

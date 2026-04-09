@@ -67,13 +67,13 @@ public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
     [MemberData(nameof(PostgresReservedKeywords))]
     public async Task verify_all_postgres_reserved_keywords_work_as_column_names(string keyword)
     {
-        var tableName = $"deltas.keyword_{keyword.ToLower()}";
+        var tableName = $"deltas.keyword_{keyword.ToLowerInvariant()}";
         var table = new Table(tableName);
         table.AddColumn<int>("id").AsPrimaryKey();
 
         await CreateSchemaObjectInDatabase(table);
 
-        table.AddColumn<string>(keyword.ToLower());
+        table.AddColumn<string>(keyword.ToLowerInvariant());
 
         await AssertNoDeltasAfterPatching(table);
     }

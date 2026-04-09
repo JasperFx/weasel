@@ -390,7 +390,7 @@ public class IndexDefinition: INamed
         while (tokens.Any())
         {
             var current = tokens.Dequeue();
-            switch (current.ToUpper())
+            switch (current.ToUpperInvariant())
             {
                 case "CREATE":
                 case "CONCURRENTLY":

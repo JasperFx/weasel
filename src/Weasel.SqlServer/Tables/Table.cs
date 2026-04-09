@@ -128,7 +128,7 @@ public partial class Table: ITable
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
             // drop all FK constraints
-            var sqlVariableName = $"@sql_{Guid.NewGuid().ToString().ToLower().Replace("-", "_")}";
+            var sqlVariableName = $"@sql_{Guid.NewGuid().ToString().ToLowerInvariant().Replace("-", "_")}";
             writer.WriteLine("DECLARE {0} NVARCHAR(MAX) = '';", sqlVariableName);
             writer.WriteLine("SELECT {0} = {1} + 'ALTER TABLE ' + QUOTENAME(OBJECT_SCHEMA_NAME(fk.parent_object_id)) + '.' + QUOTENAME(OBJECT_NAME(fk.parent_object_id)) + ' DROP CONSTRAINT ' + QUOTENAME(fk.name) + ';'",
                 sqlVariableName, sqlVariableName);
