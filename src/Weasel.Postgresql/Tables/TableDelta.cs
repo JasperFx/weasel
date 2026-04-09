@@ -23,6 +23,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
 
     internal ItemDelta<ForeignKey> ForeignKeys { get; private set; } = null!;
 
+    /// <summary>
+    ///     Foreign keys from OTHER tables that reference this table's primary key.
+    ///     When the PK changes, these must be dropped and recreated.
+    ///     Populated during <see cref="PostProcess" />.
+    /// </summary>
+    internal List<(Table OwnerTable, ForeignKey ForeignKey)> ReferencingForeignKeys { get; } = new();
+
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
 
     protected override SchemaPatchDifference compare(Table expected, Table? actual)
@@ -171,8 +178,17 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
                     break;
                 }
 
+                // CASCADE will also drop FKs from other tables that reference this PK.
+                // We must recreate those FKs after the PK is altered.
                 writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName} CASCADE;");
                 writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+
+                // Recreate foreign keys from other tables that were dropped by CASCADE
+                foreach (var (ownerTable, fk) in ReferencingForeignKeys)
+                {
+                    fk.WriteAddStatement(ownerTable, writer);
+                }
+
                 break;
 
             case SchemaPatchDifference.Create:
@@ -250,6 +266,28 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             // Correct the foreign keys
             ForeignKeys = new ItemDelta<ForeignKey>(Expected.ForeignKeys, Actual.ForeignKeys);
             Difference = compare(Expected, Actual);
+        }
+
+        // When this table's PK is changing, find FKs from other tables that reference it.
+        // Those FKs will be dropped by CASCADE and must be recreated after the PK is altered.
+        if (PrimaryKeyDifference is SchemaPatchDifference.Invalid or SchemaPatchDifference.Update
+            && Expected.PrimaryKeyColumns.Any())
+        {
+            foreach (var otherDelta in allDeltas.OfType<TableDelta>())
+            {
+                if (ReferenceEquals(otherDelta, this)) continue;
+
+                // Check expected FKs that reference this table
+                foreach (var fk in otherDelta.Expected.ForeignKeys)
+                {
+                    if (fk.LinkedTable != null &&
+                        fk.LinkedTable.QualifiedName.Equals(Expected.Identifier.QualifiedName,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        ReferencingForeignKeys.Add((otherDelta.Expected, fk));
+                    }
+                }
+            }
         }
     }
 
