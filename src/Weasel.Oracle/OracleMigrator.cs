@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using JasperFx;
 using JasperFx.Core;
 using Oracle.ManagedDataAccess.Client;
@@ -192,6 +193,23 @@ END;";
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);
+    }
+
+    public override string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true)
+    {
+        if (tables.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+
+        foreach (var table in tables)
+        {
+            sb.AppendLine($"DELETE FROM {table.QualifiedName};");
+        }
+
+        return sb.ToString();
     }
 
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)

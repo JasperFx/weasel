@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using JasperFx;
 using JasperFx.Core;
 using MySqlConnector;
@@ -153,6 +154,26 @@ public class MySqlMigrator: Migrator
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);
+    }
+
+    public override string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true)
+    {
+        if (tables.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("SET FOREIGN_KEY_CHECKS = 0;");
+
+        foreach (var table in tables)
+        {
+            sb.AppendLine($"TRUNCATE TABLE {table.QualifiedName};");
+        }
+
+        sb.AppendLine("SET FOREIGN_KEY_CHECKS = 1;");
+
+        return sb.ToString();
     }
 
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)

@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Text;
 using JasperFx;
 using JasperFx.Core;
 using Weasel.Core;
@@ -125,6 +126,29 @@ public class SqliteMigrator: Migrator
     public override Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
     {
         return Task.CompletedTask;
+    }
+
+    public override string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true)
+    {
+        if (tables.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+
+        foreach (var table in tables)
+        {
+            sb.AppendLine($"DELETE FROM \"{table.Name}\";");
+        }
+
+        if (resetIdentity)
+        {
+            var names = string.Join(", ", tables.Select(t => $"'{t.Name}'"));
+            sb.AppendLine($"DELETE FROM sqlite_sequence WHERE name IN ({names});");
+        }
+
+        return sb.ToString();
     }
 
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)

@@ -263,4 +263,14 @@ public abstract class
         throw new NotSupportedException(
             $"EnsureDatabaseExistsAsync is not supported by {GetType().Name}. Override this method in a provider-specific migrator.");
     }
+
+    /// <summary>
+    ///     Generates SQL to delete all data from the specified tables.
+    ///     Tables must be provided in deletion order (children first, parents last)
+    ///     so that foreign key constraints are respected.
+    /// </summary>
+    /// <param name="tables">Table identifiers in child-first deletion order</param>
+    /// <param name="resetIdentity">Whether to reset identity/sequence/autoincrement counters</param>
+    /// <returns>SQL string ready for execution</returns>
+    public abstract string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true);
 }
