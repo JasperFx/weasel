@@ -7,7 +7,7 @@ Weasel is a library for low level database development with Postgresql and Sql S
 
 Read also more in [Introducing Weasel for Database Development](https://jeremydmiller.com/2023/08/15/introducing-weasel-for-database-development/) by [Jeremy D. Miller](https://github.com/jeremydmiller).
 
-You can acccess the docs [here](https://weasel.jasperfx.net)
+You can acccess the docs [here](https://weasel.jasperfx.net).
 
 ## Support Plans
 
