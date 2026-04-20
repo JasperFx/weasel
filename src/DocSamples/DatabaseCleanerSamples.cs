@@ -97,4 +97,31 @@ public class DatabaseCleanerSamples
         await cleaner.ResetAllDataAsync(tenantConnection);
         #endregion
     }
+
+    public void register_lambda_initial_data()
+    {
+        #region sample_efcore_lambda_initial_data
+        var builder = Host.CreateDefaultBuilder();
+        builder.ConfigureServices(services =>
+        {
+            services.AddDbContext<ShopDbContext>(options =>
+                options.UseNpgsql("Host=localhost;Database=mydb"));
+
+            services.AddSingleton<Migrator, Weasel.Postgresql.PostgresqlMigrator>();
+            services.AddDatabaseCleaner<ShopDbContext>();
+
+            // Class-based seeder (as before)
+            services.AddInitialData<ShopDbContext, TestOrderSeedData>();
+
+            // Inline lambda seeder — registered as a singleton LambdaInitialData<T>.
+            // Runs alongside class-based seeders, in registration order, each time
+            // ResetAllDataAsync is invoked.
+            services.AddInitialData<ShopDbContext>(async (ctx, ct) =>
+            {
+                ctx.Customers.Add(new ShopCustomer { Name = "Inline Customer" });
+                await ctx.SaveChangesAsync(ct);
+            });
+        });
+        #endregion
+    }
 }

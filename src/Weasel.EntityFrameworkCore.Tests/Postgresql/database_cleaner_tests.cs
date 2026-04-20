@@ -10,6 +10,7 @@ using Xunit;
 
 namespace Weasel.EntityFrameworkCore.Tests.Postgresql;
 
+[Collection("FkDependencyDbContext")]
 public class database_cleaner_tests : IAsyncLifetime
 {
     private IHost _host = null!;
