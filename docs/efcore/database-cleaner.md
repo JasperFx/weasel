@@ -85,6 +85,39 @@ public class TestOrderSeedData : IInitialData<ShopDbContext>
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/DatabaseCleanerSamples.cs#L9-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_initial_data' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+### Inline lambda seeders
+
+For small amounts of seed data, authoring a dedicated `IInitialData<TContext>` class is often overkill. The `AddInitialData<TContext>(Func<TContext, CancellationToken, Task>)` overload wraps a delegate in a `LambdaInitialData<TContext>` and registers it as a singleton `IInitialData<TContext>`. Lambda and class-based seeders coexist and run in registration order:
+
+<!-- snippet: sample_efcore_lambda_initial_data -->
+<a id='snippet-sample_efcore_lambda_initial_data'></a>
+```cs
+var builder = Host.CreateDefaultBuilder();
+builder.ConfigureServices(services =>
+{
+    services.AddDbContext<ShopDbContext>(options =>
+        options.UseNpgsql("Host=localhost;Database=mydb"));
+
+    services.AddSingleton<Migrator, Weasel.Postgresql.PostgresqlMigrator>();
+    services.AddDatabaseCleaner<ShopDbContext>();
+
+    // Class-based seeder (as before)
+    services.AddInitialData<ShopDbContext, TestOrderSeedData>();
+
+    // Inline lambda seeder — registered as a singleton LambdaInitialData<T>.
+    // Runs alongside class-based seeders, in registration order, each time
+    // ResetAllDataAsync is invoked.
+    services.AddInitialData<ShopDbContext>(async (ctx, ct) =>
+    {
+        ctx.Customers.Add(new ShopCustomer { Name = "Inline Customer" });
+        await ctx.SaveChangesAsync(ct);
+    });
+});
+```
+<!-- endSnippet -->
+
+The lambda receives a scoped `TContext` and the caller's `CancellationToken`. Call `SaveChangesAsync` as normal — the cleaner does not wrap the seeder in a transaction.
+
 ## Multi-Tenancy
 
 For multi-tenant scenarios where each tenant has its own database, pass an explicit `DbConnection` to target a specific tenant:
