@@ -2,6 +2,113 @@
 
 The `ISchemaObject` interface is the foundation of Weasel's schema management. Every database object -- whether a table, sequence, function, view, stored procedure, or extension -- implements this interface, giving Weasel a uniform way to create, drop, inspect, and diff any object in any supported database.
 
+## Class Diagram
+
+```mermaid
+classDiagram
+    class ISchemaObject {
+        <<interface>>
+        +DbObjectName Identifier
+        +WriteCreateStatement(Migrator, TextWriter)
+        +WriteDropStatement(Migrator, TextWriter)
+        +ConfigureQueryCommand(DbCommandBuilder)
+        +CreateDeltaAsync(DbDataReader, CancellationToken) Task~ISchemaObjectDelta~
+        +AllNames() IEnumerable~DbObjectName~
+    }
+
+    class ISchemaObjectDelta {
+        <<interface>>
+        +ISchemaObject SchemaObject
+        +SchemaPatchDifference Difference
+        +WriteUpdate(Migrator, TextWriter)
+        +WriteRollback(Migrator, TextWriter)
+    }
+
+    class SchemaObjectDelta~T~ {
+        <<abstract>>
+        +T Expected
+        +T? Actual
+        #compare(T, T?) SchemaPatchDifference
+    }
+
+    class ITable {
+        <<interface>>
+        +PrimaryKeyColumns
+        +ForeignKeys
+        +AddColumn(name, type)
+        +AddForeignKey(...)
+    }
+
+    class IFeatureSchema {
+        <<interface>>
+        +ISchemaObject[] Objects
+        +string Identifier
+        +Migrator Migrator
+        +Type StorageType
+        +WritePermissions(Migrator, TextWriter)
+        +DependentTypes() IEnumerable~Type~
+    }
+
+    class FeatureSchemaBase {
+        <<abstract>>
+        #schemaObjects() IEnumerable~ISchemaObject~
+    }
+
+    class IDatabase {
+        <<interface>>
+        +AutoCreate AutoCreate
+        +Migrator Migrator
+        +BuildFeatureSchemas() IFeatureSchema[]
+        +AllObjects() IEnumerable~ISchemaObject~
+        +CreateMigrationAsync() Task~SchemaMigration~
+        +ApplyAllConfiguredChangesToDatabaseAsync()
+        +AssertDatabaseMatchesConfigurationAsync()
+    }
+
+    class SchemaMigration {
+        +IReadOnlyList~ISchemaObjectDelta~ Deltas
+        +SchemaPatchDifference Difference
+        +DetermineAsync(DbConnection, ISchemaObject[])$ Task~SchemaMigration~
+        +WriteAllUpdates(TextWriter, Migrator, AutoCreate)
+        +WriteAllRollbacks(TextWriter, Migrator)
+    }
+
+    class Migrator {
+        <<abstract>>
+        +string DefaultSchemaName
+        +IDatabaseProvider Provider
+        +CreateTable(DbObjectName) ITable
+        +ApplyAllAsync(DbConnection, SchemaMigration, AutoCreate)
+        +GenerateDeleteAllSql(IReadOnlyList~DbObjectName~, bool) string
+    }
+
+    ISchemaObject <|-- ITable
+    ISchemaObject <|.. Table_PG["Table (PostgreSQL)"]
+    ISchemaObject <|.. Table_SS["Table (SQL Server)"]
+    ISchemaObject <|.. Sequence
+    ISchemaObject <|.. Function
+    ISchemaObject <|.. View
+    ISchemaObject <|.. StoredProcedure
+    ISchemaObject <|.. Extension
+    ITable <|.. Table_PG
+    ITable <|.. Table_SS
+
+    ISchemaObjectDelta <|-- SchemaObjectDelta~T~
+    ISchemaObject ..> ISchemaObjectDelta : CreateDeltaAsync
+
+    IFeatureSchema <|-- FeatureSchemaBase
+    IFeatureSchema o-- ISchemaObject : Objects
+
+    IDatabase o-- IFeatureSchema : BuildFeatureSchemas
+    IDatabase --> Migrator
+    IDatabase --> SchemaMigration : CreateMigrationAsync
+
+    SchemaMigration o-- ISchemaObjectDelta : Deltas
+    Migrator ..> SchemaMigration : ApplyAllAsync
+```
+
+The diagram above shows the core type system. `ISchemaObject` implementations (tables, sequences, functions, etc.) produce `ISchemaObjectDelta` instances that describe the difference between expected and actual database state. These deltas are aggregated into a `SchemaMigration`, which the `Migrator` can apply. `IFeatureSchema` groups related schema objects, and `IDatabase` orchestrates the full migration lifecycle.
+
 ## The ISchemaObject Interface
 
 Defined in `Weasel.Core`, the interface looks like this:
