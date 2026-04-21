@@ -23,14 +23,14 @@ public class AssertCommand: JasperFxAsyncCommand<WeaselInput>
             {
                 await database.AssertDatabaseMatchesConfigurationAsync().ConfigureAwait(false);
                 AnsiConsole.MarkupLine(
-                    $"[green]No database differences detected for '{database.Identifier.EscapeMarkup()}'.[/]");
+                    $"[green]No database differences detected for '{Markup.Escape(database.Identifier)}'.[/]");
             }
             catch (DatabaseValidationException e)
             {
                 success = false;
 
                 AnsiConsole.MarkupLine(
-                    $"[red]Database '{database.Identifier.EscapeMarkup()}' does not match the configuration![/]");
+                    $"[red]Database '{Markup.Escape(database.Identifier)}' does not match the configuration![/]");
                 AnsiConsole.WriteException(e);
             }
         }
