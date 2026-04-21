@@ -8,103 +8,102 @@ The `ISchemaObject` interface is the foundation of Weasel's schema management. E
 classDiagram
     class ISchemaObject {
         <<interface>>
-        +DbObjectName Identifier
-        +WriteCreateStatement(Migrator, TextWriter)
-        +WriteDropStatement(Migrator, TextWriter)
-        +ConfigureQueryCommand(DbCommandBuilder)
-        +CreateDeltaAsync(DbDataReader, CancellationToken) Task~ISchemaObjectDelta~
-        +AllNames() IEnumerable~DbObjectName~
+        DbObjectName Identifier
+        WriteCreateStatement()
+        WriteDropStatement()
+        ConfigureQueryCommand()
+        CreateDeltaAsync() ISchemaObjectDelta
+        AllNames()
     }
 
     class ISchemaObjectDelta {
         <<interface>>
-        +ISchemaObject SchemaObject
-        +SchemaPatchDifference Difference
-        +WriteUpdate(Migrator, TextWriter)
-        +WriteRollback(Migrator, TextWriter)
+        ISchemaObject SchemaObject
+        SchemaPatchDifference Difference
+        WriteUpdate()
+        WriteRollback()
     }
 
-    class SchemaObjectDelta~T~ {
+    class SchemaObjectDelta_T {
         <<abstract>>
-        +T Expected
-        +T? Actual
-        #compare(T, T?) SchemaPatchDifference
+        T Expected
+        T Actual
+        compare()
     }
 
     class ITable {
         <<interface>>
-        +PrimaryKeyColumns
-        +ForeignKeys
-        +AddColumn(name, type)
-        +AddForeignKey(...)
+        PrimaryKeyColumns
+        ForeignKeys
+        AddColumn()
+        AddForeignKey()
     }
 
     class IFeatureSchema {
         <<interface>>
-        +ISchemaObject[] Objects
-        +string Identifier
-        +Migrator Migrator
-        +Type StorageType
-        +WritePermissions(Migrator, TextWriter)
-        +DependentTypes() IEnumerable~Type~
+        ISchemaObject[] Objects
+        string Identifier
+        Migrator Migrator
+        WritePermissions()
+        DependentTypes()
     }
 
     class FeatureSchemaBase {
         <<abstract>>
-        #schemaObjects() IEnumerable~ISchemaObject~
+        schemaObjects()
     }
 
     class IDatabase {
         <<interface>>
-        +AutoCreate AutoCreate
-        +Migrator Migrator
-        +BuildFeatureSchemas() IFeatureSchema[]
-        +AllObjects() IEnumerable~ISchemaObject~
-        +CreateMigrationAsync() Task~SchemaMigration~
-        +ApplyAllConfiguredChangesToDatabaseAsync()
-        +AssertDatabaseMatchesConfigurationAsync()
+        AutoCreate AutoCreate
+        Migrator Migrator
+        BuildFeatureSchemas()
+        AllObjects()
+        CreateMigrationAsync()
+        ApplyAllConfiguredChangesToDatabaseAsync()
+        AssertDatabaseMatchesConfigurationAsync()
     }
 
     class SchemaMigration {
-        +IReadOnlyList~ISchemaObjectDelta~ Deltas
-        +SchemaPatchDifference Difference
-        +DetermineAsync(DbConnection, ISchemaObject[])$ Task~SchemaMigration~
-        +WriteAllUpdates(TextWriter, Migrator, AutoCreate)
-        +WriteAllRollbacks(TextWriter, Migrator)
+        ISchemaObjectDelta[] Deltas
+        SchemaPatchDifference Difference
+        DetermineAsync()
+        WriteAllUpdates()
+        WriteAllRollbacks()
     }
 
     class Migrator {
         <<abstract>>
-        +string DefaultSchemaName
-        +IDatabaseProvider Provider
-        +CreateTable(DbObjectName) ITable
-        +ApplyAllAsync(DbConnection, SchemaMigration, AutoCreate)
-        +GenerateDeleteAllSql(IReadOnlyList~DbObjectName~, bool) string
+        string DefaultSchemaName
+        IDatabaseProvider Provider
+        CreateTable() ITable
+        ApplyAllAsync()
+        GenerateDeleteAllSql()
     }
 
     ISchemaObject <|-- ITable
-    ISchemaObject <|.. Table_PG["Table (PostgreSQL)"]
-    ISchemaObject <|.. Table_SS["Table (SQL Server)"]
+    ISchemaObject <|.. PostgresqlTable
+    ISchemaObject <|.. SqlServerTable
     ISchemaObject <|.. Sequence
     ISchemaObject <|.. Function
     ISchemaObject <|.. View
     ISchemaObject <|.. StoredProcedure
     ISchemaObject <|.. Extension
-    ITable <|.. Table_PG
-    ITable <|.. Table_SS
+    ITable <|.. PostgresqlTable
+    ITable <|.. SqlServerTable
 
-    ISchemaObjectDelta <|-- SchemaObjectDelta~T~
-    ISchemaObject ..> ISchemaObjectDelta : CreateDeltaAsync
+    ISchemaObjectDelta <|-- SchemaObjectDelta_T
+    ISchemaObject ..> ISchemaObjectDelta : creates
 
     IFeatureSchema <|-- FeatureSchemaBase
-    IFeatureSchema o-- ISchemaObject : Objects
+    IFeatureSchema o-- ISchemaObject : contains
 
-    IDatabase o-- IFeatureSchema : BuildFeatureSchemas
+    IDatabase o-- IFeatureSchema : builds
     IDatabase --> Migrator
-    IDatabase --> SchemaMigration : CreateMigrationAsync
+    IDatabase --> SchemaMigration : creates
 
-    SchemaMigration o-- ISchemaObjectDelta : Deltas
-    Migrator ..> SchemaMigration : ApplyAllAsync
+    SchemaMigration o-- ISchemaObjectDelta : aggregates
+    Migrator ..> SchemaMigration : applies
 ```
 
 The diagram above shows the core type system. `ISchemaObject` implementations (tables, sequences, functions, etc.) produce `ISchemaObjectDelta` instances that describe the difference between expected and actual database state. These deltas are aggregated into a `SchemaMigration`, which the `Migrator` can apply. `IFeatureSchema` groups related schema objects, and `IDatabase` orchestrates the full migration lifecycle.
@@ -167,37 +166,17 @@ The `Difference` property tells you the outcome of the comparison using `SchemaP
 | `Update` | The object exists but differs from the configuration. An incremental update is possible. |
 | `Invalid` | The object exists but cannot be updated incrementally. A full recreation may be required. |
 
-## Object Hierarchy
+## Provider Implementations
 
-The following diagram shows how concrete schema objects relate to `ISchemaObject` and the `ITable` sub-interface:
+Each database provider supplies its own concrete implementations of `ISchemaObject`. For example, PostgreSQL tables live in `Weasel.Postgresql.Tables.Table`, while SQL Server tables are in `Weasel.SqlServer.Tables.Table`. Both implement `ITable` (which extends `ISchemaObject`), but each adds provider-specific features like PostgreSQL partitioning or SQL Server clustered indexes.
 
-```mermaid
-classDiagram
-    class ISchemaObject {
-        +DbObjectName Identifier
-        +WriteCreateStatement()
-        +WriteDropStatement()
-        +CreateDeltaAsync()
-    }
-    class ITable {
-        +PrimaryKeyColumns
-        +AddColumn()
-        +AddForeignKey()
-    }
-    ISchemaObject <|-- ITable
-    ISchemaObject <|.. Table_PG["Table (PostgreSQL)"]
-    ISchemaObject <|.. Table_SS["Table (SQL Server)"]
-    ISchemaObject <|.. Sequence
-    ISchemaObject <|.. Function
-    ISchemaObject <|.. View
-    ISchemaObject <|.. StoredProcedure
-    ISchemaObject <|.. Extension
-    ISchemaObject <|.. TableType
-    ITable <|.. Table_PG
-    ITable <|.. Table_SS
-```
-
-Each database provider supplies its own implementations. For example, PostgreSQL tables live in `Weasel.Postgresql.Tables.Table`, while SQL Server tables are `Weasel.SqlServer.Tables.Table`. Both implement `ITable` (which extends `ISchemaObject`), but each adds provider-specific features like PostgreSQL partitioning or SQL Server clustered indexes.
+| Provider | Table | Sequence | Function | Stored Procedure | View | Other |
+|----------|-------|----------|----------|-----------------|------|-------|
+| PostgreSQL | `Table` | `Sequence` | `Function` | -- | `View` | `Extension` |
+| SQL Server | `Table` | `Sequence` | `Function` | `StoredProcedure` | -- | `TableType` |
+| Oracle | `Table` | `Sequence` | -- | -- | -- | -- |
+| MySQL | `Table` | `Sequence` | -- | -- | -- | -- |
+| SQLite | `Table` | -- | -- | -- | `View` | -- |
 
 ## SchemaObjectDelta&lt;T&gt;
 
