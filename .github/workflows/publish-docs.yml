@@ -1,13 +1,6 @@
 name: Publish Docs
 
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'docs/**'
-      - 'src/DocSamples/**'
-      - 'mdsnippets.json'
-      - 'package.json'
   workflow_dispatch:
 
 concurrency:
