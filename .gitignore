@@ -13,6 +13,11 @@
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
+# Editor swap files (vim, etc.)
+*.swp
+*.swo
+*~
+
 # Mono auto generated files
 mono_crash.*
 
