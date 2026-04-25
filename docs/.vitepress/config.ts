@@ -6,11 +6,11 @@ export default withMermaid(
     title: 'Weasel',
     description: 'Database schema management and migration for .NET',
     head: [
-      ['link', { rel: 'icon', href: '/jasperfx-logo.png' }]
+      ['link', { rel: 'icon', href: '/weasel.png' }]
     ],
 
     themeConfig: {
-      logo: '/jasperfx-logo.png',
+      logo: '/weasel.png',
 
       nav: [
         { text: 'Guide', link: '/guide/' },

@@ -1,30 +1,115 @@
 :root {
-  --vp-c-brand-1: #C26A1A;
-  --vp-c-brand-2: #D4782B;
-  --vp-c-brand-3: #E08A3D;
-  --vp-c-brand-soft: rgba(194, 106, 26, 0.14);
+  /* Logo sample is #603838 (cool dark brown). For the doc theme we shift the
+     hue toward warm copper/cinnamon and lift the lightness so light mode
+     reads warm and alive instead of dead-brown. Same family, brighter face. */
+  --weasel-brown: #8A4423;        /* warm copper for buttons */
+  --weasel-brown-hover: #A85932;  /* hover lift */
+  --weasel-brown-active: #6E3418; /* press */
 
-  --vp-home-hero-name-color: transparent;
-  --vp-home-hero-name-background: linear-gradient(135deg, #C26A1A 0%, #E08A3D 100%);
-  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(194, 106, 26, 0.3) 0%, rgba(224, 138, 61, 0.2) 100%);
+  /* brand-1 used for links/inline accents — warmer + brighter for body copy */
+  --vp-c-brand-1: #A85932;
+  --vp-c-brand-2: #BF6B40;
+  --vp-c-brand-3: var(--weasel-brown);
+  --vp-c-brand-soft: rgba(168, 89, 50, 0.14);
+
+  --vp-c-tip-1: #A85932;
+  --vp-c-tip-2: #BF6B40;
+  --vp-c-tip-3: var(--weasel-brown);
+  --vp-c-tip-soft: rgba(168, 89, 50, 0.14);
+
+  /* Force warning + danger to real amber/red so neither reads as brand brown */
+  --vp-c-warning-1: #C68A26;
+  --vp-c-warning-2: #DDA13B;
+  --vp-c-warning-3: #A87216;
+  --vp-c-warning-soft: rgba(230, 162, 60, 0.14);
+
+  --vp-c-danger-1: #D63333;
+  --vp-c-danger-2: #E14444;
+  --vp-c-danger-3: #B82828;
+  --vp-c-danger-soft: rgba(214, 51, 51, 0.14);
+
+  /* Hero name matches the Get Started button background (warm copper) */
+  --vp-home-hero-name-color: var(--weasel-brown);
+  --vp-home-hero-name-background: none;
+  --vp-home-hero-image-background-image: rgba(168, 89, 50, 0.20);
   --vp-home-hero-image-filter: blur(44px);
 
   --vp-button-brand-border: transparent;
   --vp-button-brand-text: #fff;
-  --vp-button-brand-bg: #C26A1A;
+  --vp-button-brand-bg: var(--weasel-brown);
   --vp-button-brand-hover-border: transparent;
   --vp-button-brand-hover-text: #fff;
-  --vp-button-brand-hover-bg: #D4782B;
+  --vp-button-brand-hover-bg: var(--weasel-brown-hover);
   --vp-button-brand-active-border: transparent;
   --vp-button-brand-active-text: #fff;
-  --vp-button-brand-active-bg: #A85A16;
+  --vp-button-brand-active-bg: var(--weasel-brown-active);
 }
 
 .dark {
-  --vp-c-brand-1: #D4782B;
-  --vp-c-brand-2: #E08A3D;
-  --vp-c-brand-3: #ECA050;
-  --vp-c-brand-soft: rgba(212, 120, 43, 0.16);
+  /* Warm red-brown — blue channel lifted closer to green so the hue reads
+     as brown rather than orange. Still warm and readable on dark surfaces. */
+  --vp-c-brand-1: #B47868;
+  --vp-c-brand-2: #C28876;
+  --vp-c-brand-3: #8E5C4E;
+  --vp-c-brand-soft: rgba(180, 120, 104, 0.22);
 
-  --vp-home-hero-image-background-image: linear-gradient(135deg, rgba(194, 106, 26, 0.2) 0%, rgba(224, 138, 61, 0.15) 100%);
+  --vp-c-tip-1: #B47868;
+  --vp-c-tip-2: #C28876;
+  --vp-c-tip-3: #8E5C4E;
+  --vp-c-tip-soft: rgba(180, 120, 104, 0.22);
+
+  /* Force warning + danger to vivid amber/red, distinct from brand brown.
+     In dark mode the soft alpha needs to be high enough that the bg overlay
+     reads as red/amber (not muddy brown) against the near-black surface. */
+  --vp-c-warning-1: #FCD34D;
+  --vp-c-warning-2: #FBBF24;
+  --vp-c-warning-3: #F59E0B;
+  --vp-c-warning-soft: rgba(251, 191, 36, 0.16);
+
+  --vp-c-danger-1: #FCA5A5;
+  --vp-c-danger-2: #F87171;
+  --vp-c-danger-3: #EF4444;
+  --vp-c-danger-soft: rgba(248, 113, 113, 0.16);
+
+  /* Override the custom-block tokens directly so callout boxes can't fall
+     back to brand-derived defaults */
+  --vp-custom-block-warning-border: #F59E0B;
+  --vp-custom-block-warning-text: #FCD34D;
+  --vp-custom-block-warning-bg: rgba(245, 158, 11, 0.14);
+  --vp-custom-block-warning-code-bg: rgba(245, 158, 11, 0.22);
+
+  --vp-custom-block-danger-border: #EF4444;
+  --vp-custom-block-danger-text: #FCA5A5;
+  --vp-custom-block-danger-bg: rgba(239, 68, 68, 0.14);
+  --vp-custom-block-danger-code-bg: rgba(239, 68, 68, 0.24);
+
+  /* Hero name matches the Get Started button background (warm red-brown) */
+  --vp-home-hero-name-color: #A87060;
+  --vp-home-hero-image-background-image: rgba(180, 120, 104, 0.22);
+
+  --vp-button-brand-bg: #A87060;
+  --vp-button-brand-hover-bg: #B68472;
+  --vp-button-brand-active-bg: var(--weasel-brown);
+}
+
+.VPNavBarTitle .logo,
+.VPNavBar .logo {
+  height: 42px;
+  width: 42px;
+}
+
+/* Inline code — boost contrast against body text in both modes */
+:not(pre) > code {
+  color: var(--weasel-brown-active);
+  background-color: #F4E5D2;
+  border: 1px solid #D9B89C;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.dark :not(pre) > code {
+  color: #E8B89E;
+  background-color: rgba(180, 120, 104, 0.22);
+  border-color: rgba(180, 120, 104, 0.40);
 }

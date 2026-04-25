@@ -6,7 +6,7 @@ hero:
   text: Database Schema Management for .NET
   tagline: Programmatic schema definitions, automatic migrations with delta detection, and ADO.NET helpers across PostgreSQL, SQL Server, Oracle, MySQL, and SQLite.
   image:
-    src: /jasperfx-logo.png
+    src: /weasel.png
     alt: Weasel
   actions:
     - theme: brand
