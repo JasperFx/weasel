@@ -1,4 +1,5 @@
-name: Publish Docs
+name: Docs build and deploy
+run-name: Docs build and deploy
 
 on:
   workflow_dispatch:
