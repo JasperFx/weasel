@@ -1,3 +1,7 @@
+<div align="center">
+    <img src="docs/public/weasel.png" alt="Weasel logo" width="200">
+</div>
+
 # Weasel
 
 [![Nuget Package](https://badgen.net/nuget/v/weasel.core)](https://www.nuget.org/packages/Weasel.Core/)
