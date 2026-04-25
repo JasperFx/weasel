@@ -10,22 +10,26 @@ on:
       - 'package.json'
   workflow_dispatch:
 
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
 
 jobs:
-  publish:
-    name: Build and deploy docs to Netlify
+  deploy:
+    name: Build and deploy docs to Cloudflare Pages
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          fetch-depth: 0
 
       - name: Install .NET 9.0.x
         uses: actions/setup-dotnet@v4
@@ -41,10 +45,16 @@ jobs:
         run: dotnet build src/DocSamples/DocSamples.csproj -c Release
 
       - name: Install mdsnippets
-        run: dotnet tool install -g markdownSnippets.tool
+        run: dotnet tool install -g MarkdownSnippets.Tool
 
       - name: Run mdsnippets
         run: mdsnippets
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
       - name: Install npm dependencies
         run: npm ci
@@ -52,11 +62,10 @@ jobs:
       - name: Build VitePress site
         run: npx vitepress build docs
 
-      - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@v3
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
         with:
-          publish-dir: docs/.vitepress/dist
-          production-deploy: true
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          packageManager: npm
+          command: pages deploy docs/.vitepress/dist --project-name=jasperfx-weasel --branch=master

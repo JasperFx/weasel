@@ -1,4 +1,5 @@
 {
+  "name": "weasel",
   "private": true,
   "scripts": {
     "mdsnippets": "mdsnippets",
@@ -9,6 +10,7 @@
     "concurrently": "^9.1.2",
     "vitepress": "^1.6.3",
     "vitepress-plugin-mermaid": "^2.0.17",
-    "mermaid": "^11.4.1"
+    "mermaid": "^11.4.1",
+    "wrangler": "^4.0.0"
   }
 }
