@@ -23,7 +23,7 @@ flowchart TD
 `IDatabase` (in `Weasel.Core.Migrations`) is the central interface for managing a database's schema lifecycle:
 
 <!-- snippet: sample_IDatabase_interface -->
-<a id='snippet-sample_idatabase_interface'></a>
+<a id='snippet-sample_IDatabase_interface'></a>
 ```cs
 public interface IDatabase_Sample
 {
@@ -48,7 +48,7 @@ public interface IDatabase_Sample
     string ToDatabaseScript();
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L8-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_idatabase_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L8-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IDatabase_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Key methods:
@@ -66,7 +66,7 @@ Key methods:
 An `IFeatureSchema` groups related schema objects together (for example, all the tables and indexes for a document storage feature):
 
 <!-- snippet: sample_IFeatureSchema_interface -->
-<a id='snippet-sample_ifeatureschema_interface'></a>
+<a id='snippet-sample_IFeatureSchema_interface'></a>
 ```cs
 public interface IFeatureSchema_Sample
 {
@@ -76,7 +76,7 @@ public interface IFeatureSchema_Sample
     Type StorageType { get; }
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L33-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ifeatureschema_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L33-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IFeatureSchema_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Weasel processes features in the order returned by `BuildFeatureSchemas()`, so dependency relationships between features should be reflected by their position in the array.
@@ -186,7 +186,7 @@ var script = database.ToDatabaseScript();
 Implement `IMigrationLogger` to capture the SQL that Weasel generates:
 
 <!-- snippet: sample_IMigrationLogger_interface -->
-<a id='snippet-sample_imigrationlogger_interface'></a>
+<a id='snippet-sample_IMigrationLogger_interface'></a>
 ```cs
 public interface IMigrationLogger_Sample
 {
@@ -194,7 +194,7 @@ public interface IMigrationLogger_Sample
     void OnFailure(DbCommand command, Exception ex);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L43-L49' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_imigrationlogger_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L43-L49' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IMigrationLogger_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The default logger writes SQL to `Console.WriteLine` and rethrows exceptions.

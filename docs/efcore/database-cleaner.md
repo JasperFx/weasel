@@ -114,6 +114,7 @@ builder.ConfigureServices(services =>
     });
 });
 ```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/DatabaseCleanerSamples.cs#L103-L125' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_lambda_initial_data' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The lambda receives a scoped `TContext` and the caller's `CancellationToken`. Call `SaveChangesAsync` as normal — the cleaner does not wrap the seeder in a transaction.

@@ -113,7 +113,7 @@ The diagram above shows the core type system. `ISchemaObject` implementations (t
 Defined in `Weasel.Core`, the interface looks like this:
 
 <!-- snippet: sample_ISchemaObject_interface -->
-<a id='snippet-sample_ischemaobject_interface'></a>
+<a id='snippet-sample_ISchemaObject_interface'></a>
 ```cs
 public interface ISchemaObject_Sample
 {
@@ -126,7 +126,7 @@ public interface ISchemaObject_Sample
     IEnumerable<DbObjectName> AllNames();
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L6-L17' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ischemaobject_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L6-L17' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ISchemaObject_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 | Member | Purpose |
@@ -143,7 +143,7 @@ public interface ISchemaObject_Sample
 When Weasel compares what you *configured* against what *actually exists* in the database, the result is an `ISchemaObjectDelta`:
 
 <!-- snippet: sample_ISchemaObjectDelta_interface -->
-<a id='snippet-sample_ischemaobjectdelta_interface'></a>
+<a id='snippet-sample_ISchemaObjectDelta_interface'></a>
 ```cs
 public interface ISchemaObjectDelta_Sample
 {
@@ -154,7 +154,7 @@ public interface ISchemaObjectDelta_Sample
     void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L19-L28' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ischemaobjectdelta_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L19-L28' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ISchemaObjectDelta_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The `Difference` property tells you the outcome of the comparison using `SchemaPatchDifference`:
@@ -183,7 +183,7 @@ Each database provider supplies its own concrete implementations of `ISchemaObje
 Weasel provides a generic base class `SchemaObjectDelta<T>` that simplifies building deltas for a specific schema object type:
 
 <!-- snippet: sample_SchemaObjectDelta_base_class -->
-<a id='snippet-sample_schemaobjectdelta_base_class'></a>
+<a id='snippet-sample_SchemaObjectDelta_base_class'></a>
 ```cs
 public abstract class SchemaObjectDelta_Sample<T> : ISchemaObjectDelta where T : ISchemaObject
 {
@@ -199,7 +199,7 @@ public abstract class SchemaObjectDelta_Sample<T> : ISchemaObjectDelta where T :
     public abstract void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L30-L44' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_schemaobjectdelta_base_class' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L30-L44' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_SchemaObjectDelta_base_class' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The constructor calls `compare()` to determine the `Difference` between the expected and actual objects. If `Actual` is null, the object does not exist yet and the difference is `Create`.
@@ -209,14 +209,14 @@ The constructor calls `compare()` to determine the `Difference` between the expe
 Some schema objects need to examine other objects before they can finalize their own configuration. For example, PostgreSQL partitioned tables may need to adjust foreign key definitions based on the partition strategy of related tables.
 
 <!-- snippet: sample_ISchemaObjectWithPostProcessing_interface -->
-<a id='snippet-sample_ischemaobjectwithpostprocessing_interface'></a>
+<a id='snippet-sample_ISchemaObjectWithPostProcessing_interface'></a>
 ```cs
 public interface ISchemaObjectWithPostProcessing_Sample : ISchemaObject
 {
     void PostProcess(ISchemaObject[] allObjects);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L46-L51' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ischemaobjectwithpostprocessing_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaObjectSamples.cs#L46-L51' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ISchemaObjectWithPostProcessing_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The migration infrastructure calls `PostProcess()` after all objects have been loaded, passing the full array of schema objects so the implementing object can make any cross-object adjustments.
