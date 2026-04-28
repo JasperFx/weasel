@@ -9,6 +9,8 @@ namespace Weasel.Postgresql;
 public sealed class AdvisoryLockOptions
 {
     public bool LockMonitoringEnabled { get; set; }
+
+    public bool TransactionalLockEnabled { get; set; }
 }
 
 
@@ -26,7 +28,10 @@ public class AdvisoryLock : IAdvisoryLock
 
         _distributedLockProviders = new LightweightCache<int, PostgresDistributedLock>(
             (lockId => new PostgresDistributedLock(new PostgresAdvisoryLockKey(lockId),
-                EnsurePrimaryWhenMultiHost(dataSource))));
+                EnsurePrimaryWhenMultiHost(dataSource), builder =>
+                {
+                    builder.UseTransaction(options.TransactionalLockEnabled);
+                })));
         _databaseName = databaseName;
         _options = options;
     }
