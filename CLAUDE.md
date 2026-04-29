@@ -13,7 +13,7 @@ Weasel is a low-level database abstraction and schema migration library for .NET
 
 ## Technology Stack
 
-- **Language:** C# 13.0 / .NET 8.0, 9.0, 10.0
+- **Language:** C# 13.0 / .NET 9.0, 10.0
 - **Nullable Reference Types:** Enabled (required throughout)
 - **PostgreSQL:** Npgsql driver with NetTopologySuite support
 - **SQL Server:** Microsoft.Data.SqlClient
@@ -73,7 +73,7 @@ dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj
 dotnet test src/Weasel.Sqlite.Tests/Weasel.Sqlite.Tests.csproj
 
 # Target specific framework
-dotnet test --framework net8.0
+dotnet test --framework net9.0
 ```
 
 **Database Setup for Integration Tests:**
@@ -154,7 +154,7 @@ GitHub Actions workflows:
 - `publish_nuget.yml` - NuGet publishing
 
 **SQLite CI Workflow:**
-The SQLite workflow tests on multiple operating systems (Ubuntu, Windows, macOS) and all supported .NET versions (8.0, 9.0, 10.0) to ensure cross-platform compatibility. SQLite tests require no database services since SQLite is file-based and embedded.
+The SQLite workflow tests on multiple operating systems (Ubuntu, Windows, macOS) and all supported .NET versions (9.0, 10.0) to ensure cross-platform compatibility. SQLite tests require no database services since SQLite is file-based and embedded.
 
 ## Version
 

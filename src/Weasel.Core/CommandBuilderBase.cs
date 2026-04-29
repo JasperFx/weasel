@@ -351,34 +351,6 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
         return AppendWithParameters(text, separator);
     }
 
-#if NET6_0 || NET7_0
-    /// <summary>
-    ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
-    ///     array of the newly created parameters
-    /// </summary>
-    /// <param name="text"></param>
-    /// <param name="separator"></param>
-    /// <returns></returns>
-    public TParameter[] AppendWithParameters(string text, char separator)
-    {
-        var split = text.Split(separator);
-        var parameters = new TParameter[split.Length - 1];
-
-        _sql.Append(split[0]);
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            // Just need a placeholder parameter type and value
-            var parameter = AddParameter(DBNull.Value, _provider.StringParameterType);
-            parameters[i] = parameter;
-            _sql.Append(_parameterPrefix);
-            _sql.Append(parameter.ParameterName);
-            _sql.Append(split[i + 1]);
-        }
-
-        return parameters;
-    }
-#else
-
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
     ///     array of the newly created parameters
@@ -415,7 +387,6 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
 
         return parameters;
     }
-#endif
 }
 
 // Note: Those methods are intentionally not written as extension methods

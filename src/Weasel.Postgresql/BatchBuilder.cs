@@ -132,24 +132,6 @@ public class BatchBuilder: ICommandBuilder
         return AppendWithParameters(text, '?');
     }
 
-#if NET6_0 || NET7_0
-    public NpgsqlParameter[] AppendWithParameters(string text, char placeholder)
-    {
-        var split = text.Split(placeholder);
-        var parameters = new NpgsqlParameter[split.Length - 1];
-
-        _builder.Append(split[0]);
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, NpgsqlDbType.Text);
-            parameters[i] = parameter;
-            _builder.Append(split[i + 1]);
-        }
-
-        return parameters;
-    }
-#else
     public NpgsqlParameter[] AppendWithParameters(string text, char separator)
     {
         var span = text.AsSpan();
@@ -177,7 +159,7 @@ public class BatchBuilder: ICommandBuilder
 
         return parameters;
     }
-#endif
+
     public void StartNewCommand()
     {
         if (_current != null)

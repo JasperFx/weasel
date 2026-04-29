@@ -155,24 +155,6 @@ public class BatchBuilder: ICommandBuilder
         return AppendWithParameters(text, '?');
     }
 
-#if NET8_0
-    public SqlParameter[] AppendWithParameters(string text, char placeholder)
-    {
-        var split = text.Split(placeholder);
-        var parameters = new SqlParameter[split.Length - 1];
-
-        _builder.Append(split[0]);
-        for (var i = 0; i < parameters.Length; i++)
-        {
-            // Just need a placeholder parameter type and value
-            var parameter = AppendParameter<object>(DBNull.Value, SqlDbType.NVarChar);
-            parameters[i] = parameter;
-            _builder.Append(split[i + 1]);
-        }
-
-        return parameters;
-    }
-#else
     public SqlParameter[] AppendWithParameters(string text, char separator)
     {
         var span = text.AsSpan();
@@ -200,7 +182,6 @@ public class BatchBuilder: ICommandBuilder
 
         return parameters;
     }
-#endif
 
     public void StartNewCommand()
     {

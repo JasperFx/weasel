@@ -28,8 +28,8 @@
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
-  <!-- EF Core 9.x for net8.0 and net9.0 -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0' or '$(TargetFramework)' == 'net9.0'">
+  <!-- EF Core 9.x for net9.0 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
