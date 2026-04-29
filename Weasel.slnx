@@ -1,0 +1,64 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/Attached/">
+    <Project Path="../jasperfx/src/JasperFx.SourceGeneration/JasperFx.SourceGeneration.csproj" />
+    <Project Path="../jasperfx/src/JasperFx/JasperFx.csproj" />
+  </Folder>
+  <Folder Name="/Build/">
+    <File Path=".editorconfig" />
+    <File Path=".github/workflows/ci-build-mssql.yml" />
+    <File Path=".github/workflows/ci-build-mysql.yml" />
+    <File Path=".github/workflows/ci-build-oracle.yml" />
+    <File Path=".github/workflows/ci-build-postgres.yml" />
+    <File Path=".github/workflows/publish_nuget.yml" />
+    <File Path="Analysis.Build.props" />
+    <File Path="Directory.Build.props" />
+    <File Path="docker-compose.yml" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/CI/">
+    <File Path=".github/workflows/ci-build-mssql.yml" />
+    <File Path=".github/workflows/ci-build-postgres.yml" />
+    <File Path=".github/workflows/publish_nuget.yml" />
+  </Folder>
+  <Folder Name="/CommandLine/">
+    <Project Path="src/CommandLineTarget/CommandLineTarget.csproj" />
+    <Project Path="src/Weasel.CommandLine.Tests/Weasel.CommandLine.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Docs/">
+    <File Path="CLAUDE.md" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/EntityFrameworkCore/">
+    <Project Path="src/DocSamples/DocSamples.csproj" />
+    <Project Path="src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj" />
+    <Project Path="src/Weasel.EntityFrameworkCore/Weasel.EntityFrameworkCore.csproj" />
+  </Folder>
+  <Folder Name="/MySQL/">
+    <Project Path="src/Weasel.MySql.Tests/Weasel.MySql.Tests.csproj" />
+    <Project Path="src/Weasel.MySql/Weasel.MySql.csproj" />
+  </Folder>
+  <Folder Name="/Oracle/">
+    <Project Path="src/Weasel.Oracle.Tests/Weasel.Oracle.Tests.csproj" />
+    <Project Path="src/Weasel.Oracle/Weasel.Oracle.csproj" />
+  </Folder>
+  <Folder Name="/PostgreSQL/">
+    <Project Path="src/Weasel.Postgresql.Tests/Weasel.Postgresql.Tests.csproj" />
+    <Project Path="src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
+  </Folder>
+  <Folder Name="/Sqlite/">
+    <Project Path="src/Weasel.Sqlite.Tests/Weasel.Sqlite.Tests.csproj" />
+    <Project Path="src/Weasel.Sqlite/Weasel.Sqlite.csproj" />
+  </Folder>
+  <Folder Name="/SqlServer/">
+    <Project Path="src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj" />
+    <Project Path="src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Project Path="src/Weasel.Core.Tests/Weasel.Core.Tests.csproj" />
+  <Project Path="src/Weasel.Core/Weasel.Core.csproj" />
+</Solution>

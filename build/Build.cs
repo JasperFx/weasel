@@ -11,7 +11,9 @@ class Build: NukeBuild
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
-    [Solution] readonly Solution Solution;
+    [Solution(SuppressBuildProjectCheck = true)] readonly Solution Solution;
+    string SolutionPath => RootDirectory / "Weasel.slnx";
+    string WeaselCorePath => RootDirectory / "src" / "Weasel.Core" / "Weasel.Core.csproj";
 
     Target Clean => _ => _
         .Before(Restore)
@@ -52,10 +54,9 @@ class Build: NukeBuild
             }
         }
 
-        var weaselCore = Solution.GetProject("Weasel.Core").Path;
         foreach (var nuget in Nugets)
         {
-            DotNet($"remove {weaselCore} package {nuget}");
+            DotNet($"remove {WeaselCorePath} package {nuget}");
         }
     });
 
@@ -69,40 +70,33 @@ class Build: NukeBuild
             }
         }
 
-        var weaselCore = Solution.GetProject("Weasel.Core").Path;
         foreach (var nuget in Nugets)
         {
-            DotNet($"add {weaselCore} package {nuget} --prerelease");
+            DotNet($"add {WeaselCorePath} package {nuget} --prerelease");
         }
     });
 
     private void addProject(string repository, string projectName)
     {
-        var path =  Path.GetFullPath($"../{repository}/src/{projectName}/{projectName}.csproj");;
-        var slnPath = Solution.Path;
-        DotNet($"sln {slnPath} add {path} --solution-folder Attached");
+        var path =  Path.GetFullPath((string)(RootDirectory / ".." / repository / "src" / projectName / $"{projectName}.csproj"));
+        DotNet($"sln {SolutionPath} add {path} --solution-folder Attached");
 
         if (Nugets.Contains(projectName))
         {
-            var weaselCore = Solution.GetProject("Weasel.Core").Path;
-            DotNet($"add {weaselCore} reference {path}");
+            DotNet($"add {WeaselCorePath} reference {path}");
         }
     }
 
     private void removeProject(string repository, string projectName)
     {
-        var path =  Path.GetFullPath($"../{repository}/src/{projectName}/{projectName}.csproj");
+        var path =  Path.GetFullPath((string)(RootDirectory / ".." / repository / "src" / projectName / $"{projectName}.csproj"));
 
         if (Nugets.Contains(projectName))
         {
-            var weaselCore = Solution.GetProject("Weasel.Core").Path;
-            DotNet($"remove {weaselCore} reference {path}");
+            DotNet($"remove {WeaselCorePath} reference {path}");
         }
 
-        var slnPath = Solution.Path;
-        DotNet($"sln {slnPath} remove {path}");
-
-
+        DotNet($"sln {SolutionPath} remove {path}");
     }
 
 
