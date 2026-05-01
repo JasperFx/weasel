@@ -11,7 +11,12 @@ class Build: NukeBuild
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
 
-    [Solution] readonly Solution Solution;
+    [Solution(SuppressBuildProjectCheck = true)] readonly Solution Solution;
+
+    // Direct paths — Nuke 9.0.4's SolutionSerializer cannot load .slnx,
+    // so Solution.Path / Solution.GetProject(...) are unavailable.
+    string SolutionPath => RootDirectory / "Weasel.slnx";
+    string WeaselCorePath => RootDirectory / "src" / "Weasel.Core" / "Weasel.Core.csproj";
 
     Target Clean => _ => _
         .Before(Restore)
@@ -30,7 +35,7 @@ class Build: NukeBuild
         .Executes(() =>
         {
             DotNetBuild(s => s
-                .SetProjectFile(Solution)
+                .SetProjectFile(SolutionPath)
                 .EnableNoRestore());
         });
 
@@ -52,12 +57,11 @@ class Build: NukeBuild
             }
         }
 
-        var weaselCore = Solution.GetProject("Weasel.Core").Path;
         foreach (var nuget in Nugets)
         {
-            if (HasPackageReference(weaselCore, nuget))
+            if (HasPackageReference(WeaselCorePath, nuget))
             {
-                DotNet($"remove {weaselCore} package {nuget}");
+                DotNet($"remove {WeaselCorePath} package {nuget}");
             }
             else
             {
@@ -81,32 +85,30 @@ class Build: NukeBuild
             removeOrphanedExternalProjects(pair.Key);
         }
 
-        var weaselCore = Solution.GetProject("Weasel.Core").Path;
         foreach (var nuget in Nugets)
         {
-            if (HasPackageReference(weaselCore, nuget))
+            if (HasPackageReference(WeaselCorePath, nuget))
             {
                 Serilog.Log.Information($"Package {nuget} already present on Weasel.Core; skipping.");
             }
             else
             {
-                DotNet($"add {weaselCore} package {nuget} --prerelease");
+                DotNet($"add {WeaselCorePath} package {nuget} --prerelease");
             }
         }
     });
 
     private void addProject(string repository, string projectName)
     {
-        var path = Path.GetFullPath($"../{repository}/src/{projectName}/{projectName}.csproj");
+        var path = Path.GetFullPath((string)(RootDirectory / ".." / repository / "src" / projectName / $"{projectName}.csproj"));
         if (!File.Exists(path))
         {
             Assert.Fail($"Cannot attach: project '{path}' does not exist. Ensure ../{repository} is cloned next to this repo.");
         }
 
-        var slnPath = Solution.Path;
-        if (!SolutionContainsProject(slnPath, path))
+        if (!SolutionContainsProject(SolutionPath, path))
         {
-            DotNet($"sln {slnPath} add {path} --solution-folder Attached");
+            DotNet($"sln {SolutionPath} add {path} --solution-folder Attached");
         }
         else
         {
@@ -115,10 +117,9 @@ class Build: NukeBuild
 
         if (Nugets.Contains(projectName))
         {
-            var weaselCore = Solution.GetProject("Weasel.Core").Path;
-            if (!HasProjectReference(weaselCore, path))
+            if (!HasProjectReference(WeaselCorePath, path))
             {
-                DotNet($"add {weaselCore} reference {path}");
+                DotNet($"add {WeaselCorePath} reference {path}");
             }
             else
             {
@@ -129,14 +130,13 @@ class Build: NukeBuild
 
     private void removeProject(string repository, string projectName)
     {
-        var path = Path.GetFullPath($"../{repository}/src/{projectName}/{projectName}.csproj");
+        var path = Path.GetFullPath((string)(RootDirectory / ".." / repository / "src" / projectName / $"{projectName}.csproj"));
 
         if (Nugets.Contains(projectName))
         {
-            var weaselCore = Solution.GetProject("Weasel.Core").Path;
-            if (HasProjectReference(weaselCore, path))
+            if (HasProjectReference(WeaselCorePath, path))
             {
-                DotNet($"remove {weaselCore} reference {path}");
+                DotNet($"remove {WeaselCorePath} reference {path}");
             }
             else
             {
@@ -144,10 +144,9 @@ class Build: NukeBuild
             }
         }
 
-        var slnPath = Solution.Path;
-        if (SolutionContainsProject(slnPath, path))
+        if (SolutionContainsProject(SolutionPath, path))
         {
-            DotNet($"sln {slnPath} remove {path}");
+            DotNet($"sln {SolutionPath} remove {path}");
         }
         else
         {
@@ -162,35 +161,31 @@ class Build: NukeBuild
     /// </summary>
     private void removeOrphanedExternalProjects(string repository)
     {
-        var slnPath = Solution.Path;
-        if (!File.Exists(slnPath)) return;
+        if (!File.Exists(SolutionPath)) return;
 
-        var content = File.ReadAllText(slnPath);
-        var token = $"..\\{repository}\\";
-        var altToken = $"../{repository}/";
+        var content = File.ReadAllText(SolutionPath);
+        var slnDir = Path.GetDirectoryName(SolutionPath)!;
 
-        // Pull project lines and look for paths matching the external repo
-        var lines = content.Split('\n');
+        // slnx uses <Project Path="..\repo\..." /> entries; legacy sln has Project(...) lines.
+        // Match either by extracting any project path token containing /{repository}/ or \{repository}\.
         var orphans = new List<string>();
-        foreach (var line in lines)
+        var matches = System.Text.RegularExpressions.Regex.Matches(
+            content, @"(?:Project\([^)]+\)\s*=\s*""[^""]+"",\s*""([^""]+)""|<Project\s+Path=""([^""]+)"")");
+        foreach (System.Text.RegularExpressions.Match m in matches)
         {
-            if (!line.StartsWith("Project(", System.StringComparison.Ordinal)) continue;
-            if (line.IndexOf(token, System.StringComparison.Ordinal) < 0
-                && line.IndexOf(altToken, System.StringComparison.Ordinal) < 0)
-                continue;
-
-            // Extract the path between the second and third quoted segments
-            var quoteSegments = line.Split('"');
-            if (quoteSegments.Length < 6) continue;
-            var relPath = quoteSegments[5];
-            var fullPath = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(slnPath)!, relPath.Replace('\\', '/')));
-            orphans.Add(fullPath);
+            var relPath = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+            var normalized = relPath.Replace('\\', '/');
+            if (normalized.Contains($"/{repository}/", System.StringComparison.OrdinalIgnoreCase))
+            {
+                var fullPath = Path.GetFullPath(Path.Combine(slnDir, normalized));
+                orphans.Add(fullPath);
+            }
         }
 
         foreach (var orphan in orphans)
         {
             Serilog.Log.Information($"Removing orphaned external project from solution: {Path.GetFileName(orphan)}");
-            DotNet($"sln {slnPath} remove {orphan}");
+            DotNet($"sln {SolutionPath} remove {orphan}");
         }
     }
 
