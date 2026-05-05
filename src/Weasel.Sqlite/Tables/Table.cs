@@ -107,6 +107,8 @@ public partial class Table: ITable
 
         var lines = new List<string>();
 
+        var hasCompositePk = PrimaryKeyColumns.Count > 1;
+
         // Add column definitions
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
@@ -114,15 +116,15 @@ public partial class Table: ITable
             var typeLength = Columns.Any() ? Columns.Max(x => x.Type.Length) + 4 : 10;
 
             lines.AddRange(Columns.Select(column =>
-                $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}"));
+                $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration(hasCompositePk)}"));
         }
         else
         {
-            lines.AddRange(Columns.Select(column => column.ToDeclaration()));
+            lines.AddRange(Columns.Select(column => column.ToDeclaration(hasCompositePk)));
         }
 
-        // Add primary key if not already defined inline
-        if (PrimaryKeyColumns.Any() && !Columns.Any(c => c.IsPrimaryKey))
+        // For composite primary keys, emit a single table-level constraint.
+        if (hasCompositePk)
         {
             lines.Add(PrimaryKeyDeclaration());
         }

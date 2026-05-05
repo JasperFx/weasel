@@ -306,6 +306,64 @@ public class TableTests
     }
 
     [Fact]
+    public void composite_primary_key_renders_table_level_constraint_not_multiple_inline()
+    {
+        // SQLite rejects multiple inline PRIMARY KEY columns with "table has more than one primary key".
+        var table = new Table("order_items");
+        table.AddColumn<int>("order_id").AsPrimaryKey();
+        table.AddColumn<int>("product_id").AsPrimaryKey();
+        table.AddColumn<int>("quantity");
+
+        var ddl = table.ToBasicCreateTableSql();
+
+        System.Text.RegularExpressions.Regex.Matches(ddl, "PRIMARY KEY").Count.ShouldBe(1);
+        ddl.ShouldContain("PRIMARY KEY (order_id, product_id)");
+    }
+
+    [Fact]
+    public void single_primary_key_still_renders_inline()
+    {
+        // Preserves SQLite's INTEGER PRIMARY KEY rowid-alias optimization for existing consumers.
+        var table = new Table("users");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("name");
+
+        var ddl = table.ToBasicCreateTableSql();
+
+        ddl.ShouldContain("PRIMARY KEY");
+        ddl.ShouldNotContain("CONSTRAINT");
+    }
+
+    [Fact]
+    public void composite_primary_key_round_trips_through_sqlite()
+    {
+        var table = new Table("order_items");
+        table.AddColumn<int>("order_id").AsPrimaryKey();
+        table.AddColumn<int>("product_id").AsPrimaryKey();
+        table.AddColumn<int>("quantity");
+
+        var ddl = table.ToBasicCreateTableSql();
+
+        using var conn = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = ddl;
+        cmd.ExecuteNonQuery();
+
+        using var pragma = conn.CreateCommand();
+        pragma.CommandText = "SELECT name, pk FROM pragma_table_info('order_items') WHERE pk > 0 ORDER BY pk";
+        using var reader = pragma.ExecuteReader();
+
+        var pkColumns = new List<string>();
+        while (reader.Read())
+        {
+            pkColumns.Add(reader.GetString(0));
+        }
+
+        pkColumns.ShouldBe(new[] { "order_id", "product_id" });
+    }
+
+    [Fact]
     public void set_primary_key_name()
     {
         var table = new Table("users");

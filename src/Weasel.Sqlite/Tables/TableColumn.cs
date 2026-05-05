@@ -59,18 +59,28 @@ public class TableColumn: ITableColumn
         return Type.Split('(')[0].Trim();
     }
 
-    public string Declaration()
+    /// <summary>
+    /// Renders the inline column constraints (NOT NULL, PRIMARY KEY, DEFAULT, GENERATED, CHECKs)
+    /// that follow the column name and type in a CREATE TABLE statement.
+    /// </summary>
+    /// <param name="suppressInlinePrimaryKey">
+    /// When true, omits the inline PRIMARY KEY token even if <see cref="IsPrimaryKey"/> is set.
+    /// Used for composite primary keys, which are emitted as a single table-level CONSTRAINT.
+    /// </param>
+    /// <returns>Space-joined constraint tokens, or an empty string if none apply.</returns>
+    public string Declaration(bool suppressInlinePrimaryKey = false)
     {
         var parts = new List<string>();
+        var emitInlinePk = IsPrimaryKey && !suppressInlinePrimaryKey;
 
-        // NULL/NOT NULL constraint
-        if (!IsPrimaryKey && !AllowNulls)
+        // NOT NULL — inline PRIMARY KEY already implies it; otherwise honor AllowNulls.
+        if (!emitInlinePk && !AllowNulls)
         {
             parts.Add("NOT NULL");
         }
 
         // PRIMARY KEY with optional AUTOINCREMENT
-        if (IsPrimaryKey)
+        if (emitInlinePk)
         {
             if (IsAutoNumber)
             {
@@ -140,9 +150,9 @@ public class TableColumn: ITableColumn
         }
     }
 
-    public string ToDeclaration()
+    public string ToDeclaration(bool suppressInlinePrimaryKey = false)
     {
-        var declaration = Declaration();
+        var declaration = Declaration(suppressInlinePrimaryKey);
 
         return declaration.IsEmpty()
             ? $"{QuotedName} {Type}"
