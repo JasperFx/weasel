@@ -107,6 +107,13 @@ public partial class Table: ITable
 
         var lines = new List<string>();
 
+        // SQLite rejects two inline PRIMARY KEY columns ("table ... has more than one primary
+        // key"), so for composite primary keys we suppress the inline emission on each column
+        // and rely on a single table-level CONSTRAINT ... PRIMARY KEY (col1, col2) clause
+        // below. Single-column PKs keep the historical inline-emission shape.
+        var hasCompositePrimaryKey = PrimaryKeyColumns.Count > 1;
+        var emitInlinePrimaryKey = !hasCompositePrimaryKey;
+
         // Add column definitions
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
@@ -114,15 +121,17 @@ public partial class Table: ITable
             var typeLength = Columns.Any() ? Columns.Max(x => x.Type.Length) + 4 : 10;
 
             lines.AddRange(Columns.Select(column =>
-                $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}"));
+                $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration(emitInlinePrimaryKey)}"));
         }
         else
         {
-            lines.AddRange(Columns.Select(column => column.ToDeclaration()));
+            lines.AddRange(Columns.Select(column => column.ToDeclaration(emitInlinePrimaryKey)));
         }
 
-        // Add primary key if not already defined inline
-        if (PrimaryKeyColumns.Any() && !Columns.Any(c => c.IsPrimaryKey))
+        // Add primary key if not already defined inline. Either path emits the table-level
+        // constraint exactly once: composite PK case (we suppressed every inline emission above)
+        // or the legacy "registered via PrimaryKeyColumns without IsPrimaryKey set" case.
+        if (hasCompositePrimaryKey || (PrimaryKeyColumns.Any() && !Columns.Any(c => c.IsPrimaryKey)))
         {
             lines.Add(PrimaryKeyDeclaration());
         }
