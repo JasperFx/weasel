@@ -59,18 +59,31 @@ public class TableColumn: ITableColumn
         return Type.Split('(')[0].Trim();
     }
 
-    public string Declaration()
+    public string Declaration() => Declaration(emitInlinePrimaryKey: true);
+
+    /// <summary>
+    /// Generate the column declaration. Pass <paramref name="emitInlinePrimaryKey"/> = false when
+    /// the table is responsible for emitting a table-level <c>PRIMARY KEY (...)</c> constraint
+    /// (e.g. composite primary keys on SQLite, where two inline <c>PRIMARY KEY</c> columns are
+    /// rejected with <c>'table ... has more than one primary key'</c>). When suppressed, the
+    /// column still emits <c>NOT NULL</c> on its own to match SQLite's implicit NOT NULL semantics
+    /// for primary-key columns.
+    /// </summary>
+    public string Declaration(bool emitInlinePrimaryKey)
     {
         var parts = new List<string>();
 
-        // NULL/NOT NULL constraint
-        if (!IsPrimaryKey && !AllowNulls)
+        // NULL/NOT NULL constraint. When we're suppressing the inline PRIMARY KEY (composite-PK
+        // case), explicitly emit NOT NULL so the column doesn't silently become nullable —
+        // SQLite only auto-applies NOT NULL to columns whose PRIMARY KEY is declared inline.
+        var inlinePk = IsPrimaryKey && emitInlinePrimaryKey;
+        if (!inlinePk && !AllowNulls)
         {
             parts.Add("NOT NULL");
         }
 
         // PRIMARY KEY with optional AUTOINCREMENT
-        if (IsPrimaryKey)
+        if (inlinePk)
         {
             if (IsAutoNumber)
             {
@@ -140,9 +153,11 @@ public class TableColumn: ITableColumn
         }
     }
 
-    public string ToDeclaration()
+    public string ToDeclaration() => ToDeclaration(emitInlinePrimaryKey: true);
+
+    public string ToDeclaration(bool emitInlinePrimaryKey)
     {
-        var declaration = Declaration();
+        var declaration = Declaration(emitInlinePrimaryKey);
 
         return declaration.IsEmpty()
             ? $"{QuotedName} {Type}"
