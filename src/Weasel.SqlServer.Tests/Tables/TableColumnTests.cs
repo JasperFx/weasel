@@ -137,21 +137,45 @@ public class TableColumnTests
     }
 
     [Fact]
-    public void column_name_normalization_is_culture_invariant()
+    public void column_name_preserves_user_casing()
     {
-        // In Turkish locale, "I".ToLower() produces dotless 'ı' (U+0131) instead of 'i',
-        // which would corrupt SQL identifiers like "INFORMATION_SCHEMA" → "ınformation_schema".
+        // SQL Server identifiers are case-insensitive by default, but legacy
+        // schemas and many SQL Server projects use PascalCase. Don't lowercase
+        // the user's column name (issue: JasperFx/polecat#45).
+        var column = new TableColumn("OrderId", "uniqueidentifier");
+        column.Name.ShouldBe("OrderId");
+    }
+
+    [Fact]
+    public void column_type_is_culture_invariant_lowercase()
+    {
+        // SQL types remain lowercased (e.g. "VARCHAR" → "varchar") and must
+        // be culture-invariant — Turkish locale would otherwise produce
+        // dotless 'ı' (U+0131) and corrupt the type string.
         var originalCulture = CultureInfo.CurrentCulture;
         try
         {
             CultureInfo.CurrentCulture = new CultureInfo("tr-TR");
             var column = new TableColumn("INFORMATION_SCHEMA", "VARCHAR");
-            column.Name.ShouldBe("information_schema");
-            column.Type.ShouldBe("varchar");
+            column.Name.ShouldBe("INFORMATION_SCHEMA");  // preserved
+            column.Type.ShouldBe("varchar");              // lowercased, culture-invariant
         }
         finally
         {
             CultureInfo.CurrentCulture = originalCulture;
         }
+    }
+
+    [Fact]
+    public void columns_compare_case_insensitively_on_name()
+    {
+        // SQL Server identifier comparison is case-insensitive in the default
+        // collation, so two TableColumn instances with the same name but
+        // different casing must compare equal (and produce the same hash).
+        var a = new TableColumn("Amount", "int");
+        var b = new TableColumn("amount", "int");
+
+        a.Equals(b).ShouldBeTrue();
+        a.GetHashCode().ShouldBe(b.GetHashCode());
     }
 }

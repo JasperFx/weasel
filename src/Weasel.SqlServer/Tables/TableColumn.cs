@@ -18,7 +18,11 @@ public class TableColumn: ITableColumn
             throw new ArgumentOutOfRangeException(nameof(type));
         }
 
-        Name = name.ToLowerInvariant().Trim().Replace(' ', '_');
+        // Preserve the user's casing — SQL Server identifiers are case-insensitive
+        // by default but legacy schemas often use PascalCase. Lowercasing here
+        // produced duplicate-column DDL when callers added the same logical column
+        // with different casings (issue: JasperFx/polecat#45).
+        Name = name.Trim().Replace(' ', '_');
         Type = type.ToLowerInvariant();
     }
 
@@ -62,7 +66,7 @@ public class TableColumn: ITableColumn
 
     protected bool Equals(TableColumn other)
     {
-        return string.Equals(QuotedName, other.QuotedName) &&
+        return string.Equals(QuotedName, other.QuotedName, StringComparison.OrdinalIgnoreCase) &&
                string.Equals(SqlServerProvider.Instance.ConvertSynonyms(RawType()),
                    SqlServerProvider.Instance.ConvertSynonyms(other.RawType()));
     }
@@ -91,7 +95,7 @@ public class TableColumn: ITableColumn
     {
         unchecked
         {
-            return (Name.GetHashCode() * 397) ^ Type.GetHashCode();
+            return (StringComparer.OrdinalIgnoreCase.GetHashCode(Name) * 397) ^ Type.GetHashCode();
         }
     }
 
