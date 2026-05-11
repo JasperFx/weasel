@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+        <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
         <Description>Core Weasel types for ADO.Net helpers, spin off of Marten</Description>
         <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
         <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
@@ -11,6 +11,9 @@
         <GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
         <GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- AOT readiness per Critter Stack 2026 pillar JasperFx/jasperfx#213.
+             Surfaces IL2026/IL3050 warnings during Weasel.Core's own build. -->
+        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
 
     <ItemGroup>
