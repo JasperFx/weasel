@@ -273,7 +273,7 @@ public partial class Table: ITable
 
     public bool HasColumn(string columnName)
     {
-        return Columns.Any(x => x.Name == columnName);
+        return Columns.Any(x => x.Name.EqualsIgnoreCase(columnName));
     }
 
     public IndexDefinition? IndexFor(string indexName)
