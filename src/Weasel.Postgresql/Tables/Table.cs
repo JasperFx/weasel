@@ -94,17 +94,21 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         set => _primaryKeyName = value;
     }
 
+    /// <summary>
+    ///     The pluggable DDL syntax strategy this table uses. Routed through for
+    ///     DROP and CREATE-header emission as part of #270 step 8 (prototype);
+    ///     step 9 will move the full CREATE algorithm to <c>TableBase</c> and the
+    ///     strategy will own more of the emission.
+    /// </summary>
+    public IDdlSyntaxStrategy Syntax => PostgresqlDdlSyntax.Instance;
+
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
-            writer.WriteLine("DROP TABLE IF EXISTS {0} CASCADE;", Identifier);
-            writer.WriteLine("CREATE TABLE {0} (", Identifier);
+            Syntax.WriteDropTable(writer, Identifier);
         }
-        else
-        {
-            writer.WriteLine("CREATE TABLE IF NOT EXISTS {0} (", Identifier);
-        }
+        Syntax.WriteCreateTableHeader(writer, Identifier, migrator.TableCreation);
 
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
@@ -176,7 +180,7 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
 
     public void WriteDropStatement(Migrator rules, TextWriter writer)
     {
-        writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
+        Syntax.WriteDropTable(writer, Identifier);
     }
 
     public DbObjectName Identifier { get; private set; }

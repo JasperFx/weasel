@@ -93,17 +93,24 @@ public partial class Table: ITable
         Identifier = new SqliteObjectName(schemaName, Identifier.Name);
     }
 
+    /// <summary>
+    ///     The pluggable DDL syntax strategy this table uses. Routed through for
+    ///     DROP and CREATE-header emission as part of #270 step 8 (prototype);
+    ///     step 9 will move the full CREATE algorithm to <c>TableBase</c> and the
+    ///     strategy will own more of the emission. Surfaces SQLite's
+    ///     <see cref="IDdlSyntaxStrategy.InlineForeignKeyConstraints" /> = true
+    ///     trait so cross-provider code can ask the table how its FKs are
+    ///     emitted without having to know it's SQLite-specifically.
+    /// </summary>
+    public IDdlSyntaxStrategy Syntax => SqliteDdlSyntax.Instance;
+
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
-            writer.WriteLine($"DROP TABLE IF EXISTS {Identifier};");
-            writer.WriteLine($"CREATE TABLE {Identifier} (");
+            Syntax.WriteDropTable(writer, Identifier);
         }
-        else
-        {
-            writer.WriteLine($"CREATE TABLE IF NOT EXISTS {Identifier} (");
-        }
+        Syntax.WriteCreateTableHeader(writer, Identifier, migrator.TableCreation);
 
         var lines = new List<string>();
 
@@ -177,7 +184,7 @@ public partial class Table: ITable
 
     public void WriteDropStatement(Migrator rules, TextWriter writer)
     {
-        writer.WriteLine($"DROP TABLE IF EXISTS {Identifier};");
+        Syntax.WriteDropTable(writer, Identifier);
     }
 
     // Implemented in Table.Deltas.cs partial class
