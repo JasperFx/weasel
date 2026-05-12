@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using JasperFx.Core;
 
@@ -273,10 +274,23 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <summary>
     ///     For each public property of the parameters object, adds a new parameter
     ///     to the command with the name of the property and the current value of the property
-    ///     on the parameters object. Does *not* affect the command text
+    ///     on the parameters object. Does *not* affect the command text.
+    ///     <para>
+    ///     The <see cref="DynamicallyAccessedMembersAttribute" /> on <paramref name="parameters" />
+    ///     declares to the trimmer that the runtime type of the passed object must have its
+    ///     <see cref="DynamicallyAccessedMemberTypes.PublicProperties" /> preserved (see #266 /
+    ///     JasperFx/jasperfx#213). The trimmer's flow analysis doesn't currently propagate that
+    ///     annotation through <c>object.GetType()</c> at the call site below, so an
+    ///     <see cref="UnconditionalSuppressMessageAttribute" /> documents that the IL2075
+    ///     warning is expected — the DAM on the parameter is the caller-facing contract, and the
+    ///     long-term fix is the source-generator path (path 2 in #266).
+    ///     </para>
     /// </summary>
     /// <param name="parameters"></param>
-    public void AddParameters(object parameters)
+    [UnconditionalSuppressMessage("Trimming", "IL2075",
+        Justification = "Runtime contract is documented via the DynamicallyAccessedMembers attribute on the parameter; the trimmer's flow analysis through object.GetType() doesn't see it but the contract holds. See #266.")]
+    public void AddParameters(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] object parameters)
     {
         if (parameters == null)
         {

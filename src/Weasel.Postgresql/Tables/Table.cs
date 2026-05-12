@@ -345,6 +345,63 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
             return this;
         }
 
+        // ---- Core.CascadeAction overloads (resolves #261) -----------------
+        //
+        // The four overloads above take the [Obsolete] Weasel.Postgresql.CascadeAction
+        // enum. These siblings accept Weasel.Core.CascadeAction directly so callers
+        // can opt out of the local enum entirely.
+        //
+        // To avoid call-site ambiguity with the existing overloads (which have
+        // defaults), the Core variants require all three trailing arguments to be
+        // passed explicitly. Once the local CascadeAction enum is removed in a
+        // future major, defaults can be restored on these overloads.
+
+        /// <summary>
+        ///     Configure a foreign key from this column to a referenced table column
+        ///     using <see cref="Core.CascadeAction" />. Provided alongside the
+        ///     <c>[Obsolete]</c> <c>Weasel.Postgresql.CascadeAction</c> overload so
+        ///     callers can migrate to the canonical cross-provider enum.
+        /// </summary>
+        public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(DbObjectName.Parse(PostgresqlProvider.Instance, referencedTableName),
+                referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(PostgresqlObjectName.From(referencedIdentifier), referencedColumnName, fkName,
+                onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(PostgresqlObjectName referencedIdentifier, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", Column.Name))
+            {
+                LinkedTable = referencedIdentifier,
+                ColumnNames = new[] { Column.Name },
+                LinkedNames = new[] { referencedColumnName },
+                DeleteAction = onDelete,
+                UpdateAction = onUpdate
+            };
+
+            _parent.ForeignKeys.Add(fk);
+
+            return this;
+        }
+
         /// <summary>
         ///     Marks this column as being part of the parent table's primary key
         /// </summary>
