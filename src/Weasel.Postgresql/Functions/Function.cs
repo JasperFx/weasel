@@ -3,51 +3,34 @@ using System.Text;
 using JasperFx.Core;
 using Npgsql;
 using Weasel.Core;
-using Weasel.Postgresql;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Postgresql.Functions;
 
-public class Function: ISchemaObject
+public class Function: FunctionBase
 {
-    private readonly string? _body;
-    private readonly string[]? _dropStatements;
-
     public Function(DbObjectName identifier, string body, string[] dropStatements)
+        : base(PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function),
+            body, dropStatements)
     {
-        _body = body;
-        _dropStatements = dropStatements;
-        Identifier = PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function);
     }
 
     public Function(DbObjectName identifier, string? body)
+        : base(PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function), body)
     {
-        _body = body;
-        Identifier = PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function);
     }
 
     protected Function(DbObjectName identifier)
+        : base(PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function), body: null)
     {
-        Identifier = PostgresqlObjectName.From(identifier, SchemaUtils.IdentifierUsage.Function);
     }
 
-
-    public bool IsRemoved { get; protected set; }
-
-
-    public virtual void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
-        writer.WriteLine(_body);
+        writer.WriteLine(RawBody);
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
-    {
-        foreach (var dropStatement in DropStatements()) writer.WriteLine(dropStatement);
-    }
-
-    public DbObjectName Identifier { get; }
-
-    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -67,16 +50,43 @@ AND    n.nspname = :{schemaParam};
 ");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
+    protected override Migrator GetDefaultMigrator() => new PostgresqlMigrator();
+
+    protected override string[] ComputeDefaultDropStatements()
     {
-        var existing = await readExistingAsync(reader, ct).ConfigureAwait(false);
-        return new FunctionDelta(this, existing);
+        var signature = ParseSignature(Body());
+        var drop = $"drop function if exists {signature};";
+        return new[] { drop };
     }
 
-    public IEnumerable<DbObjectName> AllNames()
+    protected override async Task<FunctionBase?> ReadExistingFromReaderAsync(
+        DbDataReader reader, CancellationToken ct)
     {
-        yield return Identifier;
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            await reader.NextResultAsync(ct).ConfigureAwait(false);
+            return null;
+        }
+
+        var existingFunction = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+
+        if (string.IsNullOrEmpty(existingFunction))
+        {
+            return null;
+        }
+
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+        var drops = new List<string>();
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            drops.Add(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false));
+        }
+
+        return new Function(Identifier, existingFunction.TrimEnd() + ";", drops.ToArray());
     }
+
+    protected override ISchemaObjectDelta CreateFunctionDelta(FunctionBase? actual)
+        => new FunctionDelta(this, (Function?)actual);
 
     public static string ParseSignature(string body)
     {
@@ -123,68 +133,13 @@ AND    n.nspname = :{schemaParam};
     public async Task<Function?> FetchExistingAsync(NpgsqlConnection conn, CancellationToken ct = default)
     {
         var builder = new DbCommandBuilder(conn);
-
         ConfigureQueryCommand(builder);
 
         await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
-        var result = await readExistingAsync(reader, ct).ConfigureAwait(false);
+        var result = await ReadExistingFromReaderAsync(reader, ct).ConfigureAwait(false);
         await reader.CloseAsync().ConfigureAwait(false);
-        return result;
+        return (Function?)result;
     }
-
-    private async Task<Function?> readExistingAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        if (!await reader.ReadAsync(ct).ConfigureAwait(false))
-        {
-            await reader.NextResultAsync(ct).ConfigureAwait(false);
-            return null;
-        }
-
-        var existingFunction = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
-
-        if (string.IsNullOrEmpty(existingFunction))
-        {
-            return null;
-        }
-
-        await reader.NextResultAsync(ct).ConfigureAwait(false);
-        var drops = new List<string>();
-        while (await reader.ReadAsync(ct).ConfigureAwait(false))
-        {
-            drops.Add(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false));
-        }
-
-        return new Function(Identifier, existingFunction.TrimEnd() + ";", drops.ToArray());
-    }
-
-    public string Body(Migrator? rules = null)
-    {
-        rules ??= new PostgresqlMigrator();
-        var writer = new StringWriter();
-        WriteCreateStatement(rules, writer);
-
-        return writer.ToString();
-    }
-
-    public string[] DropStatements()
-    {
-        if (_dropStatements?.Length > 0)
-        {
-            return _dropStatements;
-        }
-
-        if (IsRemoved)
-        {
-            return Array.Empty<string>();
-        }
-
-        var signature = ParseSignature(Body());
-
-        var drop = $"drop function if exists {signature};";
-
-        return new[] { drop };
-    }
-
 
     public static Function ForSql(string sql)
     {
