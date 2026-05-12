@@ -411,23 +411,57 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
             return this;
         }
 
-        public ColumnExpression Serial()
+        /// <summary>
+        ///     Mark this column as an auto-incrementing integer identity column.
+        ///     PostgreSQL renders this as <c>SERIAL</c> (32-bit). For 64-bit
+        ///     <c>BIGSERIAL</c> or 16-bit <c>SMALLSERIAL</c>, use
+        ///     <see cref="BigAutoIncrement" /> or <see cref="SmallAutoIncrement" />.
+        ///     <para>
+        ///     Canonical cross-provider spelling — every provider's
+        ///     <c>ColumnExpression</c> exposes <c>AutoIncrement()</c> with
+        ///     provider-appropriate SQL emission, so polymorphic schema-building
+        ///     code works without provider-specific casts (#270 step 10).
+        ///     </para>
+        /// </summary>
+        public ColumnExpression AutoIncrement()
         {
             Column.Type = "SERIAL";
             return this;
         }
 
-        public ColumnExpression BigSerial()
+        /// <summary>Mark this column as a 64-bit auto-incrementing identity (<c>BIGSERIAL</c>).</summary>
+        public ColumnExpression BigAutoIncrement()
         {
             Column.Type = "BIGSERIAL";
             return this;
         }
 
-        public ColumnExpression SmallSerial()
+        /// <summary>Mark this column as a 16-bit auto-incrementing identity (<c>SMALLSERIAL</c>).</summary>
+        public ColumnExpression SmallAutoIncrement()
         {
             Column.Type = "SMALLSERIAL";
             return this;
         }
+
+        /// <summary>
+        ///     Historical PostgreSQL-only spelling for <see cref="AutoIncrement" />.
+        ///     Kept as an alias for backward compatibility; the cross-provider
+        ///     canonical name is <c>AutoIncrement()</c> (#270 step 10).
+        /// </summary>
+        [Obsolete("Use AutoIncrement() — the cross-provider canonical name. Serial() will be removed in a future major.")]
+        public ColumnExpression Serial() => AutoIncrement();
+
+        /// <summary>
+        ///     Historical PostgreSQL-only spelling for <see cref="BigAutoIncrement" />.
+        /// </summary>
+        [Obsolete("Use BigAutoIncrement() — the cross-provider canonical name. BigSerial() will be removed in a future major.")]
+        public ColumnExpression BigSerial() => BigAutoIncrement();
+
+        /// <summary>
+        ///     Historical PostgreSQL-only spelling for <see cref="SmallAutoIncrement" />.
+        /// </summary>
+        [Obsolete("Use SmallAutoIncrement() — the cross-provider canonical name. SmallSerial() will be removed in a future major.")]
+        public ColumnExpression SmallSerial() => SmallAutoIncrement();
 
         public ColumnExpression DefaultValueByString(string value)
         {

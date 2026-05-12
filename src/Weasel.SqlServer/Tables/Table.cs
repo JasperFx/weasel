@@ -388,11 +388,27 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             return this;
         }
 
-        public ColumnExpression AutoNumber()
+        /// <summary>
+        ///     Mark this column as an auto-incrementing identity column. SQL Server
+        ///     renders this as <c>IDENTITY(1,1)</c>.
+        ///     <para>
+        ///     Canonical cross-provider spelling — every provider's
+        ///     <c>ColumnExpression</c> exposes <c>AutoIncrement()</c> with
+        ///     provider-appropriate SQL emission (#270 step 10).
+        ///     </para>
+        /// </summary>
+        public ColumnExpression AutoIncrement()
         {
             Column.IsAutoNumber = true;
             return this;
         }
+
+        /// <summary>
+        ///     Historical SQL Server-specific spelling for <see cref="AutoIncrement" />.
+        ///     Kept as an alias for backward compatibility.
+        /// </summary>
+        [Obsolete("Use AutoIncrement() — the cross-provider canonical name. AutoNumber() will be removed in a future major.")]
+        public ColumnExpression AutoNumber() => AutoIncrement();
 
         public ColumnExpression DefaultValueByString(string value)
         {
