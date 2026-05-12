@@ -1,15 +1,7 @@
 using JasperFx.Core;
-using JasperFx.Core.Reflection;
 using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables;
-
-public class MisconfiguredForeignKeyException: Exception
-{
-    public MisconfiguredForeignKeyException(string? message): base(message)
-    {
-    }
-}
 
 public class ForeignKey: ForeignKeyBase
 {
@@ -78,110 +70,17 @@ public class ForeignKey: ForeignKeyBase
     }
 #pragma warning restore CS0618 // Type or member is obsolete
 
-    protected bool Equals(ForeignKey other)
-    {
-        return Name == other.Name && ColumnNames.SequenceEqual(other.ColumnNames) &&
-               LinkedNames.SequenceEqual(other.LinkedNames) && Equals(LinkedTable, other.LinkedTable) &&
-               OnDelete == other.OnDelete && OnUpdate == other.OnUpdate;
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (ReferenceEquals(null, obj))
-        {
-            return false;
-        }
-
-        if (ReferenceEquals(this, obj))
-        {
-            return true;
-        }
-
-        if (!obj.GetType().CanBeCastTo<ForeignKey>())
-        {
-            return false;
-        }
-
-        return Equals((ForeignKey)obj);
-    }
-
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            var hashCode = Name != null ? Name.GetHashCode() : 0;
-            hashCode = (hashCode * 397) ^ (ColumnNames != null ? ColumnNames.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (LinkedNames != null ? LinkedNames.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (LinkedTable != null ? LinkedTable.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (int)OnDelete;
-            hashCode = (hashCode * 397) ^ (int)OnUpdate;
-            return hashCode;
-        }
-    }
+    /// <inheritdoc />
+    protected override DbObjectName ParseLinkedTable(string tableName)
+        => DbObjectName.Parse(PostgresqlProvider.Instance, tableName);
 
     /// <summary>
-    ///     Read the DDL definition from the server
+    ///     PostgreSQL-specific convenience overload that defaults <paramref name="schema" />
+    ///     to <c>"public"</c> when the catalog row hands back an unqualified table name.
+    ///     Calls into <see cref="ForeignKeyBase.Parse" /> for the shared body.
     /// </summary>
-    /// <param name="definition"></param>
-    /// <exception cref="NotImplementedException"></exception>
-    public void Parse(string definition, string schema = "public")
-    {
-        var open1 = definition.IndexOf('(');
-        var closed1 = definition.IndexOf(')');
-
-        ColumnNames = definition.Substring(open1 + 1, closed1 - open1 - 1).ToDelimitedArray(',');
-
-        var open2 = definition.IndexOf('(', closed1);
-        var closed2 = definition.IndexOf(')', open2);
-
-        LinkedNames = definition.Substring(open2 + 1, closed2 - open2 - 1).ToDelimitedArray(',');
-
-
-        var references = "REFERENCES";
-        var tableStart = definition.IndexOf(references) + references.Length;
-
-        var tableName = definition.Substring(tableStart, open2 - tableStart).Trim();
-        if (!tableName.Contains('.'))
-        {
-            tableName = $"{schema}.{tableName}";
-        }
-
-        LinkedTable = DbObjectName.Parse(PostgresqlProvider.Instance, tableName);
-
-        if (definition.ContainsIgnoreCase("ON DELETE CASCADE"))
-        {
-            OnDelete = CascadeAction.Cascade;
-        }
-        else if (definition.ContainsIgnoreCase("ON DELETE RESTRICT"))
-        {
-            OnDelete = CascadeAction.Restrict;
-        }
-        else if (definition.ContainsIgnoreCase("ON DELETE SET NULL"))
-        {
-            OnDelete = CascadeAction.SetNull;
-        }
-        else if (definition.ContainsIgnoreCase("ON DELETE SET DEFAULT"))
-        {
-            OnDelete = CascadeAction.SetDefault;
-        }
-
-        if (definition.ContainsIgnoreCase("ON UPDATE CASCADE"))
-        {
-            OnUpdate = CascadeAction.Cascade;
-        }
-        else if (definition.ContainsIgnoreCase("ON UPDATE RESTRICT"))
-        {
-            OnUpdate = CascadeAction.Restrict;
-        }
-        else if (definition.ContainsIgnoreCase("ON UPDATE SET NULL"))
-        {
-            OnUpdate = CascadeAction.SetNull;
-        }
-        else if (definition.ContainsIgnoreCase("ON UPDATE SET DEFAULT"))
-        {
-            OnUpdate = CascadeAction.SetDefault;
-        }
-    }
+    public new void Parse(string definition, string schema = "public")
+        => base.Parse(definition, schema);
 
     public string ToDDL(Table parent)
     {

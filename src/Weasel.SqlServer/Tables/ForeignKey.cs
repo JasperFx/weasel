@@ -1,15 +1,7 @@
 using JasperFx.Core;
-using JasperFx.Core.Reflection;
 using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
-
-public class MisconfiguredForeignKeyException: Exception
-{
-    public MisconfiguredForeignKeyException(string? message): base(message)
-    {
-    }
-}
 
 public class ForeignKey: ForeignKeyBase
 {
@@ -77,97 +69,9 @@ public class ForeignKey: ForeignKeyBase
     }
 #pragma warning restore CS0618 // Type or member is obsolete
 
-    protected bool Equals(ForeignKey other)
-    {
-        return Name == other.Name && ColumnNames.SequenceEqual(other.ColumnNames) &&
-               LinkedNames.SequenceEqual(other.LinkedNames) && Equals(LinkedTable, other.LinkedTable) &&
-               OnDelete == other.OnDelete && OnUpdate == other.OnUpdate;
-    }
-
-    public override bool Equals(object? obj)
-    {
-        if (ReferenceEquals(null, obj))
-        {
-            return false;
-        }
-
-        if (ReferenceEquals(this, obj))
-        {
-            return true;
-        }
-
-        if (!obj.GetType().CanBeCastTo<ForeignKey>())
-        {
-            return false;
-        }
-
-        return Equals((ForeignKey)obj);
-    }
-
-    public override int GetHashCode()
-    {
-        unchecked
-        {
-            var hashCode = Name != null ? Name.GetHashCode() : 0;
-            hashCode = (hashCode * 397) ^ (ColumnNames != null ? ColumnNames.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (LinkedNames != null ? LinkedNames.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (LinkedTable != null ? LinkedTable.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (int)OnDelete;
-            hashCode = (hashCode * 397) ^ (int)OnUpdate;
-            return hashCode;
-        }
-    }
-
-    /// <summary>
-    ///     Read the DDL definition from the server
-    /// </summary>
-    /// <param name="definition"></param>
-    /// <exception cref="NotImplementedException"></exception>
-    public void Parse(string definition)
-    {
-        var open1 = definition.IndexOf('(');
-        var closed1 = definition.IndexOf(')');
-
-        ColumnNames = definition.Substring(open1 + 1, closed1 - open1 - 1).ToDelimitedArray(',');
-
-        var open2 = definition.IndexOf('(', closed1);
-        var closed2 = definition.IndexOf(')', open2);
-
-        LinkedNames = definition.Substring(open2 + 1, closed2 - open2 - 1).ToDelimitedArray(',');
-
-
-        var references = "REFERENCES";
-        var tableStart = definition.IndexOf(references) + references.Length;
-
-        var tableName = definition.Substring(tableStart, open2 - tableStart).Trim();
-        LinkedTable = DbObjectName.Parse(SqlServerProvider.Instance, tableName);
-
-        if (definition.ContainsIgnoreCase("ON DELETE CASCADE"))
-        {
-            OnDelete = CascadeAction.Cascade;
-        }
-        else if (definition.ContainsIgnoreCase("ON DELETE SET NULL"))
-        {
-            OnDelete = CascadeAction.SetNull;
-        }
-        else if (definition.ContainsIgnoreCase("ON DELETE SET DEFAULT"))
-        {
-            OnDelete = CascadeAction.SetDefault;
-        }
-
-        if (definition.ContainsIgnoreCase("ON UPDATE CASCADE"))
-        {
-            OnUpdate = CascadeAction.Cascade;
-        }
-        else if (definition.ContainsIgnoreCase("ON UPDATE SET NULL"))
-        {
-            OnUpdate = CascadeAction.SetNull;
-        }
-        else if (definition.ContainsIgnoreCase("ON UPDATE SET DEFAULT"))
-        {
-            OnUpdate = CascadeAction.SetDefault;
-        }
-    }
+    /// <inheritdoc />
+    protected override DbObjectName ParseLinkedTable(string tableName)
+        => DbObjectName.Parse(SqlServerProvider.Instance, tableName);
 
     public string ToDDL(Table parent)
     {
@@ -191,25 +95,5 @@ public class ForeignKey: ForeignKeyBase
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
-    }
-
-    public void LinkColumns(string columnName, string referencedName)
-    {
-        if (ColumnNames == null)
-        {
-            ColumnNames = new[] { columnName };
-            LinkedNames = new[] { referencedName };
-        }
-        else
-        {
-            ColumnNames = ColumnNames.Append(columnName).ToArray();
-            LinkedNames = LinkedNames.Append(referencedName).ToArray();
-        }
-    }
-
-    public void ReadReferentialActions(string onDelete, string onUpdate)
-    {
-        OnDelete = SqlServerProvider.ReadAction(onDelete);
-        OnUpdate = SqlServerProvider.ReadAction(onUpdate);
     }
 }

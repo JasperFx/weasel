@@ -33,6 +33,12 @@ public class ForeignKey: ForeignKeyBase
         }
     }
 
+    /// <inheritdoc />
+    protected override StringComparer NameComparer => StringComparer.OrdinalIgnoreCase;
+
+    /// <inheritdoc />
+    protected override StringComparer ColumnComparer => StringComparer.OrdinalIgnoreCase;
+
 #pragma warning disable CS0618 // Type or member is obsolete
     /// <summary>
     /// The cascade action to take when a referenced row is deleted
@@ -79,11 +85,14 @@ public class ForeignKey: ForeignKeyBase
     }
 #pragma warning restore CS0618 // Type or member is obsolete
 
-    public void LinkColumns(string columnName, string linkedName)
-    {
-        _columnNames.Add(columnName);
-        _linkedNames.Add(linkedName);
-    }
+    /// <inheritdoc />
+    /// <remarks>
+    ///     MySQL's catalog returns FK metadata as separate columns rather than a
+    ///     pre-formatted DDL string, so <c>Parse</c> is never called in practice —
+    ///     but the contract is here in case a caller does use it.
+    /// </remarks>
+    protected override DbObjectName ParseLinkedTable(string tableName)
+        => DbObjectName.Parse(MySqlProvider.Instance, tableName);
 
     public string ToDDL(Table parent)
     {
@@ -124,39 +133,10 @@ public class ForeignKey: ForeignKeyBase
         };
     }
 
-    public void ReadReferentialActions(string onDelete, string onUpdate)
-    {
-        OnDelete = MySqlProvider.ReadAction(onDelete);
-        OnUpdate = MySqlProvider.ReadAction(onUpdate);
-    }
-
-    public bool IsEquivalentTo(ForeignKey other)
-    {
-        if (!Name.Equals(other.Name, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (LinkedTable?.QualifiedName != other.LinkedTable?.QualifiedName)
-        {
-            return false;
-        }
-
-        if (!_columnNames.SequenceEqual(other._columnNames, StringComparer.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (!_linkedNames.SequenceEqual(other._linkedNames, StringComparer.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        if (OnDelete != other.OnDelete || OnUpdate != other.OnUpdate)
-        {
-            return false;
-        }
-
-        return true;
-    }
+    /// <summary>
+    ///     Pre-existing helper kept for backward compatibility. Equivalent to
+    ///     <see cref="object.Equals(object)" /> on this type since 9.0; new callers
+    ///     should prefer plain <c>Equals</c>.
+    /// </summary>
+    public bool IsEquivalentTo(ForeignKey other) => EqualsCore(other);
 }
