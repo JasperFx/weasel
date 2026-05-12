@@ -36,35 +36,14 @@ public class MySqlProvider: DatabaseProvider<MySqlCommand, MySqlParameter, MySql
 
     private string? ResolveDatabaseType(Type type)
     {
-        if (DatabaseTypeMemo.Value.TryFind(type, out var value))
-        {
-            return value;
-        }
-
-        if (!type.IsNullable() ||
-            !DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var databaseType))
-            throw new NotSupportedException(
-                $"Weasel.MySql does not (yet) support database type mapping to {type.FullNameInCode()}");
-
-        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
-        return databaseType;
+        return ResolveDatabaseTypeFromMemo(type)
+               ?? throw new NotSupportedException(
+                   $"Weasel.MySql does not (yet) support database type mapping to {type.FullNameInCode()}");
     }
 
     private MySqlDbType? ResolveMySqlDbType(Type type)
     {
-        if (ParameterTypeMemo.Value.TryFind(type, out var value))
-        {
-            return value;
-        }
-
-        if (type.IsNullable() &&
-            ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var parameterType))
-        {
-            ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
-            return parameterType;
-        }
-
-        return MySqlDbType.VarChar;
+        return ResolveParameterTypeFromMemo(type) ?? MySqlDbType.VarChar;
     }
 
     protected override Type[] determineClrTypesForParameterType(MySqlDbType dbType)

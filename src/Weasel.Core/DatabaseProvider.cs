@@ -1,6 +1,7 @@
 using System.Data.Common;
 using ImTools;
 using JasperFx.Core;
+using JasperFx.Core.Reflection;
 using Weasel.Core.Names;
 
 namespace Weasel.Core;
@@ -168,6 +169,53 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
     {
         DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
         ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
+    }
+
+    /// <summary>
+    ///     Shared memo lookup for the database-type string of a CLR type, with the
+    ///     standard nullable-promote fallback (if <c>T?</c> is asked but <c>T</c> is
+    ///     in the memo, copy the entry to <c>T?</c> and return it). Returns null
+    ///     when neither the type nor its inner-nullable is mapped — subclasses then
+    ///     apply provider-specific fallbacks (PG queries Npgsql's plugin type map,
+    ///     SS/Oracle/MySQL throw, SQLite returns null to signal "TEXT/JSON").
+    /// </summary>
+    protected string? ResolveDatabaseTypeFromMemo(Type type)
+    {
+        if (DatabaseTypeMemo.Value.TryFind(type, out var value))
+        {
+            return value;
+        }
+
+        if (type.IsNullable() && DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var inner))
+        {
+            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, inner));
+            return inner;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    ///     Shared memo lookup for the provider parameter-type enum of a CLR type,
+    ///     mirror of <see cref="ResolveDatabaseTypeFromMemo" />. Subclasses apply
+    ///     their own fallback when this returns null (PG queries Npgsql plugin;
+    ///     SS returns <c>Variant</c>; Oracle returns <c>Varchar2</c>; MySQL returns
+    ///     <c>VarChar</c>; SQLite returns <c>Text</c>).
+    /// </summary>
+    protected TParameterType? ResolveParameterTypeFromMemo(Type type)
+    {
+        if (ParameterTypeMemo.Value.TryFind(type, out var value))
+        {
+            return value;
+        }
+
+        if (type.IsNullable() && ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var inner))
+        {
+            ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, inner));
+            return inner;
+        }
+
+        return null;
     }
 
     protected abstract Type[] determineClrTypesForParameterType(TParameterType dbType);
