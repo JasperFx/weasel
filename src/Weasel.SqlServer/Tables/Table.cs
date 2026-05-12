@@ -351,6 +351,51 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             return this;
         }
 
+        // ---- Core.CascadeAction overloads (resolves #261) -----------------
+        //
+        // Siblings of the three overloads above that take Weasel.Core.CascadeAction
+        // directly, so callers can opt out of the [Obsolete]
+        // Weasel.SqlServer.CascadeAction enum. No defaults to avoid call-site
+        // ambiguity with the existing local-enum overloads — callers pass all
+        // three trailing arguments explicitly when using Core.
+
+        /// <summary>
+        ///     Configure a foreign key from this column using <see cref="Core.CascadeAction" />.
+        ///     Provided alongside the <c>[Obsolete]</c> <c>Weasel.SqlServer.CascadeAction</c>
+        ///     overload so callers can migrate to the canonical cross-provider enum.
+        /// </summary>
+        public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(DbObjectName.Parse(SqlServerProvider.Instance, referencedTableName),
+                referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", Column.Name))
+            {
+                LinkedTable = referencedIdentifier,
+                ColumnNames = new[] { Column.Name },
+                LinkedNames = new[] { referencedColumnName },
+                DeleteAction = onDelete,
+                UpdateAction = onUpdate
+            };
+
+            _parent.ForeignKeys.Add(fk);
+
+            return this;
+        }
+
         /// <summary>
         ///     Marks this column as being part of the parent table's primary key
         /// </summary>
