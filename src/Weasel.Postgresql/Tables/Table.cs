@@ -7,66 +7,17 @@ using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public partial class Table: ISchemaObjectWithPostProcessing, ITable
+public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>, ISchemaObjectWithPostProcessing
 {
-    private readonly List<TableColumn> _columns = new();
-
     private readonly List<string> _primaryKeyColumns = new();
 
-    private string? _primaryKeyName;
-
     public Table(DbObjectName name)
+        : base(PostgresqlObjectName.From(name ?? throw new ArgumentNullException(nameof(name))))
     {
-        if (name == null)
-        {
-            throw new ArgumentNullException(nameof(name));
-        }
-
-        Identifier = PostgresqlObjectName.From(name);
     }
 
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
     {
-    }
-
-    ITableColumn ITable.AddColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType);
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddColumn(string name, Type dotnetType)
-    {
-        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type);
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType).AsPrimaryKey();
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
-    {
-        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type).AsPrimaryKey();
-        return expression.Column;
-    }
-
-    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
-
-    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
-    {
-        var fk = new ForeignKey(name)
-        {
-            LinkedTable = linkedTable,
-            ColumnNames = columnNames,
-            LinkedNames = linkedColumnNames
-        };
-        ForeignKeys.Add(fk);
-        return fk;
     }
 
     /// <summary>
@@ -75,24 +26,31 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
     /// </summary>
     public bool IgnorePartitionsInMigration { get; set; }
 
-    public IReadOnlyList<TableColumn> Columns => _columns;
+    /// <inheritdoc />
+    public override IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
 
-    public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
-    public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
-    public ISet<string> IgnoredIndexes { get; } = new HashSet<string>();
+    /// <inheritdoc />
+    protected override string DefaultPrimaryKeyName()
+        => $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
 
-    /// <summary>
-    ///     Max identifier length for identifiers like table name, column name, constraints, primary key etc
-    /// </summary>
-    public int MaxIdentifierLength { get; set; } = 63;
+    /// <inheritdoc />
+    protected override ForeignKey CreateForeignKey(string name) => new ForeignKey(name);
 
-    public IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
+    /// <inheritdoc />
+    protected override ITableColumn AddColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).Column;
 
-    public string PrimaryKeyName
-    {
-        get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
-        set => _primaryKeyName = value;
-    }
+    /// <inheritdoc />
+    protected override ITableColumn AddPrimaryKeyColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).AsPrimaryKey().Column;
+
+    /// <inheritdoc />
+    protected override string GetDatabaseTypeFor(Type dotnetType)
+        => PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+
+    /// <inheritdoc />
+    protected override Migrator GetDefaultMigratorForBasicSql()
+        => new PostgresqlMigrator { Formatting = SqlFormatting.Concise };
 
     /// <summary>
     ///     The pluggable DDL syntax strategy this table uses. Routed through for
@@ -102,7 +60,7 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
     /// </summary>
     public IDdlSyntaxStrategy Syntax => PostgresqlDdlSyntax.Instance;
 
-    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
@@ -178,15 +136,12 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         }
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
+    public override void WriteDropStatement(Migrator rules, TextWriter writer)
     {
         Syntax.WriteDropTable(writer, Identifier);
     }
 
-    public DbObjectName Identifier { get; private set; }
-
-
-    public IEnumerable<DbObjectName> AllNames()
+    public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
 
@@ -210,11 +165,6 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
                 key.TryToCorrectForLink(this, matching);
             }
         }
-    }
-
-    public override string ToString()
-    {
-        return $"Table: {Identifier}";
     }
 
     internal void ReadPrimaryKeyColumns(List<string> pks)
@@ -246,40 +196,9 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         }
     }
 
-    /// <summary>
-    ///     Generate the CREATE TABLE SQL expression with default
-    ///     DDL rules. This is useful for quick diagnostics
-    /// </summary>
-    /// <returns></returns>
-    public string ToBasicCreateTableSql()
-    {
-        var writer = new StringWriter();
-        var rules = new PostgresqlMigrator { Formatting = SqlFormatting.Concise };
-        WriteCreateStatement(rules, writer);
-
-        return writer.ToString();
-    }
-
-
     internal string PrimaryKeyDeclaration()
     {
         return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
-    }
-
-    public TableColumn? ColumnFor(string columnName)
-    {
-        return Columns.FirstOrDefault(x => x.Name == columnName);
-    }
-
-
-    public bool HasColumn(string columnName)
-    {
-        return Columns.Any(x => x.Name == columnName);
-    }
-
-    public IndexDefinition? IndexFor(string indexName)
-    {
-        return Indexes.FirstOrDefault(x => x.Name == indexName);
     }
 
     public ColumnExpression AddColumn(TableColumn column)
@@ -328,14 +247,14 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         return any;
     }
 
-    public string TruncatedNameIdentifier(string nameIdentifier)
+    /// <inheritdoc />
+    /// <remarks>
+    ///     PostgreSQL also clears the column from <see cref="PrimaryKeyColumns" />
+    ///     since the PK list is stored as an explicit field on this provider.
+    /// </remarks>
+    public override void RemoveColumn(string columnName)
     {
-        return nameIdentifier.Substring(0, Math.Min(MaxIdentifierLength, nameIdentifier.Length));
-    }
-
-    public void RemoveColumn(string columnName)
-    {
-        _columns.RemoveAll(x => x.Name.EqualsIgnoreCase(columnName));
+        base.RemoveColumn(columnName);
         _primaryKeyColumns.Remove(columnName);
     }
 
@@ -345,26 +264,6 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
                      throw new ArgumentOutOfRangeException(
                          $"Column '{columnName}' does not exist in table {Identifier}");
         return new ColumnExpression(this, column);
-    }
-
-    public void IgnoreIndex(string indexName)
-    {
-        if (Indexes.Any(idx => idx.Name == indexName))
-        {
-            throw new ArgumentException($"Cannot ignore defined index {indexName} on table {Identifier}");
-        }
-
-        IgnoredIndexes.Add(indexName);
-    }
-
-    public bool HasIndex(string indexName)
-    {
-        return Indexes.Any(x => x.Name == indexName);
-    }
-
-    public bool HasIgnoredIndex(string indexName)
-    {
-        return IgnoredIndexes.Contains(indexName);
     }
 
     public IEnumerable<string> PartitionTableNames()

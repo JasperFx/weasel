@@ -10,7 +10,7 @@ public partial class Table
     // Oracle doesn't support multiple result sets in a single command like PostgreSQL or SQL Server.
     // ConfigureQueryCommand includes columns and primary key info in a single query via LEFT JOIN.
     // For full schema detection (including FKs and indexes), use FetchExistingAsync directly.
-    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         var schemaParam = builder.AddParameter(Identifier.Schema.ToUpperInvariant()).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name.ToUpperInvariant()).ParameterName;

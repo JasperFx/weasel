@@ -11,7 +11,7 @@ public partial class Table
     /// not PKs, FKs, or indexes, since Oracle doesn't support multiple result sets.
     /// For full schema detection, use FindDeltaAsync instead.
     /// </summary>
-    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
+    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
         var existing = await ReadExistingFromReaderAsync(reader, ct).ConfigureAwait(false);
         return new TableDelta(this, existing);

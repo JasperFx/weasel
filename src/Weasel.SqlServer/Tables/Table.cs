@@ -22,68 +22,53 @@ public enum PartitionStrategy
 }
 
 
-public partial class Table: ITable
+public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 {
-    private readonly List<TableColumn> _columns = new();
-
-    private string? _primaryKeyName;
-
     public Table(DbObjectName name)
+        : base(name ?? throw new ArgumentNullException(nameof(name)))
     {
-        Identifier = name ?? throw new ArgumentNullException(nameof(name));
     }
 
     public Table(string tableName): this(DbObjectName.Parse(SqlServerProvider.Instance, tableName))
     {
     }
 
-    ITableColumn ITable.AddColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType);
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddColumn(string name, Type dotnetType)
-    {
-        var type = SqlServerProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type);
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType).AsPrimaryKey();
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
-    {
-        var type = SqlServerProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type).AsPrimaryKey();
-        return expression.Column;
-    }
-
-    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
-
-    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
-    {
-        var fk = new ForeignKey(name)
-        {
-            LinkedTable = linkedTable,
-            ColumnNames = columnNames,
-            LinkedNames = linkedColumnNames
-        };
-        ForeignKeys.Add(fk);
-        return fk;
-    }
-
-    public IReadOnlyList<TableColumn> Columns => _columns;
-
-    public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
-    public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
-
-    public IReadOnlyList<string> PrimaryKeyColumns =>
+    /// <inheritdoc />
+    /// <remarks>
+    ///     SQL Server derives the primary key column list from
+    ///     <see cref="TableBase{TColumn,TIndex,TForeignKey}.Columns" /> rather
+    ///     than storing it separately, so the list refreshes automatically as
+    ///     columns are flagged with <c>IsPrimaryKey</c>.
+    /// </remarks>
+    public override IReadOnlyList<string> PrimaryKeyColumns =>
         _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
+
+    /// <inheritdoc />
+    protected override string DefaultPrimaryKeyName()
+        => $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
+
+    /// <inheritdoc />
+    protected override ForeignKey CreateForeignKey(string name) => new ForeignKey(name);
+
+    /// <inheritdoc />
+    protected override ITableColumn AddColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).Column;
+
+    /// <inheritdoc />
+    protected override ITableColumn AddPrimaryKeyColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).AsPrimaryKey().Column;
+
+    /// <inheritdoc />
+    protected override string GetDatabaseTypeFor(Type dotnetType)
+        => SqlServerProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+
+    /// <inheritdoc />
+    protected override Migrator GetDefaultMigratorForBasicSql()
+        => new SqlServerMigrator { Formatting = SqlFormatting.Concise };
+
+    /// <inheritdoc />
+    /// <remarks>SQL Server identifier comparison is case-insensitive by default.</remarks>
+    protected override StringComparison NameComparison => StringComparison.OrdinalIgnoreCase;
 
     public IList<string> PartitionExpressions { get; } = new List<string>();
 
@@ -109,15 +94,7 @@ public partial class Table: ITable
         return partitioning;
     }
 
-    public string PrimaryKeyName
-    {
-        get => _primaryKeyName.IsNotEmpty()
-            ? _primaryKeyName
-            : $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
-        set => _primaryKeyName = value;
-    }
-
-    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         // Write partition function and scheme DDL before the table if partitioning is configured
         if (SqlServerPartitioning != null)
@@ -228,15 +205,12 @@ public partial class Table: ITable
         }
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
+    public override void WriteDropStatement(Migrator rules, TextWriter writer)
     {
         writer.WriteLine($"DROP TABLE IF EXISTS {Identifier};");
     }
 
-    public DbObjectName Identifier { get; }
-
-
-    public IEnumerable<DbObjectName> AllNames()
+    public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
 
@@ -245,40 +219,9 @@ public partial class Table: ITable
         foreach (var fk in ForeignKeys) yield return new SqlServerObjectName(Identifier.Schema, fk.Name);
     }
 
-    /// <summary>
-    ///     Generate the CREATE TABLE SQL expression with default
-    ///     DDL rules. This is useful for quick diagnostics
-    /// </summary>
-    /// <returns></returns>
-    public string ToBasicCreateTableSql()
-    {
-        var writer = new StringWriter();
-        var rules = new SqlServerMigrator { Formatting = SqlFormatting.Concise };
-        WriteCreateStatement(rules, writer);
-
-        return writer.ToString();
-    }
-
-
     internal string PrimaryKeyDeclaration()
     {
         return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
-    }
-
-    public TableColumn? ColumnFor(string columnName)
-    {
-        return Columns.FirstOrDefault(x => x.Name.EqualsIgnoreCase(columnName));
-    }
-
-
-    public bool HasColumn(string columnName)
-    {
-        return Columns.Any(x => x.Name.EqualsIgnoreCase(columnName));
-    }
-
-    public IndexDefinition? IndexFor(string indexName)
-    {
-        return Indexes.FirstOrDefault(x => x.Name == indexName);
     }
 
     public ColumnExpression AddColumn(TableColumn column)
@@ -329,22 +272,12 @@ public partial class Table: ITable
         }
     }
 
-    public void RemoveColumn(string columnName)
-    {
-        _columns.RemoveAll(x => x.Name.EqualsIgnoreCase(columnName));
-    }
-
     public ColumnExpression ModifyColumn(string columnName)
     {
         var column = ColumnFor(columnName) ??
                      throw new ArgumentOutOfRangeException(
                          $"Column '{columnName}' does not exist in table {Identifier}");
         return new ColumnExpression(this, column);
-    }
-
-    public bool HasIndex(string indexName)
-    {
-        return Indexes.Any(x => x.Name == indexName);
     }
 
     public void PartitionByRange(params string[] columnOrExpressions)

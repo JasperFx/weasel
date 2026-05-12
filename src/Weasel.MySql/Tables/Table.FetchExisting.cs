@@ -6,7 +6,7 @@ namespace Weasel.MySql.Tables;
 
 public partial class Table
 {
-    public void ConfigureQueryCommand(Core.DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(Core.DbCommandBuilder builder)
     {
         var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;

@@ -7,66 +7,44 @@ namespace Weasel.Sqlite.Tables;
 /// Represents a SQLite table with support for JSON columns, foreign keys, indexes, and generated columns.
 /// Note: SQLite has limited ALTER TABLE support, many schema changes require table recreation.
 /// </summary>
-public partial class Table: ITable
+public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 {
-    internal readonly List<TableColumn> _columns = new();
     internal readonly List<string> _primaryKeyColumns = new();
-    private string? _primaryKeyName;
 
     public Table(DbObjectName name)
+        : base(name ?? throw new ArgumentNullException(nameof(name)))
     {
-        Identifier = name ?? throw new ArgumentNullException(nameof(name));
     }
 
     public Table(string tableName): this(DbObjectName.Parse(SqliteProvider.Instance, tableName))
     {
     }
 
-    // ITable interface implementation
-    ITableColumn ITable.AddColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType);
-        return expression.Column;
-    }
+    /// <inheritdoc />
+    public override IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
 
-    ITableColumn ITable.AddColumn(string name, Type dotnetType)
-    {
-        var type = SqliteProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type);
-        return expression.Column;
-    }
+    /// <inheritdoc />
+    /// <remarks>SQLite spells the auto-PK constraint name as <c>pk_{tableName}</c>.</remarks>
+    protected override string DefaultPrimaryKeyName() => $"pk_{Identifier.Name}";
 
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType).AsPrimaryKey();
-        return expression.Column;
-    }
+    /// <inheritdoc />
+    protected override ForeignKey CreateForeignKey(string name) => new ForeignKey(name);
 
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
-    {
-        var type = SqliteProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type).AsPrimaryKey();
-        return expression.Column;
-    }
+    /// <inheritdoc />
+    protected override ITableColumn AddColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).Column;
 
-    public IReadOnlyList<TableColumn> Columns => _columns;
+    /// <inheritdoc />
+    protected override ITableColumn AddPrimaryKeyColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).AsPrimaryKey().Column;
 
-    private readonly List<ForeignKey> _foreignKeys = new();
+    /// <inheritdoc />
+    protected override string GetDatabaseTypeFor(Type dotnetType)
+        => SqliteProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
 
-    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => _foreignKeys;
-
-    public IList<ForeignKey> ForeignKeys => _foreignKeys;
-
-    public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
-    public ISet<string> IgnoredIndexes { get; } = new HashSet<string>();
-
-    public IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
-
-    public string PrimaryKeyName
-    {
-        get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : $"pk_{Identifier.Name}";
-        set => _primaryKeyName = value;
-    }
+    /// <inheritdoc />
+    protected override Migrator GetDefaultMigratorForBasicSql()
+        => new SqliteMigrator { Formatting = SqlFormatting.Concise };
 
     /// <summary>
     /// Enable foreign key constraints (disabled by default in SQLite)
@@ -82,8 +60,6 @@ public partial class Table: ITable
     /// Use STRICT table (SQLite 3.37+) for strict type checking
     /// </summary>
     public bool StrictTypes { get; set; }
-
-    public DbObjectName Identifier { get; private set; }
 
     /// <summary>
     /// Change the table's schema (supports "main" and "temp" schemas in SQLite)
@@ -104,7 +80,7 @@ public partial class Table: ITable
     /// </summary>
     public IDdlSyntaxStrategy Syntax => SqliteDdlSyntax.Instance;
 
-    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
@@ -182,64 +158,23 @@ public partial class Table: ITable
         }
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
+    public override void WriteDropStatement(Migrator rules, TextWriter writer)
     {
         Syntax.WriteDropTable(writer, Identifier);
     }
 
     // Implemented in Table.Deltas.cs partial class
 
-    public bool HasColumn(string columnName)
-    {
-        return _columns.Any(x => x.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
-    }
+    /// <inheritdoc />
+    /// <remarks>
+    ///     SQLite identifiers are case-insensitive — override the
+    ///     <see cref="TableBase{TColumn,TIndex,TForeignKey}.NameComparison" />
+    ///     hook so <c>HasColumn</c>, <c>ColumnFor</c>, <c>IndexFor</c> and
+    ///     <c>HasIndex</c> all do case-folded lookups.
+    /// </remarks>
+    protected override StringComparison NameComparison => StringComparison.OrdinalIgnoreCase;
 
-    public void RemoveColumn(string columnName)
-    {
-        var column = _columns.FirstOrDefault(x => x.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
-        if (column != null)
-        {
-            _columns.Remove(column);
-        }
-    }
-
-    /// <summary>
-    /// Mark an index as ignored for delta detection purposes
-    /// </summary>
-    public void IgnoreIndex(string indexName)
-    {
-        IgnoredIndexes.Add(indexName);
-    }
-
-    /// <summary>
-    /// Check if the table has an index with the given name
-    /// </summary>
-    public bool HasIndex(string indexName)
-    {
-        return Indexes.Any(x => x.Name.Equals(indexName, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Check if an index is in the ignored list
-    /// </summary>
-    public bool HasIgnoredIndex(string indexName)
-    {
-        return IgnoredIndexes.Contains(indexName);
-    }
-
-    public ForeignKeyBase AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
-    {
-        var fk = new ForeignKey(name)
-        {
-            LinkedTable = linkedTable,
-            ColumnNames = columnNames,
-            LinkedNames = linkedColumnNames
-        };
-        _foreignKeys.Add(fk);
-        return fk;
-    }
-
-    public IEnumerable<DbObjectName> AllNames()
+    public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
 
@@ -253,38 +188,6 @@ public partial class Table: ITable
     {
         var pkCols = PrimaryKeyColumns.Select(SchemaUtils.QuoteName).Join(", ");
         return $"    CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({pkCols})";
-    }
-
-    public override string ToString()
-    {
-        return $"Table: {Identifier}";
-    }
-
-    /// <summary>
-    /// Find a column by name (case-insensitive)
-    /// </summary>
-    public TableColumn? ColumnFor(string columnName)
-    {
-        return _columns.FirstOrDefault(x => x.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Find an index by name (case-insensitive)
-    /// </summary>
-    public IndexDefinition? IndexFor(string indexName)
-    {
-        return Indexes.FirstOrDefault(x => x.Name.Equals(indexName, StringComparison.OrdinalIgnoreCase));
-    }
-
-    /// <summary>
-    /// Generate a basic CREATE TABLE statement for diagnostics
-    /// </summary>
-    public string ToBasicCreateTableSql()
-    {
-        var writer = new StringWriter();
-        var migrator = new SqliteMigrator();
-        WriteCreateStatement(migrator, writer);
-        return writer.ToString();
     }
 
     /// <summary>
