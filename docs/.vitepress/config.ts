@@ -54,7 +54,8 @@ export default withMermaid(
             { text: 'Schema Migrations', link: '/core/schema-migrations' },
             { text: 'Command Builders & Batching', link: '/core/command-builders' },
             { text: 'Extension Methods', link: '/core/extension-methods' },
-            { text: 'Multi-Tenancy', link: '/core/multi-tenancy' }
+            { text: 'Multi-Tenancy', link: '/core/multi-tenancy' },
+            { text: 'Provider Trait Matrix', link: '/core/provider-trait-matrix' }
           ]
         },
         {

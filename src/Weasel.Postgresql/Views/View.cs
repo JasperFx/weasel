@@ -4,26 +4,17 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql.Views;
 
-public class View: ISchemaObject
+public class View: ViewBase
 {
-    private readonly string viewSql;
-
-    public View(string viewName, string viewSql): this(DbObjectName.Parse(PostgresqlProvider.Instance, viewName), viewSql)
+    public View(string viewName, string viewSql)
+        : this(DbObjectName.Parse(PostgresqlProvider.Instance, viewName), viewSql)
     {
     }
 
     public View(DbObjectName name, string viewSql)
+        : base(PostgresqlObjectName.From(name ?? throw new ArgumentNullException(nameof(name))), viewSql)
     {
-        if (name == null)
-        {
-            throw new ArgumentNullException(nameof(name));
-        }
-
-        Identifier = PostgresqlObjectName.From(name);
-        this.viewSql = viewSql ?? throw new ArgumentNullException(nameof(viewSql));
     }
-
-    public DbObjectName Identifier { get; private set; }
 
     protected virtual string ViewType => "VIEW";
 
@@ -31,35 +22,15 @@ public class View: ISchemaObject
 
     protected virtual string GetCreationOptions() => string.Empty;
 
-    /// <summary>
-    ///     Mutate this view to change the identifier to being in a different schema
-    /// </summary>
-    /// <param name="schemaName"></param>
-    public void MoveToSchema(string schemaName)
-    {
-        Identifier = PostgresqlObjectName.From(new DbObjectName(schemaName, Identifier.Name));
-    }
+    /// <inheritdoc />
+    protected override DbObjectName WithSchema(string schemaName)
+        => PostgresqlObjectName.From(new DbObjectName(schemaName, Identifier.Name));
 
-    /// <summary>
-    ///     Generate the CREATE VIEW SQL expression with default
-    ///     DDL rules. This is useful for quick diagnostics
-    /// </summary>
-    /// <returns></returns>
-    public string ToBasicCreateViewSql()
-    {
-        var writer = new StringWriter();
-        var rules = new PostgresqlMigrator { Formatting = SqlFormatting.Concise };
-        WriteCreateStatement(rules, writer);
+    /// <inheritdoc />
+    protected override Migrator GetDefaultMigratorForBasicSql()
+        => new PostgresqlMigrator { Formatting = SqlFormatting.Concise };
 
-        return writer.ToString();
-    }
-
-    public IEnumerable<DbObjectName> AllNames()
-    {
-        yield return Identifier;
-    }
-
-    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         WriteDropStatement(migrator, writer);
 
@@ -68,16 +39,16 @@ public class View: ISchemaObject
 
         var viewIdentifierWithCreationOptions = string.IsNullOrWhiteSpace(creationOptions)
             ? viewIdentifier
-            : $"{viewIdentifier} {GetCreationOptions()}";
-        writer.WriteLine($"CREATE {ViewType} {viewIdentifierWithCreationOptions} AS {viewSql};");
+            : $"{viewIdentifier} {creationOptions}";
+        writer.WriteLine($"CREATE {ViewType} {viewIdentifierWithCreationOptions} AS {ViewSql};");
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
+    public override void WriteDropStatement(Migrator rules, TextWriter writer)
     {
         writer.WriteLine($"DROP {ViewType} IF EXISTS {Identifier.QualifiedName};");
     }
 
-    public void ConfigureQueryCommand(Core.DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(Core.DbCommandBuilder builder)
     {
         builder.Append("SELECT (CASE WHEN pg_has_role(c.relowner, 'USAGE'::text) THEN LTRIM(pg_get_viewdef(c.oid),' ') ELSE NULL::text END)::information_schema.character_data AS view_definition ");
         builder.Append("FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace ");
@@ -90,13 +61,13 @@ public class View: ISchemaObject
         builder.Append(";");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken cancellationToken)
+    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        if (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var previousView = reader.GetString(0);
             //This is to support when users specify view SQL with/without colon. Postgres allways returns with semicolon.
-            var sanitizedViewSqlBody = viewSql.EndsWith(';') ? viewSql : viewSql + ";";
+            var sanitizedViewSqlBody = ViewSql.EndsWith(';') ? ViewSql : ViewSql + ";";
             if (string.Equals(previousView, sanitizedViewSqlBody, StringComparison.OrdinalIgnoreCase))
             {
                 return new SchemaObjectDelta(this, SchemaPatchDifference.None);

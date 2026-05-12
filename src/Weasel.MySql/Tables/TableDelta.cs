@@ -3,17 +3,31 @@ using Weasel.Core;
 
 namespace Weasel.MySql.Tables;
 
-public class TableDelta: ISchemaObjectDelta
+/// <summary>
+///     MySQL table delta. Brought into the standard <see cref="SchemaObjectDelta{T}" />
+///     shape in 9.0 so it composes uniformly with the other providers' deltas (PG,
+///     SQL Server, Oracle, SQLite) — same constructor signature, same Expected/Actual
+///     properties from the base, same protected <see cref="compare" /> hook that
+///     populates the per-item deltas as a side-effect. The override surface is just
+///     the MySQL-specific update / rollback DDL.
+/// </summary>
+public class TableDelta: SchemaObjectDelta<Table>
 {
-    public TableDelta(Table expected, Table? actual)
+    public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
-        Expected = expected;
-        Actual = actual;
+    }
 
+    public ItemDelta<TableColumn>? Columns { get; private set; }
+    public ItemDelta<IndexDefinition>? Indexes { get; private set; }
+    public ItemDelta<ForeignKey>? ForeignKeys { get; private set; }
+
+    public SchemaPatchDifference PrimaryKeyDifference { get; private set; } = SchemaPatchDifference.None;
+
+    protected override SchemaPatchDifference compare(Table expected, Table? actual)
+    {
         if (actual == null)
         {
-            Difference = SchemaPatchDifference.Create;
-            return;
+            return SchemaPatchDifference.Create;
         }
 
         Columns = new ItemDelta<TableColumn>(
@@ -40,36 +54,21 @@ public class TableDelta: ISchemaObjectDelta
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
 
-        // Check partition differences
+        // Partition strategy can't be altered in place — flag as needing manual intervention
         if (expected.PartitionStrategy != actual.PartitionStrategy)
         {
-            Difference = SchemaPatchDifference.Invalid;
-            return;
+            return SchemaPatchDifference.Invalid;
         }
 
-        // Determine overall difference
-        if (HasChanges())
-        {
-            Difference = SchemaPatchDifference.Update;
-        }
-        else
-        {
-            Difference = SchemaPatchDifference.None;
-        }
+        return HasChanges() ? SchemaPatchDifference.Update : SchemaPatchDifference.None;
     }
 
-    public Table Expected { get; }
-    public Table? Actual { get; }
-
-    public ItemDelta<TableColumn>? Columns { get; }
-    public ItemDelta<IndexDefinition>? Indexes { get; }
-    public ItemDelta<ForeignKey>? ForeignKeys { get; }
-
-    public SchemaPatchDifference PrimaryKeyDifference { get; } = SchemaPatchDifference.None;
-
-    public ISchemaObject SchemaObject => Expected;
-    public SchemaPatchDifference Difference { get; }
-
+    /// <summary>
+    ///     True when at least one column, index, foreign key or the primary key
+    ///     differs between Expected and Actual. Public because callers (e.g.
+    ///     migration runners) want to query "anything to do?" without unpacking
+    ///     the SchemaPatchDifference enum.
+    /// </summary>
     public bool HasChanges()
     {
         if (Actual == null) return true;
@@ -82,7 +81,7 @@ public class TableDelta: ISchemaObjectDelta
         return false;
     }
 
-    public void WriteUpdate(Migrator migrator, TextWriter writer)
+    public override void WriteUpdate(Migrator migrator, TextWriter writer)
     {
         if (Difference == SchemaPatchDifference.Create)
         {
@@ -176,7 +175,7 @@ public class TableDelta: ISchemaObjectDelta
         }
     }
 
-    public void WriteRollback(Migrator migrator, TextWriter writer)
+    public override void WriteRollback(Migrator migrator, TextWriter writer)
     {
         if (Actual == null)
         {
@@ -235,7 +234,13 @@ public class TableDelta: ISchemaObjectDelta
         }
     }
 
-    public void WriteRestorationOfPreviousState(Migrator migrator, TextWriter writer)
+    /// <summary>
+    ///     The base default would throw NRE if <see cref="SchemaObjectDelta{T}.Actual" />
+    ///     is null (which it is for a Create delta). MySQL has historically been
+    ///     tolerant — a Create delta has no "previous state" to restore, so this
+    ///     is a no-op rather than a throw.
+    /// </summary>
+    public override void WriteRestorationOfPreviousState(Migrator migrator, TextWriter writer)
     {
         Actual?.WriteCreateStatement(migrator, writer);
     }

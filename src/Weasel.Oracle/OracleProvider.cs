@@ -36,35 +36,14 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
 
     private string? ResolveDatabaseType(Type type)
     {
-        if (DatabaseTypeMemo.Value.TryFind(type, out var value))
-        {
-            return value;
-        }
-
-        if (!type.IsNullable() ||
-            !DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var databaseType))
-            throw new NotSupportedException(
-                $"Weasel.Oracle does not (yet) support database type mapping to {type.FullNameInCode()}");
-
-        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
-        return databaseType;
+        return ResolveDatabaseTypeFromMemo(type)
+               ?? throw new NotSupportedException(
+                   $"Weasel.Oracle does not (yet) support database type mapping to {type.FullNameInCode()}");
     }
 
     private OracleDbType? ResolveOracleDbType(Type type)
     {
-        if (ParameterTypeMemo.Value.TryFind(type, out var value))
-        {
-            return value;
-        }
-
-        if (type.IsNullable() &&
-            ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var parameterType))
-        {
-            ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
-            return parameterType;
-        }
-
-        return OracleDbType.Varchar2;
+        return ResolveParameterTypeFromMemo(type) ?? OracleDbType.Varchar2;
     }
 
     protected override Type[] determineClrTypesForParameterType(OracleDbType dbType)

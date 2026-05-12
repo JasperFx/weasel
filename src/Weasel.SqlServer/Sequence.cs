@@ -1,42 +1,27 @@
-using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.SqlServer;
 
-public class Sequence: ISchemaObject
+public class Sequence: SequenceBase
 {
-    private readonly long? _startWith;
-
     public Sequence(string identifier)
+        : base(DbObjectName.Parse(SqlServerProvider.Instance, identifier))
     {
-        Identifier = DbObjectName.Parse(SqlServerProvider.Instance, identifier);
     }
 
-    public Sequence(DbObjectName identifier)
+    public Sequence(DbObjectName identifier) : base(identifier)
     {
-        Identifier = identifier;
     }
 
-    public Sequence(DbObjectName identifier, long startWith)
+    public Sequence(DbObjectName identifier, long startWith) : base(identifier, startWith)
     {
-        Identifier = identifier;
-        _startWith = startWith;
     }
 
-    public DbObjectName? Owner { get; set; }
-    public string OwnerColumn { get; set; } = null!;
-    public DbObjectName Identifier { get; }
-
-    public IEnumerable<DbObjectName> AllNames()
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
-        yield return Identifier;
-    }
-
-    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
-    {
-        var startsWith = _startWith ?? 1;
+        var startsWith = StartWith ?? 1;
 
         writer.WriteLine(
             $"CREATE SEQUENCE {Identifier} START WITH {startsWith};");
@@ -47,12 +32,12 @@ public class Sequence: ISchemaObject
         }
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
+    public override void WriteDropStatement(Migrator rules, TextWriter writer)
     {
         writer.WriteLine($"DROP SEQUENCE IF EXISTS {Identifier};");
     }
 
-    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
@@ -60,27 +45,11 @@ public class Sequence: ISchemaObject
             $"select count(*) from sys.sequences inner join sys.schemas on sys.sequences.schema_id = sys.schemas.schema_id where sys.schemas.name = @{schemaParam} and sys.sequences.name = @{nameParam};");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
-    {
-        if (!await reader.ReadAsync(ct).ConfigureAwait(false) ||
-            await reader.GetFieldValueAsync<int>(0, ct).ConfigureAwait(false) == 0)
-        {
-            return new SchemaObjectDelta(this, SchemaPatchDifference.Create);
-        }
-
-        return new SchemaObjectDelta(this, SchemaPatchDifference.None);
-    }
-
-    public async Task<ISchemaObjectDelta> FindDeltaAsync(SqlConnection conn, CancellationToken ct = default)
-    {
-        var builder = new DbCommandBuilder(conn);
-
-        ConfigureQueryCommand(builder);
-
-        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
-
-        var result = await CreateDeltaAsync(reader, ct).ConfigureAwait(false);
-        await reader.CloseAsync().ConfigureAwait(false);
-        return result;
-    }
+    /// <summary>
+    ///     Provider-specific overload that accepts a <see cref="SqlConnection" /> for caller
+    ///     convenience. Forwards to the base
+    ///     <see cref="SchemaObjectBase.FindDeltaAsync(System.Data.Common.DbConnection, CancellationToken)" />.
+    /// </summary>
+    public Task<ISchemaObjectDelta> FindDeltaAsync(SqlConnection conn, CancellationToken ct = default)
+        => FindDeltaAsync((System.Data.Common.DbConnection)conn, ct);
 }

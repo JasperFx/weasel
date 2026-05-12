@@ -42,7 +42,7 @@ public class MySqlSamples
         #region sample_mysql_define_table
         var table = new Table("users");
 
-        table.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+        table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
         table.AddColumn<string>("name").NotNull();
         table.AddColumn<string>("email").NotNull().AddIndex(idx => idx.IsUnique = true);
         table.AddColumn<DateTime>("created_at");

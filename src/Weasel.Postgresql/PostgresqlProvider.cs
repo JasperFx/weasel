@@ -51,29 +51,31 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
     // custom npgsql mappings prior to execution.
     private string? ResolveDatabaseType(Type type)
     {
-        if (DatabaseTypeMemo.Value.TryFind(type, out var value))
+        // Try the shared base memo (with nullable-promote) first; on a miss, ask
+        // Npgsql's type-mapping plugin (handles JsonB, NpgsqlRange<T>, …) and
+        // cache the answer so subsequent lookups are O(1).
+        var cached = ResolveDatabaseTypeFromMemo(type);
+        if (cached != null)
         {
-            return value;
+            return cached;
         }
 
-        value = GetTypeMapping(type)?.DataTypeName;
-
+        var value = GetTypeMapping(type)?.DataTypeName;
         DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, value));
-
         return value;
     }
 
     private NpgsqlDbType? ResolveNpgsqlDbType(Type type)
     {
-        if (ParameterTypeMemo.Value.TryFind(type, out var value))
+        // Same pattern as ResolveDatabaseType but for the NpgsqlDbType enum.
+        var cached = ResolveParameterTypeFromMemo(type);
+        if (cached != null)
         {
-            return value;
+            return cached;
         }
 
-        value = GetTypeMapping(type)?.NpgsqlDbType;
-
+        var value = GetTypeMapping(type)?.NpgsqlDbType;
         ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, value));
-
         return value;
     }
 
