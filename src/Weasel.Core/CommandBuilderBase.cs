@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using JasperFx.Core;
 
@@ -273,9 +274,20 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <summary>
     ///     For each public property of the parameters object, adds a new parameter
     ///     to the command with the name of the property and the current value of the property
-    ///     on the parameters object. Does *not* affect the command text
+    ///     on the parameters object. Does *not* affect the command text.
     /// </summary>
     /// <param name="parameters"></param>
+    /// <remarks>
+    ///     weasel#266: reflects on <c>parameters.GetType().GetProperties()</c>.
+    ///     The static type is <see cref="object"/>, which can't carry a
+    ///     <see cref="DynamicallyAccessedMembersAttribute"/> annotation at
+    ///     the parameter site, so this method propagates
+    ///     <see cref="RequiresUnreferencedCodeAttribute"/> to AOT-publishing
+    ///     consumers. Callers that need AOT compatibility should pass an
+    ///     <see cref="IDictionary{TKey,TValue}"/> instead (the dictionary
+    ///     overloads above don't reflect).
+    /// </remarks>
+    [RequiresUnreferencedCode("AddParameters(object) reflects on the parameters object's public properties via Type.GetProperties(). Use the IDictionary<string, T> overload when publishing AOT-trim-clean.")]
     public void AddParameters(object parameters)
     {
         if (parameters == null)
