@@ -8,7 +8,7 @@ namespace Weasel.Postgresql.Tables;
 
 public partial class Table
 {
-    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;

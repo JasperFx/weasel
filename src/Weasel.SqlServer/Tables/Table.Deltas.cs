@@ -6,7 +6,7 @@ namespace Weasel.SqlServer.Tables;
 
 public partial class Table
 {
-    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
+    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
         var existing = await readExistingAsync(reader, ct).ConfigureAwait(false);
         return new TableDelta(this, existing);

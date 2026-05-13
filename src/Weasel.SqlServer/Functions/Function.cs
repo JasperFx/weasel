@@ -5,91 +5,42 @@ using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.SqlServer.Functions;
 
-public class Function: ISchemaObject
+public class Function: FunctionBase
 {
-    private readonly string? _body;
-    private readonly string[]? _dropStatements;
-
-
     public Function(DbObjectName identifier, string body, string[] dropStatements)
+        : base(identifier, body, dropStatements)
     {
-        _body = body;
-        _dropStatements = dropStatements;
-        Identifier = identifier;
     }
 
-    public Function(DbObjectName identifier, string? body)
+    public Function(DbObjectName identifier, string? body) : base(identifier, body)
     {
-        _body = body;
-        Identifier = identifier;
     }
 
-    protected Function(DbObjectName identifier)
+    protected Function(DbObjectName identifier) : base(identifier, body: null)
     {
-        Identifier = identifier;
     }
 
-
-    public bool IsRemoved { get; protected set; }
-
-
-    public virtual void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
-        writer.WriteLine($"EXEC sp_executesql N'{_body}';");
+        writer.WriteLine($"EXEC sp_executesql N'{RawBody}';");
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
-    {
-        foreach (var dropStatement in DropStatements()) writer.WriteLine(dropStatement);
-    }
-
-    public DbObjectName Identifier { get; }
-
-    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         var nameParam = builder.AddParameter(Identifier.ToString()).ParameterName;
         builder.Append($"SELECT sm.definition FROM sys.sql_modules AS sm WHERE sm.object_id = OBJECT_ID(@{nameParam})");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
+    protected override Migrator GetDefaultMigrator() => new SqlServerMigrator();
+
+    protected override string[] ComputeDefaultDropStatements()
     {
-        var existing = await readExistingAsync(reader, ct).ConfigureAwait(false);
-        return new FunctionDelta(this, existing);
+        var drop = $"drop function if exists {Identifier};";
+        return new[] { drop };
     }
 
-    public IEnumerable<DbObjectName> AllNames()
-    {
-        yield return Identifier;
-    }
-
-    public static DbObjectName ParseIdentifier(string functionSql)
-    {
-        var functionIndex = functionSql.IndexOf("FUNCTION", StringComparison.OrdinalIgnoreCase);
-        var openParen = functionSql.IndexOf('(');
-        var nameStart = functionIndex + "function".Length;
-        var funcName = functionSql.Substring(nameStart, openParen - nameStart).Trim();
-        return DbObjectName.Parse(SqlServerProvider.Instance, funcName);
-    }
-
-    public async Task<Function?> FetchExistingAsync(SqlConnection conn, CancellationToken ct = default)
-    {
-        var builder = new DbCommandBuilder(conn);
-
-        ConfigureQueryCommand(builder);
-
-        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
-        var result = await readExistingAsync(reader, ct).ConfigureAwait(false);
-        await reader.CloseAsync().ConfigureAwait(false);
-        return result;
-    }
-
-    public static Task<Function?> FetchExistingAsync(SqlConnection conn, DbObjectName identifier, CancellationToken ct = default)
-    {
-        var function = new Function(identifier);
-        return function.FetchExistingAsync(conn, ct);
-    }
-
-    private async Task<Function?> readExistingAsync(DbDataReader reader, CancellationToken ct = default)
+    protected override async Task<FunctionBase?> ReadExistingFromReaderAsync(
+        DbDataReader reader, CancellationToken ct)
     {
         if (!await reader.ReadAsync(ct).ConfigureAwait(false))
         {
@@ -105,31 +56,34 @@ public class Function: ISchemaObject
         return new Function(Identifier, existingFunction.TrimEnd());
     }
 
-    public string Body(Migrator? rules = null)
-    {
-        rules ??= new SqlServerMigrator();
-        var writer = new StringWriter();
-        WriteCreateStatement(rules, writer);
+    protected override ISchemaObjectDelta CreateFunctionDelta(FunctionBase? actual)
+        => new FunctionDelta(this, (Function?)actual);
 
-        return writer.ToString();
+    public static DbObjectName ParseIdentifier(string functionSql)
+    {
+        var functionIndex = functionSql.IndexOf("FUNCTION", StringComparison.OrdinalIgnoreCase);
+        var openParen = functionSql.IndexOf('(');
+        var nameStart = functionIndex + "function".Length;
+        var funcName = functionSql.Substring(nameStart, openParen - nameStart).Trim();
+        return DbObjectName.Parse(SqlServerProvider.Instance, funcName);
     }
 
-    public string[] DropStatements()
+    public async Task<Function?> FetchExistingAsync(SqlConnection conn, CancellationToken ct = default)
     {
-        if (_dropStatements?.Length > 0)
-        {
-            return _dropStatements;
-        }
+        var builder = new DbCommandBuilder(conn);
+        ConfigureQueryCommand(builder);
 
-        if (IsRemoved)
-        {
-            return Array.Empty<string>();
-        }
-
-        var drop = $"drop function if exists {Identifier};";
-        return new[] { drop };
+        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
+        var result = await ReadExistingFromReaderAsync(reader, ct).ConfigureAwait(false);
+        await reader.CloseAsync().ConfigureAwait(false);
+        return (Function?)result;
     }
 
+    public static Task<Function?> FetchExistingAsync(SqlConnection conn, DbObjectName identifier, CancellationToken ct = default)
+    {
+        var function = new Function(identifier);
+        return function.FetchExistingAsync(conn, ct);
+    }
 
     public static Function ForSql(string sql)
     {
