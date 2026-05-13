@@ -275,7 +275,6 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     ///     For each public property of the parameters object, adds a new parameter
     ///     to the command with the name of the property and the current value of the property
     ///     on the parameters object. Does *not* affect the command text.
-    ///     <para>
     ///     The <see cref="DynamicallyAccessedMembersAttribute" /> on <paramref name="parameters" />
     ///     declares to the trimmer that the runtime type of the passed object must have its
     ///     <see cref="DynamicallyAccessedMemberTypes.PublicProperties" /> preserved (see #266 /
@@ -284,9 +283,9 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     ///     <see cref="UnconditionalSuppressMessageAttribute" /> documents that the IL2075
     ///     warning is expected — the DAM on the parameter is the caller-facing contract, and the
     ///     long-term fix is the source-generator path (path 2 in #266).
-    ///     </para>
     /// </summary>
     /// <param name="parameters"></param>
+    [RequiresUnreferencedCode("AddParameters(object) reflects on the parameters object's public properties via Type.GetProperties(). Use the IDictionary<string, T> overload when publishing AOT-trim-clean.")]
     [UnconditionalSuppressMessage("Trimming", "IL2075",
         Justification = "Runtime contract is documented via the DynamicallyAccessedMembers attribute on the parameter; the trimmer's flow analysis through object.GetType() doesn't see it but the contract holds. See #266.")]
     public void AddParameters(

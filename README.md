@@ -13,6 +13,15 @@ Read also more in [Introducing Weasel for Database Development](https://jeremydm
 
 You can acccess the docs [here](https://weasel.jasperfx.net).
 
+## Branch Strategy
+
+| Branch | Version line | Purpose |
+| --- | --- | --- |
+| **`master`** | **9.0** (Critter Stack 2026) | Active development. All new work targets this branch. |
+| `8.0` | 8.x | Maintenance only — critical fixes for the 8.x line. |
+
+Weasel 9.0 is part of the [Critter Stack 2026](https://github.com/JasperFx/jasperfx/issues/217) release wave, shipping in lockstep with [JasperFx 2.0](https://github.com/JasperFx/jasperfx), [JasperFx.Events 2.0](https://github.com/JasperFx/jasperfx), [Marten 9.0](https://github.com/JasperFx/marten), and [Polecat 4.0](https://github.com/JasperFx/polecat). See the [9.0 master plan](https://github.com/JasperFx/weasel/issues/263) and the [migration guide](https://weasel.jasperfx.net/migration-guide) for upgrade details.
+
 ## Support Plans
 
 <div align="center">

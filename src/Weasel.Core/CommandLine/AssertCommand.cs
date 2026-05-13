@@ -24,6 +24,10 @@ public class AssertCommand: JasperFxAsyncCommand<WeaselInput>
     ///     </para>
     /// </summary>
     [RequiresDynamicCode("Uses Spectre.Console.AnsiConsole.WriteException, whose ExceptionFormatter requires runtime IL generation that isn't available under PublishAot.")]
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "AnsiConsole.WriteException is only reached on the dev-time db-assert command path. weasel#265 / JasperFx/jasperfx#213.")]
     public override async Task<bool> Execute(WeaselInput input)
     {
         AnsiConsole.Write(
