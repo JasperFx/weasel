@@ -8,10 +8,8 @@ namespace Weasel.Sqlite.Views;
 /// Represents a SQLite view with support for creation, deletion, and delta detection.
 /// SQLite views are read-only and do not support materialized views.
 /// </summary>
-public class View : ISchemaObject
+public class View : ViewBase
 {
-    private readonly string _viewSql;
-
     /// <summary>
     /// Create a view with the specified name and SQL definition
     /// </summary>
@@ -28,34 +26,26 @@ public class View : ISchemaObject
     /// <param name="identifier">Fully qualified view name</param>
     /// <param name="viewSql">The SELECT statement defining the view</param>
     public View(DbObjectName identifier, string viewSql)
+        : base(identifier, viewSql)
     {
-        Identifier = identifier ?? throw new ArgumentNullException(nameof(identifier));
-        _viewSql = viewSql ?? throw new ArgumentNullException(nameof(viewSql));
     }
 
-    public DbObjectName Identifier { get; private set; }
+    /// <inheritdoc />
+    protected override DbObjectName WithSchema(string schemaName)
+        => new SqliteObjectName(schemaName, Identifier.Name);
 
-    public IEnumerable<DbObjectName> AllNames()
-    {
-        yield return Identifier;
-    }
+    /// <inheritdoc />
+    protected override Migrator GetDefaultMigratorForBasicSql()
+        => new SqliteMigrator { Formatting = SqlFormatting.Concise };
 
-    /// <summary>
-    /// Change the view's schema (supports "main" and "temp" schemas in SQLite)
-    /// </summary>
-    public void MoveToSchema(string schemaName)
-    {
-        Identifier = new SqliteObjectName(schemaName, Identifier.Name);
-    }
-
-    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         WriteDropStatement(migrator, writer);
 
         var viewIdentifier = Identifier.QualifiedName;
 
         // Ensure SQL ends with semicolon
-        var sql = _viewSql.TrimEnd();
+        var sql = ViewSql.TrimEnd();
         if (!sql.EndsWith(';'))
         {
             sql += ";";
@@ -64,12 +54,12 @@ public class View : ISchemaObject
         writer.WriteLine($"CREATE VIEW {viewIdentifier} AS {sql}");
     }
 
-    public void WriteDropStatement(Migrator migrator, TextWriter writer)
+    public override void WriteDropStatement(Migrator migrator, TextWriter writer)
     {
         writer.WriteLine($"DROP VIEW IF EXISTS {Identifier.QualifiedName};");
     }
 
-    public void ConfigureQueryCommand(Core.DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(Core.DbCommandBuilder builder)
     {
         // SQLite stores view definitions in sqlite_master table
         var schema = Identifier.Schema;
@@ -80,11 +70,11 @@ public class View : ISchemaObject
         builder.Append(";");
     }
 
-    public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken cancellationToken)
+    public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        if (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            var existingSql = await reader.GetFieldValueAsync<string>(0, cancellationToken).ConfigureAwait(false);
+            var existingSql = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
 
             if (!string.IsNullOrEmpty(existingSql))
             {
@@ -93,7 +83,7 @@ public class View : ISchemaObject
 
                 // Normalize both SQL statements for comparison (just compare the SELECT portion)
                 var normalizedExisting = NormalizeSql(existingBody);
-                var normalizedExpected = NormalizeSql(_viewSql);
+                var normalizedExpected = NormalizeSql(ViewSql);
 
                 if (string.Equals(normalizedExisting, normalizedExpected, StringComparison.OrdinalIgnoreCase))
                 {
@@ -148,23 +138,7 @@ public class View : ISchemaObject
         return null;
     }
 
-    /// <summary>
-    /// Generate a basic CREATE VIEW SQL statement for diagnostics
-    /// </summary>
-    public string ToBasicCreateViewSql()
-    {
-        var writer = new StringWriter();
-        var migrator = new SqliteMigrator { Formatting = SqlFormatting.Concise };
-        WriteCreateStatement(migrator, writer);
-        return writer.ToString();
-    }
-
-    /// <summary>
-    /// Get the view SQL body
-    /// </summary>
-    public string ViewSql => _viewSql;
-
-    private static string NormalizeSql(string sql)
+    internal static string NormalizeSql(string sql)
     {
         // Remove all whitespace for comparison purposes
         var normalized = sql

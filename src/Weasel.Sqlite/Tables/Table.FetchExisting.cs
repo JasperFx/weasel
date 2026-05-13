@@ -7,7 +7,7 @@ namespace Weasel.Sqlite.Tables;
 
 public partial class Table
 {
-    public void ConfigureQueryCommand(DbCommandBuilder builder)
+    public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         // SQLite PRAGMA statements don't support parameter binding, so we use the table name directly
         // Sanitize the table name to prevent SQL injection by escaping single quotes

@@ -291,7 +291,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         var tempTable = new Table(tempName);
         foreach (var column in Expected.Columns)
         {
-            tempTable._columns.Add(column);
+            tempTable.AddColumn(column);
         }
         foreach (var pk in Expected.PrimaryKeyColumns)
         {
@@ -444,7 +444,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         var tempTable = new Table(tempName);
         foreach (var column in Actual.Columns)
         {
-            tempTable._columns.Add(column);
+            tempTable.AddColumn(column);
         }
         foreach (var pk in Actual.PrimaryKeyColumns)
         {

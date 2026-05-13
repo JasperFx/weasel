@@ -12,7 +12,7 @@ public class AssertCommand: JasperFxAsyncCommand<WeaselInput>
     // an ExceptionFormatter path that's RequiresDynamicCode. db-assert is
     // a dev-time CLI tool (not a production hot path), so suppressing the
     // warning here is the right call rather than propagating it via
-    // [RequiresDynamicCode] — propagation would trigger IL3051 because the
+    // [RequiresDynamicCode] — propagation triggers IL3051 because the
     // JasperFx base method JasperFxAsyncCommand<T>.Execute(T) doesn't
     // carry the attribute, and adding it there would ripple to every
     // JasperFx command across the Critter Stack. Suppression keeps the

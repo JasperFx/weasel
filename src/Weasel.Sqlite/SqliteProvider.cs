@@ -47,37 +47,14 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
 
     private string? ResolveDatabaseType(Type type)
     {
-        if (DatabaseTypeMemo.Value.TryFind(type, out var value))
-        {
-            return value;
-        }
-
-        if (!type.IsNullable() ||
-            !DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var databaseType))
-        {
-            // For unmapped types, default to TEXT for JSON storage
-            return null;
-        }
-
-        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
-        return databaseType;
+        // Unmapped types fall through to TEXT in GetDatabaseType (for JSON storage),
+        // so we just return null on a memo miss and let the caller decide.
+        return ResolveDatabaseTypeFromMemo(type);
     }
 
     private SqliteType? ResolveSqliteType(Type type)
     {
-        if (ParameterTypeMemo.Value.TryFind(type, out var value))
-        {
-            return value;
-        }
-
-        if (type.IsNullable() &&
-            ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var parameterType))
-        {
-            ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
-            return parameterType;
-        }
-
-        return SqliteType.Text;
+        return ResolveParameterTypeFromMemo(type) ?? SqliteType.Text;
     }
 
     protected override Type[] determineClrTypesForParameterType(SqliteType dbType)

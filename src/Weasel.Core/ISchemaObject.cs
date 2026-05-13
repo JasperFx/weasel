@@ -108,7 +108,7 @@ public abstract class SchemaObjectDelta<T>: ISchemaObjectDelta where T : ISchema
         Actual!.WriteCreateStatement(rules, writer);
     }
 
-    public void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
+    public virtual void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
     {
         Actual!.WriteCreateStatement(rules, writer);
     }

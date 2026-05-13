@@ -7,66 +7,17 @@ using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public partial class Table: ISchemaObjectWithPostProcessing, ITable
+public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>, ISchemaObjectWithPostProcessing
 {
-    private readonly List<TableColumn> _columns = new();
-
     private readonly List<string> _primaryKeyColumns = new();
 
-    private string? _primaryKeyName;
-
     public Table(DbObjectName name)
+        : base(PostgresqlObjectName.From(name ?? throw new ArgumentNullException(nameof(name))))
     {
-        if (name == null)
-        {
-            throw new ArgumentNullException(nameof(name));
-        }
-
-        Identifier = PostgresqlObjectName.From(name);
     }
 
     public Table(string tableName): this(DbObjectName.Parse(PostgresqlProvider.Instance, tableName))
     {
-    }
-
-    ITableColumn ITable.AddColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType);
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddColumn(string name, Type dotnetType)
-    {
-        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type);
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, string columnType)
-    {
-        var expression = AddColumn(name, columnType).AsPrimaryKey();
-        return expression.Column;
-    }
-
-    ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
-    {
-        var type = PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
-        var expression = AddColumn(name, type).AsPrimaryKey();
-        return expression.Column;
-    }
-
-    IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys => ForeignKeys.Cast<ForeignKeyBase>().ToList();
-
-    ForeignKeyBase ITable.AddForeignKey(string name, DbObjectName linkedTable, string[] columnNames, string[] linkedColumnNames)
-    {
-        var fk = new ForeignKey(name)
-        {
-            LinkedTable = linkedTable,
-            ColumnNames = columnNames,
-            LinkedNames = linkedColumnNames
-        };
-        ForeignKeys.Add(fk);
-        return fk;
     }
 
     /// <summary>
@@ -75,36 +26,47 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
     /// </summary>
     public bool IgnorePartitionsInMigration { get; set; }
 
-    public IReadOnlyList<TableColumn> Columns => _columns;
+    /// <inheritdoc />
+    public override IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
 
-    public IList<ForeignKey> ForeignKeys { get; } = new List<ForeignKey>();
-    public IList<IndexDefinition> Indexes { get; } = new List<IndexDefinition>();
-    public ISet<string> IgnoredIndexes { get; } = new HashSet<string>();
+    /// <inheritdoc />
+    protected override string DefaultPrimaryKeyName()
+        => $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
+
+    /// <inheritdoc />
+    protected override ForeignKey CreateForeignKey(string name) => new ForeignKey(name);
+
+    /// <inheritdoc />
+    protected override ITableColumn AddColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).Column;
+
+    /// <inheritdoc />
+    protected override ITableColumn AddPrimaryKeyColumnAndReturn(string name, string columnType)
+        => AddColumn(name, columnType).AsPrimaryKey().Column;
+
+    /// <inheritdoc />
+    protected override string GetDatabaseTypeFor(Type dotnetType)
+        => PostgresqlProvider.Instance.GetDatabaseType(dotnetType, EnumStorage.AsInteger);
+
+    /// <inheritdoc />
+    protected override Migrator GetDefaultMigratorForBasicSql()
+        => new PostgresqlMigrator { Formatting = SqlFormatting.Concise };
 
     /// <summary>
-    ///     Max identifier length for identifiers like table name, column name, constraints, primary key etc
+    ///     The pluggable DDL syntax strategy this table uses. Routed through for
+    ///     DROP and CREATE-header emission as part of #270 step 8 (prototype);
+    ///     step 9 will move the full CREATE algorithm to <c>TableBase</c> and the
+    ///     strategy will own more of the emission.
     /// </summary>
-    public int MaxIdentifierLength { get; set; } = 63;
+    public IDdlSyntaxStrategy Syntax => PostgresqlDdlSyntax.Instance;
 
-    public IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
-
-    public string PrimaryKeyName
-    {
-        get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
-        set => _primaryKeyName = value;
-    }
-
-    public void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
-            writer.WriteLine("DROP TABLE IF EXISTS {0} CASCADE;", Identifier);
-            writer.WriteLine("CREATE TABLE {0} (", Identifier);
+            Syntax.WriteDropTable(writer, Identifier);
         }
-        else
-        {
-            writer.WriteLine("CREATE TABLE IF NOT EXISTS {0} (", Identifier);
-        }
+        Syntax.WriteCreateTableHeader(writer, Identifier, migrator.TableCreation);
 
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
@@ -174,15 +136,12 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         }
     }
 
-    public void WriteDropStatement(Migrator rules, TextWriter writer)
+    public override void WriteDropStatement(Migrator rules, TextWriter writer)
     {
-        writer.WriteLine($"DROP TABLE IF EXISTS {Identifier} CASCADE;");
+        Syntax.WriteDropTable(writer, Identifier);
     }
 
-    public DbObjectName Identifier { get; private set; }
-
-
-    public IEnumerable<DbObjectName> AllNames()
+    public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
 
@@ -206,11 +165,6 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
                 key.TryToCorrectForLink(this, matching);
             }
         }
-    }
-
-    public override string ToString()
-    {
-        return $"Table: {Identifier}";
     }
 
     internal void ReadPrimaryKeyColumns(List<string> pks)
@@ -242,40 +196,9 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         }
     }
 
-    /// <summary>
-    ///     Generate the CREATE TABLE SQL expression with default
-    ///     DDL rules. This is useful for quick diagnostics
-    /// </summary>
-    /// <returns></returns>
-    public string ToBasicCreateTableSql()
-    {
-        var writer = new StringWriter();
-        var rules = new PostgresqlMigrator { Formatting = SqlFormatting.Concise };
-        WriteCreateStatement(rules, writer);
-
-        return writer.ToString();
-    }
-
-
     internal string PrimaryKeyDeclaration()
     {
         return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
-    }
-
-    public TableColumn? ColumnFor(string columnName)
-    {
-        return Columns.FirstOrDefault(x => x.Name == columnName);
-    }
-
-
-    public bool HasColumn(string columnName)
-    {
-        return Columns.Any(x => x.Name == columnName);
-    }
-
-    public IndexDefinition? IndexFor(string indexName)
-    {
-        return Indexes.FirstOrDefault(x => x.Name == indexName);
     }
 
     public ColumnExpression AddColumn(TableColumn column)
@@ -324,14 +247,14 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
         return any;
     }
 
-    public string TruncatedNameIdentifier(string nameIdentifier)
+    /// <inheritdoc />
+    /// <remarks>
+    ///     PostgreSQL also clears the column from <see cref="PrimaryKeyColumns" />
+    ///     since the PK list is stored as an explicit field on this provider.
+    /// </remarks>
+    public override void RemoveColumn(string columnName)
     {
-        return nameIdentifier.Substring(0, Math.Min(MaxIdentifierLength, nameIdentifier.Length));
-    }
-
-    public void RemoveColumn(string columnName)
-    {
-        _columns.RemoveAll(x => x.Name.EqualsIgnoreCase(columnName));
+        base.RemoveColumn(columnName);
         _primaryKeyColumns.Remove(columnName);
     }
 
@@ -341,26 +264,6 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
                      throw new ArgumentOutOfRangeException(
                          $"Column '{columnName}' does not exist in table {Identifier}");
         return new ColumnExpression(this, column);
-    }
-
-    public void IgnoreIndex(string indexName)
-    {
-        if (Indexes.Any(idx => idx.Name == indexName))
-        {
-            throw new ArgumentException($"Cannot ignore defined index {indexName} on table {Identifier}");
-        }
-
-        IgnoredIndexes.Add(indexName);
-    }
-
-    public bool HasIndex(string indexName)
-    {
-        return Indexes.Any(x => x.Name == indexName);
-    }
-
-    public bool HasIgnoredIndex(string indexName)
-    {
-        return IgnoredIndexes.Contains(indexName);
     }
 
     public IEnumerable<string> PartitionTableNames()
@@ -442,6 +345,63 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
             return this;
         }
 
+        // ---- Core.CascadeAction overloads (resolves #261) -----------------
+        //
+        // The four overloads above take the [Obsolete] Weasel.Postgresql.CascadeAction
+        // enum. These siblings accept Weasel.Core.CascadeAction directly so callers
+        // can opt out of the local enum entirely.
+        //
+        // To avoid call-site ambiguity with the existing overloads (which have
+        // defaults), the Core variants require all three trailing arguments to be
+        // passed explicitly. Once the local CascadeAction enum is removed in a
+        // future major, defaults can be restored on these overloads.
+
+        /// <summary>
+        ///     Configure a foreign key from this column to a referenced table column
+        ///     using <see cref="Core.CascadeAction" />. Provided alongside the
+        ///     <c>[Obsolete]</c> <c>Weasel.Postgresql.CascadeAction</c> overload so
+        ///     callers can migrate to the canonical cross-provider enum.
+        /// </summary>
+        public ColumnExpression ForeignKeyTo(string referencedTableName, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(DbObjectName.Parse(PostgresqlProvider.Instance, referencedTableName),
+                referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(Table referencedTable, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(referencedTable.Identifier, referencedColumnName, fkName, onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(DbObjectName referencedIdentifier, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            return ForeignKeyTo(PostgresqlObjectName.From(referencedIdentifier), referencedColumnName, fkName,
+                onDelete, onUpdate);
+        }
+
+        /// <inheritdoc cref="ForeignKeyTo(string, string, string?, Core.CascadeAction, Core.CascadeAction)" />
+        public ColumnExpression ForeignKeyTo(PostgresqlObjectName referencedIdentifier, string referencedColumnName,
+            string? fkName, Core.CascadeAction onDelete, Core.CascadeAction onUpdate)
+        {
+            var fk = new ForeignKey(fkName ?? _parent.Identifier.ToIndexName("fkey", Column.Name))
+            {
+                LinkedTable = referencedIdentifier,
+                ColumnNames = new[] { Column.Name },
+                LinkedNames = new[] { referencedColumnName },
+                DeleteAction = onDelete,
+                UpdateAction = onUpdate
+            };
+
+            _parent.ForeignKeys.Add(fk);
+
+            return this;
+        }
+
         /// <summary>
         ///     Marks this column as being part of the parent table's primary key
         /// </summary>
@@ -508,23 +468,57 @@ public partial class Table: ISchemaObjectWithPostProcessing, ITable
             return this;
         }
 
-        public ColumnExpression Serial()
+        /// <summary>
+        ///     Mark this column as an auto-incrementing integer identity column.
+        ///     PostgreSQL renders this as <c>SERIAL</c> (32-bit). For 64-bit
+        ///     <c>BIGSERIAL</c> or 16-bit <c>SMALLSERIAL</c>, use
+        ///     <see cref="BigAutoIncrement" /> or <see cref="SmallAutoIncrement" />.
+        ///     <para>
+        ///     Canonical cross-provider spelling — every provider's
+        ///     <c>ColumnExpression</c> exposes <c>AutoIncrement()</c> with
+        ///     provider-appropriate SQL emission, so polymorphic schema-building
+        ///     code works without provider-specific casts (#270 step 10).
+        ///     </para>
+        /// </summary>
+        public ColumnExpression AutoIncrement()
         {
             Column.Type = "SERIAL";
             return this;
         }
 
-        public ColumnExpression BigSerial()
+        /// <summary>Mark this column as a 64-bit auto-incrementing identity (<c>BIGSERIAL</c>).</summary>
+        public ColumnExpression BigAutoIncrement()
         {
             Column.Type = "BIGSERIAL";
             return this;
         }
 
-        public ColumnExpression SmallSerial()
+        /// <summary>Mark this column as a 16-bit auto-incrementing identity (<c>SMALLSERIAL</c>).</summary>
+        public ColumnExpression SmallAutoIncrement()
         {
             Column.Type = "SMALLSERIAL";
             return this;
         }
+
+        /// <summary>
+        ///     Historical PostgreSQL-only spelling for <see cref="AutoIncrement" />.
+        ///     Kept as an alias for backward compatibility; the cross-provider
+        ///     canonical name is <c>AutoIncrement()</c> (#270 step 10).
+        /// </summary>
+        [Obsolete("Use AutoIncrement() — the cross-provider canonical name. Serial() will be removed in a future major.")]
+        public ColumnExpression Serial() => AutoIncrement();
+
+        /// <summary>
+        ///     Historical PostgreSQL-only spelling for <see cref="BigAutoIncrement" />.
+        /// </summary>
+        [Obsolete("Use BigAutoIncrement() — the cross-provider canonical name. BigSerial() will be removed in a future major.")]
+        public ColumnExpression BigSerial() => BigAutoIncrement();
+
+        /// <summary>
+        ///     Historical PostgreSQL-only spelling for <see cref="SmallAutoIncrement" />.
+        /// </summary>
+        [Obsolete("Use SmallAutoIncrement() — the cross-provider canonical name. SmallSerial() will be removed in a future major.")]
+        public ColumnExpression SmallSerial() => SmallAutoIncrement();
 
         public ColumnExpression DefaultValueByString(string value)
         {

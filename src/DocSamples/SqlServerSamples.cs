@@ -53,7 +53,7 @@ public class SqlServerSamples
         #region sample_ss_define_table
         var table = new Table("dbo.users");
 
-        table.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+        table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
         table.AddColumn<string>("name").NotNull();
         table.AddColumn<string>("email").NotNull().AddIndex(idx => idx.IsUnique = true);
         table.AddColumn<DateTime>("created_at").DefaultValueByExpression("GETUTCDATE()");
@@ -64,7 +64,7 @@ public class SqlServerSamples
     {
         #region sample_ss_foreign_keys
         var orders = new Table("dbo.orders");
-        orders.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+        orders.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
         orders.AddColumn<int>("user_id").NotNull()
             .ForeignKeyTo("dbo.users", "id", onDelete: Weasel.SqlServer.CascadeAction.Cascade);
         orders.AddColumn<decimal>("total").NotNull();

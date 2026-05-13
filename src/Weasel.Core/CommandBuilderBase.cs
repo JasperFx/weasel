@@ -281,7 +281,8 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     ///     weasel#266: reflects on <c>parameters.GetType().GetProperties()</c>.
     ///     The static type is <see cref="object"/>, which can't carry a
     ///     <see cref="DynamicallyAccessedMembersAttribute"/> annotation at
-    ///     the parameter site, so this method propagates
+    ///     the parameter site (IL2098 — DAM is only valid on parameters of type
+    ///     <see cref="Type"/> or <see cref="string"/>), so this method propagates
     ///     <see cref="RequiresUnreferencedCodeAttribute"/> to AOT-publishing
     ///     consumers. Callers that need AOT compatibility should pass an
     ///     <see cref="IDictionary{TKey,TValue}"/> instead (the dictionary
