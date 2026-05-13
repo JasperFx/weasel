@@ -43,7 +43,8 @@ export default withMermaid(
           items: [
             { text: 'Introduction', link: '/guide/' },
             { text: 'Installation', link: '/guide/installation' },
-            { text: 'Quick Start', link: '/guide/quickstart' }
+            { text: 'Quick Start', link: '/guide/quickstart' },
+            { text: 'Migrating from 8.x to 9.0', link: '/migration-guide' }
           ]
         },
         {

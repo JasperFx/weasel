@@ -275,21 +275,21 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     ///     For each public property of the parameters object, adds a new parameter
     ///     to the command with the name of the property and the current value of the property
     ///     on the parameters object. Does *not* affect the command text.
+    ///     The <see cref="DynamicallyAccessedMembersAttribute" /> on <paramref name="parameters" />
+    ///     declares to the trimmer that the runtime type of the passed object must have its
+    ///     <see cref="DynamicallyAccessedMemberTypes.PublicProperties" /> preserved (see #266 /
+    ///     JasperFx/jasperfx#213). The trimmer's flow analysis doesn't currently propagate that
+    ///     annotation through <c>object.GetType()</c> at the call site below, so an
+    ///     <see cref="UnconditionalSuppressMessageAttribute" /> documents that the IL2075
+    ///     warning is expected — the DAM on the parameter is the caller-facing contract, and the
+    ///     long-term fix is the source-generator path (path 2 in #266).
     /// </summary>
     /// <param name="parameters"></param>
-    /// <remarks>
-    ///     weasel#266: reflects on <c>parameters.GetType().GetProperties()</c>.
-    ///     The static type is <see cref="object"/>, which can't carry a
-    ///     <see cref="DynamicallyAccessedMembersAttribute"/> annotation at
-    ///     the parameter site (IL2098 — DAM is only valid on parameters of type
-    ///     <see cref="Type"/> or <see cref="string"/>), so this method propagates
-    ///     <see cref="RequiresUnreferencedCodeAttribute"/> to AOT-publishing
-    ///     consumers. Callers that need AOT compatibility should pass an
-    ///     <see cref="IDictionary{TKey,TValue}"/> instead (the dictionary
-    ///     overloads above don't reflect).
-    /// </remarks>
     [RequiresUnreferencedCode("AddParameters(object) reflects on the parameters object's public properties via Type.GetProperties(). Use the IDictionary<string, T> overload when publishing AOT-trim-clean.")]
-    public void AddParameters(object parameters)
+    [UnconditionalSuppressMessage("Trimming", "IL2075",
+        Justification = "Runtime contract is documented via the DynamicallyAccessedMembers attribute on the parameter; the trimmer's flow analysis through object.GetType() doesn't see it but the contract holds. See #266.")]
+    public void AddParameters(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] object parameters)
     {
         if (parameters == null)
         {

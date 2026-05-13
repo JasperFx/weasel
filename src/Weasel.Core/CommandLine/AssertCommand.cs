@@ -8,16 +8,22 @@ namespace Weasel.Core.CommandLine;
 [Description("Assert that the existing database(s) matches the current configuration", Name = "db-assert")]
 public class AssertCommand: JasperFxAsyncCommand<WeaselInput>
 {
-    // weasel#265: Spectre.Console.AnsiConsole.WriteException calls into
-    // an ExceptionFormatter path that's RequiresDynamicCode. db-assert is
-    // a dev-time CLI tool (not a production hot path), so suppressing the
-    // warning here is the right call rather than propagating it via
-    // [RequiresDynamicCode] — propagation triggers IL3051 because the
-    // JasperFx base method JasperFxAsyncCommand<T>.Execute(T) doesn't
-    // carry the attribute, and adding it there would ripple to every
-    // JasperFx command across the Critter Stack. Suppression keeps the
-    // fix Weasel-scoped. If JasperFx ever annotates the base method,
-    // delete this suppression and use [RequiresDynamicCode] instead.
+    /// <summary>
+    ///     Uses <see cref="AnsiConsole.WriteException(Exception, ExceptionFormats)" /> to
+    ///     pretty-print database validation failures. Spectre.Console's exception
+    ///     formatter uses runtime IL generation that isn't available under
+    ///     <c>PublishAot</c>, which surfaced as IL3050 with <c>IsAotCompatible=true</c>
+    ///     on Weasel.Core.
+    ///     <para>
+    ///     This is a dev-time CLI tool (the <c>db-assert</c> command), not on any
+    ///     hot path — annotating the entry point so the warning propagates to AOT-
+    ///     publishing consumers as a precise diagnostic is the right minimum-blast-
+    ///     radius fix (per JasperFx/jasperfx#213). End users targeting AOT can
+    ///     either avoid this command, or substitute a non-Spectre exception
+    ///     formatter in their own host.
+    ///     </para>
+    /// </summary>
+    [RequiresDynamicCode("Uses Spectre.Console.AnsiConsole.WriteException, whose ExceptionFormatter requires runtime IL generation that isn't available under PublishAot.")]
     [UnconditionalSuppressMessage(
         "AOT",
         "IL3050",
