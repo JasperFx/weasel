@@ -96,7 +96,7 @@ Most schema objects share a base class in `Weasel.Core`:
 ## DDL syntax strategy
 
 The shared CREATE / DROP algorithm is gradually migrating to consume a
-[`IDdlSyntaxStrategy`](../../../src/Weasel.Core/IDdlSyntaxStrategy.cs) object
+[`IDdlSyntaxStrategy`](https://github.com/JasperFx/weasel/blob/9.0/src/Weasel.Core/IDdlSyntaxStrategy.cs) object
 per provider (#270 step 8). Currently routed through it:
 
 - `WriteDropTable` (PG appends `CASCADE`, SQLite doesn't)
