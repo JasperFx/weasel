@@ -94,16 +94,20 @@ $$;
 
     private static void WriteSql(string databaseSchemaName, TextWriter writer)
     {
+        // Neither the "IF NOT EXISTS(information_schema.schemata) THEN EXECUTE 'CREATE SCHEMA'"
+        // pattern nor PostgreSQL's own "CREATE SCHEMA IF NOT EXISTS" is concurrent-safe — both
+        // can have two sessions pass the existence check then race on the insert into pg_namespace,
+        // surfacing as "23505 duplicate key value violates unique constraint pg_namespace_nspname_index"
+        // / "42P06 schema X already exists". Wrap the create in a sub-block that swallows those two
+        // race exceptions specifically; any other error still propagates.
         writer.WriteLine(
             $"""
-                 IF NOT EXISTS(
-                     SELECT schema_name
-                       FROM information_schema.schemata
-                       WHERE schema_name = '{databaseSchemaName}'
-                   )
-                 THEN
-                   EXECUTE 'CREATE SCHEMA {PostgresqlProvider.Instance.ToQualifiedName(databaseSchemaName)}';
-                 END IF;
+                   BEGIN
+                     EXECUTE 'CREATE SCHEMA IF NOT EXISTS {PostgresqlProvider.Instance.ToQualifiedName(databaseSchemaName)}';
+                   EXCEPTION
+                     WHEN duplicate_schema THEN NULL;
+                     WHEN unique_violation THEN NULL;
+                   END;
 
              """);
     }
