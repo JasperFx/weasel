@@ -16,18 +16,22 @@ public class AssertCommand: JasperFxAsyncCommand<WeaselInput>
     ///     on Weasel.Core.
     ///     <para>
     ///     This is a dev-time CLI tool (the <c>db-assert</c> command), not on any
-    ///     hot path — annotating the entry point so the warning propagates to AOT-
-    ///     publishing consumers as a precise diagnostic is the right minimum-blast-
-    ///     radius fix (per JasperFx/jasperfx#213). End users targeting AOT can
-    ///     either avoid this command, or substitute a non-Spectre exception
-    ///     formatter in their own host.
+    ///     hot path. Earlier passes tried <c>[RequiresDynamicCode]</c> on this
+    ///     override to propagate the diagnostic; the analyzer rejects that with
+    ///     IL3051 because the base member
+    ///     (<c>JasperFx.CommandLine.JasperFxAsyncCommand&lt;T&gt;.Execute</c>)
+    ///     doesn't carry the same annotation. The
+    ///     <see cref="UnconditionalSuppressMessageAttribute" /> below silences the
+    ///     underlying IL3050 with a Justification — end users targeting AOT can
+    ///     either avoid this command or substitute a non-Spectre exception
+    ///     formatter in their own host. Surfaced by Weasel.Core.AotSmoke
+    ///     (weasel#263 / JasperFx/jasperfx#213).
     ///     </para>
     /// </summary>
-    [RequiresDynamicCode("Uses Spectre.Console.AnsiConsole.WriteException, whose ExceptionFormatter requires runtime IL generation that isn't available under PublishAot.")]
     [UnconditionalSuppressMessage(
         "AOT",
         "IL3050",
-        Justification = "AnsiConsole.WriteException is only reached on the dev-time db-assert command path. weasel#265 / JasperFx/jasperfx#213.")]
+        Justification = "AnsiConsole.WriteException's ExceptionFormatter needs runtime IL generation, but this is the dev-time db-assert command path — never reached in an AOT-published consumer. weasel#265.")]
     public override async Task<bool> Execute(WeaselInput input)
     {
         AnsiConsole.Write(

@@ -48,9 +48,17 @@ public interface ICommandBuilder
 
     /// <summary>
     ///     Use an anonymous type to add named parameters.
-    ///     If a dictionary is passed in then its key-value pairs will be used as named parameters
+    ///     If a dictionary is passed in then its key-value pairs will be used as named parameters.
+    ///     <para>
+    ///     Annotated <see cref="System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute" /> to
+    ///     match <see cref="Core.CommandBuilderBase{TCommand, TParameter, TParameterType}.AddParameters(object)" />
+    ///     — both reflect over the parameters object's public properties. AOT-trim-clean
+    ///     consumers should prefer the dictionary overloads below.
+    ///     </para>
     /// </summary>
     /// <param name="parameters"></param>
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+        "AddParameters(object) reflects on the parameters object's public properties via Type.GetProperties(). Use the IDictionary<string, T> overload when publishing AOT-trim-clean.")]
     void AddParameters(object parameters);
 
     /// <summary>

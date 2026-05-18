@@ -11,6 +11,9 @@
         <GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
         <GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- AOT readiness per Critter Stack 2026 pillar JasperFx/jasperfx#213.
+             weasel#263 per-provider audit — see PR body for the warning summary. -->
+        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
 
     <ItemGroup>

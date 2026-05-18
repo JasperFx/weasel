@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using ImTools;
 using JasperFx.Core;
@@ -175,6 +176,14 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         return type;
     }
 
+    // Reflective interface enumeration on `type.ImplementedInterfaces` is gated by
+    // earlier memo / IsNullable / IsArray / IsEnum branches — only types Npgsql doesn't
+    // ship a built-in mapping for and that aren't directly enumerable hit this path.
+    // The base contract for determineParameterType in DatabaseProvider<,,> is a
+    // cold-path resolver, so AOT consumers that target only the pre-mapped types
+    // never traverse this. weasel#263 audit.
+    [UnconditionalSuppressMessage("Trimming", "IL2070",
+        Justification = "Reflective IEnumerable<T> detection on an arbitrary CLR type. Only reached for types not in the memo / not arrays / not enums; AOT consumers that pre-register their types via storeMappings never hit this path. weasel#263.")]
     protected override bool determineParameterType(Type type, out NpgsqlDbType dbType)
     {
         var npgsqlDbType = ResolveNpgsqlDbType(type);
@@ -293,6 +302,14 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         return ResolveDatabaseType(memberType) != null || memberType.IsEnum;
     }
 
+    /// <summary>
+    ///     Construct a closed <see cref="Nullable{T}" /> over the supplied value type.
+    ///     Uses <see cref="Type.MakeGenericType" /> at runtime, which AOT can't generate
+    ///     code for ahead of time — AOT consumers that pre-register their types via
+    ///     <see cref="storeMappings" /> bypass this helper and never JIT a new closed
+    ///     <c>Nullable&lt;T&gt;</c>. weasel#263 audit.
+    /// </summary>
+    [RequiresDynamicCode("Type.MakeGenericType(Nullable<>) requires runtime IL generation. Pre-register types via storeMappings to avoid this path when publishing AOT.")]
     private Type GetNullableType(Type type)
     {
         type = Nullable.GetUnderlyingType(type) ?? type;
@@ -304,6 +321,20 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         return type;
     }
 
+    /// <summary>
+    ///     Register additional CLR types to be treated as PostgreSQL <c>timestamp</c> /
+    ///     <c>timestamptz</c>. Internally calls <see cref="GetNullableType" /> which
+    ///     constructs closed <see cref="Nullable{T}" /> generics via
+    ///     <see cref="Type.MakeGenericType" />. <see cref="storeMappings" /> overrides an
+    ///     abstract base and can't be annotated with <see cref="RequiresDynamicCodeAttribute" />
+    ///     without IL3051 against <c>DatabaseProvider&lt;,,&gt;.storeMappings</c>, so we
+    ///     <see cref="UnconditionalSuppressMessageAttribute">suppress</see> the IL3050 here
+    ///     with a Justification. AOT consumers that pre-register the nullable form alongside
+    ///     the value type via <see cref="RegisterMapping" /> bypass this helper entirely.
+    ///     weasel#263.
+    /// </summary>
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification = "Calls GetNullableType which uses Type.MakeGenericType for closed Nullable<T> construction. Pre-registering both T and Nullable<T> via RegisterMapping avoids this path; documented in the AOT audit (weasel#263).")]
     public void AddTimespanTypes(NpgsqlDbType npgsqlDbType, params Type[] types)
     {
         var timespanTypesList = npgsqlDbType == NpgsqlDbType.Timestamp ? TimespanTypes : TimespanZTypes;

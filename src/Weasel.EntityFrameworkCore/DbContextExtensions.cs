@@ -132,7 +132,16 @@ public static class DbContextExtensions
     /// <summary>
     /// Finds the DbDataSource configured on a DbContext via EF Core options extensions.
     /// Returns null if the context was not configured with a data source.
+    /// <para>
+    /// Reflects on the runtime type of each <c>IDbContextOptionsExtension</c> looking for
+    /// a <c>DataSource</c> property — the canonical extension carrying the data source isn't
+    /// uniformly typed across EF Core provider packages. Suppressed locally; AOT consumers
+    /// should rely on EF Core's typed configuration APIs instead of this reflective fallback.
+    /// weasel#263.
+    /// </para>
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075",
+        Justification = "Reflective lookup of the DataSource property on an arbitrary IDbContextOptionsExtension; EF Core upstream is not AOT-ready (dotnet/efcore#29761). weasel#263.")]
     internal static DbDataSource? FindDataSource(DbContext context)
     {
         var dbContextOptions = context.GetService<IDbContextOptions>();

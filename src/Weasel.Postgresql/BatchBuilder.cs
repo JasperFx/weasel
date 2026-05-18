@@ -189,6 +189,15 @@ public class BatchBuilder: ICommandBuilder
         _current = appendCommand();
     }
 
+    /// <summary>
+    ///     Reflective property-enumeration overload — see
+    ///     <see cref="Core.CommandBuilderBase{TCommand, TParameter, TParameterType}.AddParameters(object)" />
+    ///     for the equivalent caller-contract on the base. weasel#263 / weasel#266.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode(
+        "AddParameters(object) reflects on the parameters object's public properties via Type.GetProperties(). Use the IDictionary<string, T> overload when publishing AOT-trim-clean.")]
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2075",
+        Justification = "Reflective property enumeration is gated by RequiresUnreferencedCode on this method; the IL2075 at the GetType().GetProperties() call site is the cost of that path. See weasel#266.")]
     public void AddParameters(object parameters)
     {
         _current ??= appendCommand();

@@ -29,7 +29,15 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// <summary>
     ///     Queues a query that returns a list of entities.
     ///     The query is compiled to SQL immediately but not executed until <see cref="ExecuteAsync" />.
+    ///     <para>
+    ///     <see cref="Microsoft.EntityFrameworkCore.Metadata.IModel.FindEntityType(Type)" />
+    ///     reflects over the entity type's members; EF Core itself isn't AOT-ready upstream
+    ///     (tracked as <c>dotnet/efcore#29761</c>). Suppressed locally — Weasel.EntityFrameworkCore
+    ///     consumers targeting AOT inherit EF Core's overall AOT limitations. weasel#263.
+    ///     </para>
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2087",
+        Justification = "EF Core's FindEntityType reflects on the entity type; EF Core upstream is not AOT-ready (dotnet/efcore#29761). weasel#263.")]
     public Task<IReadOnlyList<T>> Query<T>(IQueryable<T> queryable) where T : class, new()
     {
         var entityType = _context.Model.FindEntityType(typeof(T))
@@ -47,6 +55,8 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// <summary>
     ///     Queues a query that returns a single entity or null.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2087",
+        Justification = "EF Core's FindEntityType reflects on the entity type; EF Core upstream is not AOT-ready (dotnet/efcore#29761). weasel#263.")]
     public Task<T?> QuerySingle<T>(IQueryable<T> queryable) where T : class, new()
     {
         var entityType = _context.Model.FindEntityType(typeof(T))

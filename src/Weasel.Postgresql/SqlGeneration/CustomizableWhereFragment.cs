@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using JasperFx.Core.Reflection;
 
 namespace Weasel.Postgresql.SqlGeneration;
@@ -16,6 +17,21 @@ public class CustomizableWhereFragment: ISqlFragment
         _token = paramReplacementToken.ToCharArray()[0];
     }
 
+    /// <summary>
+    ///     Calls <see cref="ICommandBuilder.AddParameters(object)" /> when the first parameter
+    ///     looks like an anonymous type or <c>IDictionary</c> with <c>string</c> keys. That
+    ///     overload reflects over the object's public properties — annotated upstream with
+    ///     <see cref="RequiresUnreferencedCodeAttribute" />. <see cref="ISqlFragment" /> has
+    ///     wide internal implementation, so propagating <c>[RequiresUnreferencedCode]</c> here
+    ///     would force every implementor to declare it too (IL2046 cascade). Instead we
+    ///     <see cref="UnconditionalSuppressMessageAttribute">suppress</see> the IL2026
+    ///     diagnostic at the two call sites below with a Justification — AOT-trim-clean
+    ///     consumers should construct this fragment with explicit
+    ///     <see cref="CommandParameter" /> entries (the array-of-parameters path, not the
+    ///     anonymous-type path). weasel#263.
+    /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification = "ICommandBuilder.AddParameters(object) is only reached on the anonymous-type / IDictionary input shape; AOT consumers pass explicit CommandParameter[] entries which take the lower branch. weasel#263.")]
     public void Apply(ICommandBuilder builder)
     {
         // backwards compatibility, old version of this class accepted CommandParameter[]
