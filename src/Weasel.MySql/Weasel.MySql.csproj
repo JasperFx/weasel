@@ -3,6 +3,9 @@
   <PropertyGroup>
     <Description>MySql Support for Weasel</Description>
     <PackageTags>mysql;ddl;schema;migration</PackageTags>
+    <!-- AOT readiness per Critter Stack 2026 pillar JasperFx/jasperfx#213.
+         weasel#263 per-provider audit — see PR body for the warning summary. -->
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

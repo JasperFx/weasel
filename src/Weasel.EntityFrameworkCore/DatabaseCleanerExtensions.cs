@@ -20,7 +20,17 @@ public static class DatabaseCleanerExtensions
     ///     Registers an <see cref="IInitialData{TContext}" /> implementation that seeds data
     ///     after <see cref="IDatabaseCleaner{TContext}.ResetAllDataAsync" />.
     ///     Multiple seeders execute in registration order.
+    ///     <para>
+    ///     <see cref="Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient" />
+    ///     requires <see cref="System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors" />
+    ///     on <c>TImplementation</c>; propagating that to <c>TData</c> here would cascade to
+    ///     every caller. Suppressed with Justification — AOT consumers that register seeders
+    ///     should ensure each seeder type is rooted (e.g. via a <c>DynamicDependency</c> or
+    ///     by referencing the constructor directly). weasel#263.
+    ///     </para>
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.UnconditionalSuppressMessage("Trimming", "IL2091",
+        Justification = "AddTransient<TService, TImplementation> needs DAM.PublicConstructors on TImplementation. Caller is expected to root each IInitialData<TContext> implementation via DynamicDependency or direct reference. weasel#263.")]
     public static IServiceCollection AddInitialData<TContext, TData>(this IServiceCollection services)
         where TContext : DbContext
         where TData : class, IInitialData<TContext>

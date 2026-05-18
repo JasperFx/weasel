@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+
+        <!--
+        AOT smoke test (weasel#263 / JasperFx/jasperfx#213). Builds in CI and
+        verifies that a consumer of Weasel.Core through the AOT-clean surfaces
+        compiles with no IL2026 / IL2046 / IL2055 / IL2065 / IL2067 / IL2070 /
+        IL2072 / IL2075 / IL2090 / IL2091 / IL2111 / IL3050 / IL3051 warnings.
+
+        Exercises the #270 consolidation surfaces:
+          - SchemaObjectBase / SequenceBase / FunctionBase / ViewBase
+          - TableBase<TColumn, TIndex, TForeignKey>
+          - ForeignKeyBase (Parse, LinkColumns, EqualsCore)
+          - IDdlSyntaxStrategy
+          - DbObjectName, CascadeAction, EnumStorage, CreationStyle
+
+        If a previously-AOT-clean API in Weasel.Core later gains a
+        [RequiresUnreferencedCode] / [RequiresDynamicCode] annotation, this
+        project's build fails in CI and the regression is caught before
+        downstream consumers (Marten 9, Polecat 4) see it. New IL warnings
+        introduced by edits to Program.cs are equally caught.
+
+        Pattern mirrors src/JasperFx.AotSmoke/ in JasperFx/jasperfx
+        (commit d4077d8). Sibling per-provider AotSmoke projects can land
+        later if the per-provider audit (Part 2 of weasel#263) needs them.
+        -->
+        <IsAotCompatible>true</IsAotCompatible>
+        <TrimMode>full</TrimMode>
+        <WarningsAsErrors>IL2026;IL2046;IL2055;IL2065;IL2067;IL2070;IL2072;IL2075;IL2090;IL2091;IL2111;IL3050;IL3051</WarningsAsErrors>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+    </ItemGroup>
+
+</Project>
