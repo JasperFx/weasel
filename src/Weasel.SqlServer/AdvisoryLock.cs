@@ -1,11 +1,20 @@
 using System.Data;
 using JasperFx.Core;
+using JasperFx.Events.Daemon;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
-using Weasel.Core;
 
 namespace Weasel.SqlServer;
 
+/// <summary>
+///     SQL Server implementation of <see cref="IAdvisoryLock" />. The contract was
+///     originally a duplicate in <c>Weasel.Core.IAdvisoryLock</c> (byte-identical
+///     to the upstream JasperFx.Events one); it was lifted into
+///     <c>JasperFx.Events.Daemon</c> in jasperfx alpha.19 / PR #319 so the daemon
+///     contracts have a single canonical home, and Weasel's duplicate was removed
+///     in weasel#284. Existing consumers should update their <c>using</c>
+///     statement from <c>Weasel.Core</c> to <c>JasperFx.Events.Daemon</c>.
+/// </summary>
 public class AdvisoryLock : IAdvisoryLock
 {
     private readonly Func<SqlConnection> _source;
