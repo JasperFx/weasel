@@ -113,6 +113,26 @@ catch (MisconfiguredForeignKeyException ex) { ... }
 
 The PG-specific `InvalidForeignKeyException` and `TryToCorrectForLink` extension stay where they were.
 
+### `Weasel.Core.IAdvisoryLock` → `JasperFx.Events.Daemon.IAdvisoryLock`
+
+[#284](https://github.com/JasperFx/weasel/issues/284). The advisory-lock contract was a byte-identical duplicate of the one upstream JasperFx.Events lifted into `JasperFx.Events.Daemon` (jasperfx#316 / alpha.19) so the daemon contracts have a single canonical home. Weasel's duplicate has been removed; `Weasel.Postgresql.AdvisoryLock` and `Weasel.SqlServer.AdvisoryLock` now implement the lifted interface directly, satisfying the `lockFactory` closure that the lifted `*ProjectionDistributor` concretes accept.
+
+Update the `using` statement:
+
+```csharp
+// before (Weasel 8.x / 9.0.0-alpha.5 and earlier)
+using Weasel.Core;
+
+IAdvisoryLock lock = new Weasel.Postgresql.AdvisoryLock(...);
+
+// after (Weasel 9.0.0-alpha.7+)
+using JasperFx.Events.Daemon;
+
+IAdvisoryLock lock = new Weasel.Postgresql.AdvisoryLock(...);
+```
+
+The interface shape is unchanged (same three members: `HasLock` / `TryAttainLockAsync` / `ReleaseLockAsync`, with `IAsyncDisposable`). The two `AdvisoryLock` concretes' constructors and behaviour are also unchanged.
+
 ## API changes
 
 ### Canonical `AutoIncrement()` fluent API
