@@ -362,7 +362,12 @@ public static class DbContextExtensions
             foreach (var property in et.GetProperties())
             {
                 var columnName = property.GetColumnName(storeObjectIdentifier);
-                if (columnName != null && addedColumns.Add(columnName))
+
+                // Skip properties EF maps to an engine system column (e.g. Npgsql
+                // IsRowVersion() -> PostgreSQL's implicit "xmin"); emitting them as
+                // real columns fails with "42701 column name conflicts with a
+                // system column name" (weasel#290).
+                if (columnName != null && !migrator.IsSystemColumn(columnName) && addedColumns.Add(columnName))
                 {
                     mapColumn(property, storeObjectIdentifier, primaryKeyPropertyNames, table);
                 }
@@ -370,6 +375,13 @@ public static class DbContextExtensions
 
             // Add JSON columns from owned entities mapped via OwnsOne().ToJson()
             mapJsonColumns(et, addedColumns, table);
+
+#if NET10_0_OR_GREATER
+            // Add JSON columns from complex properties / collections mapped via
+            // ComplexProperty(...).ToJson() / ComplexCollection(...).ToJson()
+            // (EF Core 10+; weasel#291).
+            mapComplexJsonColumns(et, addedColumns, table);
+#endif
         }
 
         // Set primary key constraint name from EF Core metadata.
@@ -501,6 +513,35 @@ public static class DbContextExtensions
             column.AllowNulls = !navigation.ForeignKey.IsRequired;
         }
     }
+
+#if NET10_0_OR_GREATER
+    /// <summary>
+    ///     Map the JSON container columns produced by EF Core 10
+    ///     <c>ComplexProperty(...).ToJson()</c> / <c>ComplexCollection(...).ToJson()</c>.
+    ///     Unlike <c>OwnsOne(...).ToJson()</c> (handled in <see cref="mapJsonColumns" />
+    ///     via navigations to a JSON-mapped entity type), complex properties are not
+    ///     navigations and carry no separate entity type — their JSON container lives
+    ///     on the <see cref="IComplexType" />. Both the single
+    ///     (<c>ComplexProperty</c>) and collection (<c>ComplexCollection</c>) shapes
+    ///     serialize into a single container column, so each top-level JSON-mapped
+    ///     complex property contributes exactly one column (weasel#291).
+    /// </summary>
+    private static void mapComplexJsonColumns(IEntityType entityType, HashSet<string> addedColumns, ITable table)
+    {
+        foreach (var complexProperty in entityType.GetComplexProperties())
+        {
+            var complexType = complexProperty.ComplexType;
+            if (!complexType.IsMappedToJson()) continue;
+
+            var columnName = complexType.GetContainerColumnName();
+            if (columnName == null || !addedColumns.Add(columnName)) continue;
+
+            var columnType = complexType.GetContainerColumnType() ?? "jsonb";
+            var column = table.AddColumn(columnName, columnType);
+            column.AllowNulls = complexProperty.IsNullable;
+        }
+    }
+#endif
 
     private static CascadeAction mapDeleteBehavior(DeleteBehavior deleteBehavior)
     {
