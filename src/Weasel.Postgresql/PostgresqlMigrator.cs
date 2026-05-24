@@ -140,8 +140,7 @@ $$;
 
             try
             {
-                await cmd
-                    .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                await executeWithConcurrencyRetryAsync(cmd, ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -153,6 +152,71 @@ $$;
                 logger.OnFailure(cmd, e);
             }
         }
+    }
+
+    /// <summary>
+    ///     Maximum number of attempts (including the first) for a single migration
+    ///     statement that fails with a transient catalog-concurrency error. The
+    ///     migration DDL Weasel emits is idempotent (<c>IF NOT EXISTS</c> /
+    ///     <c>CREATE OR REPLACE</c>) and each statement auto-commits independently,
+    ///     so re-running a statement that lost a catalog race is safe.
+    /// </summary>
+    private const int MaxConcurrencyRetries = 3;
+
+    /// <summary>
+    ///     Execute a single migration statement, retrying a bounded number of times
+    ///     on the transient PostgreSQL catalog-concurrency errors that surface when
+    ///     two sessions lazily ensure storage against the same database at once
+    ///     (weasel#293, follow-up to #282). A jittered backoff keeps two racers from
+    ///     retrying in lockstep.
+    /// </summary>
+    private static async Task executeWithConcurrencyRetryAsync(DbCommand cmd, CancellationToken ct)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                return;
+            }
+            catch (PostgresException e)
+                when (attempt < MaxConcurrencyRetries && IsTransientCatalogConcurrency(e.SqlState, e.MessageText))
+            {
+                var delayMs = (50 * attempt) + Random.Shared.Next(0, 50);
+                await Task.Delay(delayMs, ct).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     True for the PostgreSQL SQLSTATEs that signal a transient, retry-safe
+    ///     concurrency conflict while applying idempotent migration DDL:
+    ///     <list type="bullet">
+    ///         <item><c>40001</c> serialization_failure</item>
+    ///         <item><c>40P01</c> deadlock_detected</item>
+    ///         <item>
+    ///             <c>XX000</c> internal_error <b>only</b> when the message is
+    ///             "tuple concurrently updated" — two backends updated the same
+    ///             system-catalog row (e.g. <c>pg_proc</c> under concurrent
+    ///             <c>CREATE OR REPLACE FUNCTION</c>). <c>XX000</c> is a catch-all,
+    ///             so the message guard prevents blanket-retrying unrelated
+    ///             internal errors.
+    ///         </item>
+    ///     </list>
+    ///     Pure over the two string inputs so it is unit-testable without
+    ///     constructing a <see cref="PostgresException" />.
+    /// </summary>
+    internal static bool IsTransientCatalogConcurrency(string? sqlState, string? messageText)
+    {
+        return sqlState switch
+        {
+            PostgresErrorCodes.SerializationFailure => true,
+            PostgresErrorCodes.DeadlockDetected => true,
+            PostgresErrorCodes.InternalError =>
+                messageText is not null
+                && messageText.Contains("tuple concurrently updated", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
     }
 
     public override string ToExecuteScriptLine(string scriptName)
