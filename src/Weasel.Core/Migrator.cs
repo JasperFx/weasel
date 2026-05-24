@@ -252,6 +252,21 @@ public abstract class
     public abstract void AssertValidIdentifier(string name);
 
     /// <summary>
+    ///     True when <paramref name="columnName" /> refers to an engine-managed
+    ///     system / pseudo column that must never be emitted as a real column in
+    ///     generated DDL (the engine rejects <c>CREATE TABLE</c> with such a name).
+    ///     The default is that no name is reserved; provider migrators override for
+    ///     their engine's system columns.
+    ///     <para>
+    ///     Used by the EF Core integration to skip properties EF maps to a system
+    ///     column — e.g. Npgsql's <c>IsRowVersion()</c> maps a <c>uint</c>
+    ///     concurrency token to PostgreSQL's implicit <c>xmin</c> column rather than
+    ///     creating a new one (weasel#290).
+    ///     </para>
+    /// </summary>
+    public virtual bool IsSystemColumn(string columnName) => false;
+
+    /// <summary>
     ///     Ensures that the database referenced by the supplied connection's connection string exists,
     ///     creating it if necessary. This is a lightweight operation that only creates the database --
     ///     it does not run any schema migrations or DDL.

@@ -165,6 +165,19 @@ $$;
         return $"create schema if not exists {PostgresqlProvider.Instance.ToQualifiedName(schemaName)};";
     }
 
+    /// <summary>
+    ///     PostgreSQL's implicit system columns. PostgreSQL rejects
+    ///     <c>CREATE TABLE</c> with a column named any of these
+    ///     ("42701: column name X conflicts with a system column name"), so they
+    ///     must be skipped when generating DDL. <c>oid</c> is intentionally
+    ///     excluded — it is no longer a system column on ordinary tables (PG 12+)
+    ///     and is a valid user column name.
+    /// </summary>
+    private static readonly HashSet<string> SystemColumns =
+        new(StringComparer.OrdinalIgnoreCase) { "tableoid", "xmin", "cmin", "xmax", "cmax", "ctid" };
+
+    public override bool IsSystemColumn(string columnName) => SystemColumns.Contains(columnName);
+
     public override void AssertValidIdentifier(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
