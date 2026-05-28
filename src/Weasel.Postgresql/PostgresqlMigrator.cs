@@ -184,8 +184,46 @@ $$;
             {
                 var delayMs = (50 * attempt) + Random.Shared.Next(0, 50);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
+
+                // Some transient PostgreSQL errors (40P01 deadlock_detected and
+                // XX000 "tuple concurrently updated" in particular) leave the
+                // underlying Npgsql connection in a Closed or Broken state —
+                // Npgsql moves a connection to Broken when the server-side
+                // error has aborted the session. Without this guard, the next
+                // ExecuteNonQueryAsync on the same cmd throws
+                // InvalidOperationException("Connection is not open"), which
+                // falls out of the catch filter (not a PostgresException) and
+                // surfaces as a hard migration failure — defeating the retry.
+                //
+                // Repro before this guard: recurring intermittent failure on
+                // EventSourcingTests.end_to_end_event_capture_and_fetching_the_stream.
+                // query_before_saving(tenancyStyle: Conjoined) in JasperFx/marten
+                // PRs #4576, #4578, #4582, #4584 — all hit this exact path.
+                await EnsureConnectionOpenAsync(cmd, ct).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    ///     Re-open a <see cref="DbCommand"/>'s connection if a previous
+    ///     transient failure has left it in a non-<see cref="ConnectionState.Open"/>
+    ///     state. A <see cref="ConnectionState.Broken"/> connection must be
+    ///     closed first — <c>OpenAsync</c> on a Broken connection throws. Pure
+    ///     over <see cref="DbCommand"/> + <see cref="ConnectionState"/> so the
+    ///     reopen rules can be exercised with a fake command in
+    ///     <c>PostgresqlMigratorConcurrencyRetryTests</c>.
+    /// </summary>
+    internal static async Task EnsureConnectionOpenAsync(DbCommand cmd, CancellationToken ct)
+    {
+        if (cmd.Connection is null) return;
+        if (cmd.Connection.State == System.Data.ConnectionState.Open) return;
+
+        if (cmd.Connection.State == System.Data.ConnectionState.Broken)
+        {
+            await cmd.Connection.CloseAsync().ConfigureAwait(false);
+        }
+
+        await cmd.Connection.OpenAsync(ct).ConfigureAwait(false);
     }
 
     /// <summary>
