@@ -66,6 +66,35 @@ public class managed_list_partitions : IntegrationContext
     }
 
     [Fact]
+    public async Task managed_partition_with_default_suffix_is_idempotent()
+    {
+        // Mirrors a managed partition whose suffix is "default" — e.g. Marten's *DEFAULT* tenant,
+        // registered as partition value "*DEFAULT*" with table suffix "default". Its partition table
+        // is named "<table>_default", which collided with the conventional PostgreSQL DEFAULT-partition
+        // name. The diff then perpetually reported it missing and re-issued CREATE TABLE ..._default,
+        // failing the SECOND migration with 42P07 "relation already exists". A regular value partition
+        // must be recognized by its bound expression, not its name.
+        var database = new ManagedListDatabase();
+        var partitions = new Dictionary<string, string> { { "tenant1", "tenant1" }, { "*DEFAULT*", "default" } };
+        await database.Partitions.ResetValues(database, partitions, CancellationToken.None);
+
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        // The "<table>_default" partition is a value partition (FOR VALUES IN ('*DEFAULT*')), not the
+        // PostgreSQL DEFAULT partition.
+        var tables = await database.FetchExistingTablesAsync();
+        var teams = tables.Single(x => x.Identifier.Name == "teams");
+        var partitioning = teams.Partitioning.ShouldBeOfType<ListPartitioning>();
+        partitioning.HasExistingDefault.ShouldBeFalse();
+        partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
+            .ShouldBe(new []{"default", "tenant1"});
+
+        // No pending delta, and a second migration must NOT throw 42P07.
+        await database.AssertDatabaseMatchesConfigurationAsync();
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+    }
+
+    [Fact]
     public async Task migrate_tables_smoke_test_with_variable_value_and_tenant_id()
     {
         var database = new ManagedListDatabase();
