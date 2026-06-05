@@ -117,13 +117,20 @@ public class ListPartitioning: IPartitionStrategy
 
     public async Task ReadPartitionsAsync(DbObjectName identifier, DbDataReader reader, CancellationToken ct)
     {
-        var expectedDefaultName = identifier.Name + "_default";
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var partitionName = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
             var expression = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
 
-            if (partitionName == expectedDefaultName)
+            // Classify by the partition's bound EXPRESSION, not its table name. PostgreSQL reports
+            // pg_get_expr(relpartbound, ...) == "DEFAULT" for the default partition. A regular value
+            // partition that merely happens to be named "<table>_default" — e.g. a managed list
+            // partition whose suffix is "default", such as Marten's *DEFAULT* tenant — reports
+            // "FOR VALUES IN (...)" and must be parsed as a normal partition. Classifying by name
+            // mistook it for the default partition and dropped it from the actual set, so CreateDelta
+            // perpetually reported it as missing and re-issued CREATE TABLE ..._default, failing the
+            // next migration with 42P07 "relation already exists".
+            if (expression.Trim() == "DEFAULT")
             {
                 HasExistingDefault = true;
             }
