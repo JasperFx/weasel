@@ -94,6 +94,26 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         return partitioning;
     }
 
+    /// <summary>
+    ///     Configure SQL Server partitioning driven by a runtime-managed tenant
+    ///     registry. Mirrors PostgreSQL <c>ManagedListPartitions</c>: tenants are
+    ///     allocated integer ordinals at sign-up, the table is partitioned on the
+    ///     ordinal column via <c>RANGE RIGHT</c>, and the partition function is
+    ///     SPLIT each time a new tenant lands. See
+    ///     <see cref="Partitioning.ManagedTenantPartitions" />. Weasel #301.
+    /// </summary>
+    /// <param name="manager">
+    ///     The shared tenant-partition manager. The same instance is typically
+    ///     assigned to every partitioned tenant table in the database, so a
+    ///     single tenant registration splits all tables in one call.
+    /// </param>
+    public Partitioning.ManagedTenantPartitions PartitionByManagedTenants(
+        Partitioning.ManagedTenantPartitions manager)
+    {
+        SqlServerPartitioning = manager ?? throw new ArgumentNullException(nameof(manager));
+        return manager;
+    }
+
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         // Write partition function and scheme DDL before the table if partitioning is configured
