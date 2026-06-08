@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
     <PropertyGroup>
-        <Version>9.0.3</Version>
+        <Version>9.1.0</Version>
         <LangVersion>13.0</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
@@ -11,17 +11,6 @@
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <NoWarn>1570;1571;1572;1573;1574;1587;1591;1701;1702;1711;1735;0618</NoWarn>
         <PackageIconUrl>https://raw.githubusercontent.com/JasperFx/JasperFx.Core/main/jasperfx-logo.jpg?raw=true</PackageIconUrl>
-
-        <!--
-        Embed PDB data into the .dll so the main .nupkg ships with debug
-        symbols inline. Drop the separate .snupkg upload that was failing
-        on nuget.org as "The package does not contain any symbol (.pdb)
-        files." for Weasel.Oracle / Weasel.SqlServer / Weasel.Sqlite
-        during the 9.0.0-alpha.3 publish (the 3 csprojs had
-        IncludeSymbols=true + SymbolPackageFormat=snupkg but the snupkg
-        was being produced empty). Setting this in Directory.Build.props
-        applies uniformly to all 7 Weasel.* packages.
-        -->
         <DebugType>embedded</DebugType>
         <IncludeSymbols>false</IncludeSymbols>
     </PropertyGroup>
