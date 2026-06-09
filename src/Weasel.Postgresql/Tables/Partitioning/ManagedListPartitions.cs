@@ -233,6 +233,13 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         foreach (var table in tables)
         {
+            // This is the explicit, out-of-band partition-management path (AddPartitionToAllTables).
+            // Managed-partition tables set IgnorePartitionsInMigration so the GENERIC schema diff leaves
+            // their partitions alone (JasperFx/marten#4706); here we are deliberately reconciling them,
+            // so clear the flag locally (these table objects are freshly built from AllObjects()) to let
+            // the delta compute the missing partitions to add.
+            table.IgnorePartitionsInMigration = false;
+
             var existing = await table.FetchExistingAsync(conn, token).ConfigureAwait(false);
             var delta = new TableDelta(table, existing);
             if (delta.PartitionDelta == PartitionDelta.Additive)
@@ -285,7 +292,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
     public void ForceReload()
     {
-        _hasInitialized = true;
+        _hasInitialized = false;
     }
 
     public async Task InitializeAsync(PostgresqlDatabase database, CancellationToken token)

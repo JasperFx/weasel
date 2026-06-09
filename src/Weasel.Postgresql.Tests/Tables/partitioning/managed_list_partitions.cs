@@ -233,6 +233,66 @@ public class managed_list_partitions : IntegrationContext
         partitioning.Partitions.Select(x => x.Suffix).OrderBy(x => x)
             .ShouldBe(new []{"blue", "green", "purple", "red"});
     }
+
+    [Fact]
+    public async Task ignore_partitions_in_migration_no_destructive_rebuild_over_existing_partitions()
+    {
+        // JasperFx/marten#4706: a managed-partition table marked IgnorePartitionsInMigration must NOT be
+        // destructively rebuilt by the generic schema diff when it already has its managed partitions.
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase(ignorePartitionsInMigration: true);
+        var partitions = new Dictionary<string, string> { { "red", "red" }, { "green", "green" }, { "blue", "blue" }, };
+        await database.Partitions.ResetValues(database, partitions, CancellationToken.None);
+
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        // Re-applying over the existing partitions is a no-op — no pending change, no rebuild.
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.None);
+
+        // And a second apply must not throw (pre-fix this rebuilt the table — CREATE _temp / copy).
+        await database.AssertDatabaseMatchesConfigurationAsync();
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+    }
+
+    [Fact]
+    public async Task additive_partition_add_still_works_when_partitions_are_ignored_in_migration()
+    {
+        // The companion to the rebuild guard: the explicit AddPartitionToAllTables path must still
+        // create partitions even though the tables set IgnorePartitionsInMigration for the generic diff
+        // (the additive path clears the flag locally to compute the missing partitions to add).
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase(ignorePartitionsInMigration: true);
+        var partitions = new Dictionary<string, string> { { "red", "red" }, { "green", "green" }, };
+        await database.Partitions.ResetValues(database, partitions, CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        // Unique suffix so the assertion is independent of any partitions left by sibling tests.
+        var suffix = "added_" + Guid.NewGuid().ToString("N")[..8];
+        await database.Partitions.AddPartitionToAllTables(database, suffix, suffix, CancellationToken.None);
+
+        // The child partition for the new value must physically exist on both managed tables.
+        (await partitionExists("teams", suffix)).ShouldBeTrue($"teams_{suffix} partition should have been created");
+        (await partitionExists("players", suffix)).ShouldBeTrue($"players_{suffix} partition should have been created");
+    }
+
+    private static async Task dropManagedListsSchema()
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        await conn.DropSchemaAsync("managed_lists");
+    }
+
+    private static async Task<bool> partitionExists(string parent, string suffix)
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        var count = (long)(await conn.CreateCommand(
+                "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'managed_lists' and c.relname = :name")
+            .With("name", $"{parent}_{suffix}")
+            .ExecuteScalarAsync())!;
+        return count > 0;
+    }
 }
 
 public class ManagedListDatabase: PostgresqlDatabase
@@ -242,9 +302,9 @@ public class ManagedListDatabase: PostgresqlDatabase
 
     private readonly People _feature;
 
-    public ManagedListDatabase() : base(new DefaultMigrationLogger(), JasperFx.AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Partitions", NpgsqlDataSource.Create(ConnectionSource.ConnectionString))
+    public ManagedListDatabase(bool ignorePartitionsInMigration = false) : base(new DefaultMigrationLogger(), JasperFx.AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Partitions", NpgsqlDataSource.Create(ConnectionSource.ConnectionString))
     {
-        _feature = new People(Partitions);
+        _feature = new People(Partitions, ignorePartitionsInMigration);
     }
 
     public override IFeatureSchema[] BuildFeatureSchemas()
@@ -260,7 +320,7 @@ public class People: FeatureSchemaBase
     private readonly Table _teams;
     private readonly Table _players;
 
-    public People(ManagedListPartitions partitions) : base("People", new PostgresqlMigrator())
+    public People(ManagedListPartitions partitions, bool ignorePartitionsInMigration = false) : base("People", new PostgresqlMigrator())
     {
         _teams = new Table(new DbObjectName("managed_lists", "teams"));
         _teams.AddColumn<string>("name").AsPrimaryKey();
@@ -278,6 +338,10 @@ public class People: FeatureSchemaBase
             .PartitionByList("color")
             .UsePartitionManager(partitions);
 
+        // #4706: tables whose managed partitions are reconciled out-of-band exempt the generic schema
+        // diff from rebuilding them over their externally-added partitions.
+        _teams.IgnorePartitionsInMigration = ignorePartitionsInMigration;
+        _players.IgnorePartitionsInMigration = ignorePartitionsInMigration;
     }
 
     protected override IEnumerable<ISchemaObject> schemaObjects()
