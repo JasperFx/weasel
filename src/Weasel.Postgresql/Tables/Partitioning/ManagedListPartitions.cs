@@ -26,16 +26,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 {
     private readonly Table _table;
     private Dictionary<string, string> _partitions = new();
-    // Identity of the database this manager last loaded its partition set from. A single manager
-    // instance is shared across every database in the store; under sharded multi-tenancy that means
-    // several physical databases, each with its OWN mt_tenant_partitions contents. Keying the
-    // "already loaded" state on the database (rather than a one-shot bool) makes InitializeAsync
-    // reload when it is pointed at a different database, so the partition set reflects the database
-    // actually being migrated. Without this the manager kept the first database's partitions and
-    // every other database's table diff falsely reported the existing partitions as "unexpected" ->
-    // destructive table rebuild (JasperFx/marten#4706). Single-database stores still load exactly
-    // once (the key never changes).
-    private string? _initializedFor;
+    private bool _hasInitialized;
     private readonly SemaphoreSlim _semaphoreSlim = new(1);
 
     public ManagedListPartitions(string identifier, DbObjectName tableName): base(identifier, new PostgresqlMigrator())
@@ -301,7 +292,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
     public void ForceReload()
     {
-        _initializedFor = null;
+        _hasInitialized = false;
     }
 
     public async Task InitializeAsync(PostgresqlDatabase database, CancellationToken token)
@@ -316,14 +307,11 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
     public async Task InitializeAsync(NpgsqlConnection conn, CancellationToken token)
     {
-        // Reload whenever this manager is pointed at a different database than it last loaded from
-        // (see _initializedFor). Same database => cached, no reload.
-        var key = $"{conn.DataSource}/{conn.Database}";
-        if (_initializedFor == key) return;
+        if (_hasInitialized) return;
         await _semaphoreSlim.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            if (_initializedFor == key) return;
+            if (_hasInitialized) return;
 
             _partitions.Clear();
             await using var reader = await conn
@@ -343,14 +331,14 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                 _partitions[value] = suffix;
             }
 
-            _initializedFor = key;
+            _hasInitialized = true;
         }
         // 42P01: relation "public.mt_tenant_partitions" does not exist
         catch (NpgsqlException e)
         {
             if (e.SqlState == PostgresErrorCodes.UndefinedTable)
             {
-                _initializedFor = key;
+                _hasInitialized = true;
                 return;
             }
 
