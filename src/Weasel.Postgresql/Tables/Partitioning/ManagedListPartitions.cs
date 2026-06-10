@@ -236,37 +236,51 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             // This is the explicit, out-of-band partition-management path (AddPartitionToAllTables).
             // Managed-partition tables set IgnorePartitionsInMigration so the GENERIC schema diff leaves
             // their partitions alone (JasperFx/marten#4706); here we are deliberately reconciling them,
-            // so clear the flag locally (these table objects are freshly built from AllObjects()) to let
-            // the delta compute the missing partitions to add.
+            // so clear the flag locally to let the delta compute the missing partitions to add.
+            //
+            // #4713: SAVE and RESTORE the flag. These Table objects are NOT throwaway clones — a Marten
+            // consumer reuses a per-mapping singleton Table across every shard database and across every
+            // schema apply. Leaving the flag at false permanently defeated the #4706 short-circuit on
+            // that shared instance, so a later ApplyAllConfiguredChangesToDatabaseAsync re-emitted
+            // CREATE TABLE ... partition of for already-existing per-tenant partitions (42P07) and could
+            // re-trigger the destructive rebuild. Restore it in a finally so this reconcile is the only
+            // thing that ever sees the flag cleared.
+            var priorIgnorePartitions = table.IgnorePartitionsInMigration;
             table.IgnorePartitionsInMigration = false;
-
-            var existing = await table.FetchExistingAsync(conn, token).ConfigureAwait(false);
-            var delta = new TableDelta(table, existing);
-            if (delta.PartitionDelta == PartitionDelta.Additive)
+            try
             {
-                try
+                var existing = await table.FetchExistingAsync(conn, token).ConfigureAwait(false);
+                var delta = new TableDelta(table, existing);
+                if (delta.PartitionDelta == PartitionDelta.Additive)
                 {
-                    await table.MigrateAsync(conn, token).ConfigureAwait(false);
-                    foreach (var partition in delta.MissingPartitions)
+                    try
                     {
-                        logger.LogInformation("Added partition {Partition} to table {TableName}", partition, table.Identifier);
-                    }
+                        await table.MigrateAsync(conn, token).ConfigureAwait(false);
+                        foreach (var partition in delta.MissingPartitions)
+                        {
+                            logger.LogInformation("Added partition {Partition} to table {TableName}", partition, table.Identifier);
+                        }
 
+                        list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Complete));
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogError(e, "Error trying to add table partitions to {Table}", table.Identifier);
+                        list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Failed));
+                    }
+                }
+                else if (delta.PartitionDelta == PartitionDelta.None)
+                {
                     list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Complete));
                 }
-                catch (Exception e)
+                else
                 {
-                    logger.LogError(e, "Error trying to add table partitions to {Table}", table.Identifier);
-                    list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Failed));
+                    list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.RequiresTableRebuild));
                 }
             }
-            else if (delta.PartitionDelta == PartitionDelta.None)
+            finally
             {
-                list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Complete));
-            }
-            else
-            {
-                list.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.RequiresTableRebuild));
+                table.IgnorePartitionsInMigration = priorIgnorePartitions;
             }
         }
 

@@ -1,3 +1,4 @@
+using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Weasel.Core;
@@ -274,6 +275,41 @@ public class managed_list_partitions : IntegrationContext
         // The child partition for the new value must physically exist on both managed tables.
         (await partitionExists("teams", suffix)).ShouldBeTrue($"teams_{suffix} partition should have been created");
         (await partitionExists("players", suffix)).ShouldBeTrue($"players_{suffix} partition should have been created");
+    }
+
+    [Fact]
+    public async Task additive_partition_provisioning_restores_ignore_partitions_flag()
+    {
+        // JasperFx/marten#4713: AddPartitionToAllTables temporarily clears IgnorePartitionsInMigration
+        // to reconcile the managed partitions, but it MUST restore it afterward. These Table objects are
+        // reused across schema applies — in a Marten consumer they are per-mapping singletons shared
+        // across every shard database. Leaving the flag cleared defeats the #4706 short-circuit on the
+        // shared instance, so a later ApplyAllConfiguredChangesToDatabaseAsync re-emits
+        // CREATE TABLE ... partition of for already-existing per-tenant partitions -> 42P07.
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase(ignorePartitionsInMigration: true);
+        var partitions = new Dictionary<string, string> { { "red", "red" } };
+        await database.Partitions.ResetValues(database, partitions, CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        // Provision a new tenant partition out-of-band — this is the call that clears the flag.
+        await database.Partitions.AddPartitionToAllTables(database, "green", "green", CancellationToken.None);
+
+        // The managed tables (the same instances the additive path operated on) must keep
+        // IgnorePartitionsInMigration set after the reconcile.
+        var managedTables = database.AllObjects().OfType<Table>()
+            .Where(t => t.Partitioning is ListPartitioning { PartitionManager: not null }).ToArray();
+        managedTables.ShouldNotBeEmpty();
+        foreach (var table in managedTables)
+        {
+            table.IgnorePartitionsInMigration.ShouldBeTrue(
+                $"{table.Identifier} must keep IgnorePartitionsInMigration after additive provisioning (#4713)");
+        }
+
+        // And a re-apply over the provisioned partitions stays a no-op (no 42P07 re-create).
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
     }
 
     private static async Task dropManagedListsSchema()
