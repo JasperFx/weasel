@@ -117,6 +117,27 @@ public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
         connectionGlobalLock.Failed.ShouldBeTrue();
         connectionGlobalLock.Retried.ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task continue_on_failures_returns_None_instead_of_throwing_when_lock_not_attained()
+    {
+        // #308: with ResourceMigrationFailureMode.ContinueOnFailures, a replica that cannot attain the
+        // global migration lock starts up against the (soon-to-be) current schema instead of crash-looping.
+        theDatabase.ResourceMigrationFailureMode = ResourceMigrationFailureMode.ContinueOnFailures;
+
+        var connectionGlobalLock = new FlakyConnectionGlobalLock();
+
+        theDatabase.Features["One"].AddTable(SchemaName, "one");
+
+        var difference = await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync(
+            connectionGlobalLock,
+            null,
+            new ReconnectionOptions(0)
+        );
+
+        difference.ShouldBe(SchemaPatchDifference.None);
+        connectionGlobalLock.Failed.ShouldBeTrue();
+    }
 }
 
 public class NamedTable: Table
