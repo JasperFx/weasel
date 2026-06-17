@@ -169,8 +169,7 @@ order by column_index;
         await readIndexesAsync(reader, existing, ct).ConfigureAwait(false);
         await readConstraintsAsync(reader, existing, ct).ConfigureAwait(false);
 
-        foreach (var pkColumn in pks)
-            existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
+        markPrimaryKeyColumns(existing, pks);
 
         await readMaxIdentifierLength(reader, existing, ct).ConfigureAwait(false);
         await readPartitionsAsync(reader, existing, ct).ConfigureAwait(false);
@@ -178,6 +177,23 @@ order by column_index;
         return !existing.Columns.Any()
             ? null
             : existing;
+    }
+
+    // #307: mark the primary-key columns of a table read back from the catalog. Under concurrent DDL
+    // (e.g. multiple replicas/threads creating the same managed partition at once) the multi-result-set
+    // catalog read in readExistingAsync can be torn: the primary-key query returns a column name that the
+    // columns query did not (yet) include, so ColumnFor returns null. Guard against that rather than
+    // dereferencing null and throwing a NullReferenceException — the caller re-reads and re-diffs anyway,
+    // so a momentarily-missing column on a racing read is harmless. Internal for direct regression testing.
+    internal static void markPrimaryKeyColumns(Table existing, IEnumerable<string> pks)
+    {
+        foreach (var pkColumn in pks)
+        {
+            if (existing.ColumnFor(pkColumn) is { } column)
+            {
+                column.IsPrimaryKey = true;
+            }
+        }
     }
 
     private static async Task readMaxIdentifierLength(
