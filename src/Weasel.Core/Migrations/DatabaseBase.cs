@@ -70,6 +70,18 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     public AutoCreate AutoCreate { get; set; }
     public Migrator Migrator { get; }
 
+    /// <summary>
+    /// #308: governs what happens when <see cref="ApplyAllConfiguredChangesToDatabaseAsync(IGlobalLock{TConnection}, JasperFx.AutoCreate?, ReconnectionOptions?, CancellationToken)"/>
+    /// cannot attain the global migration lock. With the default <see cref="ResourceMigrationFailureMode.FailFast"/>
+    /// it throws (aborting startup). With <see cref="ResourceMigrationFailureMode.ContinueOnFailures"/> it
+    /// returns <see cref="SchemaPatchDifference.None"/> instead — the lock holder is presumably applying the
+    /// migration, so the application can start up against the soon-to-be / already current schema rather than
+    /// crash-looping. Callers (e.g. the Critter Stack hosts) set this from
+    /// <c>JasperFxOptions.ActiveProfile.ResourceMigrationFailureMode</c>.
+    /// </summary>
+    public ResourceMigrationFailureMode ResourceMigrationFailureMode { get; set; } =
+        ResourceMigrationFailureMode.FailFast;
+
     public string Identifier { get; protected set; }
 
     /// <summary>
@@ -350,6 +362,16 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             }
 
             await conn.CloseAsync().ConfigureAwait(false);
+
+            // #308: the global migration lock could not be attained in time. On a multi-replica rolling
+            // deploy this is expected for the replicas that lose the race — the winner is applying (or has
+            // applied) the migration. ContinueOnFailures lets those replicas start up against the
+            // current/soon-to-be-current schema instead of crash-looping; FailFast (default) preserves the
+            // historical throw-and-abort behavior.
+            if (ResourceMigrationFailureMode == ResourceMigrationFailureMode.ContinueOnFailures)
+            {
+                return SchemaPatchDifference.None;
+            }
 
             throw new InvalidOperationException(
                 "Unable to attain a global lock in time order to apply database changes");
