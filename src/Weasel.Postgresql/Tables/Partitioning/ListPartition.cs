@@ -1,3 +1,4 @@
+using System.Text;
 using JasperFx.Core;
 using Weasel.Core;
 using Weasel.Postgresql;
@@ -8,8 +9,32 @@ public class ListPartition : IPartition
 {
     public ListPartition(string suffix, params string[] values)
     {
-        Suffix = suffix.ToLowerInvariant();
+        Suffix = SanitizeSuffix(suffix);
         Values = values;
+    }
+
+    /// <summary>
+    /// A partition table is named <c>{parent}_{suffix}</c> as an UNQUOTED Postgres identifier, so the
+    /// suffix may only contain identifier-safe characters. Tenant ids are frequently used directly as
+    /// the suffix and can contain '-' (and other non-identifier characters), which produced invalid DDL
+    /// (<c>CREATE TABLE ..._tenant-a ...</c> → <c>42601 syntax error at or near "-"</c>). Lower-case and
+    /// replace any character outside <c>[a-z0-9_]</c> with '_'. The partition VALUES keep the exact
+    /// tenant id, so partition routing is unaffected — only the internal table name is normalized.
+    /// Idempotent, so the <see cref="Parse"/> round-trip (which re-reads the suffix from the table name)
+    /// stays symmetric. NOTE: distinct suffixes that normalize to the same string (e.g. <c>a-b</c> and
+    /// <c>a_b</c>) collide on the same partition table; callers needing both must supply already-distinct
+    /// suffixes.
+    /// </summary>
+    internal static string SanitizeSuffix(string suffix)
+    {
+        var lower = suffix.ToLowerInvariant();
+        var builder = new StringBuilder(lower.Length);
+        foreach (var c in lower)
+        {
+            builder.Append((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' ? c : '_');
+        }
+
+        return builder.ToString();
     }
 
     /// <summary>
