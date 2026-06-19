@@ -18,6 +18,9 @@
 
     <ItemGroup>
         <PackageReference Include="Microsoft.Data.Sqlite" />
+        <!-- Pull the patched native SQLite (3.0.3 / SQLite 3.50.x) instead of the
+             vulnerable transitive 2.1.11. See GHSA-2m69-gcr7-jv3q. -->
+        <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
