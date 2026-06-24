@@ -236,5 +236,38 @@ public class partitioning_deltas
         range1.CreateDelta(table, range1, out partitions).ShouldBe(PartitionDelta.None);
     }
 
+    [Fact]
+    public void integer_range_does_not_drift_against_quoted_readback()
+    {
+        // PostgreSQL echoes integer bounds back single-quoted ('20'); the declared side is unquoted (20).
+        // Normalized comparison keeps these equal so no spurious rebuild is reported.
+        var table = new Table(new DbObjectName("partitions", "people"));
+
+        var declared = new RangePartitioning { Columns = ["age"] }
+            .AddRange("twenties", 20, 29);
+
+        var readBack = new RangePartitioning { Columns = ["age"] }
+            .AddRange("twenties", "'20'", "'29'").As<IPartitionStrategy>();
+
+        declared.As<IPartitionStrategy>().CreateDelta(table, readBack, out _).ShouldBe(PartitionDelta.None);
+    }
+
+    [Fact]
+    public void timestamp_range_does_not_drift_against_readback_in_another_time_zone()
+    {
+        // Same monthly bounds, but PostgreSQL rendered the timestamptz read-back in a non-UTC session.
+        var table = new Table(new DbObjectName("partitions", "people"));
+
+        var declared = new RangePartitioning { Columns = ["bucket_end"] }
+            .AddRange("2026_01", new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero));
+
+        var readBack = new RangePartitioning { Columns = ["bucket_end"] }
+            .AddRange("2026_01", "'2025-12-31 18:00:00-06'", "'2026-01-31 18:00:00-06'")
+            .As<IPartitionStrategy>();
+
+        declared.As<IPartitionStrategy>().CreateDelta(table, readBack, out _).ShouldBe(PartitionDelta.None);
+    }
+
 
 }

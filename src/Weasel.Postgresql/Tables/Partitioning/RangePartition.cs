@@ -38,7 +38,12 @@ public class RangePartition : IPartition
 
     protected bool Equals(RangePartition other)
     {
-        return Suffix == other.Suffix && From == other.From && To == other.To;
+        // From/To hold raw SQL literals that differ between the declared side and what PostgreSQL
+        // echoes back (quoting, time-zone rendering of timestamptz), so compare on the normalized
+        // form to avoid spurious migration rebuilds. See PartitionExtensions.NormalizePartitionValue.
+        return Suffix == other.Suffix
+            && From.NormalizePartitionValue() == other.From.NormalizePartitionValue()
+            && To.NormalizePartitionValue() == other.To.NormalizePartitionValue();
     }
 
     public override bool Equals(object? obj)
@@ -68,7 +73,7 @@ public class RangePartition : IPartition
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Suffix, From, To);
+        return HashCode.Combine(Suffix, From.NormalizePartitionValue(), To.NormalizePartitionValue());
     }
 
     internal static RangePartition Parse(DbObjectName tableName, string partitionName, string postgresExpression)
