@@ -87,6 +87,25 @@ order by
     ic.index_column_id;
 
 
+select
+    pf.name as partition_function,
+    ps.name as partition_scheme,
+    pc.name as partition_column,
+    pt.name as partition_type,
+    pf.boundary_value_on_right,
+    prv.value as boundary_value
+from sys.tables tbl
+    inner join sys.schemas sch on tbl.schema_id = sch.schema_id
+    inner join sys.indexes idx on tbl.object_id = idx.object_id and idx.index_id in (0, 1)
+    inner join sys.partition_schemes ps on idx.data_space_id = ps.data_space_id
+    inner join sys.partition_functions pf on ps.function_id = pf.function_id
+    inner join sys.index_columns icp on icp.object_id = tbl.object_id and icp.index_id = idx.index_id and icp.partition_ordinal >= 1
+    inner join sys.columns pc on pc.object_id = tbl.object_id and pc.column_id = icp.column_id
+    inner join sys.partition_parameters pp on pp.function_id = pf.function_id
+    inner join sys.types pt on pt.user_type_id = pp.user_type_id
+    left join sys.partition_range_values prv on prv.function_id = pf.function_id
+where sch.name = @{schemaParam} and tbl.name = @{nameParam}
+order by prv.boundary_id;
 
 ");
     }
@@ -118,9 +137,44 @@ order by
 
         await readIndexesAsync(reader, existing, ct).ConfigureAwait(false);
 
+        await readPartitioningAsync(reader, existing, ct).ConfigureAwait(false);
+
         return !existing.Columns.Any()
             ? null
             : existing;
+    }
+
+    private async Task readPartitioningAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
+    {
+        var hasResults = await reader.NextResultAsync(ct).ConfigureAwait(false);
+        if (!hasResults)
+        {
+            return;
+        }
+
+        Partitioning.SqlServerPartitionInfo? info = null;
+
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            info ??= new Partitioning.SqlServerPartitionInfo();
+
+            info.PartitionFunctionName = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            info.PartitionSchemeName = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+            info.Column = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
+            info.SqlDataType = await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
+            info.IsRangeRight = await reader.GetFieldValueAsync<bool>(4, ct).ConfigureAwait(false);
+
+            // sys.partition_range_values.value is a sql_variant carrying the boundary as its native CLR
+            // type (DateTime, DateTimeOffset, int, bool, ...). Format it through the SAME canonical
+            // formatter used to declare boundaries so a round-trip compares equal with no spurious rebuild.
+            if (!await reader.IsDBNullAsync(5, ct).ConfigureAwait(false))
+            {
+                var boundary = reader.GetValue(5);
+                info.BoundaryValues.Add(Partitioning.RangePartitioning.FormatSqlValue(boundary));
+            }
+        }
+
+        existing.PartitionInfo = info;
     }
 
     private async Task readForeignKeysAsync(DbDataReader reader, Table existing, CancellationToken ct = default)

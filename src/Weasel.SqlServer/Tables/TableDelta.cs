@@ -16,6 +16,14 @@ public class TableDelta: SchemaObjectDelta<Table>
 
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
 
+    /// <summary>
+    ///     Difference between the declared SQL Server RANGE partitioning and what is in the database.
+    ///     <see cref="SchemaPatchDifference.Update" /> means new boundaries can be added via
+    ///     <c>ALTER PARTITION FUNCTION ... SPLIT RANGE</c>; <see cref="SchemaPatchDifference.Invalid" />
+    ///     means the partitioning would have to be rebuilt (column/type change or boundaries removed).
+    /// </summary>
+    public SchemaPatchDifference PartitioningDifference { get; private set; } = SchemaPatchDifference.None;
+
     protected override SchemaPatchDifference compare(Table expected, Table? actual)
     {
         if (actual == null)
@@ -44,6 +52,19 @@ public class TableDelta: SchemaObjectDelta<Table>
         else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
+        }
+
+        // Declarative RANGE partitioning round-trip. Only RangePartitioning is migrated here; managed
+        // strategies (e.g. ManagedTenantPartitions) own their boundaries at runtime and are left alone.
+        PartitioningDifference = SchemaPatchDifference.None;
+        if (expected.SqlServerPartitioning is Partitioning.RangePartitioning rangePartitioning)
+        {
+            PartitioningDifference = rangePartitioning.CreateDelta(actual.PartitionInfo) switch
+            {
+                Partitioning.PartitionDelta.None => SchemaPatchDifference.None,
+                Partitioning.PartitionDelta.Additive => SchemaPatchDifference.Update,
+                _ => SchemaPatchDifference.Invalid
+            };
         }
 
         return determinePatchDifference();
@@ -93,6 +114,14 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         // Extra columns
         foreach (var column in Columns.Extras) writer.WriteLine(column.DropColumnSql(Expected));
+
+        // Additive RANGE partition boundaries -> ALTER PARTITION FUNCTION ... SPLIT RANGE
+        if (PartitioningDifference == SchemaPatchDifference.Update
+            && Expected.SqlServerPartitioning is Partitioning.RangePartitioning rangePartitioning
+            && Actual?.PartitionInfo != null)
+        {
+            rangePartitioning.WriteSplitStatements(writer, Expected, Actual.PartitionInfo);
+        }
 
         switch (PrimaryKeyDifference)
         {
@@ -166,6 +195,14 @@ public class TableDelta: SchemaObjectDelta<Table>
         foreach (var column in Columns.Missing) writer.WriteLine(column.DropColumnSql(Expected));
 
         foreach (var foreignKey in ForeignKeys.Extras) foreignKey.WriteAddStatement(Expected, writer);
+
+        // Roll an additive partition split back out -> ALTER PARTITION FUNCTION ... MERGE RANGE
+        if (PartitioningDifference == SchemaPatchDifference.Update
+            && Expected.SqlServerPartitioning is Partitioning.RangePartitioning rangePartitioning
+            && Actual?.PartitionInfo != null)
+        {
+            rangePartitioning.WriteMergeStatements(writer, Expected, Actual.PartitionInfo);
+        }
 
         switch (PrimaryKeyDifference)
         {
@@ -246,7 +283,8 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         var differences = new[]
         {
-            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), PrimaryKeyDifference
+            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), PrimaryKeyDifference,
+            PartitioningDifference
         };
 
         return differences.Min();
@@ -267,7 +305,8 @@ public class TableDelta: SchemaObjectDelta<Table>
     public bool HasChanges()
     {
         return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() ||
-               PrimaryKeyDifference != SchemaPatchDifference.None;
+               PrimaryKeyDifference != SchemaPatchDifference.None ||
+               PartitioningDifference != SchemaPatchDifference.None;
     }
 
     public override string ToString()

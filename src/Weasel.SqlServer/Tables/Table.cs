@@ -85,6 +85,14 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     public Partitioning.ISqlServerPartitioning? SqlServerPartitioning { get; set; }
 
     /// <summary>
+    ///     The actual RANGE partitioning metadata read back from the database by
+    ///     <see cref="FetchExistingAsync" />. Null when the table is not partitioned. Consumed by
+    ///     <see cref="TableDelta" /> to tell an additive boundary change (which migrates via
+    ///     <c>ALTER PARTITION FUNCTION ... SPLIT RANGE</c>) apart from a partitioning rebuild.
+    /// </summary>
+    public Partitioning.SqlServerPartitionInfo? PartitionInfo { get; set; }
+
+    /// <summary>
     ///     Configure SQL Server RANGE partitioning on a column.
     /// </summary>
     public Partitioning.RangePartitioning PartitionByRange(string column, string sqlDataType)

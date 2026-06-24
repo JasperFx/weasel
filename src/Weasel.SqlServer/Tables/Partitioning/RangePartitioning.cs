@@ -140,6 +140,24 @@ public class RangePartitioning : ISqlServerPartitioning
         }
     }
 
+    /// <summary>
+    ///     Write ALTER PARTITION FUNCTION ... MERGE RANGE statements that remove the boundaries
+    ///     <see cref="WriteSplitStatements" /> would add. Used to roll an additive partition migration back.
+    /// </summary>
+    public void WriteMergeStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual)
+    {
+        var pfName = PartitionFunctionName(parent);
+        var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var boundary in _boundaryValues)
+        {
+            if (!actualSet.Contains(boundary))
+            {
+                writer.WriteLine($"ALTER PARTITION FUNCTION [{pfName}]() MERGE RANGE ({boundary});");
+            }
+        }
+    }
+
     internal static string FormatSqlValue<T>(T? value)
     {
         if (value == null) return "NULL";
