@@ -23,6 +23,8 @@ dotnet add package Weasel.SqlServer
 | Sequences | `Sequence` | `Weasel.SqlServer` |
 | Table Types | `TableType` | `Weasel.SqlServer.Tables` |
 
+Tables can also be [range or managed-tenant partitioned](/sqlserver/partitioning) via partition functions and schemes.
+
 ## Connection String
 
 Weasel.SqlServer uses standard SQL Server connection strings with `Microsoft.Data.SqlClient`:

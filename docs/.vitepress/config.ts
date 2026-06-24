@@ -91,6 +91,7 @@ export default withMermaid(
           items: [
             { text: 'Overview', link: '/sqlserver/' },
             { text: 'Tables', link: '/sqlserver/tables' },
+            { text: 'Partitioning', link: '/sqlserver/partitioning' },
             { text: 'Stored Procedures', link: '/sqlserver/procedures' },
             { text: 'Functions', link: '/sqlserver/functions' },
             { text: 'Sequences', link: '/sqlserver/sequences' },
