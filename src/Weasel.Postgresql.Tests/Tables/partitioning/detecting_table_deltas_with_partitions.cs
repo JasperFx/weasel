@@ -206,6 +206,31 @@ public class detecting_table_deltas_with_partitions : IndexDeltasDetectionContex
     }
 
     [Fact]
+    public async Task apply_migration_to_range_partitioned_by_timestamptz_in_non_utc_session()
+    {
+        // Regression for monthly time-series partitioning on a timestamptz column. PostgreSQL renders
+        // the partition bounds back in the session time zone, so without value-aware comparison the
+        // second pass reports a spurious rebuild. Force a non-UTC session to prove the bounds still match.
+        await theConnection.CreateCommand("set timezone to 'America/Chicago'").ExecuteNonQueryAsync();
+
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.ModifyColumn("created_datetime_offset").AsPrimaryKey();
+
+        theTable.PartitionByRange("created_datetime_offset")
+            .AddRange("2026_01", new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero))
+            .AddRange("2026_02", new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero),
+                new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero));
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        delta.HasChanges().ShouldBeTrue();
+
+        await AssertNoDeltasAfterPatching();
+    }
+
+    [Fact]
     public async Task apply_migration_to_range_partitioned_with_other_table_changes()
     {
         await CreateSchemaObjectInDatabase(theTable);

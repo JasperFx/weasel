@@ -1,3 +1,4 @@
+using System.Globalization;
 using JasperFx.Core.Reflection;
 using Weasel.Core;
 using Weasel.Postgresql;
@@ -27,6 +28,20 @@ public static class PartitionExtensions
     /// <returns></returns>
     public static string FormatSqlValue<T>(this T value)
     {
+        // DateTimeOffset/DateTime have to be rendered with an invariant, canonical format so that the
+        // generated partition bound DDL is a) valid PostgreSQL and b) deterministic regardless of the
+        // current thread culture (the default ToString() is culture sensitive). The round-trip comparison
+        // against what PostgreSQL echoes back is handled separately via NormalizePartitionValue.
+        if (value is DateTimeOffset dto)
+        {
+            return $"'{dto.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFzzz", CultureInfo.InvariantCulture)}'";
+        }
+
+        if (value is DateTime dt)
+        {
+            return $"'{dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture)}'";
+        }
+
         if (typeof(T).IsNumeric()) return value.ToString();
 
         if (value is bool b) return b.ToString().ToLowerInvariant();
@@ -34,6 +49,44 @@ public static class PartitionExtensions
         if (value is string v && v.StartsWith("'") && v.EndsWith("'")) return v;
 
         return $"'{value.ToString()}'";
+    }
+
+    /// <summary>
+    /// Normalize a partition bound literal (either a declared value produced by <see cref="FormatSqlValue{T}"/>
+    /// or a value echoed back by PostgreSQL via <c>pg_get_expr(relpartbound)</c>) into a stable, comparable
+    /// form. PostgreSQL single-quotes every bound literal on read-back (so a declared <c>20</c> comes back as
+    /// <c>'20'</c>) and renders <c>timestamptz</c> bounds in the session time zone (so <c>'2026-01-01 00:00:00+00'</c>
+    /// can come back as <c>'2025-12-31 18:00:00-06'</c>). Both would otherwise produce spurious migration
+    /// rebuilds when compared as raw strings.
+    /// </summary>
+    internal static string NormalizePartitionValue(this string? raw)
+    {
+        if (raw is null) return string.Empty;
+
+        var value = raw.Trim();
+        if (value.Length >= 2 && value[0] == '\'' && value[^1] == '\'')
+        {
+            value = value.Substring(1, value.Length - 2);
+        }
+
+        if (LooksLikeTimestamp(value)
+            && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture,
+                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var moment))
+        {
+            return moment.ToString("yyyy-MM-ddTHH:mm:ss.fffffffzzz", CultureInfo.InvariantCulture);
+        }
+
+        return value;
+    }
+
+    private static bool LooksLikeTimestamp(string value)
+    {
+        // Cheap guard so plain integers ('20') and text values ('role-a') are never misparsed as dates:
+        // a timestamp/date literal starts with a four digit year followed by a '-' separator.
+        return value.Length >= 8
+            && value.IndexOf('-') >= 4
+            && char.IsDigit(value[0]) && char.IsDigit(value[1])
+            && char.IsDigit(value[2]) && char.IsDigit(value[3]);
     }
 
     /// <summary>
