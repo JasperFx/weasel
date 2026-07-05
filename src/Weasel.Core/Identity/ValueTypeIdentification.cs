@@ -15,8 +15,9 @@ namespace Weasel.Core.Identity;
 ///     int / long / string).
 /// </summary>
 /// <remarks>
-///     Generation strategy depends on the inner type: Guid → <see cref="Guid.NewGuid" />;
-///     int / long → per-document Hi-Lo sequence; string → externally assigned (throws on missing).
+///     Generation strategy depends on the inner type: Guid → <see cref="Guid.CreateVersion7()" />
+///     (time-ordered UUIDv7, for index locality); int / long → per-document Hi-Lo sequence;
+///     string → externally assigned (throws on missing).
 /// </remarks>
 public sealed class ValueTypeIdentification<TDoc, TWrapper, TInner> : IIdentification<TDoc, TWrapper>
     where TDoc : notnull
@@ -127,7 +128,7 @@ public sealed class ValueTypeIdentification<TDoc, TWrapper, TInner> : IIdentific
     {
         if (simpleType == typeof(Guid))
         {
-            return _ => (TInner)(object)Guid.NewGuid();
+            return _ => (TInner)(object)Guid.CreateVersion7();
         }
         if (simpleType == typeof(int))
         {

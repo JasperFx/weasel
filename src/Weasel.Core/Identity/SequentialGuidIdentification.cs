@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Weasel.Core.Sequences;
 
@@ -9,8 +8,8 @@ namespace Weasel.Core.Identity;
 
 /// <summary>
 ///     <see cref="IIdentification{TDoc,TId}" /> for documents whose id is a <see cref="Guid" />
-///     generated sequentially (comb) via <see cref="CombGuidIdGeneration" /> — no database
-///     round-trip.
+///     generated sequentially via <see cref="Guid.CreateVersion7()" /> (a time-ordered UUIDv7, for
+///     index locality) — no database round-trip.
 /// </summary>
 public sealed class SequentialGuidIdentification<TDoc> : IIdentification<TDoc, Guid>
     where TDoc : notnull
@@ -42,7 +41,7 @@ public sealed class SequentialGuidIdentification<TDoc> : IIdentification<TDoc, G
             return current;
         }
 
-        var assigned = CombGuidIdGeneration.NewGuid();
+        var assigned = Guid.CreateVersion7();
         _setter(document, assigned);
         return assigned;
     }
