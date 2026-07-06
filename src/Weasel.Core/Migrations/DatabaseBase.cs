@@ -319,11 +319,31 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
             postProcessing.PostProcess(objects);
         }
 
+        // Opt-in fingerprint short-circuit (see Migrator.UseSchemaFingerprinting): computed AFTER
+        // post-processing so injected objects (e.g. managed partitions) participate in the hash.
+        var fingerprint = Migrator.UseSchemaFingerprinting
+            ? SchemaFingerprint.ComputeFingerprint(Migrator, objects)
+            : null;
+
         TConnection? conn = null;
         try
         {
             conn = CreateConnection();
             await conn.OpenAsync(ct).ConfigureAwait(false);
+
+            // Fast path: when the stamped fingerprint already matches the configured schema, skip the
+            // whole apply — no global lock, no catalog introspection. The stamp is only ever written
+            // after a successful full apply of this exact configuration.
+            if (fingerprint != null)
+            {
+                var stored = await SchemaFingerprint.TryReadAsync(conn, Migrator.DefaultSchemaName, ct)
+                    .ConfigureAwait(false);
+                if (fingerprint == stored)
+                {
+                    MarkAllFeaturesAsChecked();
+                    return SchemaPatchDifference.None;
+                }
+            }
 
             AttainLockResult attainLockResult;
 
@@ -346,12 +366,33 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
 
             if (attainLockResult == AttainLockResult.Success)
             {
+                // Re-check the fingerprint now that we hold the lock: a concurrent applier (another
+                // replica racing this one) may have applied + stamped while we waited.
+                if (fingerprint != null)
+                {
+                    var stored = await SchemaFingerprint.TryReadAsync(conn, Migrator.DefaultSchemaName, ct)
+                        .ConfigureAwait(false);
+                    if (fingerprint == stored)
+                    {
+                        MarkAllFeaturesAsChecked();
+                        await globalLock.ReleaseLock(conn, ct).ConfigureAwait(false);
+                        return SchemaPatchDifference.None;
+                    }
+                }
+
                 await initializeSchema(conn, ct).ConfigureAwait(false);
                 var patch = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
 
                 if (patch.Difference != SchemaPatchDifference.None)
                 {
                     await Migrator.ApplyAllAsync(conn, patch, autoCreate, _logger, ct).ConfigureAwait(false);
+                }
+
+                if (fingerprint != null)
+                {
+                    // Stamp only after the apply succeeded, still under the global lock.
+                    await SchemaFingerprint.RecordAsync(conn, Migrator.DefaultSchemaName, fingerprint, ct)
+                        .ConfigureAwait(false);
                 }
 
                 MarkAllFeaturesAsChecked();

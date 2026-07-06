@@ -70,6 +70,23 @@ public abstract class
     public string DefaultSchemaName { get; }
 
     /// <summary>
+    ///     Opt-in: stamp a fingerprint of the configured schema's expected DDL into
+    ///     <c>{DefaultSchemaName}.weasel_schema_fingerprint</c> after every successful FULL
+    ///     <c>ApplyAllConfiguredChangesToDatabaseAsync</c>, and skip the apply entirely (a single
+    ///     SELECT instead of full catalog introspection) when the stamp already matches the current
+    ///     configuration. Any configuration change — including newly registered managed partitions —
+    ///     changes the fingerprint and re-enables the full apply.
+    ///     <para>
+    ///     A matching stamp is TRUSTED: schema drift applied outside Weasel is not detected while the
+    ///     stamp matches. <c>AssertDatabaseMatchesConfigurationAsync</c> remains the verification route.
+    ///     Feature-level applies (<c>EnsureStorageExistsAsync</c>) neither read nor write the stamp.
+    ///     Intended for deployments with many databases and/or many replicas, where repeated no-op
+    ///     applies (per pod start, per rolling update) are measurably expensive.
+    ///     </para>
+    /// </summary>
+    public bool UseSchemaFingerprinting { get; set; }
+
+    /// <summary>
     ///     Read [name].table and [name].function files from the named directory
     ///     to serve as templates for extra DDL (GRANT's probably)
     /// </summary>
