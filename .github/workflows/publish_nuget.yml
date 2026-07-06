@@ -27,6 +27,9 @@ jobs:
     - name: Pack Weasel.Core
       run: dotnet pack ./src/Weasel.Core/Weasel.Core.csproj -o ./artifacts --configuration Release --no-build
 
+    - name: Pack Weasel.Storage
+      run: dotnet pack ./src/Weasel.Storage/Weasel.Storage.csproj -o ./artifacts --configuration Release --no-build
+
     - name: Pack Weasel.Postgresql
       run: dotnet pack ./src/Weasel.Postgresql/Weasel.Postgresql.csproj -o ./artifacts --configuration Release --no-build
 

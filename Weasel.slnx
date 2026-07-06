@@ -54,6 +54,9 @@
     <Project Path="src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj" />
     <Project Path="src/Weasel.SqlServer/Weasel.SqlServer.csproj" />
   </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Weasel.Storage/Weasel.Storage.csproj" />
+  </Folder>
   <Project Path="src/Weasel.Core.AotSmoke/Weasel.Core.AotSmoke.csproj" />
   <Project Path="src/Weasel.Core.Tests/Weasel.Core.Tests.csproj" />
   <Project Path="src/Weasel.Core/Weasel.Core.csproj" />
