@@ -56,7 +56,7 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         return _command.Parameters[^1];
     }
 
-    void ICommandBuilder.AppendParameters(params object[] parameters)
+    void Weasel.Core.ICommandBuilder.AppendParameters(params object[] parameters)
     {
         if (!parameters.Any())
             throw new ArgumentOutOfRangeException(nameof(parameters),
