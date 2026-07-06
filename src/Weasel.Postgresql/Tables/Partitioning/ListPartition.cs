@@ -65,10 +65,15 @@ public class ListPartition : IPartition
 
     protected bool Equals(ListPartition other)
     {
+        // Values hold raw SQL literals that differ between the declared side and what PostgreSQL
+        // echoes back (it single-quotes every literal, so a declared int 20 comes back as '20'), so
+        // compare on the normalized form to avoid spurious migration rebuilds. String values already
+        // match because FormatSqlValue quotes them on both sides; integer and date values would drift.
+        // See PartitionExtensions.NormalizePartitionValue (mirrors the RangePartition fix, weasel#318).
         if (Values.Length != other.Values.Length) return false;
         for (int i = 0; i < Values.Length; i++)
         {
-            if (!Values[i].Equals(other.Values[i]))
+            if (Values[i].NormalizePartitionValue() != other.Values[i].NormalizePartitionValue())
             {
                 return false;
             }
@@ -101,7 +106,16 @@ public class ListPartition : IPartition
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Values, Suffix);
+        // Combine the normalized element values (not the array reference) + Suffix so the hash is
+        // consistent with Equals and stable across the declared-vs-readback quoting difference.
+        var hash = new HashCode();
+        foreach (var value in Values)
+        {
+            hash.Add(value.NormalizePartitionValue());
+        }
+
+        hash.Add(Suffix);
+        return hash.ToHashCode();
     }
 
     public override string ToString()
