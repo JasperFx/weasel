@@ -434,6 +434,33 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
         return parameters;
     }
 #endif
+
+    /// <summary>
+    ///     Append a SQL string with `?` placeholders for new parameters, and returns an
+    ///     array of the newly created parameters upcast to the dialect-neutral <see cref="DbParameter" />.
+    ///     Use this from database-agnostic consumers that fill parameter slots without
+    ///     referencing the provider-specific parameter type.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
+    public DbParameter[] AppendWithDbParameters(string text)
+    {
+        return AppendWithParameters(text);
+    }
+
+    /// <summary>
+    ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
+    ///     array of the newly created parameters upcast to the dialect-neutral <see cref="DbParameter" />.
+    ///     Use this from database-agnostic consumers that fill parameter slots without
+    ///     referencing the provider-specific parameter type.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <param name="placeholder"></param>
+    /// <returns></returns>
+    public DbParameter[] AppendWithDbParameters(string text, char placeholder)
+    {
+        return AppendWithParameters(text, placeholder);
+    }
 }
 
 // Note: Those methods are intentionally not written as extension methods
