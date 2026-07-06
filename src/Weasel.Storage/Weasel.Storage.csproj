@@ -14,6 +14,9 @@
     </PropertyGroup>
     <ItemGroup>
         <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj"/>
+        <!-- IDocumentStorage<T,TId> derives IIdentitySetter<T,TId> (JasperFx.Events.Aggregation) so
+             closed-shape storages plug straight into the event-projection aggregation APIs. -->
+        <PackageReference Include="JasperFx.Events"/>
     </ItemGroup>
     <Import Project="../../Analysis.Build.props"/>
 </Project>
