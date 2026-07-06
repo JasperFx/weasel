@@ -2,7 +2,7 @@ using JasperFx.Core;
 
 namespace Weasel.SqlServer.SqlGeneration;
 
-public class CompoundWhereFragment: ISqlFragment, IWhereFragmentHolder
+public class CompoundWhereFragment: ICompoundFragment, IWhereFragmentHolder
 {
     private readonly IList<ISqlFragment> _children = new List<ISqlFragment>();
 

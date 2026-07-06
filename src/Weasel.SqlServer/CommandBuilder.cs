@@ -5,7 +5,7 @@ using Weasel.Core;
 
 namespace Weasel.SqlServer;
 
-public class CommandBuilder: CommandBuilderBase<SqlCommand, SqlParameter, SqlDbType>
+public class CommandBuilder: CommandBuilderBase<SqlCommand, SqlParameter, SqlDbType>, Weasel.Core.ICommandBuilder
 {
     public CommandBuilder(): this(new SqlCommand())
     {
@@ -13,6 +13,37 @@ public class CommandBuilder: CommandBuilderBase<SqlCommand, SqlParameter, SqlDbT
 
     public CommandBuilder(SqlCommand command): base(SqlServerProvider.Instance, '@', command)
     {
+    }
+
+    /// <summary>
+    /// It became so common, that it's turned out to be convenient to place
+    /// this here
+    /// </summary>
+    public string TenantId { get; set; }
+
+    /// <summary>
+    ///     Append the supplied parameter values to the command, comma-separated, adding each to
+    ///     the underlying command's parameter collection and to the SQL text.
+    /// </summary>
+    /// <param name="parameters"></param>
+    public void AppendParameters(params object[] parameters)
+    {
+        if (!parameters.Any())
+            throw new ArgumentOutOfRangeException(nameof(parameters),
+                "Must be at least one parameter value, but got " + parameters.Length);
+
+        AppendParameter(parameters[0]);
+
+        for (var i = 1; i < parameters.Length; i++)
+        {
+            Append(", ");
+            AppendParameter(parameters[i]);
+        }
+    }
+
+    public void StartNewCommand()
+    {
+        // do nothing!
     }
 }
 
