@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using Microsoft.Data.SqlClient;
 
 namespace Weasel.SqlServer;
@@ -43,6 +44,25 @@ public interface ICommandBuilder
     /// <param name="placeholder"></param>
     /// <returns></returns>
     SqlParameter[] AppendWithParameters(string text, char placeholder);
+
+    /// <summary>
+    ///     Append a SQL string with `?` placeholders for new parameters, and returns an
+    ///     array of the newly created parameters upcast to the dialect-neutral <see cref="DbParameter" />.
+    ///     Lets a database-agnostic consumer fill parameter slots without referencing <see cref="SqlParameter" />.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <returns></returns>
+    DbParameter[] AppendWithDbParameters(string text);
+
+    /// <summary>
+    ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
+    ///     array of the newly created parameters upcast to the dialect-neutral <see cref="DbParameter" />.
+    ///     Lets a database-agnostic consumer fill parameter slots without referencing <see cref="SqlParameter" />.
+    /// </summary>
+    /// <param name="text"></param>
+    /// <param name="placeholder"></param>
+    /// <returns></returns>
+    DbParameter[] AppendWithDbParameters(string text, char placeholder);
 
     void StartNewCommand();
 

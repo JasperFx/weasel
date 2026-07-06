@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.Data.SqlClient;
 using Shouldly;
 using Xunit;
@@ -16,6 +17,29 @@ public class CommandBuilderTests
             .Length.ShouldBe(1);
 
         builder.ToString().ShouldBe("select data from table where foo = @p0");
+    }
+
+    [Fact]
+    public void append_with_db_parameters_returns_neutral_db_parameters()
+    {
+        ICommandBuilder builder = new BatchBuilder();
+
+        builder.Append("select data from table where ");
+        DbParameter[] parameters = builder.AppendWithDbParameters("foo = ? and bar = ?");
+
+        parameters.Length.ShouldBe(2);
+        parameters.ShouldAllBe(x => x is SqlParameter);
+    }
+
+    [Fact]
+    public void append_with_db_parameters_honors_custom_placeholder()
+    {
+        ICommandBuilder builder = new BatchBuilder();
+
+        builder.Append("select data from table where ");
+        DbParameter[] parameters = builder.AppendWithDbParameters("foo = ^ and bar = ^", '^');
+
+        parameters.Length.ShouldBe(2);
     }
 
     [Fact]

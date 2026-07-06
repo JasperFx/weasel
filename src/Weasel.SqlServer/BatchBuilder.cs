@@ -202,6 +202,16 @@ public class BatchBuilder: ICommandBuilder
     }
 #endif
 
+    public System.Data.Common.DbParameter[] AppendWithDbParameters(string text)
+    {
+        return AppendWithParameters(text);
+    }
+
+    public System.Data.Common.DbParameter[] AppendWithDbParameters(string text, char placeholder)
+    {
+        return AppendWithParameters(text, placeholder);
+    }
+
     public void StartNewCommand()
     {
         if (_current != null)
