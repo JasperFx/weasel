@@ -198,3 +198,31 @@ public interface IMigrationLogger_Sample
 <!-- endSnippet -->
 
 The default logger writes SQL to `Console.WriteLine` and rethrows exceptions.
+
+## Schema Fingerprinting
+
+For deployments with many databases and/or many replicas, repeated no-op applies (one per database, per
+process start, per rolling update) are measurably expensive: `ApplyAllConfiguredChangesToDatabaseAsync`
+introspects the catalog for every configured schema object even when nothing changed. Opt-in schema
+fingerprinting turns the no-op apply into a single `SELECT`:
+
+```cs
+migrator.UseSchemaFingerprinting = true;
+```
+
+With the flag enabled, a successful **full** apply stamps a SHA-256 fingerprint of the configured
+schema's expected DDL into `{DefaultSchemaName}.weasel_schema_fingerprint`. The next full apply
+recomputes the fingerprint in memory and, when it matches the stamp, returns immediately — no global
+lock, no catalog introspection. Any configuration change (a new table, column, index, or managed
+partition) changes the fingerprint and re-enables the real apply, which then refreshes the stamp.
+
+Semantics to be aware of:
+
+* A matching stamp is **trusted**. Schema drift applied outside Weasel (manual DDL, another tool) is not
+  detected while the stamp matches — exactly like an application that skips migrations altogether. Use
+  `AssertDatabaseMatchesConfigurationAsync` when you need verification; it is unaffected by the stamp.
+  Deleting the stamp row (or table) forces the next apply to run in full.
+* Only the **full** apply reads or writes the stamp. Feature-level applies
+  (`EnsureStorageExistsAsync`) behave exactly as before.
+* Concurrent appliers re-check the stamp after attaining the global migration lock, so replicas racing
+  through a rolling update do the introspection work at most once per configuration.
