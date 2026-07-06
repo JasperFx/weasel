@@ -33,7 +33,8 @@ public class RangePartition : IPartition
         var partitionName = PostgresqlObjectName.From(
             new DbObjectName(parent.Identifier.Schema, parent.Identifier.Name + "_" + Suffix));
         var parentName = PostgresqlObjectName.From(parent.Identifier);
-        writer.WriteLine($"CREATE TABLE {partitionName} PARTITION OF {parentName} FOR VALUES FROM ({From}) TO ({To});");
+        // IF NOT EXISTS: keep partition creation idempotent under concurrent schema application.
+        writer.WriteLine($"CREATE TABLE IF NOT EXISTS {partitionName} PARTITION OF {parentName} FOR VALUES FROM ({From}) TO ({To});");
     }
 
     protected bool Equals(RangePartition other)

@@ -48,9 +48,9 @@ public class hash_partitions: IntegrationContext
 
         sql.ShouldContain("PARTITION BY HASH (role)");
 
-        sql.ShouldContain("create table partitions.people_one partition of partitions.people for values with (modulus 3, remainder 0);");
-        sql.ShouldContain("create table partitions.people_two partition of partitions.people for values with (modulus 3, remainder 1);");
-        sql.ShouldContain("create table partitions.people_three partition of partitions.people for values with (modulus 3, remainder 2);");
+        sql.ShouldContain("create table if not exists partitions.people_one partition of partitions.people for values with (modulus 3, remainder 0);");
+        sql.ShouldContain("create table if not exists partitions.people_two partition of partitions.people for values with (modulus 3, remainder 1);");
+        sql.ShouldContain("create table if not exists partitions.people_three partition of partitions.people for values with (modulus 3, remainder 2);");
 
         await tryToCreateTable();
     }

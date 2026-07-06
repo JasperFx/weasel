@@ -127,7 +127,7 @@ public class KeywordIdentifierTests
 
         var expectedParent = QuoteQualifiedName(keyword, keyword);
         var expectedPartition = QuoteQualifiedName(keyword, keyword + "_" + suffixes[0]);
-        sql.ShouldContain($"create table {expectedPartition} partition of {expectedParent}");
+        sql.ShouldContain($"create table if not exists {expectedPartition} partition of {expectedParent}");
     }
 
     [Theory]
@@ -144,7 +144,7 @@ public class KeywordIdentifierTests
 
         var expectedParent = QuoteQualifiedName(keyword, keyword);
         var expectedPartition = QuoteQualifiedName(keyword, keyword + "_a");
-        sql.ShouldContain($"CREATE TABLE {expectedPartition} partition of {expectedParent}");
+        sql.ShouldContain($"CREATE TABLE IF NOT EXISTS {expectedPartition} partition of {expectedParent}");
     }
 
     [Theory]
@@ -161,7 +161,7 @@ public class KeywordIdentifierTests
 
         var expectedParent = QuoteQualifiedName(keyword, keyword);
         var expectedPartition = QuoteQualifiedName(keyword, keyword + "_a");
-        sql.ShouldContain($"CREATE TABLE {expectedPartition} PARTITION OF {expectedParent}");
+        sql.ShouldContain($"CREATE TABLE IF NOT EXISTS {expectedPartition} PARTITION OF {expectedParent}");
     }
 
     [Theory]
@@ -177,7 +177,7 @@ public class KeywordIdentifierTests
         var sql = writer.ToString();
         var expectedParent = QuoteQualifiedName(keyword, keyword);
         var expectedPartition = QuoteQualifiedName(keyword, keyword + "_default");
-        sql.ShouldContain($"CREATE TABLE {expectedPartition} PARTITION OF {expectedParent} DEFAULT;");
+        sql.ShouldContain($"CREATE TABLE IF NOT EXISTS {expectedPartition} PARTITION OF {expectedParent} DEFAULT;");
     }
 
     [Theory]
