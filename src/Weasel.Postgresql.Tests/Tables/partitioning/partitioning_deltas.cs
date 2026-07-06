@@ -253,6 +253,24 @@ public class partitioning_deltas
     }
 
     [Fact]
+    public void integer_list_does_not_drift_against_quoted_readback()
+    {
+        // PostgreSQL echoes integer list values back single-quoted ('20'); the declared side is unquoted (20).
+        // Normalized comparison keeps these equal so no spurious rebuild is reported (weasel#320).
+        var table = new Table(new DbObjectName("partitions", "people"));
+
+        var declared = new ListPartitioning { Columns = ["age"] }
+            .AddPartition("twenties", 20, 21)
+            .AddPartition("thirties", 30, 31);
+
+        var readBack = new ListPartitioning { Columns = ["age"] }
+            .AddPartition("twenties", "'20'", "'21'")
+            .AddPartition("thirties", "'30'", "'31'").As<IPartitionStrategy>();
+
+        declared.As<IPartitionStrategy>().CreateDelta(table, readBack, out _).ShouldBe(PartitionDelta.None);
+    }
+
+    [Fact]
     public void timestamp_range_does_not_drift_against_readback_in_another_time_zone()
     {
         // Same monthly bounds, but PostgreSQL rendered the timestamptz read-back in a non-UTC session.
