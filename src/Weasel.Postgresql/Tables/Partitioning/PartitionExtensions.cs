@@ -17,7 +17,8 @@ public static class PartitionExtensions
         var partitionName = PostgresqlObjectName.From(
             new DbObjectName(identifier.Schema, identifier.Name + "_default"));
         var parentName = PostgresqlObjectName.From(identifier);
-        writer.WriteLine($"CREATE TABLE {partitionName} PARTITION OF {parentName} DEFAULT;");
+        // IF NOT EXISTS: keep partition creation idempotent under concurrent schema application.
+        writer.WriteLine($"CREATE TABLE IF NOT EXISTS {partitionName} PARTITION OF {parentName} DEFAULT;");
     }
 
     /// <summary>

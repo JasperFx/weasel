@@ -21,7 +21,8 @@ public record HashPartition
         var partitionName = PostgresqlObjectName.From(
             new DbObjectName(parent.Identifier.Schema, parent.Identifier.Name + "_" + Suffix));
         var parentName = PostgresqlObjectName.From(parent.Identifier);
-        writer.WriteLine($"create table {partitionName} partition of {parentName} for values with (modulus {Modulus}, remainder {Remainder});");
+        // IF NOT EXISTS: keep partition creation idempotent under concurrent schema application.
+        writer.WriteLine($"create table if not exists {partitionName} partition of {parentName} for values with (modulus {Modulus}, remainder {Remainder});");
     }
 
     public static HashPartition Parse(string suffix, string expression)
