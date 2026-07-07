@@ -147,4 +147,16 @@ public sealed class RichEventStorageDescriptor
     public System.Action<ICommandBuilder, StreamAction> ConfigureUpdateStreamVersionCommand { get; init; }
         = static (_, _) => throw new System.NotSupportedException(
             "RichEventStorageDescriptor.ConfigureUpdateStreamVersionCommand was not installed by the dialect.");
+
+    /// <summary>
+    /// Optional dialect-installed transform that maps a provider exception raised
+    /// by the <c>mt_streams</c> insert (e.g. a unique-constraint violation on the
+    /// streams table) into a store-specific "stream id already exists" exception,
+    /// given the offending <see cref="StreamAction"/>. Returns <c>null</c> to
+    /// leave the original exception unchanged. Keeps provider exception types out
+    /// of the neutral <see cref="InsertStreamOperationBase"/>: the Postgres
+    /// dialect installs the <c>ExistingStreamIdCollisionException</c> mapping, a
+    /// SQL Server dialect installs its own. Default: no transform.
+    /// </summary>
+    public System.Func<System.Exception, StreamAction, System.Exception?>? TransformInsertStreamException { get; init; }
 }
