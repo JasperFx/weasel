@@ -59,7 +59,9 @@ public sealed class DocumentStorageDescriptor<TDoc, TId>
         int docTypeReadIndex,
         string tableName,
         IDocumentMetadataBinder<TDoc>[]? partitionPkBinders = null,
-        bool useVersionFromMatchingStream = false)
+        bool useVersionFromMatchingStream = false,
+        IOperationExceptionTransform? exceptionTransform = null,
+        Func<Type, object, Exception>? createMissingDocumentException = null)
     {
         Identification = identification;
         Serializer = serializer;
@@ -82,7 +84,21 @@ public sealed class DocumentStorageDescriptor<TDoc, TId>
         DocTypeReadIndex = docTypeReadIndex;
         PartitionPkBinders = partitionPkBinders ?? Array.Empty<IDocumentMetadataBinder<TDoc>>();
         UseVersionFromMatchingStream = useVersionFromMatchingStream;
+        ExceptionTransform = exceptionTransform;
+        CreateMissingDocumentException = createMissingDocumentException;
     }
+
+    /// <summary>
+    ///     Optional store-supplied translation of provider exceptions raised by the write
+    ///     operations (unique-constraint violations, etc.). Null = no translation.
+    /// </summary>
+    public IOperationExceptionTransform? ExceptionTransform { get; }
+
+    /// <summary>
+    ///     Optional store-supplied factory for the exception raised when an Update targets a
+    ///     document that does not exist. Null = a plain InvalidOperationException.
+    /// </summary>
+    public Func<Type, object, Exception>? CreateMissingDocumentException { get; }
 
     /// <summary>
     /// When set, the closed-shape SQL pulls the revision from the matching row in the event
