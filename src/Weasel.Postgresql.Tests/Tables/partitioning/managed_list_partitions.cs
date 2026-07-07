@@ -207,6 +207,38 @@ public class managed_list_partitions : IntegrationContext
     }
 
     [Fact]
+    public async Task remove_partition_with_hyphenated_suffix_is_symmetric_with_create()
+    {
+        // JasperFx/weasel#338: the CREATE path sanitizes the suffix (ListPartition.SanitizeSuffix
+        // lowercases and replaces every char outside [a-z0-9_] with '_') so a tenant id containing '-'
+        // (hyphenated ids, and GUID-shaped ids — the common real-world case) yields a valid UNQUOTED
+        // partition table name "<parent>_<sanitized>". The DROP path did NOT apply the same
+        // normalization: it built "<parent>_<raw-suffix>" straight from the raw id, so it either emitted
+        // invalid DDL (unquoted '-' => 42601 syntax error) or targeted a table name that create never
+        // produced. Drop must resolve the identical table name as create.
+        var database = new ManagedListDatabase();
+
+        // A GUID-shaped tenant id — contains '-', the common real-world case.
+        var tenantId = Guid.NewGuid().ToString();
+        var sanitized = tenantId.Replace('-', '_').ToLowerInvariant();
+
+        // ResetValues migrates the managed-partition metadata table and records the raw suffix.
+        await database.Partitions.ResetValues(database,
+            new Dictionary<string, string> { { tenantId, tenantId } }, CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        // Create sanitized the suffix, so the physical partition tables are "<parent>_<sanitized>".
+        (await partitionExists("teams", sanitized)).ShouldBeTrue($"teams_{sanitized} should have been created");
+        (await partitionExists("players", sanitized)).ShouldBeTrue($"players_{sanitized} should have been created");
+
+        // Pre-fix this threw 42601 (unquoted '-') or silently missed the real partition table.
+        await database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, tenantId, CancellationToken.None);
+
+        (await partitionExists("teams", sanitized)).ShouldBeFalse($"teams_{sanitized} should have been dropped");
+        (await partitionExists("players", sanitized)).ShouldBeFalse($"players_{sanitized} should have been dropped");
+    }
+
+    [Fact]
     public async Task apply_additive_migration_2()
     {
         var database = new ManagedListDatabase();

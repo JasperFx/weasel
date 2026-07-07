@@ -143,8 +143,15 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         {
             foreach (var suffixName in suffixNames)
             {
+                // weasel#338: the CREATE path (ListPartition) names the partition table with a SANITIZED
+                // suffix, so the DROP path must sanitize identically or it targets a different, invalid
+                // table name — an unquoted '-' from a hyphenated/GUID tenant id yields 42601, and even
+                // where quoting kicks in it resolves "<parent>_<raw>" instead of the "<parent>_<sanitized>"
+                // that create actually produced. The managed-partition metadata table above keys on the
+                // raw suffix (matching what was stored), only the physical DDL name is normalized.
+                var sanitizedSuffix = ListPartition.SanitizeSuffix(suffixName);
                 var partitionName = PostgresqlObjectName.From(
-                    new DbObjectName(table.Identifier.Schema, table.Identifier.Name + "_" + suffixName));
+                    new DbObjectName(table.Identifier.Schema, table.Identifier.Name + "_" + sanitizedSuffix));
 
                 try
                 {
