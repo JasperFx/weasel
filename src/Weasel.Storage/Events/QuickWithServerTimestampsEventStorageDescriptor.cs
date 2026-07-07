@@ -156,4 +156,13 @@ public sealed class QuickWithServerTimestampsEventStorageDescriptor
         CreateQuickAppendEventsOperation { get; init; }
         = static (_, _) => throw new System.NotSupportedException(
             "QuickWithServerTimestampsEventStorageDescriptor.CreateQuickAppendEventsOperation was not installed by the dialect.");
+
+    /// <summary>
+    /// Optional dialect-installed transform that maps a provider exception raised
+    /// by the <c>mt_streams</c> insert into a store-specific "stream id already
+    /// exists" exception — see
+    /// <see cref="RichEventStorageDescriptor.TransformInsertStreamException"/>.
+    /// Default: no transform.
+    /// </summary>
+    public System.Func<System.Exception, StreamAction, System.Exception?>? TransformInsertStreamException { get; init; }
 }
