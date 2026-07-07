@@ -13,10 +13,19 @@ public interface ICommandBuilder: Weasel.Core.ICommandBuilder
 {
     NpgsqlParameter AppendParameter<T>(T value);
     NpgsqlParameter AppendParameter<T>(T value, NpgsqlDbType dbType);
-    NpgsqlParameter AppendParameter(object value);
+
+    /// <summary>
+    ///     Npgsql-typed override of <see cref="Weasel.Core.ICommandBuilder.AppendParameter(object)" />.
+    /// </summary>
+    new NpgsqlParameter AppendParameter(object value);
     NpgsqlParameter AppendParameter(object? value, NpgsqlDbType? dbType);
 
-    IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null);
+    /// <summary>
+    ///     Npgsql-typed override of
+    ///     <see cref="Weasel.Core.ICommandBuilder.CreateGroupedParameterBuilder(char?)" /> returning the
+    ///     provider grouped-parameter builder.
+    /// </summary>
+    new IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null);
 
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using Microsoft.Data.SqlClient;
 
 namespace Weasel.SqlServer;
@@ -13,10 +14,19 @@ public interface ICommandBuilder: Weasel.Core.ICommandBuilder
 {
     SqlParameter AppendParameter<T>(T value);
     SqlParameter AppendParameter<T>(T value, SqlDbType dbType);
-    SqlParameter AppendParameter(object value);
+
+    /// <summary>
+    ///     SqlClient-typed override of <see cref="Weasel.Core.ICommandBuilder.AppendParameter(object)" />.
+    /// </summary>
+    new SqlParameter AppendParameter(object value);
     SqlParameter AppendParameter(object? value, SqlDbType? dbType);
 
-    IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null);
+    /// <summary>
+    ///     SqlClient-typed override of
+    ///     <see cref="Weasel.Core.ICommandBuilder.CreateGroupedParameterBuilder(char?)" /> returning the
+    ///     provider grouped-parameter builder.
+    /// </summary>
+    new IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null);
 
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
@@ -36,7 +46,12 @@ public interface ICommandBuilder: Weasel.Core.ICommandBuilder
     SqlParameter[] AppendWithParameters(string text, char placeholder);
 }
 
-public interface IGroupedParameterBuilder
+/// <summary>
+///     SQL Server grouped-parameter surface. Derives from the dialect-neutral
+///     <see cref="Weasel.Core.IGroupedParameterBuilder" /> and adds the SqlClient-typed overloads that
+///     return <see cref="SqlParameter" />.
+/// </summary>
+public interface IGroupedParameterBuilder: Weasel.Core.IGroupedParameterBuilder
 {
     SqlParameter AppendParameter<T>(T? value) where T : notnull;
     SqlParameter AppendParameter<T>(T? value, SqlDbType dbType) where T : notnull;
@@ -70,5 +85,14 @@ public sealed class GroupedParameterBuilder: IGroupedParameterBuilder
 
         _count++;
         return _commandBuilder.AppendParameter(value, dbType);
+    }
+
+    DbParameter Weasel.Core.IGroupedParameterBuilder.AppendParameter(object? value)
+    {
+        if (_count > 0 && _seperator.HasValue)
+            _commandBuilder.Append(_seperator.Value);
+
+        _count++;
+        return _commandBuilder.AppendParameter(value ?? DBNull.Value);
     }
 }

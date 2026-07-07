@@ -76,6 +76,17 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         return new GroupedParameterBuilder(this, seperator);
     }
 
+    DbParameter Weasel.Core.ICommandBuilder.AppendParameter(object value)
+    {
+        base.AppendParameter(value);
+        return _command.Parameters[^1];
+    }
+
+    Weasel.Core.IGroupedParameterBuilder Weasel.Core.ICommandBuilder.CreateGroupedParameterBuilder(char? seperator)
+    {
+        return CreateGroupedParameterBuilder(seperator);
+    }
+
     public void StartNewCommand()
     {
         // do nothing!

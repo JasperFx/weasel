@@ -41,6 +41,24 @@ public class CommandBuilder: CommandBuilderBase<SqlCommand, SqlParameter, SqlDbT
         }
     }
 
+    /// <summary>
+    ///     Append a single parameter through the dialect-neutral value path, returning the newly created
+    ///     parameter upcast to <see cref="DbParameter" />. Implements
+    ///     <see cref="Weasel.Core.ICommandBuilder.AppendParameter(object)" />.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    public DbParameter AppendParameter(object value)
+    {
+        base.AppendParameter(value);
+        return _command.Parameters[^1];
+    }
+
+    public Weasel.Core.IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
+    {
+        return new Weasel.Core.GroupedParameterBuilder(this, seperator);
+    }
+
     public void StartNewCommand()
     {
         // do nothing!
