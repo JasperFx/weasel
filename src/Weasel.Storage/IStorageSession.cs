@@ -49,6 +49,14 @@ public interface IStorageSession: IMetadataContext
     Task<DbDataReader> ExecuteReaderAsync(DbCommand command, CancellationToken token = default);
 
     /// <summary>
+    ///     JSON-encoded bytes of the session's current header dictionary, when the owning store's
+    ///     session caches that serialization per batch — the headers metadata binder uses it to
+    ///     avoid re-serializing the same dictionary for every queued operation. Returns null when
+    ///     there are no headers (callers then bind a typed null). Default: no cache.
+    /// </summary>
+    byte[]? TryGetCachedSerializedHeaders() => null;
+
+    /// <summary>
     ///     Generates a unique temporary-table / CTE name scoped to this session. Used by LINQ
     ///     statement compilers for include queries and chained sub-selects — a session-scoped
     ///     concern any dialect performing include/CTE queries needs.
