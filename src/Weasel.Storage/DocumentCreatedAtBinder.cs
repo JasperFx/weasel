@@ -32,8 +32,20 @@ public sealed class DocumentCreatedAtBinder<TDoc>: IDocumentMetadataBinder<TDoc>
     private readonly Action<TDoc, DateTimeOffset>? _setter;
 
     public DocumentCreatedAtBinder(string columnName, MemberInfo? createdAtMember)
+        : this(columnName, createdAtMember, "transaction_timestamp()")
+    {
+    }
+
+    /// <summary>
+    ///     Overload for non-Postgres dialects: <paramref name="serverTimestampSql" /> is the
+    ///     engine's transaction/statement timestamp function (e.g. <c>SYSDATETIMEOFFSET()</c>
+    ///     on SQL Server). Read-only binder, so this only matters where a descriptor builder
+    ///     chooses to surface the value SQL (e.g. INSERT-only column lists).
+    /// </summary>
+    public DocumentCreatedAtBinder(string columnName, MemberInfo? createdAtMember, string serverTimestampSql)
     {
         ColumnName = columnName;
+        ValueSql = serverTimestampSql;
         if (createdAtMember is not null)
         {
             _setter = LambdaBuilder.Setter<TDoc, DateTimeOffset>(createdAtMember);
@@ -47,7 +59,7 @@ public sealed class DocumentCreatedAtBinder<TDoc>: IDocumentMetadataBinder<TDoc>
     // is non-"?" so IsServerSide is true; even if a future caller adds
     // this binder to writeBinders, BindParameter throwing keeps the
     // "never written client-side" invariant honest.
-    public string ValueSql => "transaction_timestamp()";
+    public string ValueSql { get; }
 
     public void BindParameter(DbParameter parameter, TDoc document, IStorageSession session)
         => throw new NotSupportedException(
