@@ -21,5 +21,12 @@ public enum StorageColumnType
     Int,
     Boolean,
     Timestamp,
-    Json
+    Json,
+
+    /// <summary>
+    ///     Raw binary payload column (Postgres <c>bytea</c> / SQL Server <c>varbinary</c>). Used by the
+    ///     closed-shape event runtime for the serialized event <c>bdata</c> column. A dialect maps this to
+    ///     its own provider parameter type in <see cref="IStorageDialect.SetParameterType" />.
+    /// </summary>
+    Binary
 }

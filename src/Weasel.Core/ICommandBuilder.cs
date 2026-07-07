@@ -35,6 +35,26 @@ public interface ICommandBuilder
     void AppendParameters(params object[] parameters);
 
     /// <summary>
+    ///     Append a single parameter with the supplied value to the underlying command's parameter
+    ///     collection *and* the command text, returning the newly created parameter upcast to the
+    ///     dialect-neutral <see cref="DbParameter" />. Lets a database-agnostic consumer bind a value and
+    ///     set <see cref="DbParameter.DbType" /> on it without referencing the provider parameter type.
+    ///     Each provider's own <c>ICommandBuilder</c> hides this with a provider-typed overload.
+    /// </summary>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    DbParameter AppendParameter(object value);
+
+    /// <summary>
+    ///     Create a dialect-neutral <see cref="IGroupedParameterBuilder" /> that appends a separated run
+    ///     of positional parameters against this command builder. Each provider's own
+    ///     <c>ICommandBuilder</c> hides this with an overload returning its provider-typed grouped builder.
+    /// </summary>
+    /// <param name="separator">Character emitted between parameters; when null, no separator is written.</param>
+    /// <returns></returns>
+    IGroupedParameterBuilder CreateGroupedParameterBuilder(char? separator = null);
+
+    /// <summary>
     ///     Append a SQL string with `?` placeholders for new parameters, and returns an
     ///     array of the newly created parameters upcast to the dialect-neutral <see cref="DbParameter" />.
     ///     Lets a database-agnostic consumer fill parameter slots without referencing the

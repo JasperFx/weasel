@@ -144,6 +144,16 @@ public class BatchBuilder: ICommandBuilder
         return new GroupedParameterBuilder(this, seperator);
     }
 
+    System.Data.Common.DbParameter Weasel.Core.ICommandBuilder.AppendParameter(object value)
+    {
+        return AppendParameter(value);
+    }
+
+    Weasel.Core.IGroupedParameterBuilder Weasel.Core.ICommandBuilder.CreateGroupedParameterBuilder(char? seperator)
+    {
+        return CreateGroupedParameterBuilder(seperator);
+    }
+
     /// <summary>
     ///     Append a SQL string with user defined placeholder characters for new parameters, and returns an
     ///     array of the newly created parameters

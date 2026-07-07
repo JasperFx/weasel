@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Data.Common;
 using System.Text;
 using Npgsql;
 using NpgsqlTypes;
@@ -118,6 +119,16 @@ public class BatchBuilder: ICommandBuilder
     public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
     {
         return new GroupedParameterBuilder(this, seperator);
+    }
+
+    DbParameter Weasel.Core.ICommandBuilder.AppendParameter(object value)
+    {
+        return AppendParameter(value);
+    }
+
+    Weasel.Core.IGroupedParameterBuilder Weasel.Core.ICommandBuilder.CreateGroupedParameterBuilder(char? seperator)
+    {
+        return CreateGroupedParameterBuilder(seperator);
     }
 
     /// <summary>
