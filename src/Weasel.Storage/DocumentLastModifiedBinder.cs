@@ -21,8 +21,19 @@ public sealed class DocumentLastModifiedBinder<TDoc>: IDocumentMetadataBinder<TD
     private readonly Action<TDoc, DateTimeOffset>? _setter;
 
     public DocumentLastModifiedBinder(string columnName, MemberInfo? lastModifiedMember)
+        : this(columnName, lastModifiedMember, "transaction_timestamp()")
+    {
+    }
+
+    /// <summary>
+    ///     Overload for non-Postgres dialects: <paramref name="serverTimestampSql" /> is the
+    ///     engine's transaction/statement timestamp function (e.g. <c>SYSDATETIMEOFFSET()</c>
+    ///     on SQL Server) baked into the SQL as the column's server-side value.
+    /// </summary>
+    public DocumentLastModifiedBinder(string columnName, MemberInfo? lastModifiedMember, string serverTimestampSql)
     {
         ColumnName = columnName;
+        ValueSql = serverTimestampSql;
         if (lastModifiedMember is not null)
         {
             _setter = LambdaBuilder.Setter<TDoc, DateTimeOffset>(lastModifiedMember);
@@ -31,7 +42,7 @@ public sealed class DocumentLastModifiedBinder<TDoc>: IDocumentMetadataBinder<TD
 
     public string ColumnName { get; }
 
-    public string ValueSql => "transaction_timestamp()";
+    public string ValueSql { get; }
 
     public void BindParameter(DbParameter parameter, TDoc document, IStorageSession session)
     {
