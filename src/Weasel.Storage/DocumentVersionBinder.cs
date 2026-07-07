@@ -1,0 +1,81 @@
+#nullable enable
+using System;
+using System.Data.Common;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using JasperFx.Core;
+using JasperFx.Core.Reflection;
+
+namespace Weasel.Storage;
+
+/// <summary>
+/// W3 spike (M1): <see cref="IDocumentMetadataBinder{TDoc}"/> for the
+/// <c>mt_version</c> column. Generates a new <see cref="Guid"/> per write
+/// via <c>CombGuidIdGeneration.NewGuid()</c>, projects it onto the
+/// document's <c>[Version]</c>-annotated member when one exists, binds
+/// it as a Uuid parameter. Read path projects the stored version back
+/// onto the same member if one exists.
+/// </summary>
+/// <remarks>
+/// The W3 spike doesn't implement optimistic concurrency yet — when that
+/// lands (M3), the new version is also stashed on the operation so
+/// <c>Postprocess</c> can compare against the row's prior version and
+/// raise <c>ConcurrencyException</c>. Today's spike just writes the new
+/// version unconditionally.
+/// </remarks>
+public sealed class DocumentVersionBinder<TDoc>: IVersionMetadataBinder<TDoc>
+    where TDoc : notnull
+{
+    private readonly Action<TDoc, Guid>? _setter;
+
+    private readonly IStorageDialect _dialect;
+
+    public DocumentVersionBinder(string columnName, IStorageDialect dialect, MemberInfo? versionMember)
+    {
+        ColumnName = columnName;
+        _dialect = dialect;
+        if (versionMember is not null)
+        {
+            _setter = LambdaBuilder.Setter<TDoc, Guid>(versionMember);
+        }
+    }
+
+    public string ColumnName { get; }
+
+    public string ValueSql => "?";
+
+    public void BindParameter(DbParameter parameter, TDoc document, IStorageSession session)
+    {
+        var newVersion = CombGuidIdGeneration.NewGuid();
+        _setter?.Invoke(document, newVersion);
+
+        parameter.Value = newVersion;
+        _dialect.SetParameterType(parameter, StorageColumnType.Guid);
+    }
+
+    public void Apply(DbDataReader reader, int columnOrdinal, TDoc document, IStorageSession session)
+    {
+        if (_setter is null) return;
+        if (reader.IsDBNull(columnOrdinal)) return;
+
+        var version = reader.GetFieldValue<Guid>(columnOrdinal);
+        _setter(document, version);
+    }
+
+    /// <summary>
+    /// W3 spike (M7): write a Guid version directly onto the document's
+    /// <c>[Version]</c>-annotated member, bypassing the reader. Used from
+    /// the operation's Postprocess after it confirms the row's returned
+    /// version matches the just-written one.
+    /// </summary>
+    public void ApplyVersionTo(TDoc document, Guid version)
+        => _setter?.Invoke(document, version);
+
+    public BulkColumnValue GetBulkValue(TDoc document)
+    {
+        var newVersion = CombGuidIdGeneration.NewGuid();
+        _setter?.Invoke(document, newVersion);
+        return new BulkColumnValue(newVersion, StorageColumnType.Guid);
+    }
+}
