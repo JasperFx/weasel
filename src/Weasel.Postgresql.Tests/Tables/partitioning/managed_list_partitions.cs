@@ -312,6 +312,46 @@ public class managed_list_partitions : IntegrationContext
         await database.ApplyAllConfiguredChangesToDatabaseAsync();
     }
 
+    [Fact]
+    public async Task adds_requested_partition_even_when_table_has_partitions_outside_the_managers_set()
+    {
+        // Regression for managed partitions living in sharded databases: the manager's in-memory partition
+        // set is the UNION of tenant values seen across ALL databases, so an individual database's table can
+        // hold partitions the manager's set does not include. Pre-fix, ListPartitioning.CreateDelta treated
+        // those extra partitions as PartitionDelta.Rebuild and additivelyMigrateTablesForNewPartitions
+        // skipped adding the genuinely-missing partition, so a new tenant's first write failed with 23514
+        // "no partition of relation ... found for row". The out-of-band add must create exactly the
+        // requested partition regardless of what else the table already holds.
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database,
+            new Dictionary<string, string> { { "red", "red" } }, CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        // A partition that exists on THIS database's tables but is unknown to the manager, as if it were
+        // created for a tenant that lives on another shard database.
+        await using (var conn = new NpgsqlConnection(ConnectionSource.ConnectionString))
+        {
+            await conn.OpenAsync();
+            await conn.CreateCommand(
+                "create table managed_lists.teams_orphan partition of managed_lists.teams for values in ('orphan')")
+                .ExecuteNonQueryAsync();
+            await conn.CreateCommand(
+                "create table managed_lists.players_orphan partition of managed_lists.players for values in ('orphan')")
+                .ExecuteNonQueryAsync();
+        }
+
+        // Adding a brand-new value must still create ITS partition — not be skipped because of the orphan.
+        var fresh = new ManagedListDatabase();
+        await fresh.Partitions.AddPartitionToAllTables(fresh, "blue", "blue", CancellationToken.None);
+
+        (await partitionExists("teams", "blue")).ShouldBeTrue("the requested partition must be created");
+        (await partitionExists("players", "blue")).ShouldBeTrue("the requested partition must be created");
+        // Purely additive: the out-of-band add must not drop pre-existing or unmanaged partitions.
+        (await partitionExists("teams", "red")).ShouldBeTrue();
+        (await partitionExists("teams", "orphan")).ShouldBeTrue();
+    }
+
     private static async Task dropManagedListsSchema()
     {
         await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
