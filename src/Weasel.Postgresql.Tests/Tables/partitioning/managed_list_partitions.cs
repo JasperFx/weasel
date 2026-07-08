@@ -239,6 +239,36 @@ public class managed_list_partitions : IntegrationContext
     }
 
     [Fact]
+    public async Task drop_partition_when_parent_table_is_not_physically_present()
+    {
+        // JasperFx/weasel#344: a configured partition-parent table may never have been physically migrated
+        // onto this database (e.g. a registered tenant whose doc/event tables don't exist on this shard yet).
+        // Dropping the partition must NOT throw 42P01 for the missing parent — there is genuinely nothing to
+        // drop, and the registry row still has to be removed.
+        await dropManagedListsSchema();
+
+        var database = new ManagedListDatabase();
+
+        // Register the partition value WITHOUT applying schema, so the teams/players parent tables are never
+        // physically created — only the managed-partition metadata table exists.
+        await database.Partitions.ResetValues(database,
+            new Dictionary<string, string> { { "red", "red" } }, CancellationToken.None);
+
+        (await tableExists("teams")).ShouldBeFalse("parent table must not be physically present for this repro");
+        (await tableExists("players")).ShouldBeFalse("parent table must not be physically present for this repro");
+
+        // Pre-fix this threw 42P01 (relation "managed_lists.teams" does not exist) from the fallback DETACH.
+        await Should.NotThrowAsync(() =>
+            database.Partitions.DropPartitionFromAllTables(database, NullLogger.Instance, ["red"], CancellationToken.None));
+
+        // The registry row must still have been removed. Force a reload so we read from the database rather
+        // than the in-memory cache.
+        database.Partitions.ForceReload();
+        await database.Partitions.InitializeAsync(database, CancellationToken.None);
+        database.Partitions.Partitions.ShouldNotContainKey("red");
+    }
+
+    [Fact]
     public async Task apply_additive_migration_2()
     {
         var database = new ManagedListDatabase();
@@ -389,6 +419,17 @@ public class managed_list_partitions : IntegrationContext
         await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
         await conn.OpenAsync();
         await conn.DropSchemaAsync("managed_lists");
+    }
+
+    private static async Task<bool> tableExists(string name)
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        var count = (long)(await conn.CreateCommand(
+                "select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'managed_lists' and c.relname = :name")
+            .With("name", name)
+            .ExecuteScalarAsync())!;
+        return count > 0;
     }
 
     private static async Task<bool> partitionExists(string parent, string suffix)

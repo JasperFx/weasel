@@ -141,6 +141,24 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         foreach (var table in tables)
         {
+            // weasel#344: a configured partition-parent table may never have been physically migrated onto
+            // this database (e.g. a registered tenant whose doc/event tables don't exist on this shard yet).
+            // In that case the DETACH below throws 42P01 (relation does not exist) and propagates, even
+            // though there is genuinely nothing to drop. Skip tables that aren't physically present — the
+            // child partition cannot exist without its parent, so the subsequent DROP would be a no-op too.
+            var parentExists = await conn
+                .CreateCommand("select to_regclass(:qualified) is not null")
+                .With("qualified", table.Identifier.QualifiedName)
+                .ExecuteScalarAsync(token).ConfigureAwait(false);
+
+            if (parentExists is not true)
+            {
+                logger.LogInformation(
+                    "Skipped dropping partitions for table {tableName} because it is not physically present on this database",
+                    table.Identifier);
+                continue;
+            }
+
             foreach (var suffixName in suffixNames)
             {
                 // weasel#338: the CREATE path (ListPartition) names the partition table with a SANITIZED
