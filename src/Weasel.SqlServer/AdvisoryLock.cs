@@ -22,6 +22,7 @@ public class AdvisoryLock : IAdvisoryLock
     private readonly string _databaseName;
     private SqlConnection _conn;
     private readonly List<int> _locks = new();
+    private volatile bool _disposed;
 
     public AdvisoryLock(Func<SqlConnection> source, ILogger logger, string databaseName)
     {
@@ -37,40 +38,59 @@ public class AdvisoryLock : IAdvisoryLock
 
     public async Task<bool> TryAttainLockAsync(int lockId, CancellationToken token)
     {
-        if (_conn == null)
-        {
-            _conn = _source();
-            await _conn.OpenAsync(token).ConfigureAwait(false);
-        }
+        // weasel#349: never start a new acquire once disposal has begun. During host shutdown opening _conn
+        // races with disposal and can abort with a process-killing ObjectDisposedException — mirror the
+        // Postgres guard for Polecat parity.
+        if (_disposed) return false;
 
-        if (_conn.State == ConnectionState.Closed)
+        try
         {
-            try
+            if (_conn == null)
             {
-                await _conn.DisposeAsync().ConfigureAwait(false);
+                _conn = _source();
+                await _conn.OpenAsync(token).ConfigureAwait(false);
             }
-            catch (Exception e)
+
+            if (_conn.State == ConnectionState.Closed)
             {
-                _logger.LogError(e, "Error trying to clean up and restart an advisory lock connection");
+                try
+                {
+                    await _conn.DisposeAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Error trying to clean up and restart an advisory lock connection");
+                }
+                finally
+                {
+                    _conn = null;
+                }
+
+                return false;
             }
-            finally
+
+
+
+            var attained = await _conn.TryGetGlobalLock(lockId.ToString(), cancellation: token).ConfigureAwait(false);
+            if (attained)
             {
-                _conn = null;
+                _locks.Add(lockId);
+                return true;
             }
 
             return false;
         }
-
-
-
-        var attained = await _conn.TryGetGlobalLock(lockId.ToString(), cancellation: token).ConfigureAwait(false);
-        if (attained)
+        catch (ObjectDisposedException)
         {
-            _locks.Add(lockId);
-            return true;
+            // The connection was disposed out from under an in-flight open/acquire during shutdown. Treat as
+            // "lock not attained" rather than letting a process-aborting exception escape.
+            return false;
         }
-
-        return false;
+        catch (Exception e) when (_disposed && e is SqlException or InvalidOperationException)
+        {
+            // Same shutdown race, surfaced as a disposed-connection SqlException / InvalidOperationException.
+            return false;
+        }
     }
 
     public async Task ReleaseLockAsync(int lockId)
@@ -99,6 +119,9 @@ public class AdvisoryLock : IAdvisoryLock
 
     public async ValueTask DisposeAsync()
     {
+        // Set first, before disposing the connection, so any concurrent TryAttainLockAsync short-circuits (weasel#349).
+        _disposed = true;
+
         if (_conn == null) return;
 
         try

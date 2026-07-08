@@ -186,6 +186,44 @@ public class AdvisoryLockSpecs : IAsyncLifetime
 
 }
 
+public class advisory_lock_disposal_guard
+{
+    // weasel#349: during host shutdown on a HotCold cold/standby node, the projection coordinator's
+    // leadership poll can call TryAttainLockAsync while the owned NpgsqlDataSource is being disposed,
+    // which used to abort the process with ObjectDisposedException: 'Npgsql.PoolingDataSource'.
+
+    [Fact]
+    public async Task returns_false_when_the_data_source_is_disposed_out_from_under_it()
+    {
+        var dataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+        var theLock = new AdvisoryLock(dataSource, NullLogger.Instance, "localhost", new AdvisoryLockOptions());
+
+        // Simulate the shutdown ordering where the data source is torn down before/while the lock is used.
+        await dataSource.DisposeAsync();
+
+        // Pre-fix this threw ObjectDisposedException: 'Npgsql.PoolingDataSource'.
+        var attained = await theLock.TryAttainLockAsync(4242, CancellationToken.None);
+        attained.ShouldBeFalse();
+
+        await theLock.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task returns_false_once_the_lock_itself_has_begun_disposing()
+    {
+        var dataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+        var theLock = new AdvisoryLock(dataSource, NullLogger.Instance, "localhost", new AdvisoryLockOptions());
+
+        await theLock.DisposeAsync();
+
+        // Never start a new acquire after disposal has begun, even though the data source is still alive here.
+        var attained = await theLock.TryAttainLockAsync(4243, CancellationToken.None);
+        attained.ShouldBeFalse();
+
+        await dataSource.DisposeAsync();
+    }
+}
+
 public class SimplePostgresqlDatabase: PostgresqlDatabase
 {
     public SimplePostgresqlDatabase(NpgsqlDataSource dataSource) : base(new DefaultMigrationLogger(), JasperFx.AutoCreate.CreateOrUpdate, new PostgresqlMigrator(), "Simple", dataSource)
