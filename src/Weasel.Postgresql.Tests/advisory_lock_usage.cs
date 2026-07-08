@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using System.Runtime.ExceptionServices;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Shouldly;
 using Weasel.Core;
@@ -204,6 +205,52 @@ public class advisory_lock_disposal_guard
         // Pre-fix this threw ObjectDisposedException: 'Npgsql.PoolingDataSource'.
         var attained = await theLock.TryAttainLockAsync(4242, CancellationToken.None);
         attained.ShouldBeFalse();
+
+        await theLock.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task latches_after_the_first_swallowed_abort_so_cadence_polling_stops_touching_the_dead_pool()
+    {
+        var dataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+        var theLock = new AdvisoryLock(dataSource, NullLogger.Instance, "localhost", new AdvisoryLockOptions());
+
+        await dataSource.DisposeAsync();
+
+        // First poll hits the disposed pool; the ObjectDisposedException is swallowed per weasel#349 ...
+        (await theLock.TryAttainLockAsync(4244, CancellationToken.None)).ShouldBeFalse();
+
+        // ... and must also LATCH. The HotCold projection coordinator calls TryAttainLockAsync on its
+        // LeadershipPollingTime cadence and reads false as "another node holds the lock", so without the
+        // latch every subsequent poll re-opens against a pool that can never come back — churning
+        // ObjectDisposedExceptions until process exit, and jasperfx#500's terminate-on-ODE never fires
+        // because the ODE it waits for is swallowed here (marten#4915). Count the aborts the same way
+        // marten's Bug_4874_coordinator_drain_ordering regression test does.
+        var aborts = 0;
+        EventHandler<FirstChanceExceptionEventArgs> handler = (_, e) =>
+        {
+            if (e.Exception is ObjectDisposedException ode &&
+                (ode.ObjectName?.Contains("PoolingDataSource") == true ||
+                 ode.Message.Contains("PoolingDataSource")))
+            {
+                Interlocked.Increment(ref aborts);
+            }
+        };
+
+        AppDomain.CurrentDomain.FirstChanceException += handler;
+        try
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                (await theLock.TryAttainLockAsync(4244, CancellationToken.None)).ShouldBeFalse();
+            }
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= handler;
+        }
+
+        aborts.ShouldBe(0);
 
         await theLock.DisposeAsync();
     }

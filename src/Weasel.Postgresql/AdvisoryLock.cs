@@ -87,6 +87,10 @@ public class AdvisoryLock : IAdvisoryLock
         {
             // The data source / connection pool was disposed out from under an in-flight acquire during
             // shutdown. Treat as "lock not attained" rather than letting a process-aborting exception escape.
+            // A disposed data source can never come back, so also latch: the HotCold projection coordinator
+            // polls this on a cadence and reads false as "another node holds the lock" — without the latch
+            // it re-opens against the dead pool on every poll until process exit (marten#4915).
+            _disposed = true;
             return false;
         }
         catch (Exception e) when (_disposed && e is NpgsqlException or InvalidOperationException)
