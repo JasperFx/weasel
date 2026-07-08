@@ -25,6 +25,11 @@ public class DefaultNpgsqlDataSourceFactory: INpgsqlDataSourceFactory, IAsyncDis
     public virtual NpgsqlDataSource Create(string connectionString) =>
         DataSources[connectionString];
 
+    /// <summary>
+    /// This factory builds and caches the data sources it hands out, so it owns their lifetime.
+    /// </summary>
+    public virtual bool OwnsDataSource(NpgsqlDataSource dataSource) => true;
+
     public virtual void Dispose()
     {
         var dataSources = DataSources.ToList();

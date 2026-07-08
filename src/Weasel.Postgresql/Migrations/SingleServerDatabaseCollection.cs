@@ -39,6 +39,13 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
 
     protected abstract T buildDatabase(string databaseName, NpgsqlDataSource dataSource);
 
+    /// <summary>
+    /// Does the underlying data source factory own the lifetime of the given data source? Subclasses should
+    /// pass this through to the <see cref="PostgresqlDatabase"/> <c>ownsDataSource</c> constructor argument so
+    /// that a caller-supplied, externally-owned data source is not disposed out from under other consumers.
+    /// </summary>
+    protected bool OwnsDataSource(NpgsqlDataSource dataSource) => _dataSourceFactory.OwnsDataSource(dataSource);
+
     public virtual async ValueTask<T> FindOrCreateDatabase(string databaseName, CancellationToken ct = default)
     {
         if (_databases.TryFind(databaseName, out var database))
