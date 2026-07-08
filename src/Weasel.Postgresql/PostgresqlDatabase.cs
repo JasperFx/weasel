@@ -18,9 +18,21 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
         Migrator migrator,
         string identifier,
         NpgsqlDataSource dataSource
+    ): this(logger, autoCreate, migrator, identifier, dataSource, true)
+    {
+    }
+
+    protected PostgresqlDatabase(
+        IMigrationLogger logger,
+        AutoCreate autoCreate,
+        Migrator migrator,
+        string identifier,
+        NpgsqlDataSource dataSource,
+        bool ownsDataSource
     ): base(logger, autoCreate, migrator, identifier, () => dataSource.CreateConnection())
     {
         DataSource = dataSource ?? throw new ArgumentNullException(nameof(dataSource));
+        OwnsDataSource = ownsDataSource;
 
         // ReSharper disable once VirtualMemberCallInConstructor
         var descriptor = Describe();
@@ -70,6 +82,14 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
     }
 
     public NpgsqlDataSource DataSource { get; }
+
+    /// <summary>
+    /// Does this database own the lifetime of its <see cref="DataSource"/>? When <c>false</c>, the data source
+    /// was supplied by the caller (or is shared across databases/stores) and <see cref="DisposeAsync"/> will NOT
+    /// dispose it — disposing an externally-owned <see cref="NpgsqlDataSource"/> aborts every physical connection
+    /// rented from it, including those still in use elsewhere. Defaults to <c>true</c> for backwards compatibility.
+    /// </summary>
+    public bool OwnsDataSource { get; }
 
     protected override ISchemaObject[] possiblyCheckForSchemas(ISchemaObject[] objects)
     {
@@ -122,7 +142,9 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
 
     public ValueTask DisposeAsync()
     {
-        return DataSource.DisposeAsync();
+        // Only dispose the data source when this database owns its lifetime. When it was supplied by the caller
+        // or shared across databases/stores, disposing it here would abort connections still in use elsewhere.
+        return OwnsDataSource ? DataSource.DisposeAsync() : ValueTask.CompletedTask;
     }
 
     public async Task<Table[]> FetchExistingTablesAsync()

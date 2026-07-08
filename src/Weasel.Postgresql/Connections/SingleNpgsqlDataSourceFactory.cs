@@ -16,4 +16,11 @@ public class SingleNpgsqlDataSourceFactory(
         dataSource.ConnectionString.Equals(connectionString)
             ? dataSource
             : base.Create(connectionString);
+
+    /// <summary>
+    /// The wrapped data source was supplied from the outside (e.g. from DI), so this factory does NOT own it.
+    /// Any child data sources it builds itself from other connection strings are owned as usual.
+    /// </summary>
+    public override bool OwnsDataSource(NpgsqlDataSource candidate) =>
+        !ReferenceEquals(candidate, dataSource) && base.OwnsDataSource(candidate);
 }
