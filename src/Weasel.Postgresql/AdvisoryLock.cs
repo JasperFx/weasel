@@ -30,6 +30,7 @@ public class AdvisoryLock : IAdvisoryLock
     private readonly ILogger _logger;
     private readonly Dictionary<int, PostgresDistributedLockHandle> _handles = new();
     private readonly LightweightCache<int, PostgresDistributedLock> _distributedLockProviders;
+    private volatile bool _disposed;
 
     public AdvisoryLock(NpgsqlDataSource dataSource, ILogger logger, string databaseName, AdvisoryLockOptions options)
     {
@@ -66,14 +67,33 @@ public class AdvisoryLock : IAdvisoryLock
 
     public async Task<bool> TryAttainLockAsync(int lockId, CancellationToken token)
     {
-        var locker = _distributedLockProviders[lockId];
-        var handle = await locker.TryAcquireAsync(cancellationToken: token).ConfigureAwait(false);
-        if (handle is not null)
+        // weasel#349: never start a new acquire once disposal has begun. On a HotCold cold/standby node the
+        // coordinator polls this on a cadence, and during host shutdown the owned NpgsqlDataSource races with
+        // disposal — an in-flight OpenAsync aborts with ObjectDisposedException: 'Npgsql.PoolingDataSource'.
+        if (_disposed) return false;
+
+        try
         {
-            _handles[lockId] = handle;
-            return true;
+            var locker = _distributedLockProviders[lockId];
+            var handle = await locker.TryAcquireAsync(cancellationToken: token).ConfigureAwait(false);
+            if (handle is not null)
+            {
+                _handles[lockId] = handle;
+                return true;
+            }
+            return false;
         }
-        return false;
+        catch (ObjectDisposedException)
+        {
+            // The data source / connection pool was disposed out from under an in-flight acquire during
+            // shutdown. Treat as "lock not attained" rather than letting a process-aborting exception escape.
+            return false;
+        }
+        catch (Exception e) when (_disposed && e is NpgsqlException or InvalidOperationException)
+        {
+            // Same shutdown race, surfaced as a disposed-pool NpgsqlException / InvalidOperationException.
+            return false;
+        }
     }
 
     public async Task ReleaseLockAsync(int lockId)
@@ -86,6 +106,9 @@ public class AdvisoryLock : IAdvisoryLock
 
     public async ValueTask DisposeAsync()
     {
+        // Set first, before disposing handles, so any concurrent TryAttainLockAsync short-circuits (weasel#349).
+        _disposed = true;
+
         foreach (var i in _handles.Keys)
         {
             if (_handles.Remove(i, out var handle))

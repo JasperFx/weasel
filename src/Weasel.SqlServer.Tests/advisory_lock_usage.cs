@@ -188,3 +188,36 @@ public class AdvisoryLockSpecs : IAsyncLifetime
     }
 
 }
+
+public class advisory_lock_disposal_guard
+{
+    // weasel#349: mirror of the Postgres guard for Polecat parity — opening the lock connection during host
+    // shutdown must never let a process-aborting disposed-connection exception escape TryAttainLockAsync.
+
+    [Fact]
+    public async Task returns_false_when_opening_the_connection_throws_a_disposed_exception()
+    {
+        // The connection factory is disposed out from under an in-flight acquire during shutdown.
+        var theLock = new AdvisoryLock(
+            () => throw new ObjectDisposedException("SqlConnection"), NullLogger.Instance, "Testing");
+
+        // Pre-fix this let the ObjectDisposedException escape and abort the process.
+        var attained = await theLock.TryAttainLockAsync(4242, CancellationToken.None);
+        attained.ShouldBeFalse();
+
+        await theLock.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task returns_false_once_the_lock_itself_has_begun_disposing()
+    {
+        var theLock = new AdvisoryLock(
+            () => new SqlConnection(ConnectionSource.ConnectionString), NullLogger.Instance, "Testing");
+
+        await theLock.DisposeAsync();
+
+        // Never start a new acquire (never open a connection) after disposal has begun.
+        var attained = await theLock.TryAttainLockAsync(4243, CancellationToken.None);
+        attained.ShouldBeFalse();
+    }
+}
