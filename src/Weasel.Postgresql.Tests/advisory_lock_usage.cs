@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using System.Runtime.ExceptionServices;
+using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
 using Shouldly;
 using Weasel.Core;
@@ -186,14 +187,21 @@ public class AdvisoryLockSpecs : IAsyncLifetime
 
 }
 
+[Collection("advisory_lock_disposal_guard")]
 public class advisory_lock_disposal_guard
 {
     // weasel#349: during host shutdown on a HotCold cold/standby node, the projection coordinator's
     // leadership poll can call TryAttainLockAsync while the owned NpgsqlDataSource is being disposed,
     // which used to abort the process with ObjectDisposedException: 'Npgsql.PoolingDataSource'.
+    //
+    // weasel#353 / marten#4915: #349 swallowed that exception and returned false. The coordinator reads
+    // false as "the lock is held elsewhere" and keeps polling on its cadence, so a disposed data source
+    // produced an unbounded churn of aborted opens, and the terminate-on-ObjectDisposedException catch
+    // that jasperfx#500 added to ProjectionCoordinatorBase.executeAsync could never fire. The exception is
+    // now terminal: the lock latches itself disposed and rethrows once.
 
     [Fact]
-    public async Task returns_false_when_the_data_source_is_disposed_out_from_under_it()
+    public async Task throws_once_when_the_data_source_is_disposed_out_from_under_it()
     {
         var dataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
         var theLock = new AdvisoryLock(dataSource, NullLogger.Instance, "localhost", new AdvisoryLockOptions());
@@ -201,9 +209,52 @@ public class advisory_lock_disposal_guard
         // Simulate the shutdown ordering where the data source is torn down before/while the lock is used.
         await dataSource.DisposeAsync();
 
-        // Pre-fix this threw ObjectDisposedException: 'Npgsql.PoolingDataSource'.
-        var attained = await theLock.TryAttainLockAsync(4242, CancellationToken.None);
-        attained.ShouldBeFalse();
+        // The data source is gone for good, so this is terminal rather than "not attained right now". The
+        // coordinator's ObjectDisposedException catch ends its leadership loop on exactly this.
+        await Should.ThrowAsync<ObjectDisposedException>(
+            () => theLock.TryAttainLockAsync(4242, CancellationToken.None));
+
+        await theLock.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task latches_disposed_so_a_later_poll_never_touches_the_dead_pool()
+    {
+        var dataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+        var theLock = new AdvisoryLock(dataSource, NullLogger.Instance, "localhost", new AdvisoryLockOptions());
+
+        await dataSource.DisposeAsync();
+
+        await Should.ThrowAsync<ObjectDisposedException>(
+            () => theLock.TryAttainLockAsync(4244, CancellationToken.None));
+
+        // A caller that ignores the throw and keeps polling — which is what any coordinator without the
+        // jasperfx#500 catch does — must be answered from the latch, not from the disposed pool. Returning
+        // false is only reachable through the _disposed short-circuit: every path that actually reaches the
+        // pool throws ObjectDisposedException. The first-chance count corroborates that directly.
+        var aborts = 0;
+        EventHandler<FirstChanceExceptionEventArgs> handler = (_, e) =>
+        {
+            if (e.Exception is ObjectDisposedException ode && ode.ObjectName?.Contains("PoolingDataSource") == true)
+            {
+                Interlocked.Increment(ref aborts);
+            }
+        };
+
+        AppDomain.CurrentDomain.FirstChanceException += handler;
+        try
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                (await theLock.TryAttainLockAsync(4244, CancellationToken.None)).ShouldBeFalse();
+            }
+        }
+        finally
+        {
+            AppDomain.CurrentDomain.FirstChanceException -= handler;
+        }
+
+        aborts.ShouldBe(0);
 
         await theLock.DisposeAsync();
     }
@@ -223,6 +274,11 @@ public class advisory_lock_disposal_guard
         await dataSource.DisposeAsync();
     }
 }
+
+// FirstChanceException is an AppDomain-wide hook, so the latch test above cannot tolerate another
+// collection concurrently provoking a disposed-pool abort. Pin this class to a serial collection.
+[CollectionDefinition("advisory_lock_disposal_guard", DisableParallelization = true)]
+public class AdvisoryLockDisposalGuardCollection;
 
 public class SimplePostgresqlDatabase: PostgresqlDatabase
 {
