@@ -65,6 +65,14 @@ public class AdvisoryLock : IAdvisoryLock
         return lockState;
     }
 
+    /// <summary>
+    ///     Attempt to attain the advisory lock with the given identifier.
+    /// </summary>
+    /// <returns>True when the lock was attained by this node, false when it is held elsewhere.</returns>
+    /// <exception cref="ObjectDisposedException">
+    ///     Thrown when the underlying <see cref="NpgsqlDataSource" /> has already been disposed. This is terminal:
+    ///     the lock latches itself disposed, and every later call returns false without touching the dead pool.
+    /// </exception>
     public async Task<bool> TryAttainLockAsync(int lockId, CancellationToken token)
     {
         // weasel#349: never start a new acquire once disposal has begun. On a HotCold cold/standby node the
@@ -85,9 +93,20 @@ public class AdvisoryLock : IAdvisoryLock
         }
         catch (ObjectDisposedException)
         {
-            // The data source / connection pool was disposed out from under an in-flight acquire during
-            // shutdown. Treat as "lock not attained" rather than letting a process-aborting exception escape.
-            return false;
+            // weasel#353 / marten#4915. The data source was disposed out from under an in-flight acquire. That
+            // state is terminal — a disposed NpgsqlDataSource never comes back — so do two things:
+            //
+            //  1. Latch. Any later poll short-circuits above instead of re-opening against the dead pool. #349
+            //     swallowed this and returned false, which the HotCold coordinator reads as "lock held elsewhere",
+            //     so it re-polled on its LeadershipPollingTime cadence for the life of the process.
+            //  2. Rethrow. ProjectionCoordinatorBase.executeAsync (jasperfx#500) catches ObjectDisposedException
+            //     and ends its leadership loop. Swallowing here made that catch unreachable, which is precisely
+            //     the composition gap in marten#4915.
+            //
+            // Callers that would rather not see it can check HasLock, or simply poll again — the latch guarantees
+            // the second call returns false quietly.
+            _disposed = true;
+            throw;
         }
         catch (Exception e) when (_disposed && e is NpgsqlException or InvalidOperationException)
         {
@@ -119,7 +138,8 @@ public class AdvisoryLock : IAdvisoryLock
                 }
                 catch (InvalidOperationException)
                 {
-                    // Underlying connection is already closed and there's nothing to dispose
+                    // Underlying connection is already closed and there's nothing to dispose. ObjectDisposedException
+                    // derives from this, so a data source that went first lands here too — nothing worth logging.
                 }
                 catch (Exception e)
                 {
