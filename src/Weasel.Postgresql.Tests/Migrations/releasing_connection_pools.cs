@@ -63,7 +63,7 @@ public class releasing_connection_pools: IAsyncLifetime
         // PostgresqlDatabase clears its NpgsqlDataSource directly, but a PostgreSQL database built on
         // DatabaseBase<NpgsqlConnection> with a connection string never inherits that override -- it has to
         // reach PostgresqlMigrator.ReleaseConnectionPoolAsync instead, like every other provider does.
-        var database = new TestConnectionStringDatabase();
+        var database = new TestConnectionStringDatabase(theApplicationName);
 
         await using (var conn = database.CreateConnection())
         {
@@ -76,10 +76,20 @@ public class releasing_connection_pools: IAsyncLifetime
 
     public class TestConnectionStringDatabase: DatabaseBase<NpgsqlConnection>
     {
-        public TestConnectionStringDatabase(): base(new DefaultMigrationLogger(), AutoCreate.All,
-            new PostgresqlMigrator(), "pool_release", ConnectionSource.ConnectionString)
+        // Npgsql keys its connection-string pools by the whole connection string, so a distinct
+        // ApplicationName gives this test its own pool. Without that, clearing it would evict connections
+        // out from under the tests running in parallel in other collections -- the process-wide blast
+        // radius that Migrator.ReleaseConnectionPoolAsync warns about, aimed at our own test suite.
+        public TestConnectionStringDatabase(string applicationName): base(new DefaultMigrationLogger(),
+            AutoCreate.All, new PostgresqlMigrator(), "pool_release", ConnectionStringFor(applicationName))
         {
         }
+
+        private static string ConnectionStringFor(string applicationName) =>
+            new NpgsqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+            {
+                ApplicationName = applicationName
+            }.ConnectionString;
 
         public override IFeatureSchema[] BuildFeatureSchemas() => [];
 

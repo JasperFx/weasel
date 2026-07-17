@@ -42,9 +42,18 @@ public class releasing_connection_pools
     public class TestOracleDatabase: DatabaseBase<OracleConnection>
     {
         public TestOracleDatabase(): base(new DefaultMigrationLogger(), AutoCreate.All, new OracleMigrator(),
-            "pool_release", ConnectionSource.ConnectionString)
+            "pool_release", IsolatedConnectionString())
         {
         }
+
+        // ODP.NET has no ApplicationName, but pools are keyed by the connection string all the same, so any
+        // harmless distinct value gives this test its own pool -- and keeps its ClearPool from evicting
+        // connections out from under tests running in parallel in other collections.
+        private static string IsolatedConnectionString() =>
+            new OracleConnectionStringBuilder(ConnectionSource.ConnectionString)
+            {
+                ConnectionLifeTime = Random.Shared.Next(100_000, 200_000)
+            }.ConnectionString;
 
         public override IFeatureSchema[] BuildFeatureSchemas() => [];
 

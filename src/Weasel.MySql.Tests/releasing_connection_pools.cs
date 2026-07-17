@@ -41,10 +41,18 @@ public class releasing_connection_pools
 
     public class TestMySqlDatabase: DatabaseBase<MySqlConnection>
     {
+        // A distinct ApplicationName gives each instance its own pool key, so clearing it cannot evict
+        // connections from under the tests running in parallel in other collections.
         public TestMySqlDatabase(): base(new DefaultMigrationLogger(), AutoCreate.All, new MySqlMigrator(),
-            "pool_release", ConnectionSource.ConnectionString)
+            "pool_release", IsolatedConnectionString())
         {
         }
+
+        private static string IsolatedConnectionString() =>
+            new MySqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+            {
+                ApplicationName = "weasel_356_" + Guid.NewGuid().ToString("N")[..8]
+            }.ConnectionString;
 
         public override IFeatureSchema[] BuildFeatureSchemas() => [];
 
