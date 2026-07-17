@@ -296,6 +296,31 @@ public abstract class
     public virtual bool IsTransientConnectionFailure(Exception exception) => false;
 
     /// <summary>
+    ///     Release the pooled connections associated with the supplied connection, which is supplied closed
+    ///     purely to identify the pool. The default is a no-op; provider-specific migrators override it with
+    ///     their driver's pool-clearing call.
+    ///     <para>
+    ///     This hangs off <see cref="Migrator" /> rather than off a database class because it has to be
+    ///     reachable for every provider: only PostgreSQL and SQLite have their own <c>IDatabase</c> base
+    ///     class, while SQL Server, MySQL and Oracle databases are built on <see cref="DatabaseBase{T}" />
+    ///     directly by consumers. Every database has a provider-specific <see cref="Migrator" />, so putting
+    ///     it here means those consumers get pool release without implementing anything.
+    ///     </para>
+    ///     <para>
+    ///     <b>Scope differs by provider.</b> The classic ADO.NET drivers key their pools by connection
+    ///     string within the process, so clearing is process-wide for that connection string and will also
+    ///     evict idle connections held by anything else using it. Connections currently in use are not
+    ///     killed -- they are discarded when returned -- so this is safe, but it is a wider blast radius
+    ///     than <c>PostgresqlDatabase</c>'s data-source-scoped override. Bear that in mind when calling this
+    ///     from inside a running host rather than from one-shot tooling like <c>db-apply</c>.
+    ///     </para>
+    /// </summary>
+    /// <param name="connection">An unopened connection identifying the pool to clear</param>
+    /// <param name="ct">Cancellation Token</param>
+    public virtual ValueTask ReleaseConnectionPoolAsync(DbConnection connection, CancellationToken ct = default) =>
+        ValueTask.CompletedTask;
+
+    /// <summary>
     ///     Ensures that the database referenced by the supplied connection's connection string exists,
     ///     creating it if necessary. This is a lightweight operation that only creates the database --
     ///     it does not run any schema migrations or DDL.

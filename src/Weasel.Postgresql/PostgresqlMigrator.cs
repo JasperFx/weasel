@@ -257,6 +257,25 @@ $$;
         };
     }
 
+    /// <summary>
+    ///     Clears the connection-string-keyed pool for the supplied connection.
+    ///     <para>
+    ///     <see cref="PostgresqlDatabase" /> overrides <c>ReleaseConnectionPoolAsync</c> to clear its
+    ///     <see cref="NpgsqlDataSource" /> directly, which is more precise, so this is only reached by
+    ///     PostgreSQL databases built on <see cref="DatabaseBase{T}" /> with a connection string instead.
+    ///     Without it those databases would be the one provider combination that silently released nothing.
+    ///     </para>
+    /// </summary>
+    public override ValueTask ReleaseConnectionPoolAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        if (connection is NpgsqlConnection npgsql)
+        {
+            NpgsqlConnection.ClearPool(npgsql);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public override bool IsTransientConnectionFailure(Exception exception)
     {
         // Npgsql does not always surface the server's refusal bare. An NpgsqlMultiHostDataSource (which
@@ -264,37 +283,12 @@ $$;
         // failure to connect commonly arrives as an outer exception wrapping the PostgresException that
         // actually carries the SQLSTATE. Matching only the outermost exception would leave this predicate --
         // and therefore the whole retry -- inert for exactly the case it exists to handle.
-        foreach (var e in flatten(exception))
+        foreach (var e in ExceptionChain.Flatten(exception))
         {
             if (e is PostgresException pg && IsTransientConnectionFailure(pg.SqlState)) return true;
         }
 
         return false;
-    }
-
-    private static IEnumerable<Exception> flatten(Exception exception)
-    {
-        if (exception is AggregateException aggregate)
-        {
-            foreach (var inner in aggregate.Flatten().InnerExceptions)
-            foreach (var e in flatten(inner))
-            {
-                yield return e;
-            }
-
-            yield break;
-        }
-
-        for (var e = exception; e != null; e = e.InnerException)
-        {
-            yield return e;
-
-            if (e.InnerException is AggregateException nested)
-            {
-                foreach (var inner in flatten(nested)) yield return inner;
-                yield break;
-            }
-        }
     }
 
     /// <summary>

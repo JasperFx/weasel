@@ -203,7 +203,16 @@ public static class DatabaseExtensions
             {
                 // The refused attempt may still have left connections in this database's pool. Drop them
                 // before backing off so the retry is not competing against our own idle connections.
-                await database.ReleaseConnectionPoolAsync(ct).ConfigureAwait(false);
+                try
+                {
+                    await database.ReleaseConnectionPoolAsync(ct).ConfigureAwait(false);
+                }
+                catch (Exception) when (!ct.IsCancellationRequested)
+                {
+                    // Releasing is an optimization, and it does real driver work that can fail. Letting it
+                    // throw here would replace the transient failure we are retrying and skip the retry
+                    // altogether -- turning a recoverable refusal into a hard failure.
+                }
 
                 await Task.Delay(BackoffDelayMs(attempt, baseDelayMs), ct).ConfigureAwait(false);
             }

@@ -79,6 +79,22 @@ public class apply_with_retries
     }
 
     [Fact]
+    public async Task a_failure_to_release_the_pool_does_not_defeat_the_retry()
+    {
+        // Release does real driver work now that every provider implements it, so it can fail. If that
+        // failure escaped, it would replace the transient exception being retried and turn a recoverable
+        // refusal into a hard failure.
+        var database = new FakeDatabase
+        {
+            FailuresBeforeSuccess = 1, FailureIsTransient = true, ReleaseThrows = true
+        };
+
+        (await apply(database)).ShouldBe(SchemaPatchDifference.Update);
+
+        database.Attempts.ShouldBe(2);
+    }
+
+    [Fact]
     public void the_backoff_doubles_per_attempt()
     {
         DatabaseExtensions.BackoffDelayMs(1, 1000).ShouldBeInRange(1000, 1100);
@@ -106,6 +122,7 @@ public class apply_with_retries
         public int PoolReleases { get; private set; }
         public int FailuresBeforeSuccess { get; set; }
         public bool FailureIsTransient { get; set; }
+        public bool ReleaseThrows { get; set; }
 
         public Task<SchemaPatchDifference> ApplyAllConfiguredChangesToDatabaseAsync(
             AutoCreate? @override = null,
@@ -126,6 +143,8 @@ public class apply_with_retries
         public ValueTask ReleaseConnectionPoolAsync(CancellationToken ct = default)
         {
             PoolReleases++;
+            if (ReleaseThrows) throw new InvalidOperationException("the pool could not be cleared");
+
             return ValueTask.CompletedTask;
         }
 

@@ -19,6 +19,45 @@ public class MySqlMigrator: Migrator
         return connection is MySqlConnection;
     }
 
+    public override async ValueTask ReleaseConnectionPoolAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        if (connection is MySqlConnection mysql)
+        {
+            await MySqlConnection.ClearPoolAsync(mysql, ct).ConfigureAwait(false);
+        }
+    }
+
+    public override bool IsTransientConnectionFailure(Exception exception)
+    {
+        foreach (var e in ExceptionChain.Flatten(exception))
+        {
+            if (e is MySqlException mysql && IsTransientConnectionError(mysql.ErrorCode)) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     True for the MySQL errors that mean the server would not hand out a connection right now
+    ///     (weasel#356):
+    ///     <list type="bullet">
+    ///         <item><c>ER_CON_COUNT_ERROR</c> (1040) too many connections</item>
+    ///         <item><c>ER_TOO_MANY_USER_CONNECTIONS</c> (1203) too many connections for this user</item>
+    ///         <item><c>ER_USER_LIMIT_REACHED</c> (1226) user resource limit reached</item>
+    ///         <item><c>UnableToConnectToHost</c> the server refused or was unreachable</item>
+    ///     </list>
+    ///     Deliberately excludes lock/deadlock errors, which are statement conflicts rather than connection
+    ///     refusals. Pure over the error code so it is unit-testable without constructing a
+    ///     <see cref="MySqlException" />.
+    /// </summary>
+    internal static bool IsTransientConnectionError(MySqlErrorCode code)
+    {
+        return code is MySqlErrorCode.ConnectionCountError
+            or MySqlErrorCode.TooManyUserConnections
+            or MySqlErrorCode.UserLimitReached
+            or MySqlErrorCode.UnableToConnectToHost;
+    }
+
     public override IDatabaseProvider Provider => MySqlProvider.Instance;
 
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)

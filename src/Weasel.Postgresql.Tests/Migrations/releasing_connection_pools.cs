@@ -1,9 +1,13 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using JasperFx;
 using JasperFx.Core;
+using JasperFx.Descriptors;
 using Npgsql;
 using Shouldly;
+using Weasel.Core;
+using Weasel.Core.Migrations;
 using Xunit;
 
 namespace Weasel.Postgresql.Tests.Migrations;
@@ -51,6 +55,38 @@ public class releasing_connection_pools: IAsyncLifetime
         await theDatabase.ReleaseConnectionPoolAsync();
 
         await waitForServerConnectionsToReach(0);
+    }
+
+    [Fact]
+    public async Task a_connection_string_database_releases_through_the_migrator()
+    {
+        // PostgresqlDatabase clears its NpgsqlDataSource directly, but a PostgreSQL database built on
+        // DatabaseBase<NpgsqlConnection> with a connection string never inherits that override -- it has to
+        // reach PostgresqlMigrator.ReleaseConnectionPoolAsync instead, like every other provider does.
+        var database = new TestConnectionStringDatabase();
+
+        await using (var conn = database.CreateConnection())
+        {
+            await conn.OpenAsync();
+        }
+
+        await Should.NotThrowAsync(async () => await database.ReleaseConnectionPoolAsync());
+        await database.AssertConnectivityAsync();
+    }
+
+    public class TestConnectionStringDatabase: DatabaseBase<NpgsqlConnection>
+    {
+        public TestConnectionStringDatabase(): base(new DefaultMigrationLogger(), AutoCreate.All,
+            new PostgresqlMigrator(), "pool_release", ConnectionSource.ConnectionString)
+        {
+        }
+
+        public override IFeatureSchema[] BuildFeatureSchemas() => [];
+
+        public override DatabaseDescriptor Describe() => new()
+        {
+            Engine = PostgresqlProvider.EngineName, ServerName = "localhost", DatabaseName = "marten_testing"
+        };
     }
 
     [Fact]
