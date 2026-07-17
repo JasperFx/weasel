@@ -289,12 +289,19 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     }
 
     /// <summary>
-    ///     No-op by default. See <see cref="IDatabase.ReleaseConnectionPoolAsync" /> — providers that pool
-    ///     connections override this to close their idle connections.
+    ///     Releases this database's pooled connections by delegating to the provider-specific
+    ///     <see cref="Migrator" />, which is a no-op for providers with nothing to release. See
+    ///     <see cref="IDatabase.ReleaseConnectionPoolAsync" />.
+    ///     <para>
+    ///     The connection is created but deliberately never opened — the drivers key their pools off the
+    ///     connection string, so it serves only to identify which pool to clear. Opening one here would be
+    ///     the opposite of the point when the reason we are clearing is a server refusing connections.
+    ///     </para>
     /// </summary>
-    public virtual ValueTask ReleaseConnectionPoolAsync(CancellationToken ct = default)
+    public virtual async ValueTask ReleaseConnectionPoolAsync(CancellationToken ct = default)
     {
-        return ValueTask.CompletedTask;
+        await using var conn = CreateConnection();
+        await Migrator.ReleaseConnectionPoolAsync(conn, ct).ConfigureAwait(false);
     }
 
     public Task<SchemaMigration> CreateMigrationAsync(Type featureType, CancellationToken ct = default)

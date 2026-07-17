@@ -19,6 +19,48 @@ public class OracleMigrator: Migrator
         return connection is OracleConnection;
     }
 
+    public override ValueTask ReleaseConnectionPoolAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        if (connection is OracleConnection oracle)
+        {
+            OracleConnection.ClearPool(oracle);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    public override bool IsTransientConnectionFailure(Exception exception)
+    {
+        foreach (var e in ExceptionChain.Flatten(exception))
+        {
+            if (e is OracleException oracle && IsTransientConnectionError(oracle.Number)) return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     True for the Oracle errors that mean the instance or its listener would not take a new connection
+    ///     right now (weasel#356):
+    ///     <list type="bullet">
+    ///         <item><c>ORA-00020</c> maximum number of processes exceeded</item>
+    ///         <item><c>ORA-12516</c> listener could not find an available handler</item>
+    ///         <item><c>ORA-12518</c> listener could not hand off the client connection</item>
+    ///         <item><c>ORA-12520</c> listener could not find an available handler for the server type</item>
+    ///     </list>
+    ///     Excludes <c>ORA-01017</c> (invalid credentials), which never clears on a retry, and deliberately
+    ///     excludes <c>ORA-12537</c> (connection closed) and <c>ORA-12570</c> (unexpected packet read
+    ///     error): those are raised when an <i>established</i> session is interrupted, which is
+    ///     indistinguishable from a migration dropped midway through. Re-running it would replay DDL that
+    ///     may already have committed and surface a bogus <c>ORA-00955 name is already used</c> in place of
+    ///     the real network error. Pure over the error number so it is unit-testable without constructing an
+    ///     <see cref="OracleException" />.
+    /// </summary>
+    internal static bool IsTransientConnectionError(int number)
+    {
+        return number is 20 or 12516 or 12518 or 12520;
+    }
+
     public override IDatabaseProvider Provider => OracleProvider.Instance;
 
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)

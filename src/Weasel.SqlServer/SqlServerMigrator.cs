@@ -26,6 +26,66 @@ $$;
         return connection is SqlConnection;
     }
 
+    public override ValueTask ReleaseConnectionPoolAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        if (connection is SqlConnection sql)
+        {
+            SqlConnection.ClearPool(sql);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
+    public override bool IsTransientConnectionFailure(Exception exception)
+    {
+        foreach (var e in ExceptionChain.Flatten(exception))
+        {
+            if (e is SqlException sql && sql.Errors.Cast<SqlError>().Any(x => IsTransientConnectionError(x.Number)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    ///     True for the SQL Server error numbers that unambiguously mean "could not give you a connection
+    ///     right now, try again" rather than "your migration is wrong" (weasel#356) -- the on-premises
+    ///     connection-limit error plus the Azure SQL resource/throttling set:
+    ///     <list type="bullet">
+    ///         <item><c>17809</c> could not connect: too many user connections (on-premises)</item>
+    ///         <item><c>40197</c>, <c>40501</c> service is busy / error processing the request</item>
+    ///         <item><c>40613</c> database is currently unavailable</item>
+    ///         <item><c>10928</c>, <c>10929</c> resource limits reached</item>
+    ///         <item><c>49918</c>, <c>49919</c>, <c>49920</c> not enough resources to process the request</item>
+    ///     </list>
+    ///     The exclusions matter more than the inclusions here, because a false positive re-runs a
+    ///     migration that actually failed:
+    ///     <list type="bullet">
+    ///         <item>
+    ///             <c>-2</c> is <b>not</b> here despite being the classic "timeout expired": SqlClient
+    ///             raises it for <i>command</i> timeouts too, so retrying it would silently re-run a DDL
+    ///             statement that merely exceeded CommandTimeout (a slow CREATE INDEX on a large table)
+    ///             three times over -- exactly what this predicate promises not to do.
+    ///         </item>
+    ///         <item>
+    ///             <c>10053</c>/<c>10054</c>/<c>233</c>/<c>64</c>, likewise: a transport-level drop is
+    ///             reported the same way whether it happened while connecting or midway through a
+    ///             statement, so they cannot be distinguished from a half-applied migration.
+    ///         </item>
+    ///         <item><c>1205</c> deadlock is a statement conflict, handled at the statement level.</item>
+    ///         <item><c>18456</c> login failed is a credential problem that will never clear.</item>
+    ///     </list>
+    ///     Erring narrow is the safe direction: a missed code just means no retry, i.e. today's behavior.
+    ///     Pure over the error number so it is unit-testable without constructing a
+    ///     <see cref="SqlException" />.
+    /// </summary>
+    internal static bool IsTransientConnectionError(int number)
+    {
+        return number is 10928 or 10929 or 17809 or 40197 or 40501 or 40613 or 49918 or 49919 or 49920;
+    }
+
     public override IDatabaseProvider Provider => SqlServerProvider.Instance;
 
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
