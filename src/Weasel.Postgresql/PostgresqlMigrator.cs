@@ -257,6 +257,66 @@ $$;
         };
     }
 
+    public override bool IsTransientConnectionFailure(Exception exception)
+    {
+        // Npgsql does not always surface the server's refusal bare. An NpgsqlMultiHostDataSource (which
+        // PostgresqlDatabase.CreateConnection explicitly supports) aggregates its per-host failures, and a
+        // failure to connect commonly arrives as an outer exception wrapping the PostgresException that
+        // actually carries the SQLSTATE. Matching only the outermost exception would leave this predicate --
+        // and therefore the whole retry -- inert for exactly the case it exists to handle.
+        foreach (var e in flatten(exception))
+        {
+            if (e is PostgresException pg && IsTransientConnectionFailure(pg.SqlState)) return true;
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<Exception> flatten(Exception exception)
+    {
+        if (exception is AggregateException aggregate)
+        {
+            foreach (var inner in aggregate.Flatten().InnerExceptions)
+            foreach (var e in flatten(inner))
+            {
+                yield return e;
+            }
+
+            yield break;
+        }
+
+        for (var e = exception; e != null; e = e.InnerException)
+        {
+            yield return e;
+
+            if (e.InnerException is AggregateException nested)
+            {
+                foreach (var inner in flatten(nested)) yield return inner;
+                yield break;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     True for the PostgreSQL SQLSTATEs that signal a transient refusal to accept a new connection,
+    ///     where the same work retried after a backoff is likely to get through (weasel#356):
+    ///     <list type="bullet">
+    ///         <item><c>53300</c> too_many_connections — the server is at <c>max_connections</c></item>
+    ///         <item><c>53400</c> configuration_limit_exceeded</item>
+    ///         <item><c>57P03</c> cannot_connect_now — the server is still starting up</item>
+    ///     </list>
+    ///     Deliberately excludes the rest of class 53 (insufficient_resources): <c>53100</c> disk_full and
+    ///     <c>53200</c> out_of_memory are real conditions that retrying will not clear.
+    ///     Pure over the SQLSTATE so it is unit-testable without constructing a
+    ///     <see cref="PostgresException" />.
+    /// </summary>
+    internal static bool IsTransientConnectionFailure(string? sqlState)
+    {
+        return sqlState is PostgresErrorCodes.TooManyConnections
+            or PostgresErrorCodes.ConfigurationLimitExceeded
+            or PostgresErrorCodes.CannotConnectNow;
+    }
+
     public override string ToExecuteScriptLine(string scriptName)
     {
         return $"\\i {scriptName}";

@@ -284,6 +284,18 @@ public abstract class
     public virtual bool IsSystemColumn(string columnName) => false;
 
     /// <summary>
+    ///     Is this exception a transient failure to *connect* to the database — as opposed to a failure of
+    ///     the migration itself — such that retrying the same work after a backoff is likely to succeed?
+    ///     The default is <c>false</c>; provider-specific migrators override it with the error codes they
+    ///     know to be transient.
+    ///     <para>
+    ///     Only connection-level refusals belong here. A DDL error is not transient, and blanket-retrying
+    ///     one just delays a failure the operator needs to see.
+    ///     </para>
+    /// </summary>
+    public virtual bool IsTransientConnectionFailure(Exception exception) => false;
+
+    /// <summary>
     ///     Ensures that the database referenced by the supplied connection's connection string exists,
     ///     creating it if necessary. This is a lightweight operation that only creates the database --
     ///     it does not run any schema migrations or DDL.

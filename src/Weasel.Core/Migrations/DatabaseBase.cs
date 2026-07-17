@@ -288,6 +288,15 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
         return _connectionSource();
     }
 
+    /// <summary>
+    ///     No-op by default. See <see cref="IDatabase.ReleaseConnectionPoolAsync" /> — providers that pool
+    ///     connections override this to close their idle connections.
+    /// </summary>
+    public virtual ValueTask ReleaseConnectionPoolAsync(CancellationToken ct = default)
+    {
+        return ValueTask.CompletedTask;
+    }
+
     public Task<SchemaMigration> CreateMigrationAsync(Type featureType, CancellationToken ct = default)
     {
         var feature = FindFeature(featureType);
