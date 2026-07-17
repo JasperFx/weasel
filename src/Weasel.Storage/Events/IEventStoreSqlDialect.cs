@@ -28,4 +28,14 @@ public interface IEventStoreSqlDialect
 
     QuickWithServerTimestampsEventStorageDescriptor BuildQuickWithServerTimestampsDescriptor(
         EventRegistry graph, IStorageSerializer serializer);
+
+    /// <summary>
+    /// Build the dialect's factories for the auxiliary event-store operations (archive / tombstone /
+    /// progression) that sit alongside the append/stream lifecycle. Unlike the append descriptors these
+    /// are append-mode-independent, so a single record covers every mode. The default returns
+    /// <see langword="null"/> — a dialect that keeps these operations bespoke (as Marten does today) does
+    /// not have to implement it, and the corresponding <see cref="EventStorage{TId}"/> methods stay
+    /// throwing until a dialect opts in. See <see cref="EventAuxiliaryOperations"/>.
+    /// </summary>
+    EventAuxiliaryOperations? BuildAuxiliaryOperations(EventRegistry graph) => null;
 }
