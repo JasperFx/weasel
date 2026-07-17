@@ -23,7 +23,7 @@ public static class EventStorageBuilder
     {
         // The dialect owns descriptor construction end-to-end — SQL strings and
         // metadata-binder ordering are joint concerns it builds in lockstep.
-        return appendMode switch
+        EventStorage<TId> storage = appendMode switch
         {
             EventAppendMode.Rich =>
                 new RichEventStorage<TId>(dialect.BuildRichDescriptor(graph, serializer)),
@@ -38,5 +38,11 @@ public static class EventStorageBuilder
             _ => throw new ArgumentOutOfRangeException(nameof(appendMode),
                 $"Unsupported EventAppendMode for the closed-shape event-storage hierarchy: {appendMode}.")
         };
+
+        // Append-mode-independent auxiliary operations (archive / tombstone / progression). Null unless
+        // the dialect opts in; leaves the EventStorage methods throwing NotSupportedException otherwise.
+        storage.AuxiliaryOperations = dialect.BuildAuxiliaryOperations(graph);
+
+        return storage;
     }
 }

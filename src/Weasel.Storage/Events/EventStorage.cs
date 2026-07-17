@@ -58,4 +58,43 @@ public abstract class EventStorage<TId>
     /// from its descriptor's tenancy style.
     /// </summary>
     public abstract IStorageOperation AssertStreamVersion(StreamAction stream);
+
+    /// <summary>
+    /// Dialect-supplied factories for the auxiliary event-store operations (archive / tombstone /
+    /// progression). Assigned by <see cref="EventStorageBuilder"/> from the dialect's
+    /// <see cref="IEventStoreSqlDialect.BuildAuxiliaryOperations"/>. Null (or a record with null members)
+    /// when the dialect does not provide them, in which case the corresponding methods below throw
+    /// <see cref="NotSupportedException"/>.
+    /// </summary>
+    public EventAuxiliaryOperations? AuxiliaryOperations { get; set; }
+
+    /// <summary>
+    /// Archive (or un-archive) a stream and all of its events — flips the <c>is_archived</c> flag on the
+    /// streams row and the event rows. Archive and un-archive differ only in <paramref name="archived"/>.
+    /// </summary>
+    public virtual IStorageOperation ArchiveStream(object streamId, string tenantId, bool archived)
+        => AuxiliaryOperations?.ArchiveStream is { } factory
+            ? factory(streamId, tenantId, archived)
+            : throw new NotSupportedException(
+                "This event storage dialect does not supply a stream-archive operation. Provide one via IEventStoreSqlDialect.BuildAuxiliaryOperations.");
+
+    /// <summary>
+    /// Hard-delete a stream — removes its event rows and the streams row outright (the tombstone path).
+    /// </summary>
+    public virtual IStorageOperation TombstoneStream(object streamId, string tenantId)
+        => AuxiliaryOperations?.TombstoneStream is { } factory
+            ? factory(streamId, tenantId)
+            : throw new NotSupportedException(
+                "This event storage dialect does not supply a stream-tombstone operation. Provide one via IEventStoreSqlDialect.BuildAuxiliaryOperations.");
+
+    /// <summary>
+    /// Write a projection/subscription progression mark for <paramref name="shardIdentity"/> up to
+    /// <paramref name="sequence"/>. When <paramref name="upsert"/> is true the row may not exist yet
+    /// (insert-or-update); otherwise it is an in-place update of an existing row.
+    /// </summary>
+    public virtual IStorageOperation UpdateProgress(string shardIdentity, long sequence, bool upsert)
+        => AuxiliaryOperations?.UpdateProgress is { } factory
+            ? factory(shardIdentity, sequence, upsert)
+            : throw new NotSupportedException(
+                "This event storage dialect does not supply a progression-update operation. Provide one via IEventStoreSqlDialect.BuildAuxiliaryOperations.");
 }
