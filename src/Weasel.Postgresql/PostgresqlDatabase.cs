@@ -140,6 +140,18 @@ public abstract class PostgresqlDatabase: DatabaseBase<NpgsqlConnection>, IAsync
         return CreateConnection();
     }
 
+    /// <summary>
+    ///     Closes the idle connections in this database's <see cref="NpgsqlDataSource" /> pool. Unlike
+    ///     <see cref="DisposeAsync" /> this is safe regardless of <see cref="OwnsDataSource" />: connections
+    ///     currently in use are left alone and simply discarded when they are returned, and the data source
+    ///     stays usable afterward.
+    /// </summary>
+    public override ValueTask ReleaseConnectionPoolAsync(CancellationToken ct = default)
+    {
+        DataSource.Clear();
+        return ValueTask.CompletedTask;
+    }
+
     public ValueTask DisposeAsync()
     {
         // Only dispose the data source when this database owns its lifetime. When it was supplied by the caller

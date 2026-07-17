@@ -2,6 +2,7 @@ using JasperFx.CommandLine;
 using Spectre.Console;
 using Weasel.Core;
 using Weasel.Core.CommandLine;
+using Weasel.Core.Migrations;
 
 namespace Weasel.CommandLine;
 
@@ -26,23 +27,51 @@ public class ApplyCommand: JasperFxAsyncCommand<WeaselInput>
             return true;
         }
 
-        foreach (var database in databases)
+        var total = databases.Count;
+        for (var i = 0; i < total; i++)
         {
+            var database = databases[i];
             var descriptor = database.Describe();
 
-            // TODO -- it'd be cool to get a rundown of everything that changed.
-            var difference = await database.ApplyAllConfiguredChangesToDatabaseAsync().ConfigureAwait(false);
-            switch (difference)
-            {
-                case SchemaPatchDifference.None:
-                    AnsiConsole.MarkupLine($"[gray]No changes detected for DatabaseUri {descriptor.DatabaseUri()} with SubjectUri {descriptor.SubjectUri}.[/]");
-                    break;
+            // A 512-database walk with no output until it finishes (or fails) is its own small cruelty --
+            // an operator watching this needs to see it moving and be able to estimate completion.
+            var progress = $"({i + 1}/{total})";
 
-                case SchemaPatchDifference.Create:
-                case SchemaPatchDifference.Update:
+            try
+            {
+                // TODO -- it'd be cool to get a rundown of everything that changed.
+                var difference = await database.ApplyAllConfiguredChangesWithRetriesAsync().ConfigureAwait(false);
+                switch (difference)
+                {
+                    case SchemaPatchDifference.None:
+                        AnsiConsole.MarkupLine($"[gray]{progress} No changes detected for DatabaseUri {descriptor.DatabaseUri()} with SubjectUri {descriptor.SubjectUri}.[/]");
+                        break;
+
+                    case SchemaPatchDifference.Create:
+                    case SchemaPatchDifference.Update:
+                        AnsiConsole.MarkupLine(
+                            $"[bold green]{progress} Successfully applied migrations for DatabaseUri {descriptor.DatabaseUri()} with SubjectUri {descriptor.SubjectUri}.[/]");
+                        break;
+                }
+            }
+            finally
+            {
+                // Nothing else needs this database's connections once its apply is done, and this command
+                // owns its data sources -- there are no application sessions sharing them. Releasing here
+                // keeps peak connection usage at ~the one database being applied, instead of trailing an
+                // idle pool per database until the connection idle lifetime expires (weasel#356).
+                try
+                {
+                    await database.ReleaseConnectionPoolAsync().ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    // Releasing the pool is housekeeping. If it throws while an apply is already failing,
+                    // letting it out of the finally would discard the migration exception the operator
+                    // actually needs to see.
                     AnsiConsole.MarkupLine(
-                        $"[bold green]Successfully applied migrations for DatabaseUri {descriptor.DatabaseUri()} with SubjectUri {descriptor.SubjectUri}.[/]");
-                    break;
+                        $"[yellow]{progress} Unable to release the connection pool for DatabaseUri {descriptor.DatabaseUri()}: {Markup.Escape(e.Message)}[/]");
+                }
             }
         }
 
