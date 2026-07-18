@@ -44,6 +44,7 @@ The fluent `ColumnExpression` returned by `AddColumn` supports:
 - `DefaultValueByExpression(expr)` -- sets a raw SQL default expression
 - `DefaultValueFromSequence(sequence)` -- uses `nextval()` from a sequence
 - `ForeignKeyTo(table, column)` -- adds an inline foreign key
+- `GeneratedAs(expression)` -- makes this a stored generated column
 
 ## Primary Keys
 
@@ -78,7 +79,7 @@ table.AddColumn<int>("company_id")
     .ForeignKeyTo("companies", "id",
         onDelete: CascadeAction.Cascade);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L50-L56' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_foreign_keys' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L66-L72' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_foreign_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Or add foreign keys directly to the `ForeignKeys` collection for multi-column keys.
@@ -99,7 +100,7 @@ var index = new IndexDefinition("idx_users_email")
 index.Columns = new[] { "email" };
 table.Indexes.Add(index);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L61-L72' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_indexes' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L77-L88' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_indexes' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Indexes support GIN, GiST, BRIN, and hash methods via the `IndexMethod` enum. Expression-based indexes and sort order (`SortOrder`, `NullsSortOrder`) are also available.
@@ -117,7 +118,28 @@ table.AddColumn<string>("status").DefaultValueByString("pending");
 table.AddColumn<DateTimeOffset>("created_at")
     .DefaultValueByExpression("now()");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L77-L85' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_default_values' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L93-L101' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_default_values' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+## Generated Columns
+
+PostgreSQL 12+ supports stored generated columns (`GENERATED ALWAYS AS (...) STORED`). The generation expression is read back from the database catalog by `FetchExisting`, and participates in delta detection with canonicalized expression comparison — changing the expression migrates the column with a lossless drop and re-add (the data is derived). Generated columns the model does not declare are left untouched.
+
+<!-- snippet: sample_pg_generated_columns -->
+<a id='snippet-sample_pg_generated_columns'></a>
+```cs
+var table = new Table("people");
+
+table.AddColumn<string>("first_name");
+table.AddColumn<string>("last_name");
+
+// GENERATED ALWAYS AS (...) STORED — PostgreSQL only supports
+// stored generated columns. The expression is read back from the
+// database catalog and participates in delta detection.
+table.AddColumn("full_name", "text")
+    .GeneratedAs("first_name || ' ' || last_name");
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L50-L61' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_generated_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Delta Detection and Migration
@@ -143,7 +165,7 @@ var existing = await table.FetchExistingAsync(conn);
 var delta = new TableDelta(table, existing);
 // delta.Difference tells you: None, Create, Update, or Recreate
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L90-L106' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L106-L122' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating DDL
@@ -158,5 +180,5 @@ var writer = new StringWriter();
 table.WriteCreateStatement(migrator, writer);
 Console.WriteLine(writer.ToString());
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L111-L118' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_generate_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L127-L134' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_generate_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
