@@ -66,6 +66,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     ITenantPartitionManager, IDatabaseInitializer<SqlConnection>
 {
     private readonly Table _registry;
+    private readonly IndexDefinition _uniqueOrdinalIndex;
     private readonly Dictionary<string, int> _ordinals = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private bool _hasInitialized;
@@ -108,10 +109,37 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         // map without re-querying the table; concurrent ManagedTenantPartitions
         // instances writing simultaneously will collide here rather than
         // silently producing two tenants in the same partition.
-        var uniqueOrdinal =
+        _uniqueOrdinalIndex =
             new IndexDefinition($"uniq_{registryTableName.Name}_ordinal") { IsUnique = true };
-        uniqueOrdinal.AgainstColumns("ordinal");
-        _registry.Indexes.Add(uniqueOrdinal);
+        _uniqueOrdinalIndex.AgainstColumns("ordinal");
+        _registry.Indexes.Add(_uniqueOrdinalIndex);
+    }
+
+    /// <summary>
+    ///     Opt-in tenant bucketing: allow multiple tenant ids to share one
+    ///     ordinal (and therefore one partition per table) through the
+    ///     explicit-ordinal <c>AddPartitionsToAllTables</c> overloads. Off by
+    ///     default — automatic allocation keeps one tenant per partition and a
+    ///     unique index on the registry's ordinal column guards against
+    ///     accidental sharing. Turning this on removes that unique index (an
+    ///     existing index is dropped by the next registry migration) and is the
+    ///     mitigation for SQL Server's 15,000-partition-per-table ceiling when
+    ///     hosting many small tenants.
+    /// </summary>
+    public bool AllowOrdinalSharing
+    {
+        get => !_registry.Indexes.Contains(_uniqueOrdinalIndex);
+        set
+        {
+            if (value)
+            {
+                _registry.Indexes.Remove(_uniqueOrdinalIndex);
+            }
+            else if (!_registry.Indexes.Contains(_uniqueOrdinalIndex))
+            {
+                _registry.Indexes.Add(_uniqueOrdinalIndex);
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -418,9 +446,28 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     /// <summary>
     ///     Register multiple tenants at once, persist their ordinals, and SPLIT
     ///     RANGE every partitioned table. Returns the assigned ordinal for each
-    ///     tenant.
+    ///     tenant. Use <see cref="AddPartitionsToAllTables(ILogger,IDatabase{SqlConnection},IEnumerable{string},CancellationToken)" />
+    ///     when the per-table migration statuses are needed as well.
     /// </summary>
     public async Task<IReadOnlyDictionary<string, int>> AddPartitionToAllTables(
+        ILogger logger,
+        IDatabase<SqlConnection> database,
+        IEnumerable<string> tenantIds,
+        CancellationToken token)
+    {
+        var result = await AddPartitionsToAllTables(logger, database, tenantIds, token)
+            .ConfigureAwait(false);
+        return result.Ordinals;
+    }
+
+    /// <summary>
+    ///     Register multiple tenants at once, persist their ordinals, and SPLIT
+    ///     RANGE every partitioned table. Returns both the assigned ordinals and
+    ///     the per-table migration statuses (parity with the PostgreSQL
+    ///     <c>ManagedListPartitions</c> batch add) so callers can surface
+    ///     partial failures.
+    /// </summary>
+    public async Task<TenantPartitionAddResult> AddPartitionsToAllTables(
         ILogger logger,
         IDatabase<SqlConnection> database,
         IEnumerable<string> tenantIds,
@@ -443,11 +490,103 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
                 await upsertTenantAsync(conn, tenantId, token).ConfigureAwait(false);
         }
 
-        await splitTablesForNewOrdinalsAsync(logger, database, conn, token).ConfigureAwait(false);
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+            .ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
 
-        return assigned;
+        return new TenantPartitionAddResult(assigned, statuses.ToArray());
+    }
+
+    /// <summary>
+    ///     Register tenants with explicitly assigned ordinals — the tenant
+    ///     bucketing seam. With <see cref="AllowOrdinalSharing" /> enabled,
+    ///     multiple tenant ids may map to the same ordinal so small tenants
+    ///     share a partition (and the strategy stays clear of SQL Server's
+    ///     15,000-partition ceiling). Re-registering a tenant with its current
+    ///     ordinal is a no-op; re-registering with a different ordinal throws,
+    ///     because existing rows would keep the old ordinal.
+    /// </summary>
+    public async Task<TenantPartitionAddResult> AddPartitionsToAllTables(
+        ILogger logger,
+        IDatabase<SqlConnection> database,
+        IReadOnlyDictionary<string, int> tenantOrdinals,
+        CancellationToken token)
+    {
+        await using var conn = database.CreateConnection();
+        await conn.OpenAsync(token).ConfigureAwait(false);
+
+        await InitializeAsync(conn, token).ConfigureAwait(false);
+
+        var assigned = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var pair in tenantOrdinals)
+        {
+            if (string.IsNullOrEmpty(pair.Key))
+            {
+                continue;
+            }
+
+            assigned[pair.Key] =
+                await upsertTenantAsync(conn, pair.Key, token, pair.Value).ConfigureAwait(false);
+        }
+
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+            .ConfigureAwait(false);
+
+        await conn.CloseAsync().ConfigureAwait(false);
+
+        return new TenantPartitionAddResult(assigned, statuses.ToArray());
+    }
+
+    /// <summary>
+    ///     Register a single tenant with an explicitly assigned ordinal. See
+    ///     <see cref="AddPartitionsToAllTables(ILogger,IDatabase{SqlConnection},IReadOnlyDictionary{string,int},CancellationToken)" />
+    ///     for the bucketing semantics.
+    /// </summary>
+    public async Task<int> AddPartitionToAllTables(
+        ILogger logger,
+        IDatabase<SqlConnection> database,
+        string tenantId,
+        int ordinal,
+        CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(tenantId))
+        {
+            throw new ArgumentException("tenantId must not be null or empty", nameof(tenantId));
+        }
+
+        var result = await AddPartitionsToAllTables(logger, database,
+                new Dictionary<string, int> { [tenantId] = ordinal }, token)
+            .ConfigureAwait(false);
+        return result.Ordinals[tenantId];
+    }
+
+    /// <summary>
+    ///     Back-fill: make sure every table currently wired to this strategy has
+    ///     a partition boundary for every registered tenant ordinal. Use this
+    ///     after adding a table to an existing managed set — the regular
+    ///     <c>TableDelta</c> migration deliberately leaves managed partition
+    ///     functions alone, so a table whose partition function pre-dates newer
+    ///     tenants needs this explicit reconciliation. Tables (or partition
+    ///     functions) that don't exist yet are created via <c>MigrateAsync</c>
+    ///     with the full boundary set.
+    /// </summary>
+    public async Task<TablePartitionStatus[]> MigrateAllTablesAsync(
+        ILogger logger,
+        IDatabase<SqlConnection> database,
+        CancellationToken token)
+    {
+        await using var conn = database.CreateConnection();
+        await conn.OpenAsync(token).ConfigureAwait(false);
+
+        await InitializeAsync(conn, token).ConfigureAwait(false);
+
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+            .ConfigureAwait(false);
+
+        await conn.CloseAsync().ConfigureAwait(false);
+
+        return statuses.ToArray();
     }
 
     /// <summary>
@@ -501,19 +640,42 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
     /// <summary>
     ///     Drop tenants from the registry and MERGE RANGE the corresponding
-    ///     boundaries off every partitioned table. The opposite of
+    ///     boundaries off every partitioned table, retaining the tenants' rows
+    ///     (<see cref="TenantDropBehavior.RetainData" />). The opposite of
     ///     <see cref="AddPartitionToAllTables(IDatabase{SqlConnection},string,CancellationToken)" />.
     /// </summary>
     /// <remarks>
     ///     SQL Server's <c>MERGE RANGE</c> only removes the boundary point — the
-    ///     data on either side is merged into the resulting partition. If you
-    ///     need to delete a tenant's rows first do that as a separate step
-    ///     before calling this method.
+    ///     data on either side is merged into the resulting partition. Pass
+    ///     <see cref="TenantDropBehavior.DeleteData" /> to the behavior overload
+    ///     to physically remove the tenants' rows first (PostgreSQL managed-drop
+    ///     parity), or delete them yourself before calling this method.
     /// </remarks>
+    public Task DropPartitionFromAllTables(
+        ILogger logger,
+        IDatabase<SqlConnection> database,
+        IEnumerable<string> tenantIds,
+        CancellationToken token)
+    {
+        return DropPartitionFromAllTables(logger, database, tenantIds, TenantDropBehavior.RetainData, token);
+    }
+
+    /// <summary>
+    ///     Drop tenants from the registry and MERGE RANGE the corresponding
+    ///     boundaries off every partitioned table. With
+    ///     <see cref="TenantDropBehavior.DeleteData" /> the tenants' rows are
+    ///     deleted from every managed table before the merge, so removing a
+    ///     tenant physically removes its data (parity with the PostgreSQL
+    ///     managed drop). An ordinal still referenced by other tenants (see
+    ///     <see cref="AllowOrdinalSharing" />) is never merged or purged — the
+    ///     remaining tenants keep the partition, and any finer-grained data
+    ///     removal belongs to the caller.
+    /// </summary>
     public async Task DropPartitionFromAllTables(
         ILogger logger,
         IDatabase<SqlConnection> database,
         IEnumerable<string> tenantIds,
+        TenantDropBehavior behavior,
         CancellationToken token)
     {
         var tenants = tenantIds.Where(x => !string.IsNullOrEmpty(x)).Distinct().ToArray();
@@ -527,12 +689,12 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
         await InitializeAsync(conn, token).ConfigureAwait(false);
 
-        var ordinalsToMerge = new List<int>();
+        var droppedOrdinals = new HashSet<int>();
         foreach (var tenantId in tenants)
         {
             if (_ordinals.TryGetValue(tenantId, out var ordinal))
             {
-                ordinalsToMerge.Add(ordinal);
+                droppedOrdinals.Add(ordinal);
             }
             else
             {
@@ -542,7 +704,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             }
         }
 
-        if (ordinalsToMerge.Count == 0)
+        if (droppedOrdinals.Count == 0)
         {
             await conn.CloseAsync().ConfigureAwait(false);
             return;
@@ -570,6 +732,30 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             _ordinals.Remove(tenant);
         }
 
+        // With ordinal sharing, an ordinal is only released once its LAST tenant
+        // is dropped; while other tenants still map to it the partition must
+        // survive, and a purge by ordinal would take their rows with it.
+        var ordinalsToMerge = new List<int>();
+        foreach (var ordinal in droppedOrdinals.OrderBy(x => x))
+        {
+            if (_ordinals.ContainsValue(ordinal))
+            {
+                logger.LogWarning(
+                    "Ordinal {Ordinal} is still shared by other tenants — the partition is retained and " +
+                    "no rows are removed; per-tenant data removal within a shared partition belongs to the caller",
+                    ordinal);
+                continue;
+            }
+
+            ordinalsToMerge.Add(ordinal);
+        }
+
+        if (ordinalsToMerge.Count == 0)
+        {
+            await conn.CloseAsync().ConfigureAwait(false);
+            return;
+        }
+
         var tables = ResolveManagedTables(database);
 
         foreach (var table in tables)
@@ -577,6 +763,31 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             var pfName = PartitionFunctionName(table);
             foreach (var ordinal in ordinalsToMerge)
             {
+                if (behavior == TenantDropBehavior.DeleteData)
+                {
+                    await using var purge = conn.CreateCommand();
+                    purge.CommandText =
+                        $"DELETE FROM {table.Identifier.QualifiedName} WHERE [{Column}] = @ordinal;";
+                    purge.Parameters.AddWithValue("@ordinal", ordinal);
+                    try
+                    {
+                        var removed = await purge.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                        logger.LogInformation(
+                            "Deleted {Count} rows with ordinal {Ordinal} from table {Table}",
+                            removed, ordinal, table.Identifier);
+                    }
+                    catch (SqlException e)
+                    {
+                        // Leave the boundary in place rather than merging rows we
+                        // failed to delete into the neighboring partition.
+                        logger.LogError(e,
+                            "Could not delete rows with ordinal {Ordinal} from table {Table} — " +
+                            "skipping the boundary merge for this table",
+                            ordinal, table.Identifier);
+                        continue;
+                    }
+                }
+
                 await using var merge = conn.CreateCommand();
                 merge.CommandText =
                     $"ALTER PARTITION FUNCTION [{pfName}]() MERGE RANGE ({ordinal});";
@@ -619,14 +830,38 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     private async Task<int> upsertTenantAsync(
         SqlConnection conn,
         string tenantId,
-        CancellationToken token)
+        CancellationToken token,
+        int? requestedOrdinal = null)
     {
         if (_ordinals.TryGetValue(tenantId, out var existing))
         {
+            if (requestedOrdinal.HasValue && requestedOrdinal.Value != existing)
+            {
+                throw new InvalidOperationException(
+                    $"Tenant '{tenantId}' is already registered with ordinal {existing}; remapping to " +
+                    $"{requestedOrdinal.Value} is not supported because existing rows keep the old ordinal. " +
+                    "Drop the tenant first if it really has to move.");
+            }
+
             return existing;
         }
 
-        var nextOrdinal = (_ordinals.Count == 0) ? 1 : _ordinals.Values.Max() + 1;
+        if (requestedOrdinal is <= SentinelBoundary)
+        {
+            throw new ArgumentOutOfRangeException(nameof(requestedOrdinal),
+                $"Tenant ordinals must be positive — {SentinelBoundary} is the sentinel boundary");
+        }
+
+        if (requestedOrdinal.HasValue && !AllowOrdinalSharing &&
+            _ordinals.ContainsValue(requestedOrdinal.Value))
+        {
+            throw new InvalidOperationException(
+                $"Ordinal {requestedOrdinal.Value} is already assigned to another tenant. Set " +
+                $"{nameof(AllowOrdinalSharing)} = true to bucket multiple tenants into one partition.");
+        }
+
+        var nextOrdinal = requestedOrdinal ??
+                          ((_ordinals.Count == 0) ? 1 : _ordinals.Values.Max() + 1);
 
         await using var cmd = conn.CreateCommand();
         // MERGE rather than INSERT to handle a race where another process
@@ -665,56 +900,74 @@ OUTPUT inserted.ordinal;";
         return insertedOrdinal.Value;
     }
 
-    private async Task splitTablesForNewOrdinalsAsync(
+    private async Task<List<TablePartitionStatus>> splitTablesForNewOrdinalsAsync(
         ILogger logger,
         IDatabase<SqlConnection> database,
         SqlConnection conn,
         CancellationToken token)
     {
+        var statuses = new List<TablePartitionStatus>();
         var tables = ResolveManagedTables(database);
 
+        // Per-table failure isolation mirrors PG ManagedListPartitions: one
+        // table failing to split must not keep the remaining tables from
+        // getting the new tenant's partition, and callers get the per-table
+        // outcome to surface partial failures.
         foreach (var table in tables)
         {
-            var pfName = PartitionFunctionName(table);
-            var psName = PartitionSchemeName(table);
-
-            var existing = await fetchActualBoundariesAsync(conn, pfName, token).ConfigureAwait(false);
-            if (existing == null)
+            try
             {
-                // Function doesn't exist yet — let MigrateAsync create it.
-                logger.LogInformation(
-                    "Partition function {Function} for table {Table} not found — running MigrateAsync to create it",
-                    pfName, table.Identifier);
-                await table.MigrateAsync(conn, token).ConfigureAwait(false);
-                continue;
-            }
+                var pfName = PartitionFunctionName(table);
+                var psName = PartitionSchemeName(table);
 
-            foreach (var ordinal in OrderedBoundaries())
-            {
-                if (existing.Contains(ordinal.ToString()))
+                var existing = await fetchActualBoundariesAsync(conn, pfName, token).ConfigureAwait(false);
+                if (existing == null)
                 {
+                    // Function doesn't exist yet — let MigrateAsync create it.
+                    logger.LogInformation(
+                        "Partition function {Function} for table {Table} not found — running MigrateAsync to create it",
+                        pfName, table.Identifier);
+                    await table.MigrateAsync(conn, token).ConfigureAwait(false);
+                    statuses.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Complete));
                     continue;
                 }
 
-                await using (var nextUsed = conn.CreateCommand())
+                foreach (var ordinal in OrderedBoundaries())
                 {
-                    nextUsed.CommandText =
-                        $"ALTER PARTITION SCHEME [{psName}] NEXT USED [{Filegroup}];";
-                    await nextUsed.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                    if (existing.Contains(ordinal.ToString()))
+                    {
+                        continue;
+                    }
+
+                    await using (var nextUsed = conn.CreateCommand())
+                    {
+                        nextUsed.CommandText =
+                            $"ALTER PARTITION SCHEME [{psName}] NEXT USED [{Filegroup}];";
+                        await nextUsed.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                    }
+
+                    await using (var split = conn.CreateCommand())
+                    {
+                        split.CommandText =
+                            $"ALTER PARTITION FUNCTION [{pfName}]() SPLIT RANGE ({ordinal});";
+                        await split.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                    }
+
+                    logger.LogInformation(
+                        "Split partition function {Function} at boundary {Boundary} for table {Table}",
+                        pfName, ordinal, table.Identifier);
                 }
 
-                await using (var split = conn.CreateCommand())
-                {
-                    split.CommandText =
-                        $"ALTER PARTITION FUNCTION [{pfName}]() SPLIT RANGE ({ordinal});";
-                    await split.ExecuteNonQueryAsync(token).ConfigureAwait(false);
-                }
-
-                logger.LogInformation(
-                    "Split partition function {Function} at boundary {Boundary} for table {Table}",
-                    pfName, ordinal, table.Identifier);
+                statuses.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Complete));
+            }
+            catch (Exception e)
+            {
+                logger.LogError(e, "Error trying to add table partitions to {Table}", table.Identifier);
+                statuses.Add(new TablePartitionStatus(table.Identifier, PartitionMigrationStatus.Failed));
             }
         }
+
+        return statuses;
     }
 
     private static async Task<HashSet<string>?> fetchActualBoundariesAsync(
@@ -768,3 +1021,49 @@ ORDER BY prv.boundary_id;";
         return count > 0;
     }
 }
+
+/// <summary>
+///     What happens to a tenant's rows when its partition is dropped via
+///     <see cref="ManagedTenantPartitions.DropPartitionFromAllTables(ILogger,IDatabase{SqlConnection},IEnumerable{string},TenantDropBehavior,CancellationToken)" />.
+/// </summary>
+public enum TenantDropBehavior
+{
+    /// <summary>
+    ///     Only the partition boundary is removed (<c>MERGE RANGE</c>) — SQL
+    ///     Server merges the tenant's rows into the neighboring partition. The
+    ///     caller owns any data purge. This is the historical behavior and the
+    ///     default.
+    /// </summary>
+    RetainData,
+
+    /// <summary>
+    ///     The tenant's rows are deleted from every managed table before the
+    ///     boundary is merged, mirroring the PostgreSQL managed drop
+    ///     (<c>DETACH PARTITION</c> + <c>DROP TABLE</c>) where the tenant's
+    ///     rows are physically removed. Needed for hard tenant deletion.
+    /// </summary>
+    DeleteData
+}
+
+/// <summary>
+///     Per-table outcome of a partition add / back-fill operation. Mirrors the
+///     PostgreSQL <c>ManagedListPartitions</c> status reporting so callers
+///     (Wolverine, Polecat, CritterWatch) can surface partial failures.
+/// </summary>
+public enum PartitionMigrationStatus
+{
+    Complete,
+    Failed,
+    RequiresTableRebuild
+}
+
+/// <summary>Per-table status of a partition add / back-fill operation.</summary>
+public record TablePartitionStatus(DbObjectName Identifier, PartitionMigrationStatus Status);
+
+/// <summary>
+///     Result of a batch tenant registration: the tenant_id -&gt; ordinal map
+///     that was assigned plus the per-table migration statuses.
+/// </summary>
+public record TenantPartitionAddResult(
+    IReadOnlyDictionary<string, int> Ordinals,
+    TablePartitionStatus[] Tables);

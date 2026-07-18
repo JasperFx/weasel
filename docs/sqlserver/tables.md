@@ -29,6 +29,31 @@ The `AddColumn` method returns a `ColumnExpression` with a fluent API:
 - `DefaultValueFromSequence(sequence)` -- default from a named sequence
 - `AddIndex(configure?)` -- adds an index on this column
 - `ForeignKeyTo(table, column)` -- adds a foreign key constraint
+- `ComputedAs(expression, persisted?)` -- makes this a computed column
+
+## Computed Columns
+
+SQL Server computed columns (`[name] AS (expression) [PERSISTED]`) derive their type from the expression — the declared column type is not emitted. The expression and PERSISTED flag are read back from `sys.computed_columns` by `FetchExisting`, and participate in delta detection with canonicalized expression comparison — changing either migrates the column with a lossless drop and re-add (the data is derived). Computed columns the model does not declare are left untouched.
+
+<!-- snippet: sample_ss_computed_columns -->
+<a id='snippet-sample_ss_computed_columns'></a>
+```cs
+var table = new Table("dbo.people");
+
+table.AddColumn<string>("first_name");
+table.AddColumn<string>("last_name");
+
+// [full_name] AS (first_name + ' ' + last_name) — the declared type
+// is not emitted; SQL Server derives it from the expression
+table.AddColumn<string>("full_name")
+    .ComputedAs("first_name + ' ' + last_name");
+
+// PERSISTED computed columns are stored on disk and indexable
+table.AddColumn<int>("name_length")
+    .ComputedAs("len(first_name) + len(last_name)", persisted: true);
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L65-L79' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_computed_columns' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
 
 ## Foreign Keys
 
@@ -41,7 +66,7 @@ orders.AddColumn<int>("user_id").NotNull()
     .ForeignKeyTo("dbo.users", "id", onDelete: Weasel.SqlServer.CascadeAction.Cascade);
 orders.AddColumn<decimal>("total").NotNull();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L65-L71' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_foreign_keys' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L84-L90' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_foreign_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Indexes
@@ -58,7 +83,7 @@ var index = new IndexDefinition("ix_users_email")
 };
 table.Indexes.Add(index);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L78-L87' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_indexes' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L97-L106' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_indexes' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Indexes support `IncludedColumns`, `FillFactor`, `SortOrder`, and `IsClustered` properties.
@@ -76,7 +101,7 @@ await conn.OpenAsync();
 var delta = await table.FindDeltaAsync(conn);
 // delta.Difference is None, Create, Update, or Recreate
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L95-L101' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L114-L120' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating DDL
@@ -89,5 +114,5 @@ var writer = new StringWriter();
 table.WriteCreateStatement(migrator, writer);
 Console.WriteLine(writer.ToString());
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L108-L113' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_generate_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L127-L132' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_generate_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

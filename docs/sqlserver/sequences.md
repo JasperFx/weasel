@@ -16,7 +16,7 @@ var seq2 = new Sequence(
     startWith: 1000
 );
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L268-L277' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_sequence' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L287-L296' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_sequence' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Sequence Ownership
@@ -29,7 +29,7 @@ A sequence can be associated with a table column:
 seq.Owner = DbObjectName.Parse(SqlServerProvider.Instance, "dbo.orders");
 seq.OwnerColumn = "id";
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L284-L287' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_ownership' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L303-L306' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_ownership' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Using Sequences with Table Columns
@@ -45,7 +45,7 @@ var seq = new Sequence("dbo.order_seq");
 table.AddColumn<long>("id").AsPrimaryKey()
     .DefaultValueFromSequence(seq);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L292-L298' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_with_table' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L311-L317' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_with_table' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 This generates: `DEFAULT next value for dbo.order_seq`.
@@ -64,7 +64,7 @@ seq.WriteCreateStatement(migrator, writer);
 seq.WriteDropStatement(migrator, writer);
 // Output: DROP SEQUENCE IF EXISTS dbo.order_seq;
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L305-L314' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L324-L333' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Delta Detection
@@ -80,5 +80,5 @@ await conn.OpenAsync();
 var delta = await seq.FindDeltaAsync(conn);
 // delta.Difference: None or Create
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L322-L328' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L341-L347' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

@@ -45,6 +45,22 @@ public class PostgresqlTableSamples
         #endregion
     }
 
+    public void generated_columns()
+    {
+        #region sample_pg_generated_columns
+        var table = new Table("people");
+
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+
+        // GENERATED ALWAYS AS (...) STORED — PostgreSQL only supports
+        // stored generated columns. The expression is read back from the
+        // database catalog and participates in delta detection.
+        table.AddColumn("full_name", "text")
+            .GeneratedAs("first_name || ' ' || last_name");
+        #endregion
+    }
+
     public void foreign_keys()
     {
         #region sample_pg_foreign_keys
