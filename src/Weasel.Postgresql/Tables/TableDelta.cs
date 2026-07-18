@@ -42,9 +42,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         }
 
         Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns,
-            expected.DetectColumnDrift
-                ? (e, a) => e.Equals(a) && e.HasSameDefaultAndNullability(a)
-                : null);
+            (e, a) => e.MatchesForDelta(a, expected.DetectColumnDrift));
         Indexes = new ItemDelta<IndexDefinition>(expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
             actual.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
             (e, a) => e.Matches(a, Expected));
@@ -138,7 +136,14 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         // Different columns
         foreach (var change1 in Columns.Different)
         {
-            if (change1.Expected.Equals(change1.Actual))
+            if (change1.Expected.ComputedDefinitionChanged(change1.Actual))
+            {
+                // a generation expression can't be altered in place; the data is
+                // derived, so drop + re-add is lossless
+                writer.WriteLine(change1.Expected.DropColumnSql(Expected));
+                writer.WriteLine(change1.Expected.AddColumnSql(Expected));
+            }
+            else if (change1.Expected.Equals(change1.Actual))
             {
                 // same name/type — the difference is default/nullability drift
                 change1.Expected.WriteDriftCorrections(Expected, change1.Actual, writer);
@@ -279,7 +284,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         // Different columns
         foreach (var change1 in Columns.Different)
         {
-            if (change1.Expected.Equals(change1.Actual))
+            if (change1.Expected.ComputedDefinitionChanged(change1.Actual))
+            {
+                // restore the actual column definition by drop + re-add
+                writer.WriteLine(change1.Expected.DropColumnSql(Expected));
+                writer.WriteLine(change1.Actual.AddColumnSql(Expected));
+            }
+            else if (change1.Expected.Equals(change1.Actual))
             {
                 change1.Actual.WriteDriftCorrections(Expected, change1.Expected, writer);
             }

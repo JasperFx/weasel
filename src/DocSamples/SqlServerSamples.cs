@@ -60,6 +60,25 @@ public class SqlServerSamples
         #endregion
     }
 
+    public void ss_computed_columns()
+    {
+        #region sample_ss_computed_columns
+        var table = new Table("dbo.people");
+
+        table.AddColumn<string>("first_name");
+        table.AddColumn<string>("last_name");
+
+        // [full_name] AS (first_name + ' ' + last_name) — the declared type
+        // is not emitted; SQL Server derives it from the expression
+        table.AddColumn<string>("full_name")
+            .ComputedAs("first_name + ' ' + last_name");
+
+        // PERSISTED computed columns are stored on disk and indexable
+        table.AddColumn<int>("name_length")
+            .ComputedAs("len(first_name) + len(last_name)", persisted: true);
+        #endregion
+    }
+
     public void ss_foreign_keys()
     {
         #region sample_ss_foreign_keys
