@@ -4,7 +4,7 @@ using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
 
-public class IndexDefinition: INamed
+public class IndexDefinition: ITableIndex
 {
     private readonly IList<string> _columns = new List<string>();
     private readonly IList<string> _includedColumns = new List<string>();
@@ -42,6 +42,12 @@ public class IndexDefinition: INamed
             _includedColumns.Clear();
             _includedColumns.AddRange(value);
         }
+    }
+
+    string[]? ITableIndex.IncludeColumns
+    {
+        get => _includedColumns.Any() ? _includedColumns.ToArray() : null;
+        set => IncludedColumns = value ?? [];
     }
 
     /// <summary>
@@ -199,5 +205,10 @@ public class IndexDefinition: INamed
     public void AddColumn(string columnName)
     {
         _columns.Add(columnName);
+    }
+
+    public void AddIncludedColumn(string columnName)
+    {
+        _includedColumns.Add(columnName);
     }
 }

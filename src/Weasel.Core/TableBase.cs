@@ -61,7 +61,7 @@ namespace Weasel.Core;
 /// </typeparam>
 public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase, ITable
     where TColumn : ITableColumn
-    where TIndex : INamed
+    where TIndex : ITableIndex
     where TForeignKey : ForeignKeyBase
 {
     protected readonly List<TColumn> _columns = new();
@@ -110,6 +110,9 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
         get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : DefaultPrimaryKeyName();
         set => _primaryKeyName = value;
     }
+
+    /// <inheritdoc cref="ITable.PreserveIdentifierCase" />
+    public bool PreserveIdentifierCase { get; set; }
 
     /// <summary>
     ///     Provider-specific default for the auto-generated primary-key
@@ -212,6 +215,24 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
 
     ITableColumn ITable.AddPrimaryKeyColumn(string name, Type dotnetType)
         => AddPrimaryKeyColumnAndReturn(name, GetDatabaseTypeFor(dotnetType));
+
+    IReadOnlyList<ITableIndex> ITable.Indexes
+        => Indexes.OfType<ITableIndex>().ToList();
+
+    ITableIndex ITable.AddIndex(string name, string[] columnNames, bool isUnique)
+    {
+        var index = CreateIndexFor(name, columnNames);
+        index.IsUnique = isUnique;
+        Indexes.Add(index);
+        return index;
+    }
+
+    /// <summary>
+    ///     Factory hook for the provider-specific <c>IndexDefinition</c> type,
+    ///     used by <see cref="ITable.AddIndex" />. Subclasses construct their
+    ///     index definition with the given name and column list.
+    /// </summary>
+    protected abstract TIndex CreateIndexFor(string name, string[] columnNames);
 
     /// <summary>
     ///     Factory hook for the provider-specific <c>ForeignKey</c> subclass.

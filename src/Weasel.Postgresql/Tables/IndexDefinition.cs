@@ -7,7 +7,7 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables;
 
-public class IndexDefinition: INamed
+public class IndexDefinition: ITableIndex
 {
     public const string IndexCreationBeginComment = "--WEASEL_INDEX_CREATION_BEGIN";
     public const string IndexCreationEndComment = "--WEASEL_INDEX_CREATION_END";
@@ -229,7 +229,7 @@ public class IndexDefinition: INamed
         if (IncludeColumns != null && IncludeColumns.Any())
         {
             builder.Append(" INCLUDE (");
-            builder.Append(IncludeColumns.Join(", "));
+            builder.Append(IncludeColumns.Select(x => SchemaUtils.QuoteName(x)).Join(", "));
             builder.Append(')');
         }
 
@@ -316,7 +316,9 @@ public class IndexDefinition: INamed
             if (x.StartsWith('(') || x.Contains(' ') || x.Contains('-') || x.Contains('\''))
                 return x;
 
-            return SchemaUtils.IsReservedKeyword(x) ? $"\"{x}\"" : x;
+            // QuoteName quotes reserved keywords (as before) and identifiers with
+            // uppercase characters, so case-preserved column names survive folding
+            return SchemaUtils.QuoteName(x);
         }).Join(", ");
         if (Mask.IsNotEmpty())
         {

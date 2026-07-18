@@ -1,0 +1,66 @@
+name: EF Core CI build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  config: Release
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  db_pwd: P@55w0rd
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+        matrix:
+            framework:
+                - net9.0
+                - net10.0
+
+    name: EF Core ${{ matrix.framework }}
+
+    services:
+      postgresql:
+        image: postgres:15.3-alpine
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: marten_testing
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        ports:
+          # the EF Core test suite connects to localhost,1435 (matching docker-compose)
+          - 1435:1433
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: ${{ env.db_pwd }}
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: |
+            9.0.x
+            10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-restore --framework ${{ matrix.framework }}
+
+    # MySql and Oracle EF providers have no database services in this workflow;
+    # their end-to-end suites only run locally against docker-compose
+    - name: Test
+      run: dotnet test src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }} --filter "FullyQualifiedName!~MySql&FullyQualifiedName!~Oracle"

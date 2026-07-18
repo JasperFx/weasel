@@ -9,6 +9,7 @@ using Xunit;
 
 namespace Weasel.EntityFrameworkCore.Tests.Postgresql;
 
+[Collection("FkDependencyDbContext")]
 public class batch_query_tests : IAsyncLifetime
 {
     private IHost _host = null!;

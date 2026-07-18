@@ -70,6 +70,17 @@ public class ForeignKey: ForeignKeyBase
     }
 #pragma warning restore CS0618 // Type or member is obsolete
 
+    /// <summary>
+    ///     Foreign key names and columns are compared case-insensitively:
+    ///     a case-preserved expected FK (e.g. EF Core's "FK_Posts_Blogs_BlogId")
+    ///     must match the same constraint read back from the catalog regardless
+    ///     of whether it was created quoted or folded to lowercase.
+    /// </summary>
+    protected override StringComparer NameComparer => StringComparer.OrdinalIgnoreCase;
+
+    /// <inheritdoc cref="NameComparer" />
+    protected override StringComparer ColumnComparer => StringComparer.OrdinalIgnoreCase;
+
     /// <inheritdoc />
     protected override DbObjectName ParseLinkedTable(string tableName)
         => DbObjectName.Parse(PostgresqlProvider.Instance, tableName);
@@ -92,9 +103,12 @@ public class ForeignKey: ForeignKeyBase
 
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
+        var columns = ColumnNames.Select(x => SchemaUtils.QuoteName(x)).Join(", ");
+        var linkedColumns = LinkedNames.Select(x => SchemaUtils.QuoteName(x)).Join(", ");
+
         writer.WriteLine($"ALTER TABLE {parent.Identifier}");
-        writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
-        writer.Write($"REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
+        writer.WriteLine($"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({columns})");
+        writer.Write($"REFERENCES {LinkedTable}({linkedColumns})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
         writer.WriteCascadeAction("ON UPDATE", OnUpdate);
         writer.Write(";");
@@ -103,7 +117,7 @@ public class ForeignKey: ForeignKeyBase
 
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
-        writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
+        writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {SchemaUtils.QuoteName(Name)};");
     }
 
     public void TryToCorrectForLink(Table parentTable, Table linkedTable)

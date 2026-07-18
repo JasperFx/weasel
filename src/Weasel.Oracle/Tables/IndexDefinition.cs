@@ -4,7 +4,7 @@ using Weasel.Core;
 
 namespace Weasel.Oracle.Tables;
 
-public class IndexDefinition: INamed
+public class IndexDefinition: ITableIndex
 {
     private readonly IList<string> _columns = new List<string>();
 
@@ -52,6 +52,12 @@ public class IndexDefinition: INamed
     ///     The constraint expression for a partial index (WHERE clause)
     /// </summary>
     public string? Predicate { get; set; }
+
+    string[]? Weasel.Core.ITableIndex.IncludeColumns
+    {
+        get => null;
+        set => throw new NotSupportedException("Covering (INCLUDE) indexes are not supported by this database provider");
+    }
 
     public string Name
     {

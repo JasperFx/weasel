@@ -69,6 +69,13 @@ public class ForeignKey: ForeignKeyBase
     }
 #pragma warning restore CS0618 // Type or member is obsolete
 
+    /// <summary>
+    ///     SQL Server has no ON DELETE RESTRICT — it is written and reported as
+    ///     NO ACTION, so the two must compare as equal during delta detection.
+    /// </summary>
+    protected override Core.CascadeAction NormalizeCascadeAction(Core.CascadeAction action)
+        => action == Core.CascadeAction.Restrict ? Core.CascadeAction.NoAction : action;
+
     /// <inheritdoc />
     protected override DbObjectName ParseLinkedTable(string tableName)
         => DbObjectName.Parse(SqlServerProvider.Instance, tableName);

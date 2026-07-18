@@ -77,6 +77,11 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
 
             case "integer":
                 return "int";
+
+            // rowversion is the modern name; the catalog reports the legacy
+            // name timestamp for the same type
+            case "rowversion":
+                return "timestamp";
         }
 
         return type;

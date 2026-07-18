@@ -9,25 +9,15 @@ using Xunit;
 
 namespace Weasel.EntityFrameworkCore.Tests.SqlServer;
 
+[Collection("sqlserver-schema-comparison")]
 public class sql_server_batch_query_tests : IAsyncLifetime
 {
     private IHost _host = null!;
 
     public async Task InitializeAsync()
     {
-        // Ensure the database exists first
-        var masterConn = new SqlConnectionStringBuilder(SqlServerFkDbContext.ConnectionString)
-        {
-            InitialCatalog = "master"
-        };
-        await using var conn = new SqlConnection(masterConn.ConnectionString);
-        await conn.OpenAsync();
-        await using var createDbCmd = conn.CreateCommand();
-        createDbCmd.CommandText = """
-            IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = 'weasel_testing')
-            CREATE DATABASE weasel_testing;
-        """;
-        await createDbCmd.ExecuteNonQueryAsync();
+        // Ensure the database exists first (race-tolerant for parallel classes)
+        await SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(SqlServerFkDbContext.ConnectionString);
 
         _host = Host.CreateDefaultBuilder()
             .ConfigureServices(services =>

@@ -9,6 +9,7 @@ using CascadeAction = Weasel.Core.CascadeAction;
 
 namespace Weasel.EntityFrameworkCore.Tests.SqlServer;
 
+[Collection("sqlserver-schema-comparison")]
 public class end_to_end : IAsyncLifetime
 {
     private IHost _host = null!;
@@ -74,7 +75,7 @@ public class end_to_end : IAsyncLifetime
         table.HasColumn("nullablecascadeactionvalue").ShouldBeTrue();
 
         // Verify primary key
-        table.PrimaryKeyColumns.ShouldContain("id");
+        table.PrimaryKeyColumns.ShouldContain("Id");
         table.PrimaryKeyName.ShouldBe("PK_MyEntities");
     }
 
@@ -84,9 +85,18 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<SqlServerDbContext>();
 
-        // Ensure database is created and schema is applied
-        await context.Database.EnsureDeletedAsync();
-        await context.Database.EnsureCreatedAsync();
+        // Ensure the database itself exists, then recreate just this test's
+        // table. Never EnsureDeleted here — that drops the whole shared
+        // weasel_testing database out from under concurrently-running tests.
+        await SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(SqlServerDbContext.ConnectionString);
+        await context.Database.ExecuteSqlRawAsync("IF OBJECT_ID('dbo.MyEntities','U') IS NOT NULL DROP TABLE [dbo].[MyEntities]");
+        foreach (var batch in System.Text.RegularExpressions.Regex
+                     .Split(context.Database.GenerateCreateScript(), @"^\s*GO\s*$",
+                         System.Text.RegularExpressions.RegexOptions.Multiline)
+                     .Where(b => !string.IsNullOrWhiteSpace(b)))
+        {
+            await context.Database.ExecuteSqlRawAsync(batch);
+        }
 
         // Verify table exists by inserting and reading data
         var entity = new MyEntity
@@ -130,12 +140,8 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<SqlServerDbContext>();
 
-        // Ensure database exists then delete tables for a clean schema state
-        await context.Database.EnsureCreatedAsync();
-        await context.Database.EnsureDeletedAsync();
-        await context.Database.EnsureCreatedAsync();
-
-        // Drop the table to simulate needing a migration
+        // Ensure the database exists, then drop the table to simulate needing a migration
+        await SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(SqlServerDbContext.ConnectionString);
         await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS [dbo].[MyEntities]");
 
         // Use Weasel to create migration
