@@ -145,6 +145,20 @@ Nineteen comparison tests across the permutation matrix:
   Reading defaults back would risk spurious migrations for existing Marten
   schemas, so this remains write-once by design for now.
 
+## EF Core migration generation (epic #371)
+
+The reverse direction landed as a phased epic: Weasel schema objects (from any
+`IDatabase`) translate into EF Core `MigrationOperation` lists
+(`MigrationOperationTranslation`), render as compilable attribute-only
+migration files + a stub DbContext with a relocated history table
+(`EfMigrationFileEmitter`), diff incrementally against a serialized JSON
+snapshot or a live database (`EfSchemaSnapshot` / `EfSnapshotDiffer`), and ship
+through the `db-ef-migration add | script | baseline` command. Validated by an
+inverted comparison harness that compiles the generated migrations with Roslyn,
+applies them through the real EF runtime, and requires catalog parity plus a
+`None` Weasel delta. Docs: `docs/efcore/migration-generation.md` and
+`docs/efcore/migration-coexistence.md`.
+
 ## Test infrastructure
 
 - **New CI workflow** `ci-build-efcore.yml` — the EF Core test project
