@@ -177,7 +177,7 @@ public static class SchemaComparisonHarness
 
         var schemaObjects = tables.OfType<ISchemaObject>().ToArray();
 
-        await ensureSqlServerDatabaseExistsAsync(connectionString);
+        await SqlServer.SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(connectionString);
 
         await using var conn = new SqlConnection(connectionString);
         await conn.OpenAsync();
@@ -230,18 +230,6 @@ public static class SchemaComparisonHarness
             DeltaUpdateSql = deltaSql,
             DeltaAfterWeaselCreate = deltaAfterWeasel.Difference
         };
-    }
-
-    private static async Task ensureSqlServerDatabaseExistsAsync(string connectionString)
-    {
-        var builder = new SqlConnectionStringBuilder(connectionString);
-        var database = builder.InitialCatalog;
-        builder.InitialCatalog = "master";
-
-        await using var conn = new SqlConnection(builder.ConnectionString);
-        await conn.OpenAsync();
-        await executeSqlServerAsync(conn,
-            $"IF DB_ID('{database}') IS NULL CREATE DATABASE [{database}]");
     }
 
     /// <summary>

@@ -9,6 +9,7 @@ using CascadeAction = Weasel.Core.CascadeAction;
 
 namespace Weasel.EntityFrameworkCore.Tests.SqlServer;
 
+[Collection("sqlserver-schema-comparison")]
 public class end_to_end : IAsyncLifetime
 {
     private IHost _host = null!;
@@ -87,7 +88,7 @@ public class end_to_end : IAsyncLifetime
         // Ensure the database itself exists, then recreate just this test's
         // table. Never EnsureDeleted here — that drops the whole shared
         // weasel_testing database out from under concurrently-running tests.
-        await context.Database.EnsureCreatedAsync();
+        await SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(SqlServerDbContext.ConnectionString);
         await context.Database.ExecuteSqlRawAsync("IF OBJECT_ID('dbo.MyEntities','U') IS NOT NULL DROP TABLE [dbo].[MyEntities]");
         foreach (var batch in System.Text.RegularExpressions.Regex
                      .Split(context.Database.GenerateCreateScript(), @"^\s*GO\s*$",
@@ -140,7 +141,7 @@ public class end_to_end : IAsyncLifetime
         var context = scope.ServiceProvider.GetRequiredService<SqlServerDbContext>();
 
         // Ensure the database exists, then drop the table to simulate needing a migration
-        await context.Database.EnsureCreatedAsync();
+        await SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(SqlServerDbContext.ConnectionString);
         await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS [dbo].[MyEntities]");
 
         // Use Weasel to create migration
