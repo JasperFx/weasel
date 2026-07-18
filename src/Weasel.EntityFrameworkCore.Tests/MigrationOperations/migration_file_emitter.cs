@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -19,8 +18,20 @@ namespace Weasel.EntityFrameworkCore.Tests.MigrationOperations;
 /// </summary>
 public class migration_file_emitter
 {
-    private static string sampleDirectory([CallerFilePath] string path = "")
-        => Path.Combine(Path.GetDirectoryName(path)!, "SampleGenerated");
+    // resolved from the test output directory rather than [CallerFilePath]:
+    // deterministic CI builds rewrite caller paths to a virtual /_/ root that
+    // does not exist on disk
+    private static string sampleDirectory()
+    {
+        var dir = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(dir, "Weasel.slnx")))
+        {
+            dir = Directory.GetParent(dir)!.FullName;
+        }
+
+        return Path.Combine(dir, "src", "Weasel.EntityFrameworkCore.Tests", "MigrationOperations",
+            "SampleGenerated");
+    }
 
     [Fact]
     public void checked_in_migration_file_matches_regenerated_output()
