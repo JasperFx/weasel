@@ -73,7 +73,7 @@ public class end_to_end : IAsyncLifetime
         table.HasColumn("nullablecascadeactionvalue").ShouldBeTrue();
 
         // Verify primary key
-        table.PrimaryKeyColumns.ShouldContain("id");
+        table.PrimaryKeyColumns.ShouldContain("Id");
         table.PrimaryKeyName.ShouldBe("PK_my_entities");
     }
 
@@ -83,9 +83,11 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<PostgresqlDbContext>();
 
-        // Ensure database is created and schema is applied
-        await context.Database.EnsureDeletedAsync();
-        await context.Database.EnsureCreatedAsync();
+        // Recreate just this test's table. Never EnsureDeleted here — that drops
+        // the whole shared marten_testing database and kills every other test's
+        // connections (57P01) when the suite runs in parallel.
+        await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS my_entities");
+        await context.Database.ExecuteSqlRawAsync(context.Database.GenerateCreateScript());
 
         // Verify table exists by inserting and reading data
         var entity = new MyEntity
@@ -129,11 +131,6 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<PostgresqlDbContext>();
 
-        // Ensure database exists then delete tables for a clean schema state
-        await context.Database.EnsureCreatedAsync();
-        await context.Database.EnsureDeletedAsync();
-        await context.Database.EnsureCreatedAsync();
-
         // Drop the table to simulate needing a migration
         await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS my_entities");
 
@@ -165,6 +162,7 @@ public class end_to_end : IAsyncLifetime
 /// topological order so that referenced tables are created before referencing tables.
 /// See https://github.com/JasperFx/marten/issues/4180
 /// </summary>
+[Collection("FkDependencyDbContext")]
 public class fk_dependency_ordering : IAsyncLifetime
 {
     private IHost _host = null!;

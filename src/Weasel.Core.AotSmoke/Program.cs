@@ -170,11 +170,16 @@ internal sealed class SmokeColumn(string name, string type): ITableColumn
     public string? DefaultExpression { get; set; }
     public string Type { get; set; } = type;
     public bool IsPrimaryKey { get; set; }
+    public bool IsAutoNumber { get; set; }
 }
 
-internal sealed class SmokeIndex(string name): INamed
+internal sealed class SmokeIndex(string name): ITableIndex
 {
     public string Name { get; } = name;
+    public string[] Columns { get; set; } = Array.Empty<string>();
+    public bool IsUnique { get; set; }
+    public string? Predicate { get; set; }
+    public string[]? IncludeColumns { get; set; }
 }
 
 internal sealed class SmokeForeignKey(string name): ForeignKeyBase(name)
@@ -214,6 +219,9 @@ internal sealed class SmokeTable(DbObjectName identifier)
         => $"pk_{Identifier.Name}_{string.Join("_", PrimaryKeyColumns)}";
 
     protected override SmokeForeignKey CreateForeignKey(string name) => new(name);
+
+    protected override SmokeIndex CreateIndexFor(string name, string[] columnNames)
+        => new(name) { Columns = columnNames };
 
     protected override ITableColumn AddColumnAndReturn(string name, string columnType)
     {

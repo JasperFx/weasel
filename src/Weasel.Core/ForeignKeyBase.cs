@@ -105,17 +105,20 @@ public abstract class ForeignKeyBase : INamed
         var open1 = definition.IndexOf('(');
         var closed1 = definition.IndexOf(')');
 
-        ColumnNames = definition.Substring(open1 + 1, closed1 - open1 - 1).ToDelimitedArray(',');
+        ColumnNames = unquote(definition.Substring(open1 + 1, closed1 - open1 - 1).ToDelimitedArray(','));
 
         var open2 = definition.IndexOf('(', closed1);
         var closed2 = definition.IndexOf(')', open2);
 
-        LinkedNames = definition.Substring(open2 + 1, closed2 - open2 - 1).ToDelimitedArray(',');
+        LinkedNames = unquote(definition.Substring(open2 + 1, closed2 - open2 - 1).ToDelimitedArray(','));
 
         const string references = "REFERENCES";
         var tableStart = definition.IndexOf(references, StringComparison.OrdinalIgnoreCase) + references.Length;
 
-        var tableName = definition.Substring(tableStart, open2 - tableStart).Trim();
+        // The catalog quotes identifiers that need it (e.g. PostgreSQL's
+        // pg_get_constraintdef returns REFERENCES "Blogs"("Id") for case-sensitive
+        // names) — strip the quoting so names are stored in their raw form.
+        var tableName = definition.Substring(tableStart, open2 - tableStart).Trim().Replace("\"", "").Replace("[", "").Replace("]", "");
         if (defaultSchema != null && !tableName.Contains('.'))
         {
             tableName = $"{defaultSchema}.{tableName}";
@@ -125,6 +128,9 @@ public abstract class ForeignKeyBase : INamed
         DeleteAction = ParseCascadeClause(definition, "ON DELETE");
         UpdateAction = ParseCascadeClause(definition, "ON UPDATE");
     }
+
+    private static string[] unquote(string[] names)
+        => names.Select(x => x.Trim().Trim('"').TrimStart('[').TrimEnd(']')).ToArray();
 
     /// <summary>
     ///     Wrap the parsed table name in the provider-specific
@@ -284,9 +290,16 @@ public abstract class ForeignKeyBase : INamed
                && ColumnNames.SequenceEqual(other.ColumnNames, ColumnComparer)
                && LinkedNames.SequenceEqual(other.LinkedNames, ColumnComparer)
                && Equals(LinkedTable, other.LinkedTable)
-               && DeleteAction == other.DeleteAction
-               && UpdateAction == other.UpdateAction;
+               && NormalizeCascadeAction(DeleteAction) == NormalizeCascadeAction(other.DeleteAction)
+               && NormalizeCascadeAction(UpdateAction) == NormalizeCascadeAction(other.UpdateAction);
     }
+
+    /// <summary>
+    ///     Hook for providers whose engine collapses cascade actions: SQL Server
+    ///     has no RESTRICT and both writes and reports it as NO ACTION, so a
+    ///     configured Restrict must compare equal to the catalog's NoAction.
+    /// </summary>
+    protected virtual CascadeAction NormalizeCascadeAction(CascadeAction action) => action;
 
     /// <summary>
     ///     Hash is built from <see cref="Name" />, <see cref="LinkedTable" /> and both
@@ -302,8 +315,8 @@ public abstract class ForeignKeyBase : INamed
         {
             var hashCode = Name != null ? NameComparer.GetHashCode(Name) : 0;
             hashCode = (hashCode * 397) ^ (LinkedTable != null ? LinkedTable.GetHashCode() : 0);
-            hashCode = (hashCode * 397) ^ (int)DeleteAction;
-            hashCode = (hashCode * 397) ^ (int)UpdateAction;
+            hashCode = (hashCode * 397) ^ (int)NormalizeCascadeAction(DeleteAction);
+            hashCode = (hashCode * 397) ^ (int)NormalizeCascadeAction(UpdateAction);
             return hashCode;
         }
     }

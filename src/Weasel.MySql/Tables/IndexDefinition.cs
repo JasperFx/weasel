@@ -4,7 +4,7 @@ using Weasel.Core;
 
 namespace Weasel.MySql.Tables;
 
-public class IndexDefinition: INamed
+public class IndexDefinition: ITableIndex
 {
     private readonly IList<string> _columns = new List<string>();
     private string? _indexName;
@@ -37,6 +37,12 @@ public class IndexDefinition: INamed
     ///     Note: MySQL doesn't support partial indexes natively in the same way as PostgreSQL.
     /// </summary>
     public string? Predicate { get; set; }
+
+    string[]? Weasel.Core.ITableIndex.IncludeColumns
+    {
+        get => null;
+        set => throw new NotSupportedException("Covering (INCLUDE) indexes are not supported by this database provider");
+    }
 
     /// <summary>
     ///     For FULLTEXT indexes, specify the parser to use (e.g., "ngram" or "mecab").

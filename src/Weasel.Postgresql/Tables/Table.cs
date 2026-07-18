@@ -33,8 +33,20 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
     protected override string DefaultPrimaryKeyName()
         => $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
 
+    /// <summary>
+    ///     Column / index / FK lookups are case-insensitive: PostgreSQL folds
+    ///     unquoted identifiers to lowercase, so "Id" and id refer to the same
+    ///     column in any sane schema. Case-preserved tables (see
+    ///     <see cref="Core.ITable.PreserveIdentifierCase" />) keep working with
+    ///     lookups written against the folded names.
+    /// </summary>
+    protected override StringComparison NameComparison => StringComparison.OrdinalIgnoreCase;
+
     /// <inheritdoc />
     protected override ForeignKey CreateForeignKey(string name) => new ForeignKey(name);
+
+    protected override IndexDefinition CreateIndexFor(string name, string[] columnNames)
+        => new IndexDefinition(name) { Columns = columnNames };
 
     /// <inheritdoc />
     protected override ITableColumn AddColumnAndReturn(string name, string columnType)
@@ -198,7 +210,11 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
 
     internal string PrimaryKeyDeclaration()
     {
-        return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
+        // QuoteName only quotes identifiers that need it (uppercase characters
+        // or reserved words), so all-lowercase conventional names emit exactly
+        // as before while case-preserved names survive PostgreSQL's folding.
+        var columns = PrimaryKeyColumns.Select(x => SchemaUtils.QuoteName(x)).Join(", ");
+        return $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({columns})";
     }
 
     public ColumnExpression AddColumn(TableColumn column)
@@ -211,7 +227,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
 
     public ColumnExpression AddColumn(string columnName, string columnType)
     {
-        var column = new TableColumn(columnName, columnType) { Parent = this };
+        var column = new TableColumn(columnName, columnType, PreserveIdentifierCase) { Parent = this };
         return AddColumn(column);
     }
 

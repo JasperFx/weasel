@@ -67,9 +67,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
-        else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns) &&
+        // PK column comparison is case-insensitive for the same reason: an expected
+        // case-preserved column ("Id") must match the catalog's "Id" or folded id.
+        else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase) &&
                  !expected.PrimaryKeyColumns.Select(expected.TruncatedNameIdentifier).SequenceEqual(
-                     actual.PrimaryKeyColumns.Select(actual.TruncatedNameIdentifier)))
+                     actual.PrimaryKeyColumns.Select(actual.TruncatedNameIdentifier), StringComparer.OrdinalIgnoreCase))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
@@ -170,17 +172,17 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         {
             case SchemaPatchDifference.Invalid:
             case SchemaPatchDifference.Update:
-                if (Expected.PrimaryKeyColumns.SequenceEqual(Actual!.PrimaryKeyColumns))
+                if (Expected.PrimaryKeyColumns.SequenceEqual(Actual!.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
                 {
                     //for when PK constraint name changes only
                     writer.WriteLine(
-                        $"alter table {Expected.Identifier} rename constraint {Actual!.PrimaryKeyName} to {Expected.PrimaryKeyName};");
+                        $"alter table {Expected.Identifier} rename constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)} to {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
                     break;
                 }
 
                 // CASCADE will also drop FKs from other tables that reference this PK.
                 // We must recreate those FKs after the PK is altered.
-                writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName} CASCADE;");
+                writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)} CASCADE;");
                 writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
 
                 // Recreate foreign keys from other tables that were dropped by CASCADE

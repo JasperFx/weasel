@@ -216,9 +216,11 @@ public static class DbContextExtensions
         var entityTypes = model.GetEntityTypes()
             .Where(e => !e.IsTableExcludedFromMigrations())
             .Where(e => e.GetTableName() != null)
-            // Also exclude owned entity types since they don't have their own tables.
-            // fixes https://github.com/JasperFx/weasel/issues/234
-            .Where(e => !e.IsOwned())
+            // Exclude owned entity types that live inside their owner's table
+            // (table splitting / ToJson — https://github.com/JasperFx/weasel/issues/234),
+            // but keep owned types mapped to their own table via OwnsOne/OwnsMany
+            // ToTable — those are real tables that need migrations.
+            .Where(e => !e.IsOwned() || ownedTypeHasItsOwnTable(e))
             // For TPH, multiple entity types share a table. Only keep root types
             // (those without a base type mapped to the same table) to avoid duplicates.
             .GroupBy(e => (e.GetTableName(), e.GetSchema()))
@@ -226,6 +228,46 @@ public static class DbContextExtensions
             .ToList();
 
         return TopologicalSortByForeignKeys(entityTypes);
+    }
+
+    /// <summary>
+    ///     True for a foreign key that links two entity types mapped to the SAME
+    ///     table over the table's primary key — e.g. a table-split owned type's
+    ///     ownership FK back to its owner. Such an FK would reference the row
+    ///     itself; EF Core migrations emit no constraint for it. Genuine
+    ///     self-referencing FKs (e.g. ParentId) use non-PK columns and are kept.
+    /// </summary>
+    private static bool isRowInternalForeignKey(IForeignKey foreignKey)
+    {
+        var dependent = foreignKey.DeclaringEntityType;
+        var principal = foreignKey.PrincipalEntityType;
+
+        if (dependent.GetTableName() != principal.GetTableName()
+            || dependent.GetSchema() != principal.GetSchema())
+        {
+            return false;
+        }
+
+        var primaryKeyProperties = dependent.FindPrimaryKey()?.Properties.Select(p => p.Name);
+        return primaryKeyProperties != null
+               && foreignKey.Properties.Select(p => p.Name).SequenceEqual(primaryKeyProperties);
+    }
+
+    private static bool ownedTypeHasItsOwnTable(IEntityType entityType)
+    {
+        if (entityType.IsMappedToJson())
+        {
+            return false;
+        }
+
+        var owner = entityType.FindOwnership()?.PrincipalEntityType;
+        if (owner == null)
+        {
+            return true;
+        }
+
+        return entityType.GetTableName() != owner.GetTableName()
+               || entityType.GetSchema() != owner.GetSchema();
     }
 
     /// <summary>
@@ -340,6 +382,12 @@ public static class DbContextExtensions
         var identifier = migrator.Provider.Parse(tableSchema, tableName);
         var table = migrator.CreateTable(identifier);
 
+        // EF Core migrations emit quoted, case-sensitive identifiers ("BlogId"),
+        // so the Weasel table must reproduce the exact casing. Without this,
+        // case-folding providers (PostgreSQL) would create lowercase columns that
+        // EF's own quoted SQL cannot find.
+        table.PreserveIdentifierCase = true;
+
         // Use EF Core's schema (not resolved) for StoreObjectIdentifier to match EF Core's internal mappings
         var storeObjectIdentifier = StoreObjectIdentifier.Table(tableName, efSchema);
 
@@ -354,6 +402,28 @@ public static class DbContextExtensions
         var allEntityTypes = entityType.GetDerivedTypesInclusive()
             .Where(e => e.GetTableName() == tableName && e.GetSchema() == efSchema)
             .ToList();
+
+        // Owned entity types table-split into this table (OwnsOne without ToTable)
+        // contribute their columns too. Walk transitively so nested owned types
+        // (an owned type of an owned type) are picked up as well.
+        bool addedOwned;
+        do
+        {
+            addedOwned = false;
+            foreach (var candidate in entityType.Model.GetEntityTypes())
+            {
+                if (allEntityTypes.Contains(candidate)) continue;
+                if (!candidate.IsOwned() || candidate.IsMappedToJson()) continue;
+                if (candidate.GetTableName() != tableName || candidate.GetSchema() != efSchema) continue;
+
+                var owner = candidate.FindOwnership()?.PrincipalEntityType;
+                if (owner != null && allEntityTypes.Contains(owner))
+                {
+                    allEntityTypes.Add(candidate);
+                    addedOwned = true;
+                }
+            }
+        } while (addedOwned);
 
         // Add columns from all entity types in the hierarchy
         var addedColumns = new HashSet<string>();
@@ -384,17 +454,15 @@ public static class DbContextExtensions
 #endif
         }
 
-        // Set primary key constraint name from EF Core metadata.
-        // Normalize to lowercase to match PostgreSQL's convention of folding unquoted
-        // identifiers to lowercase. This prevents spurious RENAME CONSTRAINT migrations
-        // when EF Core generates PascalCase names (e.g., "PK_items") but PostgreSQL
-        // stores them as lowercase ("pk_items").
+        // Set primary key constraint name from EF Core metadata with its exact
+        // casing — Weasel emits it quoted and compares PK names case-insensitively,
+        // so the created constraint matches what EF Core's own migrations create.
         if (primaryKey != null)
         {
             var pkName = primaryKey.GetName(storeObjectIdentifier);
             if (pkName != null)
             {
-                table.PrimaryKeyName = pkName.ToLowerInvariant();
+                table.PrimaryKeyName = pkName;
             }
         }
 
@@ -404,6 +472,11 @@ public static class DbContextExtensions
         {
             foreach (var foreignKey in et.GetForeignKeys())
             {
+                // A row-internal linking FK (table-split owned type -> owner over the
+                // shared PK) points at the row itself; EF Core migrations emit no
+                // constraint for it, so neither does Weasel.
+                if (isRowInternalForeignKey(foreignKey)) continue;
+
                 var constraintName = foreignKey.GetConstraintName(
                     storeObjectIdentifier,
                     StoreObjectIdentifier.Table(
@@ -416,7 +489,68 @@ public static class DbContextExtensions
             }
         }
 
+        // Add indexes from all entity types in the hierarchy. This includes the
+        // indexes EF Core creates by convention for every foreign key (IX_*) —
+        // without them, Weasel's delta detection would see EF's indexes as
+        // unknown extras and emit DROP INDEX statements against them.
+        var addedIndexes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var et in allEntityTypes)
+        {
+            mapIndexes(et, storeObjectIdentifier, addedIndexes, table);
+        }
+
         return table;
+    }
+
+    private static void mapIndexes(IEntityType entityType, StoreObjectIdentifier storeObjectIdentifier,
+        HashSet<string> addedIndexes, ITable table)
+    {
+        foreach (var index in entityType.GetIndexes())
+        {
+            var name = index.GetDatabaseName(storeObjectIdentifier);
+            if (name == null || !addedIndexes.Add(name)) continue;
+
+            var columnNames = index.Properties
+                .Select(p => p.GetColumnName(storeObjectIdentifier))
+                .Where(c => c != null)
+                .Cast<string>()
+                .ToArray();
+            if (columnNames.Length != index.Properties.Count) continue;
+
+            var tableIndex = table.AddIndex(name, columnNames, index.IsUnique);
+
+            var filter = index.GetFilter(storeObjectIdentifier);
+            if (filter != null)
+            {
+                tableIndex.Predicate = filter;
+            }
+
+            var includeColumns = findIncludeColumns(index, entityType, storeObjectIdentifier);
+            if (includeColumns is { Length: > 0 })
+            {
+                tableIndex.IncludeColumns = includeColumns;
+            }
+        }
+
+        // Alternate keys (HasAlternateKey) become UNIQUE constraints in EF Core
+        // migrations; the database implements those with a unique index, which is
+        // how Weasel models them.
+        foreach (var key in entityType.GetKeys())
+        {
+            if (key.IsPrimaryKey()) continue;
+
+            var name = key.GetName(storeObjectIdentifier);
+            if (name == null || !addedIndexes.Add(name)) continue;
+
+            var columnNames = key.Properties
+                .Select(p => p.GetColumnName(storeObjectIdentifier))
+                .Where(c => c != null)
+                .Cast<string>()
+                .ToArray();
+            if (columnNames.Length != key.Properties.Count) continue;
+
+            table.AddIndex(name, columnNames, isUnique: true);
+        }
     }
 
     private static void mapForeignKey(Migrator migrator, IForeignKey foreignKey,
@@ -453,7 +587,7 @@ public static class DbContextExtensions
 
         if (columnNames.Length == 0 || linkedColumnNames.Length == 0) return;
 
-        var fk = table.AddForeignKey(constraintName.ToLowerInvariant(), principalIdentifier, columnNames, linkedColumnNames);
+        var fk = table.AddForeignKey(constraintName, principalIdentifier, columnNames, linkedColumnNames);
         fk.DeleteAction = mapDeleteBehavior(foreignKey.DeleteBehavior);
     }
 
@@ -480,13 +614,126 @@ public static class DbContextExtensions
                 : table.AddColumn(columnName, property.ClrType);
         }
 
-        column.AllowNulls = property.IsNullable;
+        // IsColumnNullable (not IsNullable) accounts for the relational mapping:
+        // e.g. in a TPH hierarchy, a required property of a derived type still maps
+        // to a nullable column because rows of sibling types have no value for it.
+        column.AllowNulls = property.IsColumnNullable(storeObjectIdentifier);
+
+        column.IsAutoNumber = isDatabaseGeneratedIdentity(property, storeObjectIdentifier);
 
         var defaultValueSql = property.GetDefaultValueSql(storeObjectIdentifier);
         if (defaultValueSql != null)
         {
             column.DefaultExpression = defaultValueSql;
         }
+        else if (property.TryGetDefaultValue(storeObjectIdentifier, out var defaultValue) && defaultValue != null)
+        {
+            // HasDefaultValue(...) stores a literal object rather than SQL; render
+            // it with the provider's own type mapping so the literal matches what
+            // EF Core migrations would emit (N'...' on SQL Server, TRUE on
+            // PostgreSQL, converted values for enum/value-converter properties...)
+            var typeMapping = property.FindRelationalTypeMapping(storeObjectIdentifier)
+                              ?? property.FindRelationalTypeMapping();
+            if (typeMapping != null)
+            {
+                column.DefaultExpression = typeMapping.GenerateSqlLiteral(defaultValue);
+            }
+        }
+    }
+
+    /// <summary>
+    ///     True when EF Core's model expects the database itself to generate the
+    ///     column value via an identity / serial / auto-increment column. Detected
+    ///     through the provider's ValueGenerationStrategy annotation (property
+    ///     level, falling back to the model-wide default) rather than the typed
+    ///     provider extension methods, since this assembly only references
+    ///     EF Core's relational layer. Sequence-based strategies (HiLo, NEXT VALUE
+    ///     FOR defaults) are excluded — those columns are plain columns.
+    /// </summary>
+    private static bool isDatabaseGeneratedIdentity(IProperty property, in StoreObjectIdentifier storeObjectIdentifier)
+    {
+        if (property.ValueGenerated != ValueGenerated.OnAdd)
+        {
+            return false;
+        }
+
+        // A configured default (HasDefaultValue/HasDefaultValueSql) IS the
+        // OnAdd store generation — not an identity column.
+        if (property.GetDefaultValueSql() != null || property.TryGetDefaultValue(out _))
+        {
+            return false;
+        }
+
+        // A key that is also an FK declared by a type mapped to THIS table
+        // (TPT/TPC linking key, owned type sharing the owner's key, 1:1
+        // shared-PK) takes its value from the principal row, so the column is
+        // not identity HERE. The same property CAN still be identity in the
+        // principal's own table (the TPT base), so the check is per store object.
+        foreach (var foreignKey in property.GetContainingForeignKeys())
+        {
+            var declaring = foreignKey.DeclaringEntityType;
+            if (declaring.GetTableName() == storeObjectIdentifier.Name
+                && declaring.GetSchema() == storeObjectIdentifier.Schema)
+            {
+                return false;
+            }
+        }
+
+        // Identity columns only exist for integral types
+        var clrType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+        if (clrType != typeof(int) && clrType != typeof(long) && clrType != typeof(short) && clrType != typeof(byte))
+        {
+            return false;
+        }
+
+        var strategy = findValueGenerationStrategy(property.GetAnnotations())
+                       ?? findValueGenerationStrategy(property.DeclaringType.Model.GetAnnotations());
+
+        return strategy is "IdentityColumn" // SQL Server, MySQL (Pomelo), Oracle
+            or "IdentityByDefaultColumn" // Npgsql
+            or "IdentityAlwaysColumn" // Npgsql
+            or "SerialColumn"; // Npgsql legacy UseSerialColumns
+    }
+
+    /// <summary>
+    ///     Resolve the covering-index INCLUDE columns from the provider's index
+    ///     annotation ("SqlServer:Include" / "Npgsql:IndexInclude") — the
+    ///     annotation stores property names, which are translated to column names.
+    /// </summary>
+    private static string[]? findIncludeColumns(IIndex index, IEntityType entityType,
+        StoreObjectIdentifier storeObjectIdentifier)
+    {
+        foreach (var annotation in index.GetAnnotations())
+        {
+            if (!annotation.Name.EndsWith(":Include", StringComparison.Ordinal) &&
+                !annotation.Name.EndsWith(":IndexInclude", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (annotation.Value is not IReadOnlyList<string> propertyNames) continue;
+
+            return propertyNames
+                .Select(p => entityType.FindProperty(p)?.GetColumnName(storeObjectIdentifier))
+                .Where(c => c != null)
+                .Cast<string>()
+                .ToArray();
+        }
+
+        return null;
+    }
+
+    private static string? findValueGenerationStrategy(IEnumerable<IAnnotation> annotations)
+    {
+        foreach (var annotation in annotations)
+        {
+            if (annotation.Name.EndsWith(":ValueGenerationStrategy", StringComparison.Ordinal))
+            {
+                return annotation.Value?.ToString();
+            }
+        }
+
+        return null;
     }
 
     private static void mapJsonColumns(IEntityType entityType, HashSet<string> addedColumns, ITable table)
@@ -543,6 +790,14 @@ public static class DbContextExtensions
     }
 #endif
 
+    /// <summary>
+    ///     Translate EF Core's DeleteBehavior into the ON DELETE action EF Core's
+    ///     own migrations would emit. The Client* behaviors are enforced purely
+    ///     client-side by EF change tracking — EF migrations emit no ON DELETE
+    ///     clause for them (ClientSetNull is the DEFAULT for optional
+    ///     relationships), so they must map to NoAction here, not to their
+    ///     database-enforced cousins.
+    /// </summary>
     private static CascadeAction mapDeleteBehavior(DeleteBehavior deleteBehavior)
     {
         return deleteBehavior switch
@@ -550,10 +805,6 @@ public static class DbContextExtensions
             DeleteBehavior.Cascade => CascadeAction.Cascade,
             DeleteBehavior.SetNull => CascadeAction.SetNull,
             DeleteBehavior.Restrict => CascadeAction.Restrict,
-            DeleteBehavior.NoAction => CascadeAction.NoAction,
-            DeleteBehavior.ClientSetNull => CascadeAction.SetNull,
-            DeleteBehavior.ClientCascade => CascadeAction.Cascade,
-            DeleteBehavior.ClientNoAction => CascadeAction.NoAction,
             _ => CascadeAction.NoAction
         };
     }

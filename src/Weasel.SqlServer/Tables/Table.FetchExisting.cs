@@ -72,7 +72,8 @@ where
 select
     ic.index_id,
     c.name,
-    ic.is_descending_key
+    ic.is_descending_key,
+    ic.is_included_column
 
 from
     sys.index_columns ic
@@ -283,6 +284,17 @@ order by prv.boundary_id;
             if (indexes.TryGetValue(id, out var index))
             {
                 var name = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+
+                // Non-key (INCLUDE) columns are part of the covering-index leaf
+                // pages, not the key — reading them as key columns produced
+                // spurious drop/recreate migrations for covering indexes
+                var isIncluded = await reader.GetFieldValueAsync<bool>(3, ct).ConfigureAwait(false);
+                if (isIncluded)
+                {
+                    index.AddIncludedColumn(name);
+                    continue;
+                }
+
                 index.AddColumn(name);
 
                 var isDesc = await reader.GetFieldValueAsync<bool>(2, ct).ConfigureAwait(false);

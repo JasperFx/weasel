@@ -12,7 +12,11 @@ internal class ItemDelta<T> where T : INamed
     public ItemDelta(IEnumerable<T> expectedItems, IEnumerable<T> actualItems, Func<T, T, bool>? comparison = null)
     {
         comparison ??= (expected, actual) => expected.Equals(actual);
-        var expecteds = expectedItems.ToDictionary(x => x.Name);
+
+        // Name matching is case-insensitive: PostgreSQL folds unquoted identifiers
+        // to lowercase, so an expected case-preserved name ("Id") and the catalog's
+        // folded or quoted spelling must pair up as the same item.
+        var expecteds = expectedItems.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
 
         foreach (var actual in actualItems)
         {
@@ -33,7 +37,7 @@ internal class ItemDelta<T> where T : INamed
             }
         }
 
-        var actuals = actualItems.ToDictionary(x => x.Name);
+        var actuals = actualItems.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
         _missing.AddRange(expectedItems.Where(x => !actuals.ContainsKey(x.Name)));
     }
 

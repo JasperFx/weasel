@@ -50,6 +50,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     /// <inheritdoc />
     protected override ForeignKey CreateForeignKey(string name) => new ForeignKey(name);
 
+    protected override IndexDefinition CreateIndexFor(string name, string[] columnNames)
+        => new IndexDefinition(name) { Columns = columnNames };
+
     /// <inheritdoc />
     protected override ITableColumn AddColumnAndReturn(string name, string columnType)
         => AddColumn(name, columnType).Column;

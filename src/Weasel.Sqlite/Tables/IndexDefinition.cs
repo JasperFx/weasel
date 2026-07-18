@@ -8,7 +8,7 @@ namespace Weasel.Sqlite.Tables;
 /// Represents an index definition for SQLite tables.
 /// SQLite only supports B-tree indexes, but supports partial and expression indexes.
 /// </summary>
-public class IndexDefinition: INamed
+public class IndexDefinition: ITableIndex
 {
     private string? _indexName;
 
@@ -40,6 +40,12 @@ public class IndexDefinition: INamed
     /// WHERE clause for partial indexes
     /// </summary>
     public string? Predicate { get; set; }
+
+    string[]? Weasel.Core.ITableIndex.IncludeColumns
+    {
+        get => null;
+        set => throw new NotSupportedException("Covering (INCLUDE) indexes are not supported by this database provider");
+    }
 
     /// <summary>
     /// The collation sequence to use for text columns
