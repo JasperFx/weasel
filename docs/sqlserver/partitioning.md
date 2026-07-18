@@ -117,4 +117,40 @@ table.PartitionByManagedTenants(manager);
 ```
 
 Managed strategies own their boundaries at runtime, so — unlike `RangePartitioning` — they are not
-diffed or migrated by `FindDeltaAsync`.
+diffed or migrated by `FindDeltaAsync`. When a table joins an *existing* managed set (tenants already
+registered), call `MigrateAllTablesAsync(logger, database, token)` to back-fill every managed table
+with the full set of registered tenant ordinals.
+
+### Dropping tenants: data semantics
+
+SQL Server's `MERGE RANGE` only removes the boundary point — the tenant's rows are merged into the
+neighboring partition, not deleted. `DropPartitionFromAllTables` therefore takes a `TenantDropBehavior`:
+
+- `TenantDropBehavior.RetainData` (default) — merge only; the caller owns any data purge.
+- `TenantDropBehavior.DeleteData` — delete the tenant's rows from every managed table first, then merge.
+  This is the hard-delete parity with the PostgreSQL managed drop (`DETACH PARTITION` + `DROP TABLE`).
+
+### Tenant bucketing (many tenants per partition)
+
+By default every tenant gets its own ordinal, guarded by a unique index on the registry table. For
+applications with many small tenants — or to stay clear of SQL Server's 15,000-partition-per-table
+ceiling — set `AllowOrdinalSharing = true` (which removes the unique index) and assign ordinals
+explicitly so several tenants share one partition:
+
+```cs
+manager.AllowOrdinalSharing = true;
+
+var result = await manager.AddPartitionsToAllTables(logger, database,
+    new Dictionary<string, int> { ["acme"] = 1, ["globex"] = 1, ["initech"] = 2 },
+    token);
+```
+
+A shared ordinal is only merged (and only purged under `DeleteData`) once its *last* tenant is
+dropped; while other tenants still map to it, the partition and all of its rows are left alone.
+
+### Batch registration and status reporting
+
+The batch `AddPartitionsToAllTables(...)` overloads return a `TenantPartitionAddResult` carrying both
+the assigned `tenant_id -> ordinal` map and a per-table `TablePartitionStatus[]` (parity with the
+PostgreSQL `ManagedListPartitions` batch add), so callers can surface partial failures — one table
+failing to split no longer prevents the remaining tables from being split.
