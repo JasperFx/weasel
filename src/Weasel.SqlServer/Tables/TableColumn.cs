@@ -91,6 +91,43 @@ public class TableColumn: ITableColumn
     private static string? canonicalDefault(string? expression)
         => expression == null ? null : TableCheckConstraint.Canonicalize(expression);
 
+    /// <summary>
+    ///     Column matching for delta detection. Computed columns are compared by
+    ///     their canonicalized expression and PERSISTED flag; the declared model
+    ///     type is skipped because SQL Server derives the type from the
+    ///     expression and the type is never emitted in the DDL. Only columns
+    ///     whose expected model declares a computed expression participate, so
+    ///     an actual computed column the model doesn't declare is left alone
+    ///     (mirroring the conservative check-constraint comparison).
+    /// </summary>
+    internal bool MatchesForDelta(TableColumn actual, bool detectDrift)
+    {
+        if (ComputedExpression.IsNotEmpty())
+        {
+            return HasSameComputedDefinition(actual);
+        }
+
+        if (actual.ComputedExpression.IsNotEmpty())
+        {
+            // the actual column is computed but the model doesn't declare it —
+            // leave it alone (mirrors the unknown-check-constraint handling)
+            return true;
+        }
+
+        return Equals(actual) && (!detectDrift || HasSameDefaultAndNullability(actual));
+    }
+
+    internal bool HasSameComputedDefinition(TableColumn actual)
+    {
+        return actual.ComputedExpression.IsNotEmpty() &&
+               TableCheckConstraint.Canonicalize(ComputedExpression!) ==
+               TableCheckConstraint.Canonicalize(actual.ComputedExpression!) &&
+               ComputedColumnIsStored == actual.ComputedColumnIsStored;
+    }
+
+    internal bool ComputedDefinitionChanged(TableColumn actual)
+        => ComputedExpression.IsNotEmpty() && !HasSameComputedDefinition(actual);
+
     internal void WriteDriftCorrections(Table parent, TableColumn actual, TextWriter writer)
     {
         if (!IsPrimaryKey && !actual.IsPrimaryKey && AllowNulls != actual.AllowNulls)
@@ -187,7 +224,8 @@ public class TableColumn: ITableColumn
 
     public virtual bool CanAdd()
     {
-        return AllowNulls || DefaultExpression.IsNotEmpty();
+        // computed columns are derived, so the database back-fills them on add
+        return AllowNulls || DefaultExpression.IsNotEmpty() || ComputedExpression.IsNotEmpty();
     }
 
     public virtual string AddColumnSql(Table parent)
