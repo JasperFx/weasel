@@ -331,6 +331,85 @@ public partial class {contextName}Factory : IDesignTimeDbContextFactory<{context
                 body.AppendLine(");");
                 break;
 
+            case AlterSequenceOperation alterSequence:
+                body.AppendLine("        migrationBuilder.AlterSequence(");
+                body.Append($"            name: {quote(alterSequence.Name)}");
+                if (alterSequence.Schema.IsNotEmpty())
+                {
+                    body.AppendLine(",");
+                    body.Append($"            schema: {quote(alterSequence.Schema!)}");
+                }
+
+                body.AppendLine(",");
+                body.Append($"            incrementBy: {alterSequence.IncrementBy}");
+                body.AppendLine(");");
+                break;
+
+            // AlterColumnOperation derives from AddColumnOperation's sibling —
+            // match it BEFORE the AddColumnOperation case
+            case AlterColumnOperation alterColumn:
+                writeStandaloneColumn(body, "AlterColumn", alterColumn, alterColumn.GetAnnotations());
+                break;
+
+            case AddColumnOperation addColumn:
+                writeStandaloneColumn(body, "AddColumn", addColumn, addColumn.GetAnnotations());
+                break;
+
+            case DropColumnOperation dropColumn:
+                writeNameSchemaTable(body, "DropColumn", dropColumn.Name, dropColumn.Schema, dropColumn.Table!);
+                break;
+
+            case DropIndexOperation dropIndex:
+                writeNameSchemaTable(body, "DropIndex", dropIndex.Name, dropIndex.Schema, dropIndex.Table!);
+                break;
+
+            case AddForeignKeyOperation addForeignKey:
+                writeStandaloneForeignKey(body, addForeignKey);
+                break;
+
+            case DropForeignKeyOperation dropForeignKey:
+                writeNameSchemaTable(body, "DropForeignKey", dropForeignKey.Name, dropForeignKey.Schema,
+                    dropForeignKey.Table!);
+                break;
+
+            case AddPrimaryKeyOperation addPrimaryKey:
+                body.AppendLine("        migrationBuilder.AddPrimaryKey(");
+                body.AppendLine($"            name: {quote(addPrimaryKey.Name!)},");
+                if (addPrimaryKey.Schema.IsNotEmpty())
+                {
+                    body.AppendLine($"            schema: {quote(addPrimaryKey.Schema!)},");
+                }
+
+                body.AppendLine($"            table: {quote(addPrimaryKey.Table!)},");
+                body.Append(addPrimaryKey.Columns.Length == 1
+                    ? $"            column: {quote(addPrimaryKey.Columns[0])}"
+                    : $"            columns: {stringArray(addPrimaryKey.Columns)}");
+                body.AppendLine(");");
+                break;
+
+            case DropPrimaryKeyOperation dropPrimaryKey:
+                writeNameSchemaTable(body, "DropPrimaryKey", dropPrimaryKey.Name!, dropPrimaryKey.Schema,
+                    dropPrimaryKey.Table!);
+                break;
+
+            case AddCheckConstraintOperation addCheck:
+                body.AppendLine("        migrationBuilder.AddCheckConstraint(");
+                body.AppendLine($"            name: {quote(addCheck.Name!)},");
+                if (addCheck.Schema.IsNotEmpty())
+                {
+                    body.AppendLine($"            schema: {quote(addCheck.Schema!)},");
+                }
+
+                body.AppendLine($"            table: {quote(addCheck.Table!)},");
+                body.Append($"            sql: {quote(addCheck.Sql)}");
+                body.AppendLine(");");
+                break;
+
+            case DropCheckConstraintOperation dropCheck:
+                writeNameSchemaTable(body, "DropCheckConstraint", dropCheck.Name!, dropCheck.Schema,
+                    dropCheck.Table!);
+                break;
+
             default:
                 throw new NotSupportedException(
                     $"The emitter does not know how to render a {operation.GetType().Name}");
@@ -518,6 +597,92 @@ public partial class {contextName}Factory : IDesignTimeDbContextFactory<{context
         }
 
         body.AppendLine(");");
+    }
+
+    private static void writeNameSchemaTable(
+        StringBuilder body, string method, string name, string? schema, string table)
+    {
+        body.AppendLine($"        migrationBuilder.{method}(");
+        body.AppendLine($"            name: {quote(name)},");
+        if (schema.IsNotEmpty())
+        {
+            body.AppendLine($"            schema: {quote(schema!)},");
+        }
+
+        body.AppendLine($"            table: {quote(table)});");
+    }
+
+    private static void writeStandaloneColumn(
+        StringBuilder body,
+        string method,
+        ColumnOperation column,
+        IEnumerable<Microsoft.EntityFrameworkCore.Infrastructure.IAnnotation> annotations)
+    {
+        body.AppendLine($"        migrationBuilder.{method}<{clrTypeName(column.ClrType)}>(");
+        body.AppendLine($"            name: {quote(column.Name)},");
+        if (column.Schema.IsNotEmpty())
+        {
+            body.AppendLine($"            schema: {quote(column.Schema!)},");
+        }
+
+        body.AppendLine($"            table: {quote(column.Table!)},");
+        body.Append($"            type: {quote(column.ColumnType!)},");
+        body.AppendLine();
+        body.Append($"            nullable: {(column.IsNullable ? "true" : "false")}");
+
+        if (column.DefaultValueSql.IsNotEmpty())
+        {
+            body.AppendLine(",");
+            body.Append($"            defaultValueSql: {quote(column.DefaultValueSql!)}");
+        }
+
+        if (column.ComputedColumnSql.IsNotEmpty())
+        {
+            body.AppendLine(",");
+            body.Append($"            computedColumnSql: {quote(column.ComputedColumnSql!)}");
+            if (column.IsStored == true)
+            {
+                body.AppendLine(",");
+                body.Append("            stored: true");
+            }
+        }
+
+        body.Append(')');
+
+        foreach (var annotation in annotations)
+        {
+            body.AppendLine();
+            body.Append(
+                $"            .Annotation({quote(annotation.Name)}, {annotationValue(annotation.Name, annotation.Value)})");
+        }
+
+        body.AppendLine(";");
+    }
+
+    private static void writeStandaloneForeignKey(StringBuilder body, AddForeignKeyOperation fk)
+    {
+        body.AppendLine("        migrationBuilder.AddForeignKey(");
+        body.AppendLine($"            name: {quote(fk.Name!)},");
+        if (fk.Schema.IsNotEmpty())
+        {
+            body.AppendLine($"            schema: {quote(fk.Schema!)},");
+        }
+
+        body.AppendLine($"            table: {quote(fk.Table!)},");
+        body.AppendLine(fk.Columns.Length == 1
+            ? $"            column: {quote(fk.Columns[0])},"
+            : $"            columns: {stringArray(fk.Columns)},");
+        if (fk.PrincipalSchema.IsNotEmpty())
+        {
+            body.AppendLine($"            principalSchema: {quote(fk.PrincipalSchema!)},");
+        }
+
+        body.AppendLine($"            principalTable: {quote(fk.PrincipalTable)},");
+        body.AppendLine(fk.PrincipalColumns is { Length: 1 }
+            ? $"            principalColumn: {quote(fk.PrincipalColumns[0])},"
+            : $"            principalColumns: {stringArray(fk.PrincipalColumns!)},");
+        body.AppendLine($"            onDelete: ReferentialAction.{fk.OnDelete},");
+        body.AppendLine($"            onUpdate: ReferentialAction.{fk.OnUpdate});");
     }
 
     // ------------------------------------------------------------------

@@ -140,14 +140,14 @@ public static class MigrationOperationTranslation
             {
                 operations.Add(new DropTableOperation
                 {
-                    Name = table.Identifier.Name, Schema = schemaFor(table.Identifier.Schema, options)
+                    Name = table.Identifier.Name, Schema = SchemaFor(table.Identifier.Schema, options)
                 });
             }
             else if (schemaObject is SequenceBase sequence)
             {
                 operations.Add(new DropSequenceOperation
                 {
-                    Name = sequence.Identifier.Name, Schema = schemaFor(sequence.Identifier.Schema, options)
+                    Name = sequence.Identifier.Name, Schema = SchemaFor(sequence.Identifier.Schema, options)
                 });
             }
         }
@@ -180,14 +180,18 @@ public static class MigrationOperationTranslation
         switch (schemaObject)
         {
             case ITable table:
-                foreach (var operation in translateTable(table, options)) yield return operation;
+                foreach (var operation in TableOperations(SnapshotTable.From(table), options))
+                {
+                    yield return operation;
+                }
+
                 break;
 
             case SequenceBase sequence:
                 yield return new CreateSequenceOperation
                 {
                     Name = sequence.Identifier.Name,
-                    Schema = schemaFor(sequence.Identifier.Schema, options),
+                    Schema = SchemaFor(sequence.Identifier.Schema, options),
                     ClrType = typeof(long),
                     StartValue = sequence.StartWith ?? 1L,
                     IncrementBy = (int)(sequence.IncrementBy ?? 1L)
@@ -202,18 +206,23 @@ public static class MigrationOperationTranslation
         }
     }
 
-    private static IEnumerable<MigrationOperation> translateTable(
-        ITable table,
+    /// <summary>
+    ///     Build the operations for one table from its snapshot form — the
+    ///     shared pipeline for both first-migration translation (ITable →
+    ///     SnapshotTable → operations) and the incremental snapshot differ.
+    /// </summary>
+    internal static IEnumerable<MigrationOperation> TableOperations(
+        SnapshotTable table,
         MigrationOperationTranslationOptions options)
     {
-        var tableName = table.Identifier.Name;
-        var schema = schemaFor(table.Identifier.Schema, options);
+        var tableName = table.Name;
+        var schema = SchemaFor(table.Schema, options);
 
         var createTable = new CreateTableOperation { Name = tableName, Schema = schema };
 
         foreach (var column in table.Columns)
         {
-            createTable.Columns.Add(translateColumn(table, column, tableName, schema, options));
+            createTable.Columns.Add(ColumnOperation(column, tableName, schema, options));
         }
 
         if (table.PrimaryKeyColumns.Any())
@@ -237,20 +246,19 @@ public static class MigrationOperationTranslation
 
         foreach (var foreignKey in table.ForeignKeys)
         {
-            createTable.ForeignKeys.Add(translateForeignKey(foreignKey, tableName, schema, options));
+            createTable.ForeignKeys.Add(ForeignKeyOperation(foreignKey, tableName, schema, options));
         }
 
         yield return createTable;
 
         foreach (var index in table.Indexes)
         {
-            yield return translateIndex(index, tableName, schema, options);
+            yield return IndexOperation(index, tableName, schema, options);
         }
     }
 
-    private static AddColumnOperation translateColumn(
-        ITable table,
-        ITableColumn column,
+    internal static AddColumnOperation ColumnOperation(
+        SnapshotColumn column,
         string tableName,
         string? schema,
         MigrationOperationTranslationOptions options)
@@ -265,7 +273,7 @@ public static class MigrationOperationTranslation
             // table.Column<T>(...) generic argument in emitted C#
             ClrType = clrTypeFor(column.Type),
             ColumnType = column.Type,
-            IsNullable = column.AllowNulls && !column.IsPrimaryKey,
+            IsNullable = column.Nullable,
             DefaultValueSql = column.DefaultExpression
         };
 
@@ -273,10 +281,11 @@ public static class MigrationOperationTranslation
         {
             operation.ComputedColumnSql = column.ComputedExpression;
             // PostgreSQL only supports stored generated columns
-            operation.IsStored = options.Provider == EfMigrationProvider.PostgreSql || column.ComputedColumnIsStored;
+            operation.IsStored = options.Provider == EfMigrationProvider.PostgreSql ||
+                                 column.ComputedIsStored == true;
         }
 
-        if (column.IsAutoNumber)
+        if (column.Identity)
         {
             switch (options.Provider)
             {
@@ -292,13 +301,13 @@ public static class MigrationOperationTranslation
         return operation;
     }
 
-    private static CreateIndexOperation translateIndex(
-        ITableIndex index,
+    internal static CreateIndexOperation IndexOperation(
+        SnapshotIndex index,
         string tableName,
         string? schema,
         MigrationOperationTranslationOptions options)
     {
-        if (index.Columns == null || index.Columns.Length == 0)
+        if (index.Columns.Count == 0)
         {
             throw new NotSupportedException(
                 $"Index '{index.Name}' on {schema ?? "?"}.{tableName} has no key columns — " +
@@ -311,16 +320,16 @@ public static class MigrationOperationTranslation
             Name = index.Name,
             Table = tableName,
             Schema = schema,
-            Columns = index.Columns,
+            Columns = index.Columns.ToArray(),
             IsUnique = index.IsUnique,
             Filter = index.Predicate
         };
 
-        if (index.IncludeColumns is { Length: > 0 })
+        if (index.IncludeColumns is { Count: > 0 })
         {
             operation.AddAnnotation(
                 options.Provider == EfMigrationProvider.PostgreSql ? NpgsqlIndexInclude : SqlServerIndexInclude,
-                index.IncludeColumns);
+                index.IncludeColumns.ToArray());
         }
 
         if (index.Method.IsNotEmpty() && options.Provider == EfMigrationProvider.PostgreSql &&
@@ -332,13 +341,13 @@ public static class MigrationOperationTranslation
         return operation;
     }
 
-    private static AddForeignKeyOperation translateForeignKey(
-        ForeignKeyBase foreignKey,
+    internal static AddForeignKeyOperation ForeignKeyOperation(
+        SnapshotForeignKey foreignKey,
         string tableName,
         string? schema,
         MigrationOperationTranslationOptions options)
     {
-        if (foreignKey.LinkedTable == null)
+        if (foreignKey.PrincipalTable.IsEmpty())
         {
             throw new MisconfiguredForeignKeyException(
                 $"Foreign key '{foreignKey.Name}' on {schema ?? "?"}.{tableName} has no linked table");
@@ -349,12 +358,12 @@ public static class MigrationOperationTranslation
             Name = foreignKey.Name,
             Table = tableName,
             Schema = schema,
-            Columns = foreignKey.ColumnNames,
-            PrincipalTable = foreignKey.LinkedTable.Name,
-            PrincipalSchema = schemaFor(foreignKey.LinkedTable.Schema, options),
-            PrincipalColumns = foreignKey.LinkedNames,
-            OnDelete = referentialActionFor(foreignKey.DeleteAction, options),
-            OnUpdate = referentialActionFor(foreignKey.UpdateAction, options)
+            Columns = foreignKey.Columns.ToArray(),
+            PrincipalTable = foreignKey.PrincipalTable,
+            PrincipalSchema = SchemaFor(foreignKey.PrincipalSchema, options),
+            PrincipalColumns = foreignKey.PrincipalColumns.ToArray(),
+            OnDelete = referentialActionFor(foreignKey.OnDelete, options),
+            OnUpdate = referentialActionFor(foreignKey.OnUpdate, options)
         };
     }
 
@@ -401,7 +410,7 @@ public static class MigrationOperationTranslation
         return new SqlOperation { Sql = writer.ToString() };
     }
 
-    private static string? schemaFor(string? schema, MigrationOperationTranslationOptions options)
+    internal static string? SchemaFor(string? schema, MigrationOperationTranslationOptions options)
     {
         if (schema.IsEmpty() || schema!.EqualsIgnoreCase(options.DefaultSchema))
         {
