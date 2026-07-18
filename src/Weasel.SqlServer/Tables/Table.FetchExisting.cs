@@ -13,7 +13,7 @@ public partial class Table
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
 
         builder.Append($@"
-select column_name, data_type, character_maximum_length
+select column_name, data_type, character_maximum_length, null as udt_name, column_default, is_nullable
 from information_schema.columns where table_schema = @{schemaParam} and table_name = @{nameParam}
 order by ordinal_position;
 
@@ -108,6 +108,12 @@ from sys.tables tbl
 where sch.name = @{schemaParam} and tbl.name = @{nameParam}
 order by prv.boundary_id;
 
+select cc.name, cc.definition
+from sys.check_constraints cc
+    inner join sys.tables t on t.object_id = cc.parent_object_id
+    inner join sys.schemas s on s.schema_id = t.schema_id
+where s.name = @{schemaParam} and t.name = @{nameParam};
+
 ");
     }
 
@@ -140,9 +146,25 @@ order by prv.boundary_id;
 
         await readPartitioningAsync(reader, existing, ct).ConfigureAwait(false);
 
+        await readCheckConstraintsAsync(reader, existing, ct).ConfigureAwait(false);
+
         return !existing.Columns.Any()
             ? null
             : existing;
+    }
+
+    private static async Task readCheckConstraintsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
+    {
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var name = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            var definition = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+
+            // sys.check_constraints.definition renders "([Price]>(0))"; stored
+            // raw — canonicalization happens at comparison time
+            existing.CheckConstraints.Add(new TableCheckConstraint(name, definition));
+        }
     }
 
     private async Task readPartitioningAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
@@ -229,6 +251,13 @@ order by prv.boundary_id;
             // SQL Server returns -1 for MAX length columns (nvarchar(max), varbinary(max), etc.)
             column.Type = length == -1 ? $"{column.Type}(max)" : $"{column.Type}({length})";
         }
+
+        if (!await reader.IsDBNullAsync(4, ct).ConfigureAwait(false))
+        {
+            column.DefaultExpression = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
+        }
+
+        column.AllowNulls = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false) == "YES";
 
         return column;
     }

@@ -160,13 +160,17 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             var typeLength = Columns.Max(x => x.Type.Length) + 4;
 
             var lines = Columns.Select(column =>
-                    $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}")
+                    column.ComputedExpression != null
+                        ? $"    {column.ToDeclaration()}"
+                        : $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration()}")
                 .ToList();
 
             if (PrimaryKeyColumns.Any())
             {
                 lines.Add(PrimaryKeyDeclaration());
             }
+
+            lines.AddRange(CheckConstraints.Select(CheckConstraintDeclaration));
 
             for (var i = 0; i < lines.Count - 1; i++)
             {
@@ -185,6 +189,8 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             {
                 lines.Add(PrimaryKeyDeclaration());
             }
+
+            lines.AddRange(CheckConstraints.Select(CheckConstraintDeclaration));
 
             for (var i = 0; i < lines.Count - 1; i++)
             {
@@ -254,6 +260,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     {
         return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
     }
+
+    internal static string CheckConstraintDeclaration(TableCheckConstraint constraint)
+        => $"CONSTRAINT [{constraint.Name}] CHECK ({constraint.Expression})";
 
     public ColumnExpression AddColumn(TableColumn column)
     {

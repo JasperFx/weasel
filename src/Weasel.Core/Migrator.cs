@@ -45,6 +45,14 @@ public abstract class
     public abstract ITable CreateTable(DbObjectName identifier);
 
     /// <summary>
+    ///     Create an empty, provider-specific sequence definition for the given
+    ///     identifier, or null when the database engine has no sequence support
+    ///     (MySQL, SQLite). Callers building migrations from an external model
+    ///     (e.g. EF Core's HiLo / HasSequence) use this to include sequences.
+    /// </summary>
+    public virtual SequenceBase? CreateSequence(DbObjectName identifier) => null;
+
+    /// <summary>
     ///     Should all generated DDL files be written with transactional semantics
     ///     so that everything succeeds or everything fails together
     /// </summary>

@@ -19,7 +19,7 @@ if (migration.Migration.Difference != SchemaPatchDifference.None)
     await migration.ExecuteAsync(AutoCreate.CreateOrUpdate, ct);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L72-L82' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_create_migration' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L84-L94' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_create_migration' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The `DbContextMigration` record wraps three components:
@@ -44,7 +44,7 @@ var database = serviceProvider.CreateDatabase(dbContext);
 // You can also provide a custom identifier:
 var customDatabase = serviceProvider.CreateDatabase(dbContext, "my-read-models");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L87-L94' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_create_database' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L99-L106' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_create_database' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 This is useful when composing multiple schema sources (e.g., Marten documents plus EF Core tables) into a single migration pipeline.
@@ -64,7 +64,7 @@ services.AddSingleton<Migrator>(new PostgresqlMigrator());
 // Later, resolve automatically
 var (connection, migrator) = serviceProvider.FindMigratorForDbContext(dbContext);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L99-L107' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_find_migrator' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L111-L119' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_find_migrator' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 If no registered `Migrator` matches the connection type, an `InvalidOperationException` is thrown listing the available migrators.

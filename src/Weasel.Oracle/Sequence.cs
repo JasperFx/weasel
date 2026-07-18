@@ -29,7 +29,7 @@ public class Sequence: SequenceBase
         // between our check and create
         writer.WriteLine($@"
 BEGIN
-    EXECUTE IMMEDIATE 'CREATE SEQUENCE {Identifier} START WITH {startsWith}';
+    EXECUTE IMMEDIATE 'CREATE SEQUENCE {Identifier} START WITH {startsWith}{(IncrementBy.HasValue ? $" INCREMENT BY {IncrementBy.Value}" : string.Empty)}';
 EXCEPTION
     WHEN OTHERS THEN
         IF SQLCODE = -955 THEN

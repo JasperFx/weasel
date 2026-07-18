@@ -19,12 +19,38 @@ public interface ITableColumn : INamed
     ///     SQLite.
     /// </summary>
     bool IsAutoNumber { get; set; }
+
+    /// <summary>
+    ///     When set, this is a computed / generated column defined by the given
+    ///     SQL expression (without wrapping parentheses). Providers without
+    ///     computed-column emission throw when generating DDL for it.
+    /// </summary>
+    string? ComputedExpression { get; set; }
+
+    /// <summary>
+    ///     Whether the computed column is physically stored (PERSISTED /
+    ///     STORED) rather than evaluated on read. PostgreSQL only supports
+    ///     stored generated columns.
+    /// </summary>
+    bool ComputedColumnIsStored { get; set; }
 }
 
 public interface ITable : ISchemaObject
 {
     IReadOnlyList<string> PrimaryKeyColumns { get; }
     string PrimaryKeyName { get; set; }
+
+    /// <summary>
+    ///     Opt-in detection of column metadata drift: when true, delta detection
+    ///     also compares column default expressions and nullability for columns
+    ///     that otherwise match, emitting ALTER statements to correct drift.
+    ///     Off by default because default expressions are compared textually
+    ///     after canonicalization — literal formats that the database rewrites
+    ///     non-trivially (notably datetime literals) can produce perpetual
+    ///     false-positive migrations. Enable it for tables whose defaults are
+    ///     simple numeric / string / boolean literals or stable function calls.
+    /// </summary>
+    bool DetectColumnDrift { get; set; }
 
     /// <summary>
     ///     When true, column names added to this table keep their exact casing
@@ -64,4 +90,14 @@ public interface ITable : ISchemaObject
     /// Add an index over the given columns to this table
     /// </summary>
     ITableIndex AddIndex(string name, string[] columnNames, bool isUnique = false);
+
+    /// <summary>
+    /// The named table-level CHECK constraints declared for this table
+    /// </summary>
+    IReadOnlyList<TableCheckConstraint> CheckConstraints { get; }
+
+    /// <summary>
+    /// Declare a named table-level CHECK constraint on this table
+    /// </summary>
+    TableCheckConstraint AddCheckConstraint(string name, string expression);
 }

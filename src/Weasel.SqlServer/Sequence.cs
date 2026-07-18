@@ -24,7 +24,7 @@ public class Sequence: SequenceBase
         var startsWith = StartWith ?? 1;
 
         writer.WriteLine(
-            $"CREATE SEQUENCE {Identifier} START WITH {startsWith};");
+            $"CREATE SEQUENCE {Identifier} START WITH {startsWith}{(IncrementBy.HasValue ? $" INCREMENT BY {IncrementBy.Value}" : string.Empty)};");
 
         if (Owner != null)
         {

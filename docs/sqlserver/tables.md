@@ -9,7 +9,7 @@ The `Table` class in `Weasel.SqlServer.Tables` provides a fluent API for definin
 ```cs
 var table = new Table("dbo.users");
 
-table.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
 table.AddColumn<string>("name").NotNull();
 table.AddColumn<string>("email").NotNull().AddIndex(idx => idx.IsUnique = true);
 table.AddColumn<DateTime>("created_at").DefaultValueByExpression("GETUTCDATE()");
@@ -36,7 +36,7 @@ The `AddColumn` method returns a `ColumnExpression` with a fluent API:
 <a id='snippet-sample_ss_foreign_keys'></a>
 ```cs
 var orders = new Table("dbo.orders");
-orders.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+orders.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
 orders.AddColumn<int>("user_id").NotNull()
     .ForeignKeyTo("dbo.users", "id", onDelete: Weasel.SqlServer.CascadeAction.Cascade);
 orders.AddColumn<decimal>("total").NotNull();

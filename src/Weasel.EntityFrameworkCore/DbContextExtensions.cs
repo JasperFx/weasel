@@ -92,22 +92,48 @@ public static class DbContextExtensions
         var (originalConn, migrator) = services.FindMigratorForDbContext(context);
         var conn = GetConnectionWithCredentials(context, originalConn);
 
-        var tables = GetEntityTypesForMigration(context)
-            .Select(x => migrator!.MapToTable(x))
-            .OfType<ISchemaObject>()
-            .ToArray();
+        var schemaObjects = GetSchemaObjectsForMigration(context, migrator!).ToArray();
 
         await conn.OpenAsync(cancellation).ConfigureAwait(false);
 
         try
         {
-            var migration = await SchemaMigration.DetermineAsync(conn, cancellation, tables).ConfigureAwait(false);
+            var migration = await SchemaMigration.DetermineAsync(conn, cancellation, schemaObjects).ConfigureAwait(false);
             return new DbContextMigration(conn, migrator, migration);
         }
         finally
         {
             await conn.CloseAsync().ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    ///     All Weasel schema objects for the DbContext's model: the sequences
+    ///     declared on the model (HasSequence, UseHiLo, UseSequence) followed by
+    ///     the mapped tables. Sequences come first so that column defaults
+    ///     referencing them (NEXT VALUE FOR ...) are valid when tables are
+    ///     created. Providers without sequence support simply contribute tables.
+    /// </summary>
+    public static IReadOnlyList<ISchemaObject> GetSchemaObjectsForMigration(DbContext context, Migrator migrator)
+    {
+        var objects = new List<ISchemaObject>();
+
+        foreach (var sequence in context.Model.GetSequences())
+        {
+            var identifier = migrator.Provider.Parse(sequence.Schema ?? migrator.DefaultSchemaName, sequence.Name);
+            var mapped = migrator.CreateSequence(identifier);
+            if (mapped == null) continue;
+
+            mapped.StartWith = sequence.StartValue;
+            mapped.IncrementBy = sequence.IncrementBy;
+            objects.Add(mapped);
+        }
+
+        objects.AddRange(GetEntityTypesForMigration(context)
+            .Select(x => migrator.MapToTable(x))
+            .OfType<ISchemaObject>());
+
+        return objects;
     }
 
     public static (DbConnection conn, Migrator? migrator) FindMigratorForDbContext(this IServiceProvider services, DbContext context)
@@ -499,6 +525,32 @@ public static class DbContextExtensions
             mapIndexes(et, storeObjectIdentifier, addedIndexes, table);
         }
 
+        // Add check constraints from all entity types in the hierarchy
+        var addedChecks = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var et in allEntityTypes)
+        {
+            IEnumerable<ICheckConstraint> checkConstraints;
+            try
+            {
+                checkConstraints = et.GetCheckConstraints();
+            }
+            catch (InvalidOperationException)
+            {
+                // Check-constraint metadata only exists on the design-time model
+                // (GetEntityTypesForMigration supplies it); entity types from the
+                // read-optimized runtime model simply contribute none
+                continue;
+            }
+
+            foreach (var check in checkConstraints)
+            {
+                var name = check.GetName(storeObjectIdentifier);
+                if (name == null || check.Sql == null || !addedChecks.Add(name)) continue;
+
+                table.AddCheckConstraint(name, check.Sql);
+            }
+        }
+
         return table;
     }
 
@@ -529,6 +581,17 @@ public static class DbContextExtensions
             if (includeColumns is { Length: > 0 })
             {
                 tableIndex.IncludeColumns = includeColumns;
+            }
+
+            // Provider index method (Npgsql HasMethod("gin") etc. — annotation
+            // "Npgsql:IndexMethod")
+            foreach (var annotation in index.GetAnnotations())
+            {
+                if (annotation.Name.EndsWith(":IndexMethod", StringComparison.Ordinal)
+                    && annotation.Value is string method)
+                {
+                    tableIndex.Method = method;
+                }
             }
         }
 
@@ -620,6 +683,13 @@ public static class DbContextExtensions
         column.AllowNulls = property.IsColumnNullable(storeObjectIdentifier);
 
         column.IsAutoNumber = isDatabaseGeneratedIdentity(property, storeObjectIdentifier);
+
+        var computedColumnSql = property.GetComputedColumnSql(storeObjectIdentifier);
+        if (computedColumnSql != null)
+        {
+            column.ComputedExpression = computedColumnSql;
+            column.ComputedColumnIsStored = property.GetIsStored(storeObjectIdentifier) ?? false;
+        }
 
         var defaultValueSql = property.GetDefaultValueSql(storeObjectIdentifier);
         if (defaultValueSql != null)

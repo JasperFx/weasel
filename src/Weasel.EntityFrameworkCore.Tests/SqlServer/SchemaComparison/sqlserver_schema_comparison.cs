@@ -150,7 +150,136 @@ public class sqlserver_delete_behaviors
         => table.ForeignKeys.Single(fk => fk.Columns.SequenceEqual([column])).OnDelete;
 }
 
+/// <summary>
+///     SQL Server sequence strategies: UseHiLo (sequence + plain client-driven
+///     key column) and UseSequence (sequence + NEXT VALUE FOR column default).
+/// </summary>
+[Collection("sqlserver-schema-comparison")]
+public class sqlserver_sequences
+{
+    public const string SchemaName = "efcmp_sequences";
+
+    [Fact]
+    public async Task weasel_schema_matches_ef_schema()
+    {
+        await using var context = new SqlSequencesDbContext();
+
+        var result = await SchemaComparisonHarness.RunSqlServerAsync(context, SchemaName);
+
+        result.AssertParity();
+
+        result.WeaselSchema.SequenceFor("cmp_hilo")!.IncrementBy.ShouldBe(10);
+
+        // HiLo: plain column, client-generated values
+        var hiloId = result.WeaselSchema.TableFor("CmpHiLoItems")!.ColumnFor("Id")!;
+        hiloId.IsIdentity.ShouldBeFalse();
+        hiloId.DefaultExpression.ShouldBeNull();
+
+        // UseSequence: NEXT VALUE FOR default on the column
+        var seqId = result.WeaselSchema.TableFor("CmpSeqItems")!.ColumnFor("Id")!;
+        seqId.IsIdentity.ShouldBeFalse();
+        seqId.DefaultExpression.ShouldNotBeNull();
+        seqId.DefaultExpression!.ToUpperInvariant().ShouldContain("NEXT VALUE FOR");
+    }
+}
+
+/// <summary>
+///     SQL Server check constraints and computed columns (virtual AS (...) and
+///     PERSISTED variants).
+/// </summary>
+[Collection("sqlserver-schema-comparison")]
+public class sqlserver_checks_and_computed
+{
+    public const string SchemaName = "efcmp_checkcomp";
+
+    [Fact]
+    public async Task weasel_schema_matches_ef_schema()
+    {
+        await using var context = new SqlChecksComputedDbContext();
+
+        var result = await SchemaComparisonHarness.RunSqlServerAsync(context, SchemaName);
+
+        result.AssertParity();
+
+        result.WeaselSchema.TableFor("CmpChecked")!.CheckConstraints
+            .ShouldContain(c => c.Name == "CK_CmpChecked_Price");
+        result.WeaselSchema.TableFor("CmpChecked")!.ColumnFor("FullName")!.IsComputed.ShouldBeTrue();
+        result.WeaselSchema.TableFor("CmpChecked")!.ColumnFor("PersistedTotal")!.IsComputed.ShouldBeTrue();
+    }
+}
+
 // ---- entities & contexts --------------------------------------------------
+
+public class CmpCheckedItem
+{
+    public int Id { get; set; }
+    public decimal Price { get; set; }
+    public int Quantity { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+    public decimal PersistedTotal { get; set; }
+}
+
+public class SqlChecksComputedDbContext : DbContext
+{
+    public DbSet<CmpCheckedItem> Checked => Set<CmpCheckedItem>();
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.UseSqlServer(SqlServerDbContext.ConnectionString);
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema(sqlserver_checks_and_computed.SchemaName);
+
+        modelBuilder.Entity<CmpCheckedItem>(entity =>
+        {
+            entity.ToTable("CmpChecked", t => t.HasCheckConstraint("CK_CmpChecked_Price", "[Price] > 0"));
+            entity.Property(e => e.FullName)
+                .HasComputedColumnSql("[FirstName] + ' ' + [LastName]");
+            entity.Property(e => e.PersistedTotal)
+                .HasComputedColumnSql("[Price] * [Quantity]", stored: true);
+        });
+    }
+}
+
+public class CmpHiLoItem
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+public class CmpSeqItem
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+}
+
+public class SqlSequencesDbContext : DbContext
+{
+    public DbSet<CmpHiLoItem> HiLoItems => Set<CmpHiLoItem>();
+    public DbSet<CmpSeqItem> SeqItems => Set<CmpSeqItem>();
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.UseSqlServer(SqlServerDbContext.ConnectionString);
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema(sqlserver_sequences.SchemaName);
+
+        modelBuilder.Entity<CmpHiLoItem>(entity =>
+        {
+            entity.ToTable("CmpHiLoItems");
+            SqlServerPropertyBuilderExtensions.UseHiLo(entity.Property(e => e.Id), "cmp_hilo");
+        });
+
+        modelBuilder.Entity<CmpSeqItem>(entity =>
+        {
+            entity.ToTable("CmpSeqItems");
+            SqlServerPropertyBuilderExtensions.UseSequence(entity.Property(e => e.Id), "cmp_item_seq");
+        });
+    }
+}
 
 public class CmpBlog
 {

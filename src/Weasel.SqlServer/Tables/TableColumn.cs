@@ -40,6 +40,15 @@ public class TableColumn: ITableColumn
     public bool IsPrimaryKey { get; internal set; }
     public bool IsAutoNumber { get; set; }
 
+    /// <summary>
+    ///     Computed column expression: emitted as [name] AS (expr) [PERSISTED],
+    ///     replacing the data type in the column declaration (SQL Server derives
+    ///     the type from the expression).
+    /// </summary>
+    public string? ComputedExpression { get; set; }
+
+    public bool ComputedColumnIsStored { get; set; }
+
     public string Name { get; }
     public string QuotedName => SchemaUtils.QuoteName(Name);
 
@@ -62,6 +71,52 @@ public class TableColumn: ITableColumn
         }
 
         return $"{declaration} {ColumnChecks.Select(x => x.FullDeclaration()).Join(" ")}".TrimEnd();
+    }
+
+    /// <summary>
+    ///     Drift comparison for <see cref="Core.ITable.DetectColumnDrift" />:
+    ///     nullability (primary key columns excluded — they are implicitly NOT
+    ///     NULL) and canonicalized default expressions.
+    /// </summary>
+    internal bool HasSameDefaultAndNullability(TableColumn actual)
+    {
+        if (!IsPrimaryKey && !actual.IsPrimaryKey && AllowNulls != actual.AllowNulls)
+        {
+            return false;
+        }
+
+        return canonicalDefault(DefaultExpression) == canonicalDefault(actual.DefaultExpression);
+    }
+
+    private static string? canonicalDefault(string? expression)
+        => expression == null ? null : TableCheckConstraint.Canonicalize(expression);
+
+    internal void WriteDriftCorrections(Table parent, TableColumn actual, TextWriter writer)
+    {
+        if (!IsPrimaryKey && !actual.IsPrimaryKey && AllowNulls != actual.AllowNulls)
+        {
+            writer.WriteLine(
+                $"alter table {parent.Identifier} alter column {QuotedName} {Type} {(AllowNulls ? "NULL" : "NOT NULL")};");
+        }
+
+        if (canonicalDefault(DefaultExpression) != canonicalDefault(actual.DefaultExpression))
+        {
+            // SQL Server default constraints have (often server-generated) names;
+            // drop whatever default currently exists before adding the new one
+            var variable = $"@dc_{Guid.NewGuid().ToString("N")[..8]}";
+            writer.WriteLine($"declare {variable} nvarchar(max);");
+            writer.WriteLine(
+                $"select {variable} = dc.name from sys.default_constraints dc " +
+                $"inner join sys.columns c on c.default_object_id = dc.object_id " +
+                $"where dc.parent_object_id = OBJECT_ID('{parent.Identifier}') and c.name = '{Name}';");
+            writer.WriteLine(
+                $"if {variable} is not null exec('alter table {parent.Identifier} drop constraint ' + {variable});");
+
+            if (DefaultExpression.IsNotEmpty())
+            {
+                writer.WriteLine($"alter table {parent.Identifier} add default {DefaultExpression} for {QuotedName};");
+            }
+        }
     }
 
     protected bool Equals(TableColumn other)
@@ -101,6 +156,11 @@ public class TableColumn: ITableColumn
 
     public string ToDeclaration()
     {
+        if (ComputedExpression.IsNotEmpty())
+        {
+            return $"{QuotedName} AS ({ComputedExpression}){(ComputedColumnIsStored ? " PERSISTED" : string.Empty)}";
+        }
+
         var declaration = Declaration();
 
         return declaration.IsEmpty()

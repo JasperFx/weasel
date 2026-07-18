@@ -15,6 +15,7 @@ public static class SqlServerSchemaIntrospector
         var indexes = await readIndexesAsync(conn, schemaName);
         var foreignKeys = await readForeignKeysAsync(conn, schemaName);
         var checks = await readCheckConstraintsAsync(conn, schemaName);
+        var sequences = await readSequencesAsync(conn, schemaName);
 
         var tableNames = columns.Keys.OrderBy(x => x).ToList();
 
@@ -35,7 +36,33 @@ public static class SqlServerSchemaIntrospector
             };
         }).ToList();
 
-        return new SchemaSnapshot(schemaName, tables);
+        return new SchemaSnapshot(schemaName, tables, sequences);
+    }
+
+    private static async Task<List<SequenceSnapshot>> readSequencesAsync(SqlConnection conn, string schemaName)
+    {
+        const string sql = """
+            select name, cast(start_value as bigint), cast(increment as bigint)
+            from sys.sequences
+            where schema_id = SCHEMA_ID(@schema)
+            """;
+
+        var results = new List<SequenceSnapshot>();
+
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("schema", schemaName);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            results.Add(new SequenceSnapshot
+            {
+                Name = reader.GetString(0),
+                StartValue = reader.GetInt64(1),
+                IncrementBy = reader.GetInt64(2)
+            });
+        }
+
+        return results;
     }
 
     private static async Task<Dictionary<string, List<ColumnSnapshot>>> readColumnsAsync(

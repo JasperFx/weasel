@@ -228,6 +228,11 @@ IF NOT EXISTS ( SELECT  *
         return new Tables.Table(identifier);
     }
 
+    public override SequenceBase CreateSequence(DbObjectName identifier)
+    {
+        return new Sequence(identifier);
+    }
+
     public override string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true)
     {
         if (tables.Count == 0)

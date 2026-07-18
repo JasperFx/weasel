@@ -89,9 +89,15 @@ public class ForeignKey: ForeignKeyBase
 
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
+        // Case-preserved identifiers must be quoted or Oracle folds them to
+        // uppercase; the conventional (folded) path stays unquoted as before
+        var quote = parent.PreserveIdentifierCase
+            ? (Func<string, string>)(x => $"\"{x}\"")
+            : x => x;
+
         writer.WriteLine($"ALTER TABLE {parent.Identifier}");
-        writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
-        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
+        writer.WriteLine($"ADD CONSTRAINT {quote(Name)} FOREIGN KEY({ColumnNames.Select(quote).Join(", ")})");
+        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(quote).Join(", ")})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
         writer.WriteLine();
     }

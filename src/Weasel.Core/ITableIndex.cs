@@ -25,4 +25,13 @@ public interface ITableIndex : INamed
     ///     support throw <see cref="NotSupportedException" /> from the setter.
     /// </summary>
     string[]? IncludeColumns { get; set; }
+
+    /// <summary>
+    ///     Optional index access method, e.g. PostgreSQL's gin/gist/hash/brin
+    ///     (CREATE INDEX ... USING method) or MySQL's btree/hash. Null means the
+    ///     provider default (btree). Providers without pluggable index methods
+    ///     throw <see cref="NotSupportedException" /> when a non-null method is
+    ///     assigned.
+    /// </summary>
+    string? Method { get; set; }
 }

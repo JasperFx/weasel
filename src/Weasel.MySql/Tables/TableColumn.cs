@@ -40,9 +40,22 @@ public class TableColumn: ITableColumn
         return $"{QuotedName} {Type} {Declaration()}".TrimEnd();
     }
 
+    /// <summary>
+    ///     Computed column expression: emitted as
+    ///     GENERATED ALWAYS AS (expr) STORED|VIRTUAL.
+    /// </summary>
+    public string? ComputedExpression { get; set; }
+
+    public bool ComputedColumnIsStored { get; set; }
+
     public string Declaration()
     {
         var parts = new List<string>();
+
+        if (ComputedExpression != null)
+        {
+            parts.Add($"GENERATED ALWAYS AS ({ComputedExpression}) {(ComputedColumnIsStored ? "STORED" : "VIRTUAL")}");
+        }
 
         if (!AllowNulls || IsPrimaryKey)
         {

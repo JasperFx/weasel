@@ -24,6 +24,13 @@ public abstract class SequenceBase: SchemaObjectBase
     public long? StartWith { get; set; }
 
     /// <summary>
+    ///     Optional increment for the sequence. When null, the provider's default is used
+    ///     (typically 1). EF Core's HiLo value generation depends on this being the
+    ///     configured block size (10 by default).
+    /// </summary>
+    public long? IncrementBy { get; set; }
+
+    /// <summary>
     ///     Optional table that "owns" this sequence (PostgreSQL's
     ///     <c>ALTER SEQUENCE … OWNED BY tbl.col</c>). On providers that do not support sequence
     ///     ownership semantics this is typically ignored.
