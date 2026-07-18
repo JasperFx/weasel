@@ -459,6 +459,18 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             return this;
         }
 
+        /// <summary>
+        ///     Makes this a computed column: [name] AS (expression) [PERSISTED].
+        ///     The declared column type is not emitted — SQL Server derives the
+        ///     type from the expression.
+        /// </summary>
+        public ColumnExpression ComputedAs(string expression, bool persisted = false)
+        {
+            Column.ComputedExpression = expression;
+            Column.ComputedColumnIsStored = persisted;
+            return this;
+        }
+
         public ColumnExpression AddIndex(Action<IndexDefinition>? configure = null)
         {
             var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", Column.Name))

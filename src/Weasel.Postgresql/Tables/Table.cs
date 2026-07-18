@@ -449,6 +449,17 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
             return this;
         }
 
+        /// <summary>
+        ///     Makes this a generated column: GENERATED ALWAYS AS (expression)
+        ///     STORED. PostgreSQL only supports stored generated columns.
+        /// </summary>
+        public ColumnExpression GeneratedAs(string expression)
+        {
+            Column.ComputedExpression = expression;
+            Column.ComputedColumnIsStored = true;
+            return this;
+        }
+
         public ColumnExpression AddIndex(Action<IndexDefinition>? configure = null)
         {
             var index = new IndexDefinition(_parent.Identifier.ToIndexName("idx", Column.Name))

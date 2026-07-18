@@ -114,6 +114,12 @@ from sys.check_constraints cc
     inner join sys.schemas s on s.schema_id = t.schema_id
 where s.name = @{schemaParam} and t.name = @{nameParam};
 
+select comp.name, comp.definition, comp.is_persisted
+from sys.computed_columns comp
+    inner join sys.tables t on t.object_id = comp.object_id
+    inner join sys.schemas s on s.schema_id = t.schema_id
+where s.name = @{schemaParam} and t.name = @{nameParam};
+
 ");
     }
 
@@ -148,9 +154,30 @@ where s.name = @{schemaParam} and t.name = @{nameParam};
 
         await readCheckConstraintsAsync(reader, existing, ct).ConfigureAwait(false);
 
+        await readComputedColumnsAsync(reader, existing, ct).ConfigureAwait(false);
+
         return !existing.Columns.Any()
             ? null
             : existing;
+    }
+
+    private static async Task readComputedColumnsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
+    {
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var name = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            var definition = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+            var isPersisted = await reader.GetFieldValueAsync<bool>(2, ct).ConfigureAwait(false);
+
+            // sys.computed_columns renders "([first_name]+' '+[last_name])"; stored
+            // raw — canonicalization happens at comparison time
+            if (existing.ColumnFor(name) is { } column)
+            {
+                column.ComputedExpression = definition;
+                column.ComputedColumnIsStored = isPersisted;
+            }
+        }
     }
 
     private static async Task readCheckConstraintsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
