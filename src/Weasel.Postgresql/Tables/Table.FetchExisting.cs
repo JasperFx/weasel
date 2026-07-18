@@ -22,7 +22,7 @@ public partial class Table
         var nameWithSchemaQuotedParam = builder.AddParameter($"{Identifier.Schema}.{quotedName}").ParameterName;
 
         builder.Append($@"
-select column_name, data_type, character_maximum_length, udt_name, column_default, is_nullable
+select column_name, data_type, character_maximum_length, udt_name, column_default, is_nullable, is_generated, generation_expression
 from information_schema.columns where table_schema = :{schemaParam} and table_name = :{nameParam}
 order by ordinal_position;
 
@@ -308,6 +308,15 @@ order by column_index;
         }
 
         column.AllowNulls = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false) == "YES";
+
+        // is_generated is 'ALWAYS' for generated columns and 'NEVER' otherwise
+        // (identity columns report through is_identity, not here)
+        if (await reader.GetFieldValueAsync<string>(6, ct).ConfigureAwait(false) == "ALWAYS")
+        {
+            // the catalog renders the expression normalized (casts, parens) —
+            // stored raw, canonicalization happens at comparison time
+            column.ComputedExpression = await reader.GetFieldValueAsync<string>(7, ct).ConfigureAwait(false);
+        }
 
         return column;
     }

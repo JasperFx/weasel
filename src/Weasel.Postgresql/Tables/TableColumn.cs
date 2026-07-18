@@ -118,6 +118,44 @@ public class TableColumn: ITableColumn
     private static string? canonicalDefault(string? expression)
         => expression == null ? null : TableCheckConstraint.Canonicalize(expression);
 
+    /// <summary>
+    ///     Column matching for delta detection. Generated columns are compared
+    ///     by their canonicalized generation expression; only columns whose
+    ///     expected model declares a computed expression participate, so an
+    ///     actual generated column the model doesn't declare is left alone
+    ///     (mirroring the conservative check-constraint comparison).
+    /// </summary>
+    internal bool MatchesForDelta(TableColumn actual, bool detectDrift)
+    {
+        if (ComputedExpression.IsNotEmpty())
+        {
+            // the generation expression is the column's identity — defaults and
+            // nullability drift don't apply to generated columns
+            return Equals(actual) && HasSameComputedDefinition(actual);
+        }
+
+        if (actual.ComputedExpression.IsNotEmpty())
+        {
+            // the actual column is generated but the model doesn't declare it —
+            // leave it alone (mirrors the unknown-check-constraint handling)
+            return true;
+        }
+
+        return Equals(actual) && (!detectDrift || HasSameDefaultAndNullability(actual));
+    }
+
+    internal bool HasSameComputedDefinition(TableColumn actual)
+    {
+        // the STORED/VIRTUAL flag is not compared: PostgreSQL only supports
+        // STORED (until PG 18), and emission always writes STORED
+        return actual.ComputedExpression.IsNotEmpty() &&
+               TableCheckConstraint.Canonicalize(ComputedExpression!) ==
+               TableCheckConstraint.Canonicalize(actual.ComputedExpression!);
+    }
+
+    internal bool ComputedDefinitionChanged(TableColumn actual)
+        => ComputedExpression.IsNotEmpty() && !HasSameComputedDefinition(actual);
+
     internal void WriteDriftCorrections(Table parent, TableColumn actual, TextWriter writer)
     {
         if (!IsPrimaryKey && !actual.IsPrimaryKey && AllowNulls != actual.AllowNulls)
@@ -200,7 +238,8 @@ public class TableColumn: ITableColumn
 
     public virtual bool CanAdd()
     {
-        return AllowNulls || DefaultExpression.IsNotEmpty();
+        // generated columns are derived, so the database back-fills them on add
+        return AllowNulls || DefaultExpression.IsNotEmpty() || ComputedExpression.IsNotEmpty();
     }
 
     public virtual string AddColumnSql(Table parent)
