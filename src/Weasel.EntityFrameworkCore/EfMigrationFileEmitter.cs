@@ -110,6 +110,7 @@ public static class EfMigrationFileEmitter
 
         var usings = new SortedSet<string>(StringComparer.Ordinal)
         {
+            "System",
             "Microsoft.EntityFrameworkCore.Infrastructure",
             "Microsoft.EntityFrameworkCore.Migrations"
         };
@@ -168,7 +169,8 @@ public static class EfMigrationFileEmitter
         var useMethod = provider == EfMigrationProvider.PostgreSql ? "UseNpgsql" : "UseSqlServer";
         var cli = $"dotnet ef database update --context {contextName}";
 
-        return $@"using Microsoft.EntityFrameworkCore;
+        return $@"using System;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 
