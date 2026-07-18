@@ -65,6 +65,18 @@ public class EfCoreSamples
         #endregion
     }
 
+    public void efcore_schema_objects_with_sequences()
+    {
+        #region sample_efcore_schema_objects_for_migration
+        var migrator = new PostgresqlMigrator(); // or SqlServerMigrator
+        using var context = dbContext;
+
+        // Sequences declared on the model (HasSequence, UseHiLo, UseSequence)
+        // followed by the mapped tables, in dependency order
+        var schemaObjects = DbContextExtensions.GetSchemaObjectsForMigration(context, migrator);
+        #endregion
+    }
+
     // === migrations.md samples ===
 
     public async Task efcore_create_migration()

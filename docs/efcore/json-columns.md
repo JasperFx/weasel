@@ -41,7 +41,7 @@ public class OrderDbContext : DbContext
     }
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L128-L152' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_json_column_configuration' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L140-L164' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_json_column_configuration' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The resulting Weasel table will include three columns:
@@ -80,5 +80,5 @@ if (migration.Migration.Difference != SchemaPatchDifference.None)
     await migration.ExecuteAsync(AutoCreate.CreateOrUpdate, ct);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L114-L124' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_json_migration_example' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreSamples.cs#L126-L136' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_json_migration_example' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

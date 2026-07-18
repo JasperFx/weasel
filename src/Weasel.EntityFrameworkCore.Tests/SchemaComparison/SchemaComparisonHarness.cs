@@ -100,14 +100,11 @@ public static class SchemaComparisonHarness
         var connectionString = context.Database.GetConnectionString()
                                ?? throw new InvalidOperationException("DbContext has no connection string");
 
-        var tables = DbContextExtensions.GetEntityTypesForMigration(context)
-            .Select(migrator.MapToTable)
-            .ToArray();
+        var schemaObjects = DbContextExtensions.GetSchemaObjectsForMigration(context, migrator).ToArray();
+        var tables = schemaObjects.OfType<ITable>().ToArray();
 
-        guardSchemaIsolation(tables, schemaName);
+        guardSchemaIsolation(schemaObjects, schemaName);
         customizeTables?.Invoke(tables);
-
-        var schemaObjects = tables.OfType<ISchemaObject>().ToArray();
 
         await using var conn = new NpgsqlConnection(connectionString);
         await conn.OpenAsync();
@@ -168,14 +165,11 @@ public static class SchemaComparisonHarness
         var connectionString = context.Database.GetConnectionString()
                                ?? throw new InvalidOperationException("DbContext has no connection string");
 
-        var tables = DbContextExtensions.GetEntityTypesForMigration(context)
-            .Select(migrator.MapToTable)
-            .ToArray();
+        var schemaObjects = DbContextExtensions.GetSchemaObjectsForMigration(context, migrator).ToArray();
+        var tables = schemaObjects.OfType<ITable>().ToArray();
 
-        guardSchemaIsolation(tables, schemaName);
+        guardSchemaIsolation(schemaObjects, schemaName);
         customizeTables?.Invoke(tables);
-
-        var schemaObjects = tables.OfType<ISchemaObject>().ToArray();
 
         await SqlServer.SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(connectionString);
 
@@ -255,6 +249,13 @@ public static class SchemaComparisonHarness
             from sys.tables where SCHEMA_NAME(schema_id) = '{schemaName}';
             exec sp_executesql @sql;
             """);
+
+        await executeSqlServerAsync(conn, $"""
+            declare @sql nvarchar(max) = N'';
+            select @sql += N'DROP SEQUENCE ' + QUOTENAME('{schemaName}') + N'.' + QUOTENAME(name) + N';'
+            from sys.sequences where SCHEMA_NAME(schema_id) = '{schemaName}';
+            exec sp_executesql @sql;
+            """);
     }
 
     private static IEnumerable<string> splitSqlServerBatches(string script)
@@ -269,21 +270,21 @@ public static class SchemaComparisonHarness
     }
 
     /// <summary>
-    ///     Every mapped table must live in the dedicated test schema — this
-    ///     harness drops that schema with CASCADE, and must never be able to
-    ///     touch shared tables in other schemas.
+    ///     Every mapped schema object must live in the dedicated test schema —
+    ///     this harness drops that schema with CASCADE, and must never be able
+    ///     to touch shared objects in other schemas.
     /// </summary>
-    private static void guardSchemaIsolation(ITable[] tables, string schemaName)
+    private static void guardSchemaIsolation(ISchemaObject[] schemaObjects, string schemaName)
     {
-        var strays = tables
-            .Where(t => !t.Identifier.Schema.Equals(schemaName, StringComparison.OrdinalIgnoreCase))
-            .Select(t => t.Identifier.QualifiedName)
+        var strays = schemaObjects
+            .Where(o => !o.Identifier.Schema.Equals(schemaName, StringComparison.OrdinalIgnoreCase))
+            .Select(o => o.Identifier.QualifiedName)
             .ToList();
 
         if (strays.Any())
         {
             throw new InvalidOperationException(
-                $"All entity types must be mapped into the dedicated schema '{schemaName}' " +
+                $"All entity types and sequences must be mapped into the dedicated schema '{schemaName}' " +
                 $"(use modelBuilder.HasDefaultSchema(...)), but found: {string.Join(", ", strays)}");
         }
     }

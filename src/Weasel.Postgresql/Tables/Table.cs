@@ -94,6 +94,8 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
                 lines.Add(PrimaryKeyDeclaration());
             }
 
+            lines.AddRange(CheckConstraints.Select(CheckConstraintDeclaration));
+
             for (var i = 0; i < lines.Count - 1; i++)
             {
                 writer.WriteLine(lines[i] + ",");
@@ -111,6 +113,8 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
             {
                 lines.Add(PrimaryKeyDeclaration());
             }
+
+            lines.AddRange(CheckConstraints.Select(CheckConstraintDeclaration));
 
             for (var i = 0; i < lines.Count - 1; i++)
             {
@@ -207,6 +211,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
             }
         }
     }
+
+    internal static string CheckConstraintDeclaration(TableCheckConstraint constraint)
+        => $"CONSTRAINT {SchemaUtils.QuoteName(constraint.Name)} CHECK ({constraint.Expression})";
 
     internal string PrimaryKeyDeclaration()
     {

@@ -7,34 +7,53 @@ using Xunit;
 namespace Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison;
 
 /// <summary>
-///     KNOWN GAP, documented by this test: EF Core check constraints
-///     (ToTable(t =&gt; t.HasCheckConstraint(...))) are not modeled by Weasel —
-///     ITable has no check-constraint surface and neither provider's
-///     FetchExisting reads them. The Weasel-created schema therefore lacks
-///     them (tolerated MissingCheckConstraint), while Weasel's delta remains
-///     None because check constraints are invisible to its comparison.
+///     EF Core check constraints (ToTable(t =&gt; t.HasCheckConstraint(...)))
+///     map into Weasel table definitions, are emitted in CREATE TABLE, and
+///     participate in delta detection — conservatively: only declared checks
+///     are compared, and unknown constraints in the database are never dropped.
 /// </summary>
 public class check_constraints
 {
     public const string SchemaName = "efcmp_checks";
 
     [Fact]
-    public async Task check_constraints_are_a_documented_gap()
+    public async Task weasel_schema_matches_ef_schema()
     {
         await using var context = new CheckConstraintDbContext();
 
         var result = await SchemaComparisonHarness.RunPostgresqlAsync(context, SchemaName);
 
-        result.AssertParity(DifferenceCategory.MissingCheckConstraint);
+        result.AssertParity();
 
-        // the EF side really has it...
         result.EfSchema.TableFor("PricedItems")!.CheckConstraints
             .ShouldContain(c => c.Name == "CK_PricedItems_Price");
-        // ...and the Weasel side really lacks it
-        result.WeaselSchema.TableFor("PricedItems")!.CheckConstraints.ShouldBeEmpty();
+        result.WeaselSchema.TableFor("PricedItems")!.CheckConstraints
+            .ShouldContain(c => c.Name == "CK_PricedItems_Price");
 
-        // Weasel cannot see check constraints, so its delta stays None either way
         result.DeltaAgainstEfSchema.ShouldBe(SchemaPatchDifference.None);
+    }
+}
+
+/// <summary>
+///     Computed / generated columns: HasComputedColumnSql maps into Weasel and
+///     is emitted as GENERATED ALWAYS AS (...) STORED on PostgreSQL (the only
+///     kind PostgreSQL supports).
+/// </summary>
+public class computed_columns
+{
+    public const string SchemaName = "efcmp_computed";
+
+    [Fact]
+    public async Task weasel_schema_matches_ef_schema()
+    {
+        await using var context = new ComputedColumnDbContext();
+
+        var result = await SchemaComparisonHarness.RunPostgresqlAsync(context, SchemaName);
+
+        result.AssertParity();
+
+        result.EfSchema.TableFor("People")!.ColumnFor("FullName")!.IsComputed.ShouldBeTrue();
+        result.WeaselSchema.TableFor("People")!.ColumnFor("FullName")!.IsComputed.ShouldBeTrue();
     }
 }
 
@@ -58,6 +77,35 @@ public class CheckConstraintDbContext : DbContext
         modelBuilder.Entity<PricedItem>(entity =>
         {
             entity.ToTable("PricedItems", t => t.HasCheckConstraint("CK_PricedItems_Price", "\"Price\" > 0"));
+        });
+    }
+}
+
+public class ComputedPerson
+{
+    public int Id { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string FullName { get; set; } = string.Empty;
+}
+
+public class ComputedColumnDbContext : DbContext
+{
+    public DbSet<ComputedPerson> People => Set<ComputedPerson>();
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.UseNpgsql(PostgresqlDbContext.ConnectionString);
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasDefaultSchema(computed_columns.SchemaName);
+
+        modelBuilder.Entity<ComputedPerson>(entity =>
+        {
+            entity.ToTable("People");
+            // PostgreSQL only supports stored generated columns
+            entity.Property(e => e.FullName)
+                .HasComputedColumnSql("\"FirstName\" || ' ' || \"LastName\"", stored: true);
         });
     }
 }

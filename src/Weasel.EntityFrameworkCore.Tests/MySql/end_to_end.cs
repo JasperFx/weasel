@@ -84,9 +84,13 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<MySqlDbContext>();
 
-        // Ensure database is created and schema is applied
-        await context.Database.EnsureDeletedAsync();
+        // Ensure the database exists, then recreate just this test's table.
+        // Never EnsureDeleted here — that drops the whole weasel_testing
+        // database out from under any concurrently-running tests (and the CI
+        // MySQL user only has rights on the pre-created database).
         await context.Database.EnsureCreatedAsync();
+        await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS my_entities");
+        await context.Database.ExecuteSqlRawAsync(context.Database.GenerateCreateScript());
 
         // Verify table exists by inserting and reading data
         var entity = new MyEntity
@@ -130,12 +134,8 @@ public class end_to_end : IAsyncLifetime
         using var scope = _host.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<MySqlDbContext>();
 
-        // Ensure database exists then delete tables for a clean schema state
+        // Ensure the database exists, then drop the table to simulate needing a migration
         await context.Database.EnsureCreatedAsync();
-        await context.Database.EnsureDeletedAsync();
-        await context.Database.EnsureCreatedAsync();
-
-        // Drop the table to simulate needing a migration
         await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS my_entities");
 
         // Use Weasel to create migration

@@ -50,6 +50,18 @@ public class IndexDefinition: ITableIndex
         set => IncludedColumns = value ?? [];
     }
 
+    string? ITableIndex.Method
+    {
+        get => null;
+        set
+        {
+            if (value != null)
+            {
+                throw new NotSupportedException("SQL Server indexes do not have pluggable access methods");
+            }
+        }
+    }
+
     /// <summary>
     ///     The constraint expression for a partial index.
     /// </summary>

@@ -220,6 +220,14 @@ END;
 
     internal string PrimaryKeyDeclaration()
     {
+        // Case-preserved identifiers must be quoted or Oracle folds them to
+        // uppercase; the conventional (folded) path stays unquoted as before
+        if (PreserveIdentifierCase)
+        {
+            var columns = PrimaryKeyColumns.Select(x => $"\"{x}\"").Join(", ");
+            return $"CONSTRAINT \"{PrimaryKeyName}\" PRIMARY KEY ({columns})";
+        }
+
         return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
     }
 
@@ -233,7 +241,7 @@ END;
 
     public ColumnExpression AddColumn(string columnName, string columnType)
     {
-        var column = new TableColumn(columnName, columnType) { Parent = this };
+        var column = new TableColumn(columnName, columnType, PreserveIdentifierCase) { Parent = this };
         return AddColumn(column);
     }
 

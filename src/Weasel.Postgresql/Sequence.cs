@@ -24,7 +24,7 @@ public class Sequence: SequenceBase
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         writer.WriteLine(
-            $"CREATE SEQUENCE {Identifier}{(StartWith.HasValue ? $" START {StartWith.Value}" : string.Empty)};");
+            $"CREATE SEQUENCE {Identifier}{(StartWith.HasValue ? $" START {StartWith.Value}" : string.Empty)}{(IncrementBy.HasValue ? $" INCREMENT BY {IncrementBy.Value}" : string.Empty)};");
 
         if (Owner != null)
         {

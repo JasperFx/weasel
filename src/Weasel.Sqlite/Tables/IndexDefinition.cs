@@ -47,6 +47,18 @@ public class IndexDefinition: ITableIndex
         set => throw new NotSupportedException("Covering (INCLUDE) indexes are not supported by this database provider");
     }
 
+    string? Weasel.Core.ITableIndex.Method
+    {
+        get => null;
+        set
+        {
+            if (value != null)
+            {
+                throw new NotSupportedException("SQLite indexes do not have pluggable access methods");
+            }
+        }
+    }
+
     /// <summary>
     /// The collation sequence to use for text columns
     /// </summary>

@@ -22,7 +22,7 @@ public partial class Table
         var nameWithSchemaQuotedParam = builder.AddParameter($"{Identifier.Schema}.{quotedName}").ParameterName;
 
         builder.Append($@"
-select column_name, data_type, character_maximum_length, udt_name
+select column_name, data_type, character_maximum_length, udt_name, column_default, is_nullable
 from information_schema.columns where table_schema = :{schemaParam} and table_name = :{nameParam}
 order by ordinal_position;
 
@@ -84,7 +84,7 @@ FROM pg_constraint c
        JOIN pg_namespace sch ON sch.oid = tbl.relnamespace
        JOIN pg_attribute col ON (col.attrelid = tbl.oid AND col.attnum = u.attnum)
 WHERE
-	c.contype = 'f' and
+	c.contype in ('f', 'c') and
 	sch.nspname = :{schemaParam} and
 	tbl.relname = :{nameParam}
 GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
@@ -302,6 +302,13 @@ order by column_index;
             column.Type = $"{column.Type}({length})";
         }
 
+        if (!await reader.IsDBNullAsync(4, ct).ConfigureAwait(false))
+        {
+            column.DefaultExpression = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
+        }
+
+        column.AllowNulls = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false) == "YES";
+
         return column;
     }
 
@@ -314,8 +321,23 @@ order by column_index;
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var name = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            var type = await reader.GetFieldValueAsync<char>(1, ct).ConfigureAwait(false);
             var schema = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
             var definition = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false);
+
+            if (type == 'c')
+            {
+                // pg_get_constraintdef renders "CHECK ((expr))"; store the raw
+                // expression — canonicalization happens at comparison time
+                var expression = definition.Trim();
+                if (expression.StartsWith("CHECK", StringComparison.OrdinalIgnoreCase))
+                {
+                    expression = expression[5..].Trim();
+                }
+
+                existing.CheckConstraints.Add(new TableCheckConstraint(name, expression));
+                continue;
+            }
 
             var fk = new ForeignKey(name);
             fk.Parse(definition, schema);

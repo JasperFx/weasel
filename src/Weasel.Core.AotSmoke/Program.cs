@@ -171,6 +171,8 @@ internal sealed class SmokeColumn(string name, string type): ITableColumn
     public string Type { get; set; } = type;
     public bool IsPrimaryKey { get; set; }
     public bool IsAutoNumber { get; set; }
+    public string? ComputedExpression { get; set; }
+    public bool ComputedColumnIsStored { get; set; }
 }
 
 internal sealed class SmokeIndex(string name): ITableIndex
@@ -180,6 +182,7 @@ internal sealed class SmokeIndex(string name): ITableIndex
     public bool IsUnique { get; set; }
     public string? Predicate { get; set; }
     public string[]? IncludeColumns { get; set; }
+    public string? Method { get; set; }
 }
 
 internal sealed class SmokeForeignKey(string name): ForeignKeyBase(name)

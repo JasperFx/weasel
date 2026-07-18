@@ -36,7 +36,10 @@ public enum DifferenceCategory
     UniqueConstraintVsUniqueIndex,
     MissingCheckConstraint,
     ExtraCheckConstraint,
-    CheckConstraintExpression
+    CheckConstraintExpression,
+    MissingSequence,
+    ExtraSequence,
+    SequenceDefinition
 }
 
 public record SchemaDifference(DifferenceCategory Category, string Table, string Detail)
@@ -78,7 +81,37 @@ public static class SchemaComparer
             }
         }
 
+        compareSequences(efSchema, weaselSchema, differences);
+
         return differences;
+    }
+
+    private static void compareSequences(SchemaSnapshot ef, SchemaSnapshot weasel, List<SchemaDifference> differences)
+    {
+        foreach (var efSequence in ef.Sequences)
+        {
+            var weaselSequence = weasel.SequenceFor(efSequence.Name);
+            if (weaselSequence == null)
+            {
+                differences.Add(new(DifferenceCategory.MissingSequence, efSequence.Name,
+                    $"sequence (start {efSequence.StartValue}, increment {efSequence.IncrementBy}) missing from Weasel-created schema"));
+            }
+            else if (efSequence.StartValue != weaselSequence.StartValue
+                     || efSequence.IncrementBy != weaselSequence.IncrementBy)
+            {
+                differences.Add(new(DifferenceCategory.SequenceDefinition, efSequence.Name,
+                    $"EF start {efSequence.StartValue} / increment {efSequence.IncrementBy}, Weasel start {weaselSequence.StartValue} / increment {weaselSequence.IncrementBy}"));
+            }
+        }
+
+        foreach (var weaselSequence in weasel.Sequences)
+        {
+            if (ef.SequenceFor(weaselSequence.Name) == null)
+            {
+                differences.Add(new(DifferenceCategory.ExtraSequence, weaselSequence.Name,
+                    "sequence created by Weasel does not exist in the EF Core-created schema"));
+            }
+        }
     }
 
     private static void compareTables(TableSnapshot ef, TableSnapshot weasel, List<SchemaDifference> differences)

@@ -6,7 +6,21 @@ namespace Weasel.Oracle.Tables;
 
 public class TableColumn: ITableColumn
 {
-    public TableColumn(string name, string type)
+    private readonly bool _preserveCase;
+
+    public TableColumn(string name, string type): this(name, type, false)
+    {
+    }
+
+    /// <summary>
+    ///     Oracle folds unquoted identifiers to UPPERCASE; by default the column
+    ///     name is lowercased and written unquoted (the historical Weasel
+    ///     convention, stored by Oracle as uppercase). Pass
+    ///     <paramref name="preserveCase" /> = true to keep the exact name and
+    ///     emit it quoted, for tables that must reproduce a schema created with
+    ///     quoted, case-sensitive identifiers (see <see cref="Core.ITable.PreserveIdentifierCase" />).
+    /// </summary>
+    public TableColumn(string name, string type, bool preserveCase)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -18,7 +32,10 @@ public class TableColumn: ITableColumn
             throw new ArgumentOutOfRangeException(nameof(type));
         }
 
-        Name = name.ToLowerInvariant().Trim().Replace(' ', '_');
+        _preserveCase = preserveCase;
+        Name = preserveCase
+            ? name.Trim()
+            : name.ToLowerInvariant().Trim().Replace(' ', '_');
         Type = type.ToUpperInvariant();
     }
 
@@ -34,8 +51,18 @@ public class TableColumn: ITableColumn
     public bool IsPrimaryKey { get; internal set; }
     public bool IsAutoNumber { get; set; }
 
+    /// <summary>
+    ///     Computed (virtual) column expression. DDL emission for Oracle virtual
+    ///     columns is not implemented yet — generating DDL for a column with
+    ///     this set throws rather than silently creating a plain column.
+    /// </summary>
+    public string? ComputedExpression { get; set; }
+
+    public bool ComputedColumnIsStored { get; set; }
+
     public string Name { get; }
-    public string QuotedName => SchemaUtils.QuoteName(Name);
+
+    public string QuotedName => _preserveCase ? $"\"{Name}\"" : SchemaUtils.QuoteName(Name);
 
     public string RawType()
     {
@@ -44,6 +71,12 @@ public class TableColumn: ITableColumn
 
     public string Declaration()
     {
+        if (ComputedExpression != null)
+        {
+            throw new NotSupportedException(
+                "Computed (virtual) column DDL emission is not implemented for Oracle yet");
+        }
+
         var parts = new List<string>();
 
         // In Oracle, the order is: DEFAULT, NULL/NOT NULL, IDENTITY, CHECK constraints

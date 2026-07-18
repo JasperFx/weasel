@@ -40,13 +40,13 @@ public class indexes
     }
 
     /// <summary>
-    ///     Provider-specific index features (Npgsql HasMethod, descending sort)
-    ///     are not expressible through the provider-neutral ITableIndex seam.
-    ///     The harness's customizeTables hook is the supported escape hatch:
-    ///     downcast to the concrete provider table and enrich the definition.
+    ///     Npgsql HasMethod("gin") maps automatically through ITableIndex.Method.
+    ///     Descending sort remains provider-specific; the harness's
+    ///     customizeTables hook is the supported escape hatch — downcast to the
+    ///     concrete provider table and enrich the definition.
     /// </summary>
     [Fact]
-    public async Task gin_and_descending_indexes_via_customize_escape_hatch()
+    public async Task gin_method_maps_automatically_descending_via_escape_hatch()
     {
         await using var context = new ProviderIndexesDbContext();
 
@@ -54,7 +54,6 @@ public class indexes
             tables =>
             {
                 var docs = tables.OfType<Table>().Single(t => t.Identifier.Name == "TaggedDocs");
-                docs.IndexFor("IX_TaggedDocs_Tags")!.Method = IndexMethod.gin;
                 docs.IndexFor("IX_TaggedDocs_Rank")!.SortOrder = SortOrder.Desc;
             });
 

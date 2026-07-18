@@ -44,6 +44,26 @@ public class IndexDefinition: ITableIndex
         set => throw new NotSupportedException("Covering (INCLUDE) indexes are not supported by this database provider");
     }
 
+    string? Weasel.Core.ITableIndex.Method
+    {
+        get => IndexType.ToString();
+        set
+        {
+            if (value == null)
+            {
+                IndexType = MySqlIndexType.BTree;
+            }
+            else if (Enum.TryParse<MySqlIndexType>(value, ignoreCase: true, out var known))
+            {
+                IndexType = known;
+            }
+            else
+            {
+                throw new NotSupportedException($"MySQL does not support index method '{value}'");
+            }
+        }
+    }
+
     /// <summary>
     ///     For FULLTEXT indexes, specify the parser to use (e.g., "ngram" or "mecab").
     /// </summary>

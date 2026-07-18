@@ -46,6 +46,22 @@ public class TableColumn: ITableColumn
     /// </summary>
     public string? GeneratedExpression { get; set; }
 
+    string? ITableColumn.ComputedExpression
+    {
+        get => GeneratedExpression;
+        set
+        {
+            GeneratedExpression = value;
+            GeneratedType ??= GeneratedColumnType.Virtual;
+        }
+    }
+
+    bool ITableColumn.ComputedColumnIsStored
+    {
+        get => GeneratedType == GeneratedColumnType.Stored;
+        set => GeneratedType = value ? GeneratedColumnType.Stored : GeneratedColumnType.Virtual;
+    }
+
     /// <summary>
     /// For generated columns: STORED (materialized) or VIRTUAL (computed on read)
     /// </summary>

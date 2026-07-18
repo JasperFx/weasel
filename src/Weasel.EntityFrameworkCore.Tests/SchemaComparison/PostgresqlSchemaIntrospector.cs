@@ -17,6 +17,7 @@ public static class PostgresqlSchemaIntrospector
         var foreignKeys = await readForeignKeysAsync(conn, schemaName);
         var indexes = await readIndexesAsync(conn, schemaName);
         var checks = await readCheckConstraintsAsync(conn, schemaName);
+        var sequences = await readSequencesAsync(conn, schemaName);
 
         var tableNames = columns.Keys
             .Union(keyConstraints.Keys)
@@ -43,7 +44,33 @@ public static class PostgresqlSchemaIntrospector
             };
         }).ToList();
 
-        return new SchemaSnapshot(schemaName, tables);
+        return new SchemaSnapshot(schemaName, tables, sequences);
+    }
+
+    private static async Task<List<SequenceSnapshot>> readSequencesAsync(NpgsqlConnection conn, string schemaName)
+    {
+        const string sql = """
+            select sequence_name, start_value::bigint, increment::bigint
+            from information_schema.sequences
+            where sequence_schema = :schema
+            """;
+
+        var results = new List<SequenceSnapshot>();
+
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("schema", schemaName);
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            results.Add(new SequenceSnapshot
+            {
+                Name = reader.GetString(0),
+                StartValue = reader.GetInt64(1),
+                IncrementBy = reader.GetInt64(2)
+            });
+        }
+
+        return results;
     }
 
     private static async Task<Dictionary<string, List<ColumnSnapshot>>> readColumnsAsync(

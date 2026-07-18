@@ -43,6 +43,20 @@ jobs:
         env:
           ACCEPT_EULA: Y
           SA_PASSWORD: ${{ env.db_pwd }}
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 3306:3306
+        env:
+          MYSQL_ROOT_PASSWORD: ${{ env.db_pwd }}
+          MYSQL_DATABASE: weasel_testing
+          MYSQL_USER: weasel
+          MYSQL_PASSWORD: ${{ env.db_pwd }}
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     steps:
     - uses: actions/checkout@v6
@@ -60,7 +74,8 @@ jobs:
     - name: Build
       run: dotnet build src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-restore --framework ${{ matrix.framework }}
 
-    # MySql and Oracle EF providers have no database services in this workflow;
-    # their end-to-end suites only run locally against docker-compose
+    # The Oracle EF provider has no database service in this workflow; its
+    # end-to-end suite only runs locally against docker-compose. MySql tests
+    # exist on net9.0 only (the provider does not yet support net10.0).
     - name: Test
-      run: dotnet test src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }} --filter "FullyQualifiedName!~MySql&FullyQualifiedName!~Oracle"
+      run: dotnet test src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }} --filter "FullyQualifiedName!~Oracle"

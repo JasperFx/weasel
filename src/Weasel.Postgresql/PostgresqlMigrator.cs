@@ -379,6 +379,11 @@ $$;
         return new Tables.Table(identifier);
     }
 
+    public override SequenceBase CreateSequence(DbObjectName identifier)
+    {
+        return new Sequence(identifier);
+    }
+
     public DatabaseWithTables CreateDatabase(NpgsqlDataSource dataSource)
     {
         var builder = new NpgsqlConnectionStringBuilder(dataSource.ConnectionString);

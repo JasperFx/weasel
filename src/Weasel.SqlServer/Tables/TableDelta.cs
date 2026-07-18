@@ -14,6 +14,8 @@ public class TableDelta: SchemaObjectDelta<Table>
 
     internal ItemDelta<ForeignKey> ForeignKeys { get; private set; } = null!;
 
+    internal ItemDelta<TableCheckConstraint> CheckConstraints { get; private set; } = null!;
+
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
 
     /// <summary>
@@ -31,11 +33,22 @@ public class TableDelta: SchemaObjectDelta<Table>
             return SchemaPatchDifference.Create;
         }
 
-        Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
+        Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns,
+            expected.DetectColumnDrift
+                ? (e, a) => e.Equals(a) && e.HasSameDefaultAndNullability(a)
+                : null);
         Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, actual.Indexes,
             (e, a) => e.Matches(a, Expected));
 
         ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
+
+        // Conservative check-constraint comparison: only the checks the expected
+        // table declares participate, and actual constraints the expected table
+        // doesn't know about are never treated as extras to drop.
+        var relevantActualChecks = actual.CheckConstraints
+            .Where(a => expected.CheckConstraints.Any(e => e.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase)));
+        CheckConstraints = new ItemDelta<TableCheckConstraint>(expected.CheckConstraints, relevantActualChecks,
+            (e, a) => e.Matches(a));
 
         PrimaryKeyDifference = SchemaPatchDifference.None;
         if (expected.PrimaryKeyName.IsEmpty())
@@ -101,9 +114,20 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         // Different columns
         foreach (var change1 in Columns.Different)
-            writer.WriteLine(change1.Expected.AlterColumnTypeSql(Expected, change1.Actual));
+        {
+            if (change1.Expected.Equals(change1.Actual))
+            {
+                // same name/type — the difference is default/nullability drift
+                change1.Expected.WriteDriftCorrections(Expected, change1.Actual, writer);
+            }
+            else
+            {
+                writer.WriteLine(change1.Expected.AlterColumnTypeSql(Expected, change1.Actual));
+            }
+        }
 
         writeForeignKeyUpdates(writer);
+        writeCheckConstraintUpdates(writer);
 
         // Missing indexes
         foreach (var indexDefinition in Indexes.Missing) writer.WriteLine(indexDefinition.ToDDL(Expected));
@@ -161,6 +185,20 @@ public class TableDelta: SchemaObjectDelta<Table>
         }
     }
 
+    private void writeCheckConstraintUpdates(TextWriter writer)
+    {
+        // Extras never appear here — unknown actual checks are filtered out of
+        // the comparison entirely (see the delta construction)
+        foreach (var check in CheckConstraints.Missing)
+            writer.WriteLine($"alter table {Expected.Identifier} add {Table.CheckConstraintDeclaration(check)};");
+
+        foreach (var change in CheckConstraints.Different)
+        {
+            writer.WriteLine($"alter table {Expected.Identifier} drop constraint [{change.Actual.Name}];");
+            writer.WriteLine($"alter table {Expected.Identifier} add {Table.CheckConstraintDeclaration(change.Expected)};");
+        }
+    }
+
     public override void WriteRollback(Migrator rules, TextWriter writer)
     {
         if (Actual == null)
@@ -185,7 +223,16 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         // Different columns
         foreach (var change1 in Columns.Different)
-            writer.WriteLine(change1.Actual.AlterColumnTypeSql(Actual, change1.Expected));
+        {
+            if (change1.Expected.Equals(change1.Actual))
+            {
+                change1.Actual.WriteDriftCorrections(Expected, change1.Expected, writer);
+            }
+            else
+            {
+                writer.WriteLine(change1.Actual.AlterColumnTypeSql(Actual, change1.Expected));
+            }
+        }
 
         foreach (var change in ForeignKeys.Different) change.Actual.WriteAddStatement(Expected, writer);
 
@@ -283,8 +330,8 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         var differences = new[]
         {
-            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), PrimaryKeyDifference,
-            PartitioningDifference
+            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), CheckConstraints.Difference(),
+            PrimaryKeyDifference, PartitioningDifference
         };
 
         return differences.Min();
@@ -305,6 +352,7 @@ public class TableDelta: SchemaObjectDelta<Table>
     public bool HasChanges()
     {
         return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() ||
+               CheckConstraints.HasChanges() ||
                PrimaryKeyDifference != SchemaPatchDifference.None ||
                PartitioningDifference != SchemaPatchDifference.None;
     }

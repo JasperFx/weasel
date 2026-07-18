@@ -52,6 +52,26 @@ public class IndexDefinition: ITableIndex
         }
     }
 
+    string? ITableIndex.Method
+    {
+        get => Method == IndexMethod.custom ? CustomMethod : Method.ToString();
+        set
+        {
+            if (value == null)
+            {
+                Method = IndexMethod.btree;
+            }
+            else if (Enum.TryParse<IndexMethod>(value, ignoreCase: true, out var known) && known != IndexMethod.custom)
+            {
+                Method = known;
+            }
+            else
+            {
+                CustomMethod = value;
+            }
+        }
+    }
+
     /// <summary>
     ///     Set sort order for a btree index column/expression
     /// </summary>

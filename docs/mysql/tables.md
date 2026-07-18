@@ -9,7 +9,7 @@ The `Table` class in `Weasel.MySql.Tables` provides a fluent API for defining My
 ```cs
 var table = new Table("users");
 
-table.AddColumn<int>("id").AsPrimaryKey().AutoNumber();
+table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
 table.AddColumn<string>("name").NotNull();
 table.AddColumn<string>("email").NotNull().AddIndex(idx => idx.IsUnique = true);
 table.AddColumn<DateTime>("created_at");

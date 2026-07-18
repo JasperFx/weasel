@@ -8,17 +8,30 @@ namespace Weasel.EntityFrameworkCore.Tests.SchemaComparison;
 /// </summary>
 public class SchemaSnapshot
 {
-    public SchemaSnapshot(string schemaName, IReadOnlyList<TableSnapshot> tables)
+    public SchemaSnapshot(string schemaName, IReadOnlyList<TableSnapshot> tables,
+        IReadOnlyList<SequenceSnapshot>? sequences = null)
     {
         SchemaName = schemaName;
         Tables = tables;
+        Sequences = sequences ?? [];
     }
 
     public string SchemaName { get; }
     public IReadOnlyList<TableSnapshot> Tables { get; }
+    public IReadOnlyList<SequenceSnapshot> Sequences { get; }
 
     public TableSnapshot? TableFor(string tableName)
         => Tables.FirstOrDefault(t => t.Name.Equals(tableName, StringComparison.OrdinalIgnoreCase));
+
+    public SequenceSnapshot? SequenceFor(string sequenceName)
+        => Sequences.FirstOrDefault(s => s.Name.Equals(sequenceName, StringComparison.OrdinalIgnoreCase));
+}
+
+public class SequenceSnapshot
+{
+    public required string Name { get; init; }
+    public long StartValue { get; init; }
+    public long IncrementBy { get; init; }
 }
 
 public class TableSnapshot

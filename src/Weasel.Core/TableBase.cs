@@ -76,6 +76,14 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     public IList<TIndex> Indexes { get; } = new List<TIndex>();
 
     /// <summary>
+    ///     Named table-level CHECK constraints. Emitted in CREATE TABLE and
+    ///     compared during delta detection by the providers that support it
+    ///     (PostgreSQL, SQL Server); see <see cref="TableCheckConstraint" /> for
+    ///     the conservative comparison semantics.
+    /// </summary>
+    public IList<TableCheckConstraint> CheckConstraints { get; } = new List<TableCheckConstraint>();
+
+    /// <summary>
     ///     Names of indexes that this table intentionally ignores during delta
     ///     comparison — useful when a third party (e.g. <c>pg_partman</c> on
     ///     PostgreSQL, an external migration tool) owns those indexes and
@@ -113,6 +121,9 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
 
     /// <inheritdoc cref="ITable.PreserveIdentifierCase" />
     public bool PreserveIdentifierCase { get; set; }
+
+    /// <inheritdoc cref="ITable.DetectColumnDrift" />
+    public bool DetectColumnDrift { get; set; }
 
     /// <summary>
     ///     Provider-specific default for the auto-generated primary-key
@@ -218,6 +229,16 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
 
     IReadOnlyList<ITableIndex> ITable.Indexes
         => Indexes.OfType<ITableIndex>().ToList();
+
+    IReadOnlyList<TableCheckConstraint> ITable.CheckConstraints
+        => CheckConstraints.ToList();
+
+    TableCheckConstraint ITable.AddCheckConstraint(string name, string expression)
+    {
+        var constraint = new TableCheckConstraint(name, expression);
+        CheckConstraints.Add(constraint);
+        return constraint;
+    }
 
     ITableIndex ITable.AddIndex(string name, string[] columnNames, bool isUnique)
     {
