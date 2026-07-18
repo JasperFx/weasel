@@ -9,6 +9,13 @@ namespace Weasel.Core;
 /// </summary>
 public interface ITableIndex : INamed
 {
+    /// <summary>
+    ///     The key columns of the index, in order. May be null or empty for
+    ///     expression-based indexes on providers that support them (PostgreSQL,
+    ///     SQLite) — those indexes carry the expression on the concrete type.
+    /// </summary>
+    string[]? Columns { get; set; }
+
     /// <summary>Whether this is a UNIQUE index</summary>
     bool IsUnique { get; set; }
 

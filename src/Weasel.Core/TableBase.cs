@@ -202,6 +202,9 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     // hooks so the ITable surface is implemented exactly once here and providers
     // only specialise the type-resolution + factory calls.
 
+    IReadOnlyList<ITableColumn> ITable.Columns
+        => _columns.OfType<ITableColumn>().ToList();
+
     IReadOnlyList<ForeignKeyBase> ITable.ForeignKeys
         => ForeignKeys.Cast<ForeignKeyBase>().ToList();
 

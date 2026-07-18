@@ -37,6 +37,11 @@ public interface ITableColumn : INamed
 
 public interface ITable : ISchemaObject
 {
+    /// <summary>
+    /// The columns defined for this table, in declaration order
+    /// </summary>
+    IReadOnlyList<ITableColumn> Columns { get; }
+
     IReadOnlyList<string> PrimaryKeyColumns { get; }
     string PrimaryKeyName { get; set; }
 
