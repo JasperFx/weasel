@@ -301,7 +301,7 @@ public static class MigrationOperationTranslation
         return operation;
     }
 
-    internal static CreateIndexOperation IndexOperation(
+    internal static MigrationOperation IndexOperation(
         SnapshotIndex index,
         string tableName,
         string? schema,
@@ -313,6 +313,24 @@ public static class MigrationOperationTranslation
                 $"Index '{index.Name}' on {schema ?? "?"}.{tableName} has no key columns — " +
                 "expression-based indexes cannot be expressed as an EF CreateIndex operation. " +
                 $"Route the table through {nameof(MigrationOperationTranslationOptions.ForceRawSql)} instead.");
+        }
+
+        if (options.Provider == EfMigrationProvider.SqlServer && index.IsUnique && index.Predicate.IsEmpty())
+        {
+            // EF's SQL Server generator auto-appends a WHERE col IS NOT NULL
+            // filter to unique indexes whenever it cannot prove the columns
+            // non-nullable from the migration's target model — which, with
+            // attribute-only migrations, is always. Emit the index as raw DDL
+            // so the created index matches Weasel's own
+            var columns = string.Join("], [", index.Columns);
+            var include = index.IncludeColumns is { Count: > 0 }
+                ? $" INCLUDE ([{string.Join("], [", index.IncludeColumns)}])"
+                : string.Empty;
+            var qualifiedTable = $"[{schema ?? options.DefaultSchema}].[{tableName}]";
+            return new SqlOperation
+            {
+                Sql = $"CREATE UNIQUE INDEX [{index.Name}] ON {qualifiedTable} ([{columns}]){include};"
+            };
         }
 
         var operation = new CreateIndexOperation
