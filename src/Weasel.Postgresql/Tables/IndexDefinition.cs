@@ -336,9 +336,16 @@ public class IndexDefinition: ITableIndex
             if (x.StartsWith('(') || x.Contains(' ') || x.Contains('-') || x.Contains('\''))
                 return x;
 
-            // QuoteName quotes reserved keywords (as before) and identifiers with
-            // uppercase characters, so case-preserved column names survive folding
-            return SchemaUtils.QuoteName(x);
+            // Case-quoting is only correct when the parent table itself preserved
+            // identifier case at creation (EF Core-mapped tables). On a case-folded
+            // table the physical column is lowercase, and quoting the declared
+            // casing would reference a column that does not exist (weasel#382)
+            if (parent is { PreserveIdentifierCase: true })
+            {
+                return SchemaUtils.QuoteName(x);
+            }
+
+            return SchemaUtils.IsReservedKeyword(x) ? $"\"{x}\"" : x;
         }).Join(", ");
         if (Mask.IsNotEmpty())
         {
@@ -712,7 +719,7 @@ public class IndexDefinition: ITableIndex
     /// <returns></returns>
     public bool Matches(IndexDefinition actual, Table parent)
     {
-        var expectedExpression = correctedExpression();
+        var expectedExpression = correctedExpression(parent);
 
         if (actual.Mask == expectedExpression)
         {
@@ -734,7 +741,7 @@ public class IndexDefinition: ITableIndex
     /// <exception cref="Exception"></exception>
     public void AssertMatches(IndexDefinition actual, Table parent)
     {
-        var expectedExpression = correctedExpression();
+        var expectedExpression = correctedExpression(parent);
 
 
         if (actual.Mask == expectedExpression)
