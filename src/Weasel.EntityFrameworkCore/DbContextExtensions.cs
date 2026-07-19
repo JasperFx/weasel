@@ -46,9 +46,38 @@ public record DbContextMigration(DbConnection Connection, Migrator Migrator, Sch
     }
 }
 
+/// <summary>
+///     Optional customization of the Weasel schema objects mapped from an EF Core
+///     model for migration purposes. Lets a caller (e.g. Wolverine's conjoined
+///     multi-tenancy) decorate mapped tables -- attach partitioning, adjust
+///     indexes -- and contribute additional schema objects such as partition
+///     control tables that must be migrated alongside the entity tables.
+/// </summary>
+public class EfSchemaMappingCustomization
+{
+    /// <summary>
+    ///     Called for every table mapped from an EF entity type, after the
+    ///     standard mapping. The same entity type/table pair is presented on
+    ///     every mapping pass (CreateDatabase and each CreateMigrationAsync)
+    /// </summary>
+    public Action<IEntityType, ITable>? CustomizeTable { get; set; }
+
+    /// <summary>
+    ///     Additional schema objects to migrate ahead of the mapped entity
+    ///     tables, e.g. partition control/registry tables
+    /// </summary>
+    public IReadOnlyList<ISchemaObject> AdditionalObjects { get; set; } = [];
+}
+
 public static class DbContextExtensions
 {
     public static IDatabaseWithTables CreateDatabase(this IServiceProvider services, DbContext context, string? identifier = null)
+    {
+        return services.CreateDatabase(context, null, identifier);
+    }
+
+    public static IDatabaseWithTables CreateDatabase(this IServiceProvider services, DbContext context,
+        EfSchemaMappingCustomization? customization, string? identifier = null)
     {
         identifier ??= context.GetType().FullNameInCode();
         var (originalConn, migrator) = services.FindMigratorForDbContext(context);
@@ -70,9 +99,18 @@ public static class DbContextExtensions
 
         try
         {
+            foreach (var additional in customization?.AdditionalObjects ?? [])
+            {
+                if (additional is ITable additionalTable)
+                {
+                    database.AddTable(additionalTable);
+                }
+            }
+
             foreach (var entityType in GetEntityTypesForMigration(context))
             {
                 var table = migrator.MapToTable(entityType);
+                customization?.CustomizeTable?.Invoke(entityType, table);
                 database.AddTable(table);
             }
 
@@ -84,15 +122,24 @@ public static class DbContextExtensions
         }
     }
 
+    public static Task<DbContextMigration> CreateMigrationAsync(
+        this IServiceProvider services,
+        DbContext context,
+        CancellationToken cancellation)
+    {
+        return services.CreateMigrationAsync(context, null, cancellation);
+    }
+
     public static async Task<DbContextMigration> CreateMigrationAsync(
         this IServiceProvider services,
         DbContext context,
+        EfSchemaMappingCustomization? customization,
         CancellationToken cancellation)
     {
         var (originalConn, migrator) = services.FindMigratorForDbContext(context);
         var conn = GetConnectionWithCredentials(context, originalConn);
 
-        var schemaObjects = GetSchemaObjectsForMigration(context, migrator!).ToArray();
+        var schemaObjects = GetSchemaObjectsForMigration(context, migrator!, customization).ToArray();
 
         await conn.OpenAsync(cancellation).ConfigureAwait(false);
 
@@ -116,6 +163,12 @@ public static class DbContextExtensions
     /// </summary>
     public static IReadOnlyList<ISchemaObject> GetSchemaObjectsForMigration(DbContext context, Migrator migrator)
     {
+        return GetSchemaObjectsForMigration(context, migrator, null);
+    }
+
+    public static IReadOnlyList<ISchemaObject> GetSchemaObjectsForMigration(DbContext context, Migrator migrator,
+        EfSchemaMappingCustomization? customization)
+    {
         var objects = new List<ISchemaObject>();
 
         foreach (var sequence in context.Model.GetSequences())
@@ -129,9 +182,22 @@ public static class DbContextExtensions
             objects.Add(mapped);
         }
 
-        objects.AddRange(GetEntityTypesForMigration(context)
-            .Select(x => migrator.MapToTable(x))
-            .OfType<ISchemaObject>());
+        // Contributed objects (partition control tables and the like) come before
+        // the entity tables so anything the tables depend on exists first
+        if (customization != null)
+        {
+            objects.AddRange(customization.AdditionalObjects);
+        }
+
+        foreach (var entityType in GetEntityTypesForMigration(context))
+        {
+            var table = migrator.MapToTable(entityType);
+            customization?.CustomizeTable?.Invoke(entityType, table);
+            if (table is ISchemaObject schemaObject)
+            {
+                objects.Add(schemaObject);
+            }
+        }
 
         return objects;
     }
