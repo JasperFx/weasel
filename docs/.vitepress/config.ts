@@ -135,6 +135,8 @@ export default withMermaid(
             { text: 'Overview', link: '/efcore/' },
             { text: 'Table Mapping', link: '/efcore/table-mapping' },
             { text: 'Migrations', link: '/efcore/migrations' },
+            { text: 'Migration Generation', link: '/efcore/migration-generation' },
+            { text: 'Mixed EF + Critter Stack Apps', link: '/efcore/migration-coexistence' },
             { text: 'JSON Columns', link: '/efcore/json-columns' },
             { text: 'Database Reset for Testing', link: '/efcore/database-cleaner' },
             { text: 'Batch Queries', link: '/efcore/batch-queries' }

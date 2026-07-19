@@ -1,6 +1,11 @@
 # Migrations
 
-Weasel's EF Core integration provides methods to detect schema differences and apply migrations using the same delta-detection engine that powers Weasel's core migration infrastructure.
+Weasel's EF Core integration supports schema migration in **two directions**:
+
+1. **Weasel applies the schema** (this page) — the EF Core model is mapped into Weasel schema objects and Weasel's delta-detection engine detects and applies changes directly, exactly like it does for Marten.
+2. **Weasel generates EF Core migration files** — the reverse: Weasel's schema model (including everything an `IDatabase` carries) is emitted as standard, compilable EF Core migrations that your team applies with `dotnet ef database update`, idempotent scripts, or bundles. See [EF Core Migration Generation](/efcore/migration-generation) and the [coexistence guide](/efcore/migration-coexistence).
+
+The rest of this page covers the first direction: detecting schema differences and applying migrations using the same delta-detection engine that powers Weasel's core migration infrastructure.
 
 ## Creating a Migration
 

@@ -42,6 +42,10 @@ src/
 │   └── Tables/               # Table handling with Oracle-specific features
 ├── Weasel.Sqlite/            # SQLite implementation (NEW!)
 │   └── Tables/               # Table handling with JSON support
+├── Weasel.EntityFrameworkCore/ # EF Core bridge: DbContext -> Weasel mapping,
+│   │                         #   EF migration file generation (translation layer,
+│   │                         #   emitter, snapshot differ, db-ef-migration CLI)
+│   └── CommandLine/          # db-ef-migration add | script | baseline
 └── *Tests/                   # Test projects for each library
 ```
 
