@@ -136,6 +136,7 @@ export default withMermaid(
             { text: 'Table Mapping', link: '/efcore/table-mapping' },
             { text: 'Migrations', link: '/efcore/migrations' },
             { text: 'Migration Generation', link: '/efcore/migration-generation' },
+            { text: 'Schema Mapping Customization', link: '/efcore/schema-customization' },
             { text: 'Mixed EF + Critter Stack Apps', link: '/efcore/migration-coexistence' },
             { text: 'JSON Columns', link: '/efcore/json-columns' },
             { text: 'Database Reset for Testing', link: '/efcore/database-cleaner' },
