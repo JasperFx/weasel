@@ -26,6 +26,7 @@ export default withMermaid(
           ]
         },
         { text: 'EF Core', link: '/efcore/' },
+        { text: 'Blog', link: '/blog/' },
         {
           text: 'Resources',
           items: [
@@ -141,6 +142,14 @@ export default withMermaid(
             { text: 'JSON Columns', link: '/efcore/json-columns' },
             { text: 'Database Reset for Testing', link: '/efcore/database-cleaner' },
             { text: 'Batch Queries', link: '/efcore/batch-queries' }
+          ]
+        },
+        {
+          text: 'Blog',
+          collapsed: true,
+          items: [
+            { text: 'All Posts', link: '/blog/' },
+            { text: 'Weasel Grows Up on EF Core', link: '/blog/efcore-9.18' }
           ]
         }
       ],

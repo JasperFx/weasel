@@ -2,6 +2,10 @@
 
 The `Weasel.EntityFrameworkCore` NuGet package bridges Entity Framework Core's `DbContext` model to Weasel's schema management infrastructure. This allows you to use Weasel's migration tooling, delta detection, and CLI commands with schemas defined through EF Core's fluent API.
 
+::: tip New in 9.18
+For a tour of the recent EF Core improvements — schema parity, EF Core migration generation, and the schema-mapping customization hook — see the blog post [Weasel Grows Up on EF Core](/blog/efcore-9.18).
+:::
+
 ## Installation
 
 ```bash
