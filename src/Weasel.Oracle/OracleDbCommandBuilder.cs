@@ -59,10 +59,10 @@ public class OracleDbCommandBuilder: DbCommandBuilder
     /// </summary>
     public override void StartNewCommand()
     {
-        var sql = TakeSql();
+        var sql = trim(TakeSql());
         var end = _oracleCommand.Parameters.Count;
 
-        if (sql.Trim().IsNotEmpty())
+        if (sql.IsNotEmpty())
         {
             _statements.Add(new Statement(sql, _boundary, end));
         }
@@ -71,7 +71,18 @@ public class OracleDbCommandBuilder: DbCommandBuilder
     }
 
     /// <inheritdoc />
-    public override int CommandCount => _statements.Count + (ToString().Trim().IsNotEmpty() ? 1 : 0);
+    public override int CommandCount => _statements.Count + (trim(ToString()).IsNotEmpty() ? 1 : 0);
+
+    /// <summary>
+    ///     Callers separate statements with a trailing semicolon, because that is what the providers
+    ///     that concatenate into one command need. Oracle executes one statement per command, where a
+    ///     trailing semicolon is a syntax error (ORA-00911), so strip it here rather than making every
+    ///     caller branch on the provider.
+    /// </summary>
+    private static string trim(string sql)
+    {
+        return sql.Trim().TrimEnd(';').Trim();
+    }
 
     /// <summary>
     ///     Compile into one <see cref="OracleCommand" /> per <see cref="StartNewCommand" /> boundary.

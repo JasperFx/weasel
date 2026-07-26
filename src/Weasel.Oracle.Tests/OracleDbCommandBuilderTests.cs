@@ -69,6 +69,39 @@ public class OracleDbCommandBuilderTests
     }
 
     [Fact]
+    public void strips_the_trailing_semicolon_callers_write_for_other_providers()
+    {
+        var builder = new OracleDbCommandBuilder();
+
+        builder.Append("delete from incoming;");
+        builder.StartNewCommand();
+        builder.Append("delete from outgoing;");
+
+        builder.CompileCommands().Select(x => x.CommandText).ShouldBe([
+            "delete from incoming",
+            "delete from outgoing"
+        ]);
+    }
+
+    [Fact]
+    public void a_semicolon_only_statement_is_not_a_statement()
+    {
+        var builder = new OracleDbCommandBuilder();
+
+        builder.Append(";");
+        builder.StartNewCommand();
+        builder.Append("delete from incoming;");
+
+        builder.CompileCommands().Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void exposes_the_oracle_bind_marker()
+    {
+        new OracleDbCommandBuilder().ParameterPrefix.ShouldBe(':');
+    }
+
+    [Fact]
     public void empty_statements_do_not_produce_commands()
     {
         var builder = new OracleDbCommandBuilder();

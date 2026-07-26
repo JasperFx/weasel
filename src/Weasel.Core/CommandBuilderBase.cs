@@ -58,6 +58,14 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
         : _command.Parameters[^1].ParameterName;
 
     /// <summary>
+    ///     The bind marker this dialect uses in command text — <c>@</c> for SQL Server, MySQL and
+    ///     SQLite, <c>:</c> for PostgreSQL and Oracle. Callers that hand-write a marker for a named
+    ///     parameter (rather than going through <see cref="AppendParameter(object, TParameterType?)" />,
+    ///     which writes it for them) should read it from here rather than hard-coding one.
+    /// </summary>
+    public char ParameterPrefix => _parameterPrefix;
+
+    /// <summary>
     ///     Add text to the batched command SQL string
     /// </summary>
     /// <param name="text"></param>
