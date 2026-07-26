@@ -116,9 +116,19 @@ public class OracleDbCommandBuilder: DbCommandBuilder
         {
             var command = new OracleCommand(statement.Sql) { BindByName = true };
 
-            for (var i = statement.Start; i < statement.End; i++)
+            for (var i = 0; i < parameters.Length; i++)
             {
-                command.Parameters.Add(parameters[i]);
+                // A parameter belongs to this statement if it was bound while the statement was open,
+                // or if the statement's SQL names it. The second case matters for a named parameter
+                // shared by more than one statement -- AddNamedParameter finds-or-adds, so it is only
+                // ever created once, but every statement that references it needs it bound.
+                var owned = i >= statement.Start && i < statement.End;
+                if (owned || references(statement.Sql, parameters[i].ParameterName))
+                {
+                    // An OracleParameter cannot be in two collections at once, so a shared one has
+                    // to be copied rather than moved
+                    command.Parameters.Add(owned ? parameters[i] : copyOf(parameters[i]));
+                }
             }
 
             commands.Add(command);
@@ -183,6 +193,48 @@ public class OracleDbCommandBuilder: DbCommandBuilder
         }
 
         oracleParameter.OracleDbType = OracleProvider.Instance.ToParameterType(original.GetType());
+    }
+
+    /// <summary>
+    ///     Does this statement's SQL bind <paramref name="name" />? Matches <c>:name</c> as a whole
+    ///     token, so that <c>:p1</c> does not count as a reference to <c>:p11</c>.
+    /// </summary>
+    private static bool references(string sql, string name)
+    {
+        var from = 0;
+        while (true)
+        {
+            var at = sql.IndexOf(':' + name, from, StringComparison.OrdinalIgnoreCase);
+            if (at < 0)
+            {
+                return false;
+            }
+
+            var after = at + name.Length + 1;
+            if (after >= sql.Length || !isIdentifierCharacter(sql[after]))
+            {
+                return true;
+            }
+
+            from = after;
+        }
+    }
+
+    private static bool isIdentifierCharacter(char c)
+    {
+        return char.IsLetterOrDigit(c) || c == '_' || c == '$' || c == '#';
+    }
+
+    private static OracleParameter copyOf(OracleParameter parameter)
+    {
+        return new OracleParameter
+        {
+            ParameterName = parameter.ParameterName,
+            OracleDbType = parameter.OracleDbType,
+            Value = parameter.Value,
+            Direction = parameter.Direction,
+            Size = parameter.Size
+        };
     }
 
     private readonly record struct Statement(string Sql, int Start, int End);

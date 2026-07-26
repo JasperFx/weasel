@@ -153,6 +153,46 @@ public class OracleDbCommandBuilderTests
     }
 
     [Fact]
+    public void a_named_parameter_shared_by_two_statements_is_bound_to_both()
+    {
+        var builder = new OracleDbCommandBuilder();
+
+        builder.Append("insert into incoming select * from dead_letters where replayable = :replayable;");
+        builder.AddNamedParameter("replayable", true);
+
+        builder.StartNewCommand();
+
+        builder.Append("delete from dead_letters where replayable = :replayable;");
+
+        var commands = builder.CompileCommands();
+
+        commands.Count.ShouldBe(2);
+        commands[0].Parameters["replayable"].Value.ShouldBe(1);
+        commands[1].Parameters["replayable"].Value.ShouldBe(1);
+    }
+
+    [Fact]
+    public void a_parameter_is_not_shared_just_because_its_name_is_a_prefix_of_another()
+    {
+        var builder = new OracleDbCommandBuilder();
+
+        builder.Append("delete from incoming where a = ");
+        builder.AppendParameter(1);
+        builder.Append(" and b = ");
+        builder.AppendParameter(2);
+
+        builder.StartNewCommand();
+
+        // References :p11 only -- must not drag in :p1
+        builder.Append("delete from outgoing where c = :p11");
+
+        var commands = builder.CompileCommands();
+
+        commands[0].Parameters.Count.ShouldBe(2);
+        commands[1].Parameters.Count.ShouldBe(0);
+    }
+
+    [Fact]
     public void split_commands_bind_by_name()
     {
         var builder = new OracleDbCommandBuilder();
