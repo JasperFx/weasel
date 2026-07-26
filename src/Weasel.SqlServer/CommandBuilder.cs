@@ -59,9 +59,9 @@ public class CommandBuilder: CommandBuilderBase<SqlCommand, SqlParameter, SqlDbT
         return new Weasel.Core.GroupedParameterBuilder(this, seperator);
     }
 
-    public void StartNewCommand()
+    public override void StartNewCommand()
     {
-        // do nothing!
+        // do nothing! SqlClient happily executes several statements from one command.
     }
 }
 
