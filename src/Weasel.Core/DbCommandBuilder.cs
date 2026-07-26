@@ -18,6 +18,18 @@ public class DbCommandBuilder: CommandBuilderBase<DbCommand, DbParameter, DbType
     public DbCommandBuilder(DbConnection connection): base(DbDatabaseProvider.Instance, '@', connection.CreateCommand())
     {
     }
+
+    /// <summary>
+    ///     Build against a dialect whose bind marker is not <c>@</c> — Oracle's is <c>:</c>, for
+    ///     example. Lets a database-agnostic consumer keep using <see cref="DbCommandBuilder" />
+    ///     against such a provider instead of emitting SQL the driver will reject.
+    /// </summary>
+    /// <param name="command"></param>
+    /// <param name="parameterPrefix"></param>
+    protected DbCommandBuilder(DbCommand command, char parameterPrefix)
+        : base(DbDatabaseProvider.Instance, parameterPrefix, command)
+    {
+    }
 }
 
 public static class DbCommandBuilderExtensions

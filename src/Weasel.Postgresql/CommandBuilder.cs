@@ -87,9 +87,9 @@ public class CommandBuilder: CommandBuilderBase<NpgsqlCommand, NpgsqlParameter, 
         return CreateGroupedParameterBuilder(seperator);
     }
 
-    public void StartNewCommand()
+    public override void StartNewCommand()
     {
-        // do nothing!
+        // do nothing! Npgsql happily executes several statements from one command.
     }
 }
 

@@ -95,13 +95,60 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     }
 
     /// <summary>
+    ///     Marks the end of a logical statement within the batch. On providers whose ADO.NET
+    ///     driver can execute several statements from a single command — which is every Weasel
+    ///     provider except Oracle — this is a no-op, because the statements are simply
+    ///     concatenated into one <see cref="DbCommand" />.
+    ///     <para>
+    ///     A provider whose driver cannot do that overrides this to close the current statement
+    ///     and start a new one, so that <see cref="CompileCommands" /> hands back one command per
+    ///     boundary. Callers that build a batch should call this between logical operations
+    ///     regardless of provider; on the multi-statement providers it costs nothing.
+    ///     </para>
+    /// </summary>
+    public virtual void StartNewCommand()
+    {
+        // Nothing by default -- multi-statement providers just keep appending
+    }
+
+    /// <summary>
+    ///     The number of executable commands accumulated so far. Providers that support
+    ///     multi-statement commands always report 1, no matter how many times
+    ///     <see cref="StartNewCommand" /> has been called.
+    /// </summary>
+    public virtual int CommandCount => 1;
+
+    /// <summary>
+    ///     Build out the batch as one or more executable ADO.NET commands, in order. Providers
+    ///     that support multi-statement commands return a single command holding every statement;
+    ///     providers that do not return one command per <see cref="StartNewCommand" /> boundary.
+    /// </summary>
+    /// <returns></returns>
+    public virtual IReadOnlyList<DbCommand> CompileCommands()
+    {
+        return [Compile()];
+    }
+
+    /// <summary>
+    ///     Take the SQL accumulated since the last call and reset the buffer. Intended for derived
+    ///     builders that implement real statement splitting in <see cref="StartNewCommand" />.
+    /// </summary>
+    /// <returns></returns>
+    protected string TakeSql()
+    {
+        var sql = _sql.ToString();
+        _sql.Clear();
+        return sql;
+    }
+
+    /// <summary>
     ///     Adds a parameter to the underlying command, but does NOT add the
     ///     parameter usage to the command text
     /// </summary>
     /// <param name="value"></param>
     /// <param name="dbType"></param>
     /// <returns></returns>
-    public TParameter AddParameter(object? value, TParameterType? dbType = null)
+    public virtual TParameter AddParameter(object? value, TParameterType? dbType = null)
     {
         var name = "p" + _command.Parameters.Count;
 
@@ -127,7 +174,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <param name="value"></param>
     /// <param name="dbType"></param>
     /// <returns></returns>
-    public TParameter AddNamedParameter(string name, object value, TParameterType? dbType = null)
+    public virtual TParameter AddNamedParameter(string name, object value, TParameterType? dbType = null)
     {
         var existing = _command.Parameters.OfType<TParameter>().FirstOrDefault(x => x.ParameterName == name);
         if (existing != null)
