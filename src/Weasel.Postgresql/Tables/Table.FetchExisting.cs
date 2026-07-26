@@ -85,6 +85,11 @@ FROM pg_constraint c
        JOIN pg_attribute col ON (col.attrelid = tbl.oid AND col.attnum = u.attnum)
 WHERE
 	c.contype in ('f', 'c') and
+	-- Skip constraint rows PostgreSQL clones from a parent: partition-inherited constraints, and
+	-- the extra per-partition rows created for a foreign key that references a PARTITIONED table.
+	-- They carry PostgreSQL-chosen names, they are not part of any table configuration, and they
+	-- cannot be dropped on their own -- 42P16, cannot drop inherited constraint.
+	c.conparentid = 0 and
 	sch.nspname = :{schemaParam} and
 	tbl.relname = :{nameParam}
 GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
