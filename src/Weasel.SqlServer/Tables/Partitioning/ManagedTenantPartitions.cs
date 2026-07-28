@@ -68,6 +68,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     private readonly Table _registry;
     private readonly IndexDefinition _uniqueOrdinalIndex;
     private readonly Dictionary<string, int> _ordinals = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, int> _buckets = new(StringComparer.OrdinalIgnoreCase);
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private bool _hasInitialized;
 
@@ -104,6 +105,15 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         _registry = new Table(registryTableName);
         _registry.AddColumn("tenant_id", "varchar(200)").AsPrimaryKey().NotNull();
         _registry.AddColumn<int>("ordinal").NotNull();
+
+        // weasel#391: the bucket key a tenant was registered under, or NULL for a tenant that owns its
+        // partition outright. Without it the registry held only tenant_id -> ordinal, so a tenant joining
+        // an existing bucket in a LATER call had no way to discover which ordinal that bucket already
+        // owned — every sequential registration silently allocated a fresh ordinal and the tenants never
+        // actually shared a partition. Nullable and additive, so it migrates onto an existing registry.
+        // Deliberately a COLUMN rather than a pseudo-tenant row: a row would keep the ordinal referenced
+        // forever and defeat release-on-last-member (and therefore TenantDropBehavior.DeleteData).
+        _registry.AddColumn("bucket", "varchar(200)");
 
         // Unique index on ordinal lets us safely allocate from the in-memory
         // map without re-querying the table; concurrent ManagedTenantPartitions
@@ -169,6 +179,15 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     /// <inheritdoc />
     public IReadOnlyDictionary<string, int> Ordinals =>
         new ReadOnlyDictionary<string, int>(_ordinals);
+
+    /// <summary>
+    ///     Current bucket -&gt; ordinal map, i.e. which physical partition each named
+    ///     tenant bucket resolves to. Populated from the registry's <c>bucket</c>
+    ///     column, so a bucket registered in an earlier call (or by another process)
+    ///     is resolvable here. A bucket disappears once its last member is dropped.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Buckets =>
+        new ReadOnlyDictionary<string, int>(_buckets);
 
     /// <inheritdoc />
     protected override IEnumerable<ISchemaObject> schemaObjects()
@@ -356,16 +375,22 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             await _registry.MigrateAsync(conn, token).ConfigureAwait(false);
 
             _ordinals.Clear();
+            _buckets.Clear();
 
             await using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                $"SELECT tenant_id, ordinal FROM {_registry.Identifier.QualifiedName}";
+                $"SELECT tenant_id, ordinal, bucket FROM {_registry.Identifier.QualifiedName}";
             await using var reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false);
             while (await reader.ReadAsync(token).ConfigureAwait(false))
             {
                 var tenantId = reader.GetString(0);
                 var ordinal = reader.GetInt32(1);
                 _ordinals[tenantId] = ordinal;
+
+                if (!await reader.IsDBNullAsync(2, token).ConfigureAwait(false))
+                {
+                    _buckets[reader.GetString(2)] = ordinal;
+                }
             }
 
             _hasInitialized = true;
@@ -539,6 +564,100 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     }
 
     /// <summary>
+    ///     Register tenants against named buckets — the durable form of tenant
+    ///     bucketing. A null or empty bucket means the tenant owns its partition
+    ///     outright; tenants sharing a bucket name share one ordinal, and therefore
+    ///     one physical partition, <b>whether they are registered together or in
+    ///     separate calls</b>. Requires <see cref="AllowOrdinalSharing" /> whenever a
+    ///     bucket ends up with more than one member.
+    /// </summary>
+    /// <remarks>
+    ///     Prefer this over the explicit-ordinal overload: the caller no longer has
+    ///     to know (or persist) which ordinal a bucket owns, because the bucket key
+    ///     itself round-trips through the registry (weasel#391).
+    /// </remarks>
+    public async Task<TenantPartitionAddResult> AddPartitionsToAllTables(
+        ILogger logger,
+        IDatabase<SqlConnection> database,
+        IReadOnlyDictionary<string, string?> tenantBuckets,
+        CancellationToken token)
+    {
+        await using var conn = database.CreateConnection();
+        await conn.OpenAsync(token).ConfigureAwait(false);
+
+        await InitializeAsync(conn, token).ConfigureAwait(false);
+
+        var assigned = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        // Bucket-less tenants keep the historical one-partition-per-tenant behavior.
+        foreach (var pair in tenantBuckets.Where(x => string.IsNullOrEmpty(x.Value)))
+        {
+            if (string.IsNullOrEmpty(pair.Key))
+            {
+                continue;
+            }
+
+            assigned[pair.Key] = await upsertTenantAsync(conn, pair.Key, token).ConfigureAwait(false);
+        }
+
+        foreach (var bucket in tenantBuckets
+                     .Where(x => !string.IsNullOrEmpty(x.Value))
+                     .GroupBy(x => x.Value!, StringComparer.OrdinalIgnoreCase))
+        {
+            var members = bucket.Where(x => !string.IsNullOrEmpty(x.Key)).Select(x => x.Key).ToArray();
+            if (members.Length == 0)
+            {
+                continue;
+            }
+
+            var ordinal = resolveBucketOrdinal(bucket.Key, members);
+
+            foreach (var member in members)
+            {
+                assigned[member] = await upsertTenantAsync(conn, member, token, ordinal, bucket.Key)
+                    .ConfigureAwait(false);
+            }
+        }
+
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+            .ConfigureAwait(false);
+
+        await conn.CloseAsync().ConfigureAwait(false);
+
+        return new TenantPartitionAddResult(assigned, statuses.ToArray());
+    }
+
+    /// <summary>
+    ///     Which ordinal a bucket resolves to: the one already recorded for the bucket, else the one its
+    ///     already-registered members hold (covers a registry written before the bucket column existed),
+    ///     else a fresh ordinal.
+    /// </summary>
+    private int resolveBucketOrdinal(string bucket, string[] members)
+    {
+        if (_buckets.TryGetValue(bucket, out var known))
+        {
+            return known;
+        }
+
+        var existing = members.Where(m => _ordinals.ContainsKey(m))
+            .Select(m => _ordinals[m])
+            .Distinct()
+            .ToArray();
+
+        if (existing.Length > 1)
+        {
+            throw new InvalidOperationException(
+                $"Tenants {members.Join(", ")} for bucket '{bucket}' are already mapped to different " +
+                $"partitions ({existing.Select(x => x.ToString()).Join(", ")}). Existing rows keep their " +
+                "ordinal, so they cannot be merged into one partition after the fact.");
+        }
+
+        return existing.Length == 1
+            ? existing[0]
+            : (_ordinals.Count == 0 ? 1 : _ordinals.Values.Max() + 1);
+    }
+
+    /// <summary>
     ///     Register a single tenant with an explicitly assigned ordinal. See
     ///     <see cref="AddPartitionsToAllTables(ILogger,IDatabase{SqlConnection},IReadOnlyDictionary{string,int},CancellationToken)" />
     ///     for the bucketing semantics.
@@ -627,6 +746,10 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             }
 
             _ordinals.Clear();
+
+            // ResetValues rewrites the registry wholesale and carries no bucket names, so every previously
+            // known bucket is gone with it.
+            _buckets.Clear();
             foreach (var pair in values)
             {
                 _ordinals[pair.Key] = pair.Value;
@@ -732,6 +855,15 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             _ordinals.Remove(tenant);
         }
 
+        // A bucket only exists while it has members. Forgetting it once the last one is dropped keeps the
+        // ordinal genuinely releasable — the whole reason the bucket key is a nullable column rather than a
+        // pseudo-tenant row, which would have pinned the partition forever.
+        foreach (var stale in _buckets.Where(pair => !_ordinals.ContainsValue(pair.Value))
+                     .Select(pair => pair.Key).ToArray())
+        {
+            _buckets.Remove(stale);
+        }
+
         // With ordinal sharing, an ordinal is only released once its LAST tenant
         // is dropped; while other tenants still map to it the partition must
         // survive, and a purge by ordinal would take their rows with it.
@@ -831,7 +963,8 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         SqlConnection conn,
         string tenantId,
         CancellationToken token,
-        int? requestedOrdinal = null)
+        int? requestedOrdinal = null,
+        string? bucket = null)
     {
         if (_ordinals.TryGetValue(tenantId, out var existing))
         {
@@ -841,6 +974,11 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
                     $"Tenant '{tenantId}' is already registered with ordinal {existing}; remapping to " +
                     $"{requestedOrdinal.Value} is not supported because existing rows keep the old ordinal. " +
                     "Drop the tenant first if it really has to move.");
+            }
+
+            if (bucket != null)
+            {
+                _buckets[bucket] = existing;
             }
 
             return existing;
@@ -870,12 +1008,13 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         // the InvalidOperationException propagates and the caller can retry.
         cmd.CommandText = $@"
 MERGE {_registry.Identifier.QualifiedName} WITH (HOLDLOCK) AS target
-USING (SELECT @tenant AS tenant_id, @ordinal AS ordinal) AS source
+USING (SELECT @tenant AS tenant_id, @ordinal AS ordinal, @bucket AS bucket) AS source
 ON target.tenant_id = source.tenant_id
-WHEN NOT MATCHED THEN INSERT (tenant_id, ordinal) VALUES (source.tenant_id, source.ordinal)
+WHEN NOT MATCHED THEN INSERT (tenant_id, ordinal, bucket) VALUES (source.tenant_id, source.ordinal, source.bucket)
 OUTPUT inserted.ordinal;";
         cmd.Parameters.AddWithValue("@tenant", tenantId);
         cmd.Parameters.AddWithValue("@ordinal", nextOrdinal);
+        cmd.Parameters.AddWithValue("@bucket", (object?)bucket ?? DBNull.Value);
 
         var insertedOrdinal = (int?)await cmd.ExecuteScalarAsync(token).ConfigureAwait(false);
 
@@ -897,6 +1036,14 @@ OUTPUT inserted.ordinal;";
         }
 
         _ordinals[tenantId] = insertedOrdinal.Value;
+
+        if (bucket != null)
+        {
+            // Record the bucket against whatever ordinal actually landed — which may be another process's
+            // if it won the MERGE race — so every later member of this bucket resolves to the same partition.
+            _buckets[bucket] = insertedOrdinal.Value;
+        }
+
         return insertedOrdinal.Value;
     }
 

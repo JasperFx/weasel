@@ -345,6 +345,155 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
             .ShouldBe(new[] { "mtpp.porders", "mtpp.pevents" }, ignoreOrder: true);
     }
 
+    [Fact]
+    public async Task named_buckets_registered_separately_share_one_partition()
+    {
+        // weasel#391, the headline SQL Server defect: bucketing worked inside a single batch (the caller
+        // supplied the shared ordinal itself) but silently did NOT across calls — the natural
+        // tenant-onboarding shape and exactly what the docs showed. The registry persisted only
+        // tenant_id -> ordinal, so a brand-new tenant could not discover which ordinal its bucket already
+        // owned and each call allocated a fresh one. The tenants never shared, so the 15,000-partition
+        // ceiling bucketing exists to dodge was not actually mitigated.
+        await ResetSchemaAndPartitionObjects();
+
+        var database = new DatabaseWithTables("mtpp_integration", ConnectionSource.ConnectionString);
+        var manager = theManager();
+        manager.AllowOrdinalSharing = true;
+        var orders = theOrdersTable(manager);
+        database.AddTable(orders);
+
+        await CreateSchemaObjectInDatabase(orders);
+
+        var first = await manager.AddPartitionsToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string?> { ["smalla"] = "shared_bucket" }, CancellationToken.None);
+
+        var second = await manager.AddPartitionsToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string?> { ["smallb"] = "shared_bucket" }, CancellationToken.None);
+
+        first.Ordinals["smalla"].ShouldBe(second.Ordinals["smallb"]);
+        manager.Buckets.ShouldContainKeyAndValue("shared_bucket", first.Ordinals["smalla"]);
+
+        // One bucket, one boundary — beyond the sentinel. Pre-fix this was { 0, 1, 2 }.
+        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
+    }
+
+    [Fact]
+    public async Task a_bucket_resolves_from_the_registry_for_a_brand_new_manager()
+    {
+        // The bucket key has to round-trip through the registry, not merely live in one process's memory:
+        // tenants are onboarded by whichever node happens to handle the request, often long after the
+        // bucket's first member was registered.
+        await ResetSchemaAndPartitionObjects();
+
+        var database = new DatabaseWithTables("mtpp_integration", ConnectionSource.ConnectionString);
+        var manager = theManager();
+        manager.AllowOrdinalSharing = true;
+        var orders = theOrdersTable(manager);
+        database.AddTable(orders);
+
+        await CreateSchemaObjectInDatabase(orders);
+
+        var first = await manager.AddPartitionsToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string?> { ["smalla"] = "shared_bucket" }, CancellationToken.None);
+
+        // A completely separate manager instance, as a different node would have.
+        var fresh = theManager();
+        fresh.AllowOrdinalSharing = true;
+        var freshDatabase = new DatabaseWithTables("mtpp_integration", ConnectionSource.ConnectionString);
+        freshDatabase.AddTable(theOrdersTable(fresh));
+
+        await fresh.InitializeAsync(freshDatabase, CancellationToken.None);
+        fresh.Buckets.ShouldContainKeyAndValue("shared_bucket", first.Ordinals["smalla"]);
+
+        var second = await fresh.AddPartitionsToAllTables(NullLogger.Instance, freshDatabase,
+            new Dictionary<string, string?> { ["smallb"] = "shared_bucket" }, CancellationToken.None);
+
+        second.Ordinals["smallb"].ShouldBe(first.Ordinals["smalla"]);
+    }
+
+    [Fact]
+    public async Task bucketless_tenants_still_get_their_own_partition()
+    {
+        await ResetSchemaAndPartitionObjects();
+
+        var database = new DatabaseWithTables("mtpp_integration", ConnectionSource.ConnectionString);
+        var manager = theManager();
+        manager.AllowOrdinalSharing = true;
+        var orders = theOrdersTable(manager);
+        database.AddTable(orders);
+
+        await CreateSchemaObjectInDatabase(orders);
+
+        var result = await manager.AddPartitionsToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string?>
+            {
+                ["big1"] = null,
+                ["big2"] = null,
+                ["smalla"] = "shared_bucket",
+                ["smallb"] = "shared_bucket"
+            }, CancellationToken.None);
+
+        result.Ordinals["big1"].ShouldNotBe(result.Ordinals["big2"]);
+        result.Ordinals["smalla"].ShouldBe(result.Ordinals["smallb"]);
+
+        // four tenants, three partitions
+        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).Length.ShouldBe(4);
+        manager.Ordinals.Values.Distinct().Count().ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task a_bucket_is_released_only_with_its_last_member()
+    {
+        await ResetSchemaAndPartitionObjects();
+
+        var database = new DatabaseWithTables("mtpp_integration", ConnectionSource.ConnectionString);
+        var manager = theManager();
+        manager.AllowOrdinalSharing = true;
+        var orders = theOrdersTable(manager);
+        database.AddTable(orders);
+
+        await CreateSchemaObjectInDatabase(orders);
+
+        await manager.AddPartitionsToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string?> { ["smalla"] = "shared_bucket", ["smallb"] = "shared_bucket" },
+            CancellationToken.None);
+
+        await manager.DropPartitionFromAllTables(NullLogger.Instance, database, new[] { "smalla" },
+            TenantDropBehavior.DeleteData, CancellationToken.None);
+
+        // still one member, so the bucket and its partition survive
+        manager.Buckets.ShouldContainKey("shared_bucket");
+        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
+
+        await manager.DropPartitionFromAllTables(NullLogger.Instance, database, new[] { "smallb" },
+            TenantDropBehavior.DeleteData, CancellationToken.None);
+
+        // last member gone — the bucket is forgotten and the ordinal genuinely released. This is why the
+        // bucket key is a nullable column and not a pseudo-tenant row: a row would have pinned it forever.
+        manager.Buckets.ShouldNotContainKey("shared_bucket");
+        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0 });
+    }
+
+    [Fact]
+    public async Task bucketing_more_than_one_tenant_requires_ordinal_sharing()
+    {
+        await ResetSchemaAndPartitionObjects();
+
+        var database = new DatabaseWithTables("mtpp_integration", ConnectionSource.ConnectionString);
+        var manager = theManager();
+        var orders = theOrdersTable(manager);
+        database.AddTable(orders);
+
+        await CreateSchemaObjectInDatabase(orders);
+
+        await manager.AddPartitionsToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string?> { ["smalla"] = "shared_bucket" }, CancellationToken.None);
+
+        await Should.ThrowAsync<InvalidOperationException>(() =>
+            manager.AddPartitionsToAllTables(NullLogger.Instance, database,
+                new Dictionary<string, string?> { ["smallb"] = "shared_bucket" }, CancellationToken.None));
+    }
+
     // ---------------------------------------------------------------------
     // Helpers
     // ---------------------------------------------------------------------
