@@ -414,6 +414,217 @@ public class managed_list_partitions : IntegrationContext
         (await partitionExists("teams", "orphan")).ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task bucketed_values_registered_together_share_one_partition()
+    {
+        // weasel#391: several values deliberately sharing one suffix ("bucketing") must land in ONE
+        // physical partition carrying every member's value.
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database, new Dictionary<string, string>(), CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        await database.Partitions.AddPartitionToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string> { { "smalla", "shared_bucket" }, { "smallb", "shared_bucket" } },
+            CancellationToken.None);
+
+        (await partitionValues("teams", "shared_bucket")).ShouldBe(["smalla", "smallb"]);
+        (await partitionValues("players", "shared_bucket")).ShouldBe(["smalla", "smallb"]);
+    }
+
+    [Fact]
+    public async Task bucketed_values_registered_separately_share_one_partition()
+    {
+        // weasel#391, the headline defect: bucket members are normally registered ONE AT A TIME as tenants
+        // onboard. AddPartitionToAllTables emitted a single-value ListPartition per value, so the second
+        // member's CREATE TABLE IF NOT EXISTS was a silent no-op against the partition the first member had
+        // already created. The bound kept only the first value and the second tenant's very first write died
+        // with 23514 "no partition of relation found for row".
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database, new Dictionary<string, string>(), CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        await database.Partitions.AddPartitionToAllTables(database, "smalla", "shared_bucket", CancellationToken.None);
+        await database.Partitions.AddPartitionToAllTables(database, "smallb", "shared_bucket", CancellationToken.None);
+
+        try
+        {
+            (await partitionValues("teams", "shared_bucket")).ShouldBe(["smalla", "smallb"]);
+
+            // Both members write, and both rows land in the SAME physical partition — the entire point of
+            // bucketing. Pre-fix the second insert threw.
+            await insertTeam("Lions", "smalla");
+            await insertTeam("Tigers", "smallb");
+
+            (await partitionOfTeam("Lions")).ShouldBe("managed_lists.teams_shared_bucket");
+            (await partitionOfTeam("Tigers")).ShouldBe("managed_lists.teams_shared_bucket");
+        }
+        finally
+        {
+            // These rows would otherwise outlive the test and break a sibling's migration: the managed_lists
+            // schema is shared across this class, and a later ResetValues to a partition set that no longer
+            // covers 'smalla' makes the table rebuild fail with 23514.
+            await dropManagedListsSchema();
+        }
+    }
+
+    [Fact]
+    public async Task widening_a_bucket_preserves_the_rows_already_in_it()
+    {
+        // Widening is DETACH + re-ATTACH rather than CREATE IF NOT EXISTS, so it has to be non-destructive
+        // for the members already living in the partition.
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database, new Dictionary<string, string>(), CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        try
+        {
+            await database.Partitions.AddPartitionToAllTables(database, "smalla", "shared_bucket",
+                CancellationToken.None);
+            await insertTeam("Lions", "smalla");
+
+            await database.Partitions.AddPartitionToAllTables(database, "smallb", "shared_bucket",
+                CancellationToken.None);
+
+            // The incumbent's row survives the DETACH/re-ATTACH untouched...
+            (await teamNames()).ShouldBe(["Lions"]);
+            (await partitionOfTeam("Lions")).ShouldBe("managed_lists.teams_shared_bucket");
+
+            // ...and the widen genuinely took effect, rather than being the old silent no-op.
+            await insertTeam("Tigers", "smallb");
+            (await partitionOfTeam("Tigers")).ShouldBe("managed_lists.teams_shared_bucket");
+            (await teamNames()).ShouldBe(["Lions", "Tigers"]);
+        }
+        finally
+        {
+            await dropManagedListsSchema();
+        }
+    }
+
+    [Fact]
+    public async Task dropping_one_bucket_member_preserves_the_other_members_data()
+    {
+        // weasel#391: DropPartitionFromAllTablesForValue resolved the value to its suffix and then dropped
+        // BY SUFFIX — deleting every registry row in the bucket and DROPping the shared partition table.
+        // Removing one small tenant therefore silently destroyed every co-tenant's rows.
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database, new Dictionary<string, string>(), CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        try
+        {
+            await database.Partitions.AddPartitionToAllTables(database, "smalla", "shared_bucket",
+                CancellationToken.None);
+            await database.Partitions.AddPartitionToAllTables(database, "smallb", "shared_bucket",
+                CancellationToken.None);
+            await insertTeam("Lions", "smalla");
+            await insertTeam("Tigers", "smallb");
+
+            await database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, "smalla",
+                CancellationToken.None);
+
+            // The survivor keeps its partition, its bound, and — the part that used to be lost — its rows.
+            (await partitionValues("teams", "shared_bucket")).ShouldBe(["smallb"]);
+            (await teamNames()).ShouldBe(["Tigers"]);
+
+            // and can still write afterwards
+            await insertTeam("Bears", "smallb");
+            (await teamNames()).ShouldBe(["Bears", "Tigers"]);
+
+            // The departed value is genuinely deregistered, not merely unrouted.
+            database.Partitions.ForceReload();
+            await database.Partitions.InitializeAsync(database, CancellationToken.None);
+            database.Partitions.Partitions.ShouldNotContainKey("smalla");
+            database.Partitions.Partitions.ShouldContainKey("smallb");
+        }
+        finally
+        {
+            await dropManagedListsSchema();
+        }
+    }
+
+    [Fact]
+    public async Task the_partition_is_released_only_with_the_last_bucket_member()
+    {
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database, new Dictionary<string, string>(), CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        await database.Partitions.AddPartitionToAllTables(database, "smalla", "shared_bucket", CancellationToken.None);
+        await database.Partitions.AddPartitionToAllTables(database, "smallb", "shared_bucket", CancellationToken.None);
+
+        await database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, "smalla",
+            CancellationToken.None);
+
+        // Still one member left, so the physical partition survives.
+        (await partitionExists("teams", "shared_bucket")).ShouldBeTrue();
+
+        await database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, "smallb",
+            CancellationToken.None);
+
+        // Last member gone — now the partition is released on every managed table.
+        (await partitionExists("teams", "shared_bucket")).ShouldBeFalse();
+        (await partitionExists("players", "shared_bucket")).ShouldBeFalse();
+    }
+
+    private static async Task insertTeam(string name, string color)
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        await conn.CreateCommand("insert into managed_lists.teams (name, color) values (:name, :color)")
+            .With("name", name)
+            .With("color", color)
+            .ExecuteNonQueryAsync();
+    }
+
+    private static async Task<string[]> teamNames()
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        await using var reader = await conn.CreateCommand("select name from managed_lists.teams order by name")
+            .ExecuteReaderAsync();
+
+        var names = new List<string>();
+        while (await reader.ReadAsync())
+        {
+            names.Add(reader.GetString(0));
+        }
+
+        return names.ToArray();
+    }
+
+    private static async Task<string?> partitionOfTeam(string name)
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        return await conn.CreateCommand("select tableoid::regclass::text from managed_lists.teams where name = :name")
+            .With("name", name)
+            .ExecuteScalarAsync() as string;
+    }
+
+    /// <summary>
+    /// The values a partition's bound actually covers, sorted so the assertion does not depend on the order
+    /// PostgreSQL happens to echo them back in.
+    /// </summary>
+    private static async Task<string[]> partitionValues(string parent, string suffix)
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        var bound = await conn.CreateCommand(
+                "select pg_get_expr(c.relpartbound, c.oid) from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'managed_lists' and c.relname = :name")
+            .With("name", $"{parent}_{suffix}")
+            .ExecuteScalarAsync() as string;
+
+        if (bound == null) return [];
+
+        var inner = bound.Substring(bound.IndexOf('(') + 1, bound.LastIndexOf(')') - bound.IndexOf('(') - 1);
+        return inner.Split(',').Select(x => x.Trim().Trim('\'')).OrderBy(x => x).ToArray();
+    }
+
     private static async Task dropManagedListsSchema()
     {
         await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
