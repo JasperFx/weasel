@@ -10,6 +10,14 @@
              entry point - so a test project has to build as an executable. -->
         <OutputType>Exe</OutputType>
         <IsPackable>false</IsPackable>
+
+        <!-- Every database-backed suite shares schemas between target frameworks, so
+             running the net9.0 and net10.0 suites concurrently makes them drop each
+             other's schemas mid-test. CI never hit this because each job names a
+             single target framework explicitly, but a bare `dotnet test` locally
+             does, and did so on the Postgres suite well before the xUnit v3
+             migration. -->
+        <TestTfmsInParallel>false</TestTfmsInParallel>
     </PropertyGroup>
 
     <ItemGroup>
