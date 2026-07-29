@@ -16,7 +16,8 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Oracle takes several minutes to become healthy on the net9.0 leg
+    timeout-minutes: 45
 
     strategy:
         matrix:
@@ -61,6 +62,15 @@ jobs:
     steps:
     - uses: actions/checkout@v6
 
+    # Oracle needs the init SQL in docker/oracle mounted to grant the weasel user
+    # its schema privileges, which a GitHub service container cannot do - so it
+    # comes up through docker compose, the same way ci-build-oracle.yml does it.
+    # Only net9.0 needs it: the Oracle EF provider has no net10.0 support, so the
+    # Oracle test folder is excluded from that build entirely.
+    - name: Start Oracle via docker-compose
+      if: matrix.framework == 'net9.0'
+      run: docker compose up -d oracle
+
     - name: Install .NET
       uses: actions/setup-dotnet@v5
       with:
@@ -74,8 +84,21 @@ jobs:
     - name: Build
       run: dotnet build src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-restore --framework ${{ matrix.framework }}
 
-    # The Oracle EF provider has no database service in this workflow; its
-    # end-to-end suite only runs locally against docker-compose. MySql tests
-    # exist on net9.0 only (the provider does not yet support net10.0).
+    # Waiting here rather than straight after `up -d` lets Oracle warm up during
+    # the SDK install, restore and build.
+    - name: Wait for Oracle to be healthy
+      if: matrix.framework == 'net9.0'
+      run: |
+        echo "Waiting for Oracle to be ready..."
+        timeout 300 bash -c 'until docker compose exec -T oracle healthcheck.sh; do sleep 10; done'
+        echo "Oracle is ready"
+
+    # No test filter: the Oracle and MySql suites are compiled out of the net10.0
+    # build (neither provider supports it yet), so each framework runs everything
+    # it actually built.
     - name: Test
-      run: dotnet test src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }} --filter "FullyQualifiedName!~Oracle"
+      run: dotnet test src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }}
+
+    - name: Stop Oracle
+      if: always() && matrix.framework == 'net9.0'
+      run: docker compose down
