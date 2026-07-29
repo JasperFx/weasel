@@ -4,7 +4,6 @@ using Shouldly;
 using Weasel.Core;
 using Weasel.SqlServer.Tables;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Weasel.SqlServer.Tests.Tables;
 

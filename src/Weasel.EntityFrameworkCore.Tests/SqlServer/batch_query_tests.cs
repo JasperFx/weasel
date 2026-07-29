@@ -14,7 +14,7 @@ public class sql_server_batch_query_tests : IAsyncLifetime
 {
     private IHost _host = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         // Ensure the database exists first (race-tolerant for parallel classes)
         await SqlServerDatabaseBootstrap.EnsureDatabaseExistsAsync(SqlServerFkDbContext.ConnectionString);
@@ -62,7 +62,7 @@ public class sql_server_batch_query_tests : IAsyncLifetime
         await context.SaveChangesAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await _host.StopAsync();
         _host.Dispose();

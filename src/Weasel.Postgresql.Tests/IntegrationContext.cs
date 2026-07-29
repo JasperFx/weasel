@@ -6,7 +6,7 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests;
 
-public abstract class IntegrationContext: IDisposable, IAsyncLifetime
+public abstract class IntegrationContext: IAsyncLifetime
 {
     protected readonly NpgsqlDataSource theDataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
     private NpgsqlConnection? connection;
@@ -28,12 +28,6 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
     }
 
     public string SchemaName { get; }
-
-    public void Dispose()
-    {
-        connection?.Dispose();
-        theDataSource.Dispose();
-    }
 
     protected async Task ResetSchema()
     {
@@ -83,13 +77,22 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
             .ExecuteNonQueryAsync();
     }
 
-    public virtual Task InitializeAsync()
+    public virtual ValueTask InitializeAsync()
     {
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public virtual Task DisposeAsync()
+    // Connection teardown lives here, not in an IDisposable.Dispose. xUnit v3's
+    // IAsyncLifetime inherits IAsyncDisposable, and when a test class implements both
+    // IAsyncDisposable and IDisposable, v3 calls DisposeAsync only - so a Dispose()
+    // holding the cleanup would silently never run and leak a connection per test.
+    public virtual async ValueTask DisposeAsync()
     {
-        return Task.CompletedTask;
+        if (connection != null)
+        {
+            await connection.DisposeAsync();
+        }
+
+        await theDataSource.DisposeAsync();
     }
 }

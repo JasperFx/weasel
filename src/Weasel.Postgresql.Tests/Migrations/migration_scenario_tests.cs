@@ -24,9 +24,9 @@ public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
         theDatabase = new TestDatabaseWithTables(AutoCreate.None, "Migrations", theDataSource);
     }
 
-    public override Task InitializeAsync()
+    public override ValueTask InitializeAsync()
     {
-        return ResetSchema();
+        return new(ResetSchema());
     }
 
     [Fact]

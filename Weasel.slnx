@@ -6,13 +6,16 @@
   </Configurations>
   <Folder Name="/Build/">
     <File Path=".editorconfig" />
+    <File Path=".github/workflows/ci-build-efcore.yml" />
     <File Path=".github/workflows/ci-build-mssql.yml" />
     <File Path=".github/workflows/ci-build-mysql.yml" />
     <File Path=".github/workflows/ci-build-oracle.yml" />
     <File Path=".github/workflows/ci-build-postgres.yml" />
+    <File Path=".github/workflows/ci-build-sqlite.yml" />
     <File Path=".github/workflows/publish_nuget.yml" />
     <File Path="Analysis.Build.props" />
     <File Path="Directory.Build.props" />
+    <File Path="Tests.Build.props" />
     <File Path="docker-compose.yml" />
     <File Path="README.md" />
   </Folder>

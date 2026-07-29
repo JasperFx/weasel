@@ -67,7 +67,7 @@ AS
 ");
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await ResetSchema();
 

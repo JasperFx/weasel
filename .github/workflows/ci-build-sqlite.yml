@@ -8,7 +8,6 @@ on:
 
 env:
   config: Release
-  disable_test_parallelization: true
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
 
@@ -26,7 +25,6 @@ jobs:
           #- windows-latest
           #- macos-latest
         framework:
-          - net8.0
           - net9.0
           - net10.0
 
@@ -39,7 +37,6 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
           dotnet-version: |
-              8.0.x
               9.0.x
               10.0.x
 

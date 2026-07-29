@@ -22,7 +22,7 @@ public class detecting_table_deltas: IntegrationContext
         theTable.AddColumn("data", "text");
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await ResetSchema();
     }

@@ -10,7 +10,7 @@ public class OracleDbCommandBuilderIntegrationTests: IAsyncLifetime
 {
     private readonly OracleConnection theConnection = new(ConnectionSource.ConnectionString);
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await theConnection.OpenAsync();
 
@@ -27,7 +27,7 @@ public class OracleDbCommandBuilderIntegrationTests: IAsyncLifetime
             .ExecuteNonQueryAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await theConnection.CloseAsync();
         await theConnection.DisposeAsync();

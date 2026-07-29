@@ -9,12 +9,12 @@ public abstract class IntegrationContext: IAsyncLifetime
 {
     protected MySqlConnection theConnection = default!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         theConnection = await ConnectionSource.CreateOpenConnectionAsync();
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await theConnection.CloseAsync();
         await theConnection.DisposeAsync();
@@ -65,7 +65,7 @@ public class IntegrationCollection: ICollectionFixture<IntegrationFixture>
 
 public class IntegrationFixture: IAsyncLifetime
 {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         // Ensure database exists
         var builder = new MySqlConnectionStringBuilder(ConnectionSource.ConnectionString);
@@ -80,8 +80,8 @@ public class IntegrationFixture: IAsyncLifetime
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }

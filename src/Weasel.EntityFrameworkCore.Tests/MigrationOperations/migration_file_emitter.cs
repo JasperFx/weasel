@@ -143,7 +143,7 @@ public class migration_file_emitter
 [Collection("pg-schema-comparison")]
 public class generated_migration_end_to_end : IAsyncLifetime
 {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         WeaselSampleDbContext.ConnectionString = PostgresqlDbContext.ConnectionString;
 
@@ -154,7 +154,7 @@ public class generated_migration_end_to_end : IAsyncLifetime
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     [Fact]
     public async Task applies_via_ef_round_trips_against_weasel_and_migrates_down()

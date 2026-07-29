@@ -23,7 +23,7 @@ public class UpsertFunctionTests: IntegrationContext
             "next_value", "hi_value");
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await ResetSchema();
         await CreateSchemaObjectInDatabase(theHiloTable);

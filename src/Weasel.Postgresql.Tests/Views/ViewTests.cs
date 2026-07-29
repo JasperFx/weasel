@@ -3,7 +3,6 @@ using Shouldly;
 using Weasel.Core;
 using Weasel.Postgresql.Views;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Weasel.Postgresql.Tests.Views;
 

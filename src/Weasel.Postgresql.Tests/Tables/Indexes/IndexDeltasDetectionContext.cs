@@ -9,8 +9,8 @@ public abstract class IndexDeltasDetectionContext: IntegrationContext
     protected Table theTable;
     protected Table theOtherTable;
 
-    public override Task InitializeAsync() =>
-        ResetSchema();
+    public override ValueTask InitializeAsync() =>
+        new(ResetSchema());
 
     protected IndexDeltasDetectionContext(string schemaName, string tableName = "people"): base(schemaName)
     {

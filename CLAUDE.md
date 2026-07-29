@@ -19,7 +19,9 @@ Weasel is a low-level database abstraction and schema migration library for .NET
 - **SQL Server:** Microsoft.Data.SqlClient
 - **Oracle:** Oracle.ManagedDataAccess.Core
 - **SQLite:** Microsoft.Data.Sqlite with JSON1 extension support
-- **Testing:** xUnit, Shouldly, NSubstitute
+- **Testing:** xUnit v3, Shouldly, NSubstitute. Test projects import
+  `Tests.Build.props` for the shared runner packages and `OutputType=Exe`
+  (required by v3), rather than declaring them individually.
 - **Build:** Nuke.Build
 
 ## Project Structure
@@ -77,7 +79,7 @@ dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj
 dotnet test src/Weasel.Sqlite.Tests/Weasel.Sqlite.Tests.csproj
 
 # Target specific framework
-dotnet test --framework net8.0
+dotnet test --framework net9.0
 ```
 
 **Database Setup for Integration Tests:**

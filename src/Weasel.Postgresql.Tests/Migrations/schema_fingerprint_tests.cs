@@ -24,7 +24,7 @@ public class schema_fingerprint_tests: IntegrationContext, IAsyncLifetime
         theDatabase = new TestDatabaseWithTables(AutoCreate.CreateOrUpdate, "Fingerprint", theDataSource);
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await ResetSchema();
 

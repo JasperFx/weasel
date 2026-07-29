@@ -1,15 +1,20 @@
-using Xunit;
-using Xunit.Abstractions;
-using Xunit.Sdk;
-
-[assembly: TestFramework("Weasel.Postgresql.Tests.TestSetup", "Weasel.Postgresql.Tests")]
+using System.Runtime.CompilerServices;
 
 namespace Weasel.Postgresql.Tests;
 
-public class TestSetup: XunitTestFramework
+/// <summary>
+/// The Postgres CI matrix runs the whole suite twice, once with case-sensitive
+/// qualified names and once without, selected by an environment variable.
+/// </summary>
+/// <remarks>
+/// This was a custom xUnit v2 TestFramework. v3 reshaped that extensibility point,
+/// and a module initializer is a better fit anyway: it needs no test-framework hook,
+/// and it runs before discovery rather than alongside it.
+/// </remarks>
+internal static class TestSetup
 {
-    public TestSetup(IMessageSink messageSink)
-        : base(messageSink)
+    [ModuleInitializer]
+    internal static void Initialize()
     {
         if (bool.TryParse(
                 Environment.GetEnvironmentVariable("USE_CASE_SENSITIVE_QUALIFIED_NAMES"),
