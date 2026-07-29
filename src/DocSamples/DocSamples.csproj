@@ -3,16 +3,17 @@
     <PropertyGroup>
         <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
         <IsPackable>false</IsPackable>
+        <!-- The Web SDK defaults to Exe, but there is no entry point here - only
+             sample methods, one of which calls WebApplication.CreateBuilder.
+             Microsoft.NET.Test.Sdk used to paper over that by generating a Main;
+             it is gone now, so say Library outright. -->
+        <OutputType>Library</OutputType>
     </PropertyGroup>
 
+    <!-- Not a test project: DocSamples holds compilable mdsnippets sources and
+         contains no xunit code, so it carries no test framework packages. -->
     <ItemGroup>
-        <PackageReference Include="Microsoft.NET.Test.Sdk" />
         <PackageReference Include="Shouldly" />
-        <PackageReference Include="xunit" />
-        <PackageReference Include="xunit.runner.visualstudio">
-            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-            <PrivateAssets>all</PrivateAssets>
-        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
