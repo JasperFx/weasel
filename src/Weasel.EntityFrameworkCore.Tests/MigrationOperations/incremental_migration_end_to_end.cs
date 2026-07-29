@@ -21,7 +21,7 @@ namespace Weasel.EntityFrameworkCore.Tests.MigrationOperations;
 [Collection("pg-schema-comparison")]
 public class incremental_migration_end_to_end : IAsyncLifetime
 {
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         WeaselSampleDbContext.ConnectionString = PostgresqlDbContext.ConnectionString;
 
@@ -32,7 +32,7 @@ public class incremental_migration_end_to_end : IAsyncLifetime
         await cmd.ExecuteNonQueryAsync();
     }
 
-    public Task DisposeAsync() => Task.CompletedTask;
+    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
     private static ISchemaObject[] modifiedObjects()
     {
