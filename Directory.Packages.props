@@ -30,10 +30,6 @@
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.7.0" />
     <!-- Pomelo EF Core is framework-conditional - see below -->
     <PackageVersion Include="Shouldly" Version="4.3.0" />
-    <!-- xunit 2.x stays until the last test project is moved over to xunit.v3;
-         xunit.runner.visualstudio 3.x discovers both, so the two can coexist
-         while the projects are converted one at a time. -->
-    <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
