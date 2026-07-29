@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Shared configuration for the xUnit v3 test projects. Imported explicitly by
+    each *.Tests.csproj, mirroring how the production projects import
+    Analysis.Build.props.
+-->
+<Project>
+    <PropertyGroup>
+        <!-- xUnit v3 test assemblies are self-executing - the runner supplies the
+             entry point - so a test project has to build as an executable. -->
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- ExcludeAssets="analyzers" keeps xunit.analyzers out of the build. This
+             suite predates them, and xUnit1051 alone (pass
+             TestContext.Current.CancellationToken to async calls) fires on
+             hundreds of async database calls. Adopting the analyzers is
+             deliberate follow-up work, not part of the v2 -> v3 conversion. -->
+        <PackageReference Include="xunit.v3" ExcludeAssets="analyzers" />
+        <PackageReference Include="xunit.runner.visualstudio">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" />
+        <PackageReference Include="coverlet.collector">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+</Project>
