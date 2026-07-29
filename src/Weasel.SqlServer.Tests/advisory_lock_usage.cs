@@ -148,14 +148,14 @@ public class AdvisoryLockSpecs : IAsyncLifetime
 {
     private AdvisoryLock theLock;
 
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
 
         theLock = new AdvisoryLock(() => new SqlConnection(ConnectionSource.ConnectionString), NullLogger.Instance, "Testing");
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         await theLock.DisposeAsync();
     }
