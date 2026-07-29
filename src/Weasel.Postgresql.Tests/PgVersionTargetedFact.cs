@@ -1,94 +1,102 @@
 using Npgsql;
 using Shouldly;
 using Xunit;
-using Xunit.Abstractions;
-using Xunit.Sdk;
 
 namespace Weasel.Postgresql.Tests;
+
+/// <summary>
+/// The PostgreSQL server version the suite is running against. Resolved once, since it
+/// cannot change during a test run.
+/// </summary>
+public static class PgVersion
+{
+    public static readonly Version Current;
+
+    static PgVersion()
+    {
+        var versionFromEnv = Environment.GetEnvironmentVariable("postgresql_version");
+        if (!string.IsNullOrEmpty(versionFromEnv))
+        {
+            Current = Version.Parse(versionFromEnv);
+            return;
+        }
+
+        using var c = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        c.Open();
+        Current = c.PostgreSqlVersion;
+        c.Close();
+    }
+
+    /// <summary>
+    /// The reason a test constrained to this version range should be skipped on the
+    /// current server, or null when the server is inside the range.
+    /// </summary>
+    public static string? SkipReason(string? minimumVersion, string? maximumVersion)
+    {
+        if (minimumVersion != null && Version.TryParse(minimumVersion, out var minVersion) && Current < minVersion)
+        {
+            return $"Minimum required PG version {minimumVersion} is higher than {Current}";
+        }
+
+        if (maximumVersion != null && Version.TryParse(maximumVersion, out var maxVersion) && Current > maxVersion)
+        {
+            return $"Maximum allowed PG version {maximumVersion} is higher than {Current}";
+        }
+
+        return null;
+    }
+}
 
 /// <summary>
 /// Allows targeting test at specified minimum and/or maximum version of PG
 /// </summary>
 [AttributeUsage(AttributeTargets.Method)]
-[XunitTestCaseDiscoverer("Weasel.Postgresql.Tests.PgVersionTargetedFactDiscoverer", "Weasel.Postgresql.Tests")]
 public sealed class PgVersionTargetedFact: FactAttribute
 {
-    public string MinimumVersion { get; set; }
-    public string MaximumVersion { get; set; }
-}
+    private string? _minimumVersion;
+    private string? _maximumVersion;
 
-public sealed class PgVersionTargetedFactDiscoverer: FactDiscoverer
-{
-    internal static readonly Version Version;
-
-    static PgVersionTargetedFactDiscoverer()
+    public string? MinimumVersion
     {
-        var versionFromEnv = Environment.GetEnvironmentVariable("postgresql_version");
-        if (!string.IsNullOrEmpty(versionFromEnv))
+        get => _minimumVersion;
+        set
         {
-            Version = Version.Parse(versionFromEnv);
-            return;
+            _minimumVersion = value;
+            ApplyVersionGate();
         }
-
-        // PG version does not change during test run so we can do static ctor
-        using var c = new NpgsqlConnection(ConnectionSource.ConnectionString);
-        c.Open();
-        Version = c.PostgreSqlVersion;
-        c.Close();
     }
 
-    public PgVersionTargetedFactDiscoverer(IMessageSink diagnosticMessageSink): base(diagnosticMessageSink)
+    public string? MaximumVersion
     {
+        get => _maximumVersion;
+        set
+        {
+            _maximumVersion = value;
+            ApplyVersionGate();
+        }
     }
 
-    public override IEnumerable<IXunitTestCase> Discover(ITestFrameworkDiscoveryOptions discoveryOptions,
-        ITestMethod testMethod,
-        IAttributeInfo factAttribute)
+    // Replaces the v2 custom discoverer that handed back a pre-skipped XunitTestCase.
+    // v3 removed that extensibility point but seals FactAttribute.Skip rather than
+    // making it virtual, so the gate is applied as each named argument is assigned -
+    // which happens after construction, hence re-running on both setters. v3
+    // instantiates the attribute and reads Skip off the instance, so this is seen.
+    // Only ever sets Skip, never clears it, so an explicit Skip = "..." survives.
+    private void ApplyVersionGate()
     {
-        var minimumVersion = factAttribute.GetNamedArgument<string>(nameof(PgVersionTargetedFact.MinimumVersion));
-        var maximumVersion = factAttribute.GetNamedArgument<string>(nameof(PgVersionTargetedFact.MaximumVersion));
-
-        if (minimumVersion != null && Version.TryParse(minimumVersion, out var minVersion) && Version < minVersion)
+        var reason = PgVersion.SkipReason(_minimumVersion, _maximumVersion);
+        if (reason != null)
         {
-            yield return new TestCaseSkippedDueToVersion(
-                $"Minimum required PG version {minimumVersion} is higher than {Version}", DiagnosticMessageSink,
-                discoveryOptions.MethodDisplayOrDefault(), discoveryOptions.MethodDisplayOptionsOrDefault(),
-                testMethod);
-        }
-
-        if (maximumVersion != null && Version.TryParse(maximumVersion, out var maxVersion) && Version > maxVersion)
-        {
-            yield return new TestCaseSkippedDueToVersion(
-                $"Maximum allowed PG version {maximumVersion} is higher than {Version}", DiagnosticMessageSink,
-                discoveryOptions.MethodDisplayOrDefault(), discoveryOptions.MethodDisplayOptionsOrDefault(),
-                testMethod);
-        }
-
-        yield return base.CreateTestCase(discoveryOptions, testMethod, factAttribute);
-    }
-
-    internal sealed class TestCaseSkippedDueToVersion: XunitTestCase
-    {
-        [Obsolete("Called by the de-serializer", true)]
-        public TestCaseSkippedDueToVersion()
-        {
-        }
-
-        public TestCaseSkippedDueToVersion(string skipReason, IMessageSink diagnosticMessageSink,
-            TestMethodDisplay defaultMethodDisplay, TestMethodDisplayOptions defaultMethodDisplayOptions,
-            ITestMethod testMethod, object[] testMethodArguments = null): base(diagnosticMessageSink,
-            defaultMethodDisplay, defaultMethodDisplayOptions, testMethod, testMethodArguments)
-        {
-            SkipReason = skipReason;
+            Skip = reason;
         }
     }
 }
 
-public class PgVersionTargetedFactDiscovererTests
+public class PgVersionTests
 {
     [Fact]
-    public void PgVersionTargetedFactDiscoverer_CanConnectToDatabase()
+    public void PgVersion_CanConnectToDatabase()
     {
-        PgVersionTargetedFactDiscoverer.Version.ShouldNotBe(default);
+        PgVersion.Current.ShouldNotBe(default);
     }
 }

@@ -22,7 +22,7 @@ public class foreign_keys_to_partitioned_tables: IntegrationContext
     {
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await ResetSchema();
     }

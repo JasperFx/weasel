@@ -17,7 +17,7 @@ public class column_drift_detection: IntegrationContext
     {
     }
 
-    public override Task InitializeAsync() => ResetSchema();
+    public override ValueTask InitializeAsync() => new(ResetSchema());
 
     private async Task AssertNoDeltasAfterPatching(Table table)
     {

@@ -26,7 +26,7 @@ public class releasing_connection_pools: IAsyncLifetime
     private NpgsqlDataSource theDataSource = null!;
     private TestDatabaseWithTables theDatabase = null!;
 
-    public Task InitializeAsync()
+    public ValueTask InitializeAsync()
     {
         var builder = new NpgsqlDataSourceBuilder(ConnectionSource.ConnectionString);
         builder.ConnectionStringBuilder.ApplicationName = theApplicationName;
@@ -34,13 +34,13 @@ public class releasing_connection_pools: IAsyncLifetime
         theDataSource = builder.Build();
         theDatabase = new TestDatabaseWithTables("pool_release", theDataSource);
 
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         theDataSource.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

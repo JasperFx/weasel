@@ -32,7 +32,7 @@ public class mixed_case_table_with_index : IntegrationContext
         });
     }
 
-    public override Task InitializeAsync() => ResetSchema();
+    public override ValueTask InitializeAsync() => new(ResetSchema());
 
     [Fact]
     public async Task should_detect_no_delta_after_creating_table_with_unique_index()

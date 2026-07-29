@@ -83,13 +83,13 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
             .ExecuteNonQueryAsync();
     }
 
-    public virtual Task InitializeAsync()
+    public virtual ValueTask InitializeAsync()
     {
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
-    public virtual Task DisposeAsync()
+    public virtual ValueTask DisposeAsync()
     {
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 }

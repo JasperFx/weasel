@@ -18,7 +18,7 @@ public class pk_migration_with_referencing_fks : IntegrationContext
     {
     }
 
-    public override async Task InitializeAsync()
+    public override async ValueTask InitializeAsync()
     {
         await ResetSchema();
     }
