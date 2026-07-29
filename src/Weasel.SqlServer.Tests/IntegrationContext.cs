@@ -5,7 +5,7 @@ using Xunit;
 namespace Weasel.SqlServer.Tests;
 
 [Collection("integration")]
-public abstract class IntegrationContext: IDisposable, IAsyncLifetime
+public abstract class IntegrationContext: IAsyncLifetime
 {
     private readonly string _schemaName;
     protected readonly SqlConnection theConnection = new SqlConnection(ConnectionSource.ConnectionString);
@@ -13,11 +13,6 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
     protected IntegrationContext(string schemaName)
     {
         _schemaName = schemaName;
-    }
-
-    public void Dispose()
-    {
-        theConnection?.Dispose();
     }
 
     protected async Task ResetSchema()
@@ -59,8 +54,12 @@ public abstract class IntegrationContext: IDisposable, IAsyncLifetime
         return ValueTask.CompletedTask;
     }
 
-    public virtual ValueTask DisposeAsync()
+    // Connection teardown lives here, not in an IDisposable.Dispose. xUnit v3's
+    // IAsyncLifetime inherits IAsyncDisposable, and when a test class implements both
+    // IAsyncDisposable and IDisposable, v3 calls DisposeAsync only - so a Dispose()
+    // holding the cleanup would silently never run and leak a connection per test.
+    public virtual async ValueTask DisposeAsync()
     {
-        return ValueTask.CompletedTask;
+        await theConnection.DisposeAsync();
     }
 }
