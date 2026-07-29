@@ -47,34 +47,41 @@ public class end_to_end : IAsyncLifetime
         var table = migrator.MapToTable(entityType);
 
         table.ShouldNotBeNull();
-        // Oracle uses uppercase identifiers by default
         table.Identifier.Name.ShouldBe("MY_ENTITIES");
 
-        // Oracle lowercases column names in Weasel
-        // Verify columns are mapped
-        table.HasColumn("id").ShouldBeTrue();
-        table.HasColumn("intvalue").ShouldBeTrue();
-        table.HasColumn("boolvalue").ShouldBeTrue();
-        table.HasColumn("stringvalue").ShouldBeTrue();
-        table.HasColumn("guidvalue").ShouldBeTrue();
-        table.HasColumn("dateonlyvalue").ShouldBeTrue();
-        table.HasColumn("timeonlyvalue").ShouldBeTrue();
-        table.HasColumn("datetimevalue").ShouldBeTrue();
-        table.HasColumn("dt_offset_val").ShouldBeTrue();
-        table.HasColumn("cascade_val").ShouldBeTrue();
+        // MapToTable sets PreserveIdentifierCase, so column names carry EF Core's
+        // casing verbatim: the names configured via HasColumnName() where the model
+        // gives one, and the CLR property name otherwise. Nothing is lowercased.
+        //
+        // Asserting the whole set, rather than a series of HasColumn() calls, is
+        // deliberate. Oracle's Table compares names with OrdinalIgnoreCase, so
+        // HasColumn("intvalue") succeeds against a column named "IntValue" and
+        // proves nothing about casing - which is how this test came to assert a
+        // lowercase "id" that the mapping has never produced (weasel#394).
+        table.Columns.Select(x => x.Name).OrderBy(x => x, StringComparer.Ordinal)
+            .ShouldBe([
+                "BoolValue",
+                "CASCADE_VAL",
+                "DT_OFFSET_VAL",
+                "DateOnlyValue",
+                "DateTimeValue",
+                "GuidValue",
+                "Id",
+                "IntValue",
+                "NULL_BOOL_VAL",
+                "NULL_CASCADE_VAL",
+                "NULL_DATE_VAL",
+                "NULL_DT_OFFSET_VAL",
+                "NULL_DT_VAL",
+                "NULL_GUID_VAL",
+                "NULL_INT_VAL",
+                "NULL_TIME_VAL",
+                "StringValue",
+                "TimeOnlyValue"
+            ]);
 
-        // Verify nullable columns (using Oracle-specific short names, lowercased)
-        table.HasColumn("null_int_val").ShouldBeTrue();
-        table.HasColumn("null_bool_val").ShouldBeTrue();
-        table.HasColumn("null_guid_val").ShouldBeTrue();
-        table.HasColumn("null_date_val").ShouldBeTrue();
-        table.HasColumn("null_time_val").ShouldBeTrue();
-        table.HasColumn("null_dt_val").ShouldBeTrue();
-        table.HasColumn("null_dt_offset_val").ShouldBeTrue();
-        table.HasColumn("null_cascade_val").ShouldBeTrue();
-
-        // Verify primary key
-        table.PrimaryKeyColumns.ShouldContain("id");
+        // MyEntity.Id has no HasColumnName(), so the key column is EF's "Id"
+        table.PrimaryKeyColumns.ShouldBe(["Id"]);
         table.PrimaryKeyName.ShouldBe("PK_MY_ENTITIES");
     }
 
