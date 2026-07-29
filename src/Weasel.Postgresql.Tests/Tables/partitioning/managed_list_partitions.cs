@@ -18,6 +18,14 @@ public class managed_list_partitions : IntegrationContext
 
     }
 
+    // Every test here works against the same "managed_lists" schema, and
+    // migrate_tables_smoke_test_with_variable_value_and_tenant_id is purely additive -
+    // its ResetValues call is commented out deliberately - so it asserts on whatever
+    // partitions the previously executed test happened to leave behind. That held only
+    // because of the order xUnit v2 ran these in. Resetting the schema per test makes
+    // all of them independent of execution order.
+    public override ValueTask InitializeAsync() => new(ResetSchema());
+
     [Fact]
     public async Task can_load_values_smoke_test()
     {
