@@ -28,9 +28,15 @@ public class AdvisoryLock : IAdvisoryLock
     private readonly string _databaseName;
     private readonly AdvisoryLockOptions _options;
     private readonly ILogger _logger;
+
+    // weasel#396: every read and write of _handles — and every read and write of _disposed that has to
+    // agree with them — goes through this lock. The dictionary is touched by the caller's leadership
+    // poll, by ReleaseLockAsync, and by DisposeAsync, which can run concurrently; and disposal has to
+    // be atomic with respect to storing a freshly acquired handle (see TryAttainLockAsync).
+    private readonly object _handlesLock = new();
     private readonly Dictionary<int, PostgresDistributedLockHandle> _handles = new();
     private readonly LightweightCache<int, PostgresDistributedLock> _distributedLockProviders;
-    private volatile bool _disposed;
+    private bool _disposed;
 
     public AdvisoryLock(NpgsqlDataSource dataSource, ILogger logger, string databaseName, AdvisoryLockOptions options)
     {
@@ -46,6 +52,17 @@ public class AdvisoryLock : IAdvisoryLock
         _options = options;
     }
 
+    private bool IsDisposed
+    {
+        get
+        {
+            lock (_handlesLock)
+            {
+                return _disposed;
+            }
+        }
+    }
+
     private static NpgsqlDataSource EnsurePrimaryWhenMultiHost(NpgsqlDataSource source)
     {
         if (source is NpgsqlMultiHostDataSource multiHostDataSource)
@@ -56,13 +73,21 @@ public class AdvisoryLock : IAdvisoryLock
 
     public bool HasLock(int lockId)
     {
-        var lockState = _handles.TryGetValue(lockId, out var handle);
-        if (lockState && _options.LockMonitoringEnabled)
+        PostgresDistributedLockHandle? handle;
+        lock (_handlesLock)
         {
-            return !handle!.HandleLostToken.IsCancellationRequested;
+            if (!_handles.TryGetValue(lockId, out handle))
+            {
+                return false;
+            }
         }
 
-        return lockState;
+        if (_options.LockMonitoringEnabled)
+        {
+            return !handle.HandleLostToken.IsCancellationRequested;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -78,18 +103,48 @@ public class AdvisoryLock : IAdvisoryLock
         // weasel#349: never start a new acquire once disposal has begun. On a HotCold cold/standby node the
         // coordinator polls this on a cadence, and during host shutdown the owned NpgsqlDataSource races with
         // disposal — an in-flight OpenAsync aborts with ObjectDisposedException: 'Npgsql.PoolingDataSource'.
-        if (_disposed) return false;
+        if (IsDisposed) return false;
 
         try
         {
             var locker = _distributedLockProviders[lockId];
             var handle = await locker.TryAcquireAsync(cancellationToken: token).ConfigureAwait(false);
-            if (handle is not null)
+            if (handle is null) return false;
+
+            // weasel#396: the entry check above is not enough on its own. DisposeAsync can drain
+            // _handles while this acquire is in flight, and the handle would then be stored into a
+            // dictionary nothing will ever dispose — a granted advisory lock held for the life of the
+            // process. With transaction-scoped locks that is a permanent 'idle in transaction' backend
+            // on pg_try_advisory_xact_lock, which Marten's high-water gap detection reads as a live
+            // pre-gap reserver and never advances past (marten#5090). Storing under the same lock that
+            // DisposeAsync drains under makes the two orderings exhaustive: either the handle lands
+            // before the drain and the drain disposes it, or it observes the disposal and disposes
+            // itself here.
+            PostgresDistributedLockHandle? orphaned = null;
+            var stored = false;
+
+            lock (_handlesLock)
             {
-                _handles[lockId] = handle;
-                return true;
+                if (_disposed)
+                {
+                    orphaned = handle;
+                }
+                else
+                {
+                    // A handle already sitting in this slot is one whose lock we lost (monitored mode)
+                    // and re-attained; it is displaced, not released, so it has to be disposed too.
+                    _handles.Remove(lockId, out orphaned);
+                    _handles[lockId] = handle;
+                    stored = true;
+                }
             }
-            return false;
+
+            if (orphaned is not null)
+            {
+                await disposeHandleSafelyAsync(orphaned).ConfigureAwait(false);
+            }
+
+            return stored;
         }
         catch (ObjectDisposedException)
         {
@@ -105,10 +160,14 @@ public class AdvisoryLock : IAdvisoryLock
             //
             // Callers that would rather not see it can check HasLock, or simply poll again — the latch guarantees
             // the second call returns false quietly.
-            _disposed = true;
+            lock (_handlesLock)
+            {
+                _disposed = true;
+            }
+
             throw;
         }
-        catch (Exception e) when (_disposed && e is NpgsqlException or InvalidOperationException)
+        catch (Exception e) when (IsDisposed && e is NpgsqlException or InvalidOperationException)
         {
             // Same shutdown race, surfaced as a disposed-pool NpgsqlException / InvalidOperationException.
             return false;
@@ -117,7 +176,13 @@ public class AdvisoryLock : IAdvisoryLock
 
     public async Task ReleaseLockAsync(int lockId)
     {
-        if (_handles.Remove(lockId, out var handle))
+        PostgresDistributedLockHandle? handle;
+        lock (_handlesLock)
+        {
+            _handles.Remove(lockId, out handle);
+        }
+
+        if (handle is not null)
         {
             await handle.DisposeAsync().ConfigureAwait(false);
         }
@@ -125,27 +190,39 @@ public class AdvisoryLock : IAdvisoryLock
 
     public async ValueTask DisposeAsync()
     {
-        // Set first, before disposing handles, so any concurrent TryAttainLockAsync short-circuits (weasel#349).
-        _disposed = true;
+        PostgresDistributedLockHandle[] handles;
 
-        foreach (var i in _handles.Keys)
+        lock (_handlesLock)
         {
-            if (_handles.Remove(i, out var handle))
-            {
-                try
-                {
-                    await handle.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (InvalidOperationException)
-                {
-                    // Underlying connection is already closed and there's nothing to dispose. ObjectDisposedException
-                    // derives from this, so a data source that went first lands here too — nothing worth logging.
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e, "Error trying to dispose of advisory locks for database {Identifier}", _databaseName);
-                }
-            }
+            // Latch and drain atomically (weasel#349 for the latch, weasel#396 for the drain): a
+            // concurrent TryAttainLockAsync either got its handle into _handles before this snapshot —
+            // in which case it is disposed below — or it will see _disposed set when it tries to store
+            // and dispose the handle itself. Nothing can land in the dictionary after this point.
+            _disposed = true;
+            handles = _handles.Values.ToArray();
+            _handles.Clear();
+        }
+
+        foreach (var handle in handles)
+        {
+            await disposeHandleSafelyAsync(handle).ConfigureAwait(false);
+        }
+    }
+
+    private async Task disposeHandleSafelyAsync(PostgresDistributedLockHandle handle)
+    {
+        try
+        {
+            await handle.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+            // Underlying connection is already closed and there's nothing to dispose. ObjectDisposedException
+            // derives from this, so a data source that went first lands here too — nothing worth logging.
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error trying to dispose of advisory locks for database {Identifier}", _databaseName);
         }
     }
 }

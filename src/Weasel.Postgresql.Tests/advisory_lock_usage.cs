@@ -275,6 +275,86 @@ public class advisory_lock_disposal_guard
     }
 }
 
+// weasel#396: TryAttainLockAsync checked _disposed only at method entry and then stored the winning
+// handle unconditionally. An acquire in flight when DisposeAsync drained _handles put its handle into
+// the drained dictionary, where nothing would ever dispose it — a granted advisory lock held until the
+// process exits. With transaction-scoped locks (Marten's default) that leaves a backend permanently
+// 'idle in transaction' on pg_try_advisory_xact_lock, which Marten's high-water gap detection reads as
+// a live pre-gap reserver and never advances past (marten#5090).
+public class advisory_lock_dispose_race
+{
+    // Distinct from every other lock id used in this file so parallel test classes cannot interfere.
+    private const int TheLockId = 3960001;
+
+    [Fact]
+    public async Task an_acquire_that_completes_after_disposal_does_not_strand_its_lock()
+    {
+        await using var source = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+
+        // Start the acquire and dispose while it is still in flight — the acquire needs a database
+        // round trip, disposing an empty handle set does not, so the store reliably lands after the
+        // drain. Repeat so a single lucky interleaving cannot pass this by accident.
+        for (var i = 0; i < 20; i++)
+        {
+            var racedLock = new AdvisoryLock(source, NullLogger.Instance, "localhost",
+                new AdvisoryLockOptions { TransactionalLockEnabled = true });
+
+            var attain = racedLock.TryAttainLockAsync(TheLockId, CancellationToken.None);
+            await racedLock.DisposeAsync();
+
+            // Whatever it reports, it must not leave the lock held: either it stored the handle before
+            // the drain (and the drain disposed it) or it saw the disposal and disposed it itself.
+            await attain;
+        }
+
+        // The proof: a completely separate lock must be able to take the same key. Before the fix the
+        // stranded transaction-scoped handles still held it, so this came back false.
+        await using var otherSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+        var successor = new AdvisoryLock(otherSource, NullLogger.Instance, "localhost",
+            new AdvisoryLockOptions { TransactionalLockEnabled = true });
+
+        try
+        {
+            (await successor.TryAttainLockAsync(TheLockId, CancellationToken.None))
+                .ShouldBeTrue("a disposed AdvisoryLock stranded the handle it acquired mid-disposal");
+        }
+        finally
+        {
+            await successor.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task disposal_releases_a_lock_attained_before_it()
+    {
+        await using var source = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+
+        var theLock = new AdvisoryLock(source, NullLogger.Instance, "localhost",
+            new AdvisoryLockOptions { TransactionalLockEnabled = true });
+
+        (await theLock.TryAttainLockAsync(TheLockId + 1, CancellationToken.None)).ShouldBeTrue();
+        theLock.HasLock(TheLockId + 1).ShouldBeTrue();
+
+        await theLock.DisposeAsync();
+
+        // The ordinary drain path still works — and a disposed lock reports no lock.
+        theLock.HasLock(TheLockId + 1).ShouldBeFalse();
+
+        await using var otherSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+        var successor = new AdvisoryLock(otherSource, NullLogger.Instance, "localhost",
+            new AdvisoryLockOptions { TransactionalLockEnabled = true });
+
+        try
+        {
+            (await successor.TryAttainLockAsync(TheLockId + 1, CancellationToken.None)).ShouldBeTrue();
+        }
+        finally
+        {
+            await successor.DisposeAsync();
+        }
+    }
+}
+
 // FirstChanceException is an AppDomain-wide hook, so the latch test above cannot tolerate another
 // collection concurrently provoking a disposed-pool abort. Pin this class to a serial collection.
 [CollectionDefinition("advisory_lock_disposal_guard", DisableParallelization = true)]
