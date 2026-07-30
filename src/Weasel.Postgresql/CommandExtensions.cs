@@ -59,7 +59,10 @@ public static class CommandExtensions
 
     public static NpgsqlCommand With(this NpgsqlCommand command, string name, DateTime value)
     {
-        PostgresqlProvider.Instance.AddNamedParameter(command, name, value, NpgsqlDbType.Timestamp);
+        // Not a hard-coded Timestamp: Npgsql rejects a Kind=Utc value written as 'timestamp
+        // without time zone', so the type has to follow the value's Kind. weasel#403.
+        PostgresqlProvider.Instance.AddNamedParameter(command, name, value,
+            PostgresqlProvider.Instance.ToParameterTypeForValue(value));
         return command;
     }
 

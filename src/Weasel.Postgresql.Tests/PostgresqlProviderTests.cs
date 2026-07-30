@@ -77,6 +77,73 @@ public class PostgresqlProviderTests
     {
     }
 
+    // PostgreSQL picks timestamptz vs timestamp from the *value's* Kind, so a per-type mapping
+    // cannot express it. GetDatabaseType stays per-type -- a column has one type -- while a
+    // parameter's type has to follow its value. weasel#403.
+
+    [Fact]
+    public void to_parameter_type_for_value_uses_timestamptz_for_a_utc_datetime()
+    {
+        PostgresqlProvider.Instance
+            .ToParameterTypeForValue(new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Utc))
+            .ShouldBe(NpgsqlDbType.TimestampTz);
+    }
+
+    [Theory]
+    [InlineData(DateTimeKind.Local)]
+    [InlineData(DateTimeKind.Unspecified)]
+    public void to_parameter_type_for_value_uses_timestamp_for_a_non_utc_datetime(DateTimeKind kind)
+    {
+        PostgresqlProvider.Instance
+            .ToParameterTypeForValue(new DateTime(2026, 7, 30, 12, 0, 0, kind))
+            .ShouldBe(NpgsqlDbType.Timestamp);
+    }
+
+    [Fact]
+    public void to_parameter_type_for_value_handles_datetime_collections()
+    {
+        var utc = new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Utc);
+        var local = new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Local);
+
+        // arrays and List<T> both arrive as IReadOnlyList<DateTime>
+        PostgresqlProvider.Instance.ToParameterTypeForValue(new[] { utc })
+            .ShouldBe(NpgsqlDbType.Array | NpgsqlDbType.TimestampTz);
+        PostgresqlProvider.Instance.ToParameterTypeForValue(new List<DateTime> { utc })
+            .ShouldBe(NpgsqlDbType.Array | NpgsqlDbType.TimestampTz);
+        PostgresqlProvider.Instance.ToParameterTypeForValue(new[] { local })
+            .ShouldBe(NpgsqlDbType.Array | NpgsqlDbType.Timestamp);
+        PostgresqlProvider.Instance.ToParameterTypeForValue(Array.Empty<DateTime>())
+            .ShouldBe(NpgsqlDbType.Array | NpgsqlDbType.Timestamp);
+    }
+
+    [Theory]
+    [InlineData("a", NpgsqlDbType.Text)]
+    [InlineData(42, NpgsqlDbType.Integer)]
+    [InlineData(true, NpgsqlDbType.Boolean)]
+    public void to_parameter_type_for_value_still_keys_off_the_clr_type_otherwise(object value,
+        NpgsqlDbType expected)
+    {
+        PostgresqlProvider.Instance.ToParameterTypeForValue(value).ShouldBe(expected);
+    }
+
+    [Fact]
+    public void column_types_stay_per_type_even_though_parameter_types_are_per_value()
+    {
+        PostgresqlProvider.Instance.GetDatabaseType(typeof(DateTime), EnumStorage.AsString)
+            .ShouldBe("timestamp without time zone");
+    }
+
+    [Fact]
+    public void add_named_parameter_types_a_utc_datetime_as_timestamptz()
+    {
+        // The regression: AddNamedParameter used to stamp Timestamp here, and Npgsql then threw
+        // "Cannot write DateTime with Kind=UTC to PostgreSQL type 'timestamp without time zone'"
+        // at execution time. weasel#403.
+        new NpgsqlCommand()
+            .AddNamedParameter("n", new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Utc))
+            .NpgsqlDbType.ShouldBe(NpgsqlDbType.TimestampTz);
+    }
+
     [Fact]
     public void ipnetwork_resolves_to_cidr()
     {
