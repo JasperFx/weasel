@@ -115,7 +115,11 @@ that `MERGE`s".
 `ManagedRangePartitions` owns both halves. Declare intent — a period, how many periods to provision
 ahead, how many to retain behind — and Weasel writes every statement:
 
+<!-- snippet: sample_ss_rolling_window_partitioning -->
+<a id='snippet-sample_ss_rolling_window_partitioning'></a>
 ```cs
+// One partition per month, three months provisioned ahead of now,
+// six completed months retained before a period is aged out
 var manager = new ManagedRangePartitions(
     RollingWindowPolicy.Monthly(periodsAhead: 3, periodsBehind: 6),
     column: "occurred_at");
@@ -125,12 +129,14 @@ table.AddColumn<int>("id");
 table.AddColumn("occurred_at", "datetime2").NotNull();
 table.AddColumn("value", "float");
 
-// On SQL Server the partition column MUST participate in the primary key.
+// On SQL Server the partition column MUST participate in the primary key
 table.ModifyColumn("id").AsPrimaryKey();
 table.ModifyColumn("occurred_at").AsPrimaryKey();
 
 table.PartitionByRollingWindow(manager);
 ```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L411-L428' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_rolling_window_partitioning' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
 
 `RollingWindowPolicy` supports `Hourly`, `Daily`, `Weekly`, `Monthly`, and `Yearly` windows, and all
 boundary arithmetic is done in UTC. The strategy is `RANGE RIGHT`, so each boundary is the inclusive
@@ -145,16 +151,20 @@ metadata-only.
 
 At runtime:
 
+<!-- snippet: sample_ss_roll_range_window_forward -->
+<a id='snippet-sample_ss_roll_range_window_forward'></a>
 ```cs
-// Split in any missing boundaries at the leading edge, then truncate and merge
-// away everything below the retention floor. Idempotent, so this is safe on
-// every startup and on a timer.
+// Split in any missing boundaries at the leading edge, then truncate and
+// merge away everything below the retention floor. Idempotent, so this is
+// safe on every startup and on a timer
 await manager.ApplyAsync(database, logger, token);
 
 // ...or run just one half
 await manager.RollForwardAsync(database, logger, token);
 await manager.DropAgedPartitionsAsync(database, logger, token);
 ```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L438-L447' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_roll_range_window_forward' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
 
 Two properties make this different from extending a static boundary list:
 

@@ -14,7 +14,7 @@ table.AddColumn<string>("name").NotNull();
 table.AddColumn<string>("email").NotNull().AddIndex(idx => idx.IsUnique = true);
 table.AddColumn<DateTime>("created_at").DefaultValueByExpression("GETUTCDATE()");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L53-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_table' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L57-L64' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_table' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Column Configuration
@@ -52,7 +52,7 @@ table.AddColumn<string>("full_name")
 table.AddColumn<int>("name_length")
     .ComputedAs("len(first_name) + len(last_name)", persisted: true);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L65-L79' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_computed_columns' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L69-L83' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_computed_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Foreign Keys
@@ -66,7 +66,7 @@ orders.AddColumn<int>("user_id").NotNull()
     .ForeignKeyTo("dbo.users", "id", onDelete: Weasel.SqlServer.CascadeAction.Cascade);
 orders.AddColumn<decimal>("total").NotNull();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L84-L90' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_foreign_keys' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L88-L94' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_foreign_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Indexes
@@ -83,7 +83,7 @@ var index = new IndexDefinition("ix_users_email")
 };
 table.Indexes.Add(index);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L97-L106' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_indexes' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L101-L110' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_indexes' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Indexes support `IncludedColumns`, `FillFactor`, `SortOrder`, and `IsClustered` properties.
@@ -101,7 +101,7 @@ await conn.OpenAsync();
 var delta = await table.FindDeltaAsync(conn);
 // delta.Difference is None, Create, Update, or Recreate
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L114-L120' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L118-L124' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating DDL
@@ -114,5 +114,5 @@ var writer = new StringWriter();
 table.WriteCreateStatement(migrator, writer);
 Console.WriteLine(writer.ToString());
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L127-L132' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_generate_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L131-L136' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_generate_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

@@ -18,7 +18,7 @@ RETURN @Price * @Rate;
 END;
 ");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L220-L229' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_from_sql' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L224-L233' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_from_sql' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Constructor-Based Creation
@@ -39,7 +39,7 @@ RETURN (SELECT COUNT(*) FROM dbo.users);
 END;
 ");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L234-L245' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_constructor' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L238-L249' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_constructor' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Custom Drop Statements
@@ -54,7 +54,7 @@ var fn = new Function(identifier, body, new[]
     "DROP FUNCTION IF EXISTS dbo.GetUserCount;"
 });
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L253-L258' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_custom_drop' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L257-L262' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_custom_drop' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Delta Detection
@@ -70,7 +70,7 @@ await conn.OpenAsync();
 var delta = await fn.FindDeltaAsync(conn);
 // delta.Difference: None, Create, or Update
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L267-L273' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L271-L277' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Marking for Removal
@@ -82,5 +82,5 @@ To generate a drop statement for a function that should be removed:
 ```cs
 var removed = Function.ForRemoval("dbo.ObsoleteFunction");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L278-L280' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_for_removal' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L282-L284' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_function_for_removal' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

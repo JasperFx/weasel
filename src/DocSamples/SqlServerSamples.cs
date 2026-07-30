@@ -3,7 +3,11 @@ using Weasel.SqlServer;
 using Weasel.SqlServer.Functions;
 using Weasel.SqlServer.Procedures;
 using Weasel.SqlServer.Tables;
+using Weasel.SqlServer.Tables.Partitioning;
 using Microsoft.Data.SqlClient;
+using Weasel.Core.Migrations;
+using Weasel.Core.Partitioning;
+using Microsoft.Extensions.Logging;
 
 namespace DocSamples;
 
@@ -397,6 +401,49 @@ END;
 
         var delta = await tableType.FindDeltaAsync(conn);
         // delta.Difference: None, Create, or Update
+        #endregion
+    }
+
+    // partitioning.md samples
+
+    public void ss_rolling_window_partitioning()
+    {
+        #region sample_ss_rolling_window_partitioning
+        // One partition per month, three months provisioned ahead of now,
+        // six completed months retained before a period is aged out
+        var manager = new ManagedRangePartitions(
+            RollingWindowPolicy.Monthly(periodsAhead: 3, periodsBehind: 6),
+            column: "occurred_at");
+
+        var table = new Table("dbo.metrics");
+        table.AddColumn<int>("id");
+        table.AddColumn("occurred_at", "datetime2").NotNull();
+        table.AddColumn("value", "float");
+
+        // On SQL Server the partition column MUST participate in the primary key
+        table.ModifyColumn("id").AsPrimaryKey();
+        table.ModifyColumn("occurred_at").AsPrimaryKey();
+
+        table.PartitionByRollingWindow(manager);
+        #endregion
+    }
+
+    public async Task ss_roll_the_window_forward()
+    {
+        IDatabase<SqlConnection> database = null!; // your database instance
+        ManagedRangePartitions manager = null!; // your partition strategy
+        ILogger logger = null!; // your logger
+        var token = CancellationToken.None;
+
+        #region sample_ss_roll_range_window_forward
+        // Split in any missing boundaries at the leading edge, then truncate and
+        // merge away everything below the retention floor. Idempotent, so this is
+        // safe on every startup and on a timer
+        await manager.ApplyAsync(database, logger, token);
+
+        // ...or run just one half
+        await manager.RollForwardAsync(database, logger, token);
+        await manager.DropAgedPartitionsAsync(database, logger, token);
         #endregion
     }
 }
