@@ -8,7 +8,8 @@ server objects:
 
 The table is then created *on* the partition scheme. Weasel models this through the
 `ISqlServerPartitioning` strategy on `Table`, with `RangePartitioning` for declarative date/numeric
-ranges and `ManagedTenantPartitions` for runtime, per-tenant partitioning.
+ranges, `ManagedRangePartitions` for rolling time windows, and `ManagedTenantPartitions` for runtime,
+per-tenant partitioning.
 
 ## Range Partitioning
 
@@ -99,7 +100,84 @@ declared boundary list and let migration add the new partitions.
 Changing the partition **column** or **data type**, or *removing* a boundary that exists in the database,
 cannot be done with an in-place `SPLIT`. Weasel reports these as `SchemaPatchDifference.Invalid` rather
 than silently rebuilding the table and moving every row. Trimming aged partitions for data retention is a
-runtime operation (`MERGE RANGE` / `SWITCH OUT`) rather than a declarative schema change.
+runtime operation rather than a declarative schema change — see
+[Rolling time windows](#rolling-time-windows), which owns both halves for you.
+
+## Rolling Time Windows
+
+Extending a declared boundary list by hand works, but it is not what a time-series table actually wants.
+The window *moves*: every period a new partition is needed at the leading edge, and the period that has
+fallen out of the retention policy at the trailing edge should be reclaimed — cheaply, by deallocating
+its pages rather than by a mass `DELETE`. Doing that on SQL Server is otherwise a hand-rolled T-SQL
+chore; the published recipes amount to "write a script that sets `NEXT USED` and `SPLIT`s, and another
+that `MERGE`s".
+
+`ManagedRangePartitions` owns both halves. Declare intent — a period, how many periods to provision
+ahead, how many to retain behind — and Weasel writes every statement:
+
+```cs
+var manager = new ManagedRangePartitions(
+    RollingWindowPolicy.Monthly(periodsAhead: 3, periodsBehind: 6),
+    column: "occurred_at");
+
+var table = new Table("dbo.metrics");
+table.AddColumn<int>("id");
+table.AddColumn("occurred_at", "datetime2").NotNull();
+table.AddColumn("value", "float");
+
+// On SQL Server the partition column MUST participate in the primary key.
+table.ModifyColumn("id").AsPrimaryKey();
+table.ModifyColumn("occurred_at").AsPrimaryKey();
+
+table.PartitionByRollingWindow(manager);
+```
+
+`RollingWindowPolicy` supports `Hourly`, `Daily`, `Weekly`, `Monthly`, and `Yearly` windows, and all
+boundary arithmetic is done in UTC. The strategy is `RANGE RIGHT`, so each boundary is the inclusive
+lower bound of its period.
+
+The boundaries are the window's period starts **plus** the exclusive end of the newest provisioned
+period. That trailing boundary matters: without it the top partition would be
+`[newest period start, +infinity)` and would hold the newest period's rows, so the next roll-forward
+would `SPLIT` a partition containing data — a fully logged row-movement operation. With it, the top
+partition is always beyond everything provisioned and therefore empty, and every `SPLIT` stays
+metadata-only.
+
+At runtime:
+
+```cs
+// Split in any missing boundaries at the leading edge, then truncate and merge
+// away everything below the retention floor. Idempotent, so this is safe on
+// every startup and on a timer.
+await manager.ApplyAsync(database, logger, token);
+
+// ...or run just one half
+await manager.RollForwardAsync(database, logger, token);
+await manager.DropAgedPartitionsAsync(database, logger, token);
+```
+
+Two properties make this different from extending a static boundary list:
+
+- **Rolling forward is always additive, never a rebuild.** A boundary the declaration no longer names is
+  a period that has aged out — the normal steady state of a rolling window, not drift. `CreateDelta`
+  reports `Additive` or `None`, never `Rebuild`, for a boundary-set difference. A column or type change
+  still rebuilds.
+- **Retiring a period is `TRUNCATE` then `MERGE RANGE`, in that order.** `MERGE RANGE` on a partition
+  that still holds rows does not reclaim anything — it *moves* those rows into the neighbouring
+  partition, which is the opposite of the point. Truncating the partition first (`TRUNCATE TABLE ...
+  WITH (PARTITIONS (n))`, SQL Server 2016+) deallocates its pages in O(1), and the merge that follows is
+  then metadata-only against an empty partition. If the truncate fails, the boundary is deliberately
+  left in place.
+
+Retention only retires boundaries that land exactly on a period start for the policy, so a hand-added
+boundary is left strictly alone. It also reclaims the partition below the oldest boundary once that
+boundary ages out — that partition holds late-arriving rows dated before the window ever started, and it
+is entirely below the retention floor.
+
+::: warning
+Retiring a period removes its rows. That is the point — it is what makes reclaim O(1) — but choose
+`periodsBehind` to match the retention policy you actually want.
+:::
 
 ## Managed Tenant Partitioning
 
