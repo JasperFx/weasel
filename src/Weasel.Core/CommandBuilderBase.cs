@@ -199,9 +199,11 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
         {
             _provider.SetParameterType(parameter, dbType.Value);
         }
-        else if (value != null)
+        else if (value != null && _provider.TryGetDbTypeForValue(value) is { } inferred)
         {
-            _provider.SetParameterType(parameter, _provider.ToParameterTypeForValue(value));
+            // See DatabaseProvider.AddNamedParameter -- unmapped types defer to the driver
+            // rather than throwing, matching AddParameter. weasel#404.
+            _provider.SetParameterType(parameter, inferred);
         }
 
         parameter.Value = value ?? DBNull.Value;

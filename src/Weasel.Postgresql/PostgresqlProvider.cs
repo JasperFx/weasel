@@ -92,7 +92,7 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
     ///     A per-type mapping cannot express that, so resolve those from the value. Everything
     ///     else keys off the CLR type as usual. weasel#403.
     /// </summary>
-    public override NpgsqlDbType ToParameterTypeForValue(object value)
+    public override NpgsqlDbType? TryGetDbTypeForValue(object value)
     {
         switch (value)
         {
@@ -106,7 +106,7 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
                        (dateTimes.Count == 0 ? NpgsqlDbType.Timestamp : timestampTypeFor(dateTimes[0]));
         }
 
-        return base.ToParameterTypeForValue(value);
+        return base.TryGetDbTypeForValue(value);
     }
 
     private static NpgsqlDbType timestampTypeFor(DateTime value)

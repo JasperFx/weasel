@@ -65,13 +65,29 @@ public interface IDatabaseProvider<in TCommand, in TParameter, TParameterType>: 
     TParameterType ToParameterType(Type type);
 
     /// <summary>
-    ///     Resolve the parameter type for a value the caller supplied without an explicit type.
-    ///     Defaults to keying off the value's CLR type. Providers whose choice depends on the
-    ///     <em>value</em> rather than its type override this — PostgreSQL picks
-    ///     <c>timestamptz</c> vs <c>timestamp</c> from <see cref="DateTime.Kind" />, which a
-    ///     per-type mapping cannot express. weasel#403.
+    ///     Resolve the parameter type for a value the caller supplied without an explicit type,
+    ///     or null when this provider has no mapping for it — in which case the parameter is
+    ///     left untyped and the driver infers it. Defaults to keying off the value's CLR type.
+    ///     Providers whose choice depends on the <em>value</em> rather than its type override
+    ///     this — PostgreSQL picks <c>timestamptz</c> vs <c>timestamp</c> from
+    ///     <see cref="DateTime.Kind" />, which a per-type mapping cannot express. weasel#403.
     /// </summary>
-    TParameterType ToParameterTypeForValue(object value) => ToParameterType(value.GetType());
+    /// <remarks>
+    ///     Stands to <see cref="ToParameterTypeForValue" /> as <see cref="TryGetDbType" /> does
+    ///     to <see cref="ToParameterType" />: null means "unmapped, defer". A provider that
+    ///     actively rejects a type — SQL Server and arrays, say — still throws. weasel#404.
+    /// </remarks>
+    TParameterType? TryGetDbTypeForValue(object value) => TryGetDbType(value.GetType());
+
+    /// <summary>
+    ///     Resolve the parameter type for a value, throwing when this provider has no mapping.
+    ///     Prefer <see cref="TryGetDbTypeForValue" /> where deferring to the driver is
+    ///     acceptable. weasel#403.
+    /// </summary>
+    TParameterType ToParameterTypeForValue(object value) =>
+        TryGetDbTypeForValue(value) ??
+        throw new NotSupportedException($"Can't infer {typeof(TParameterType).Name} for value of type " +
+                                        value.GetType());
 
     Type[] ResolveTypes(TParameterType parameterType);
     string GetDatabaseType(Type memberType, EnumStorage enumStyle);
@@ -137,13 +153,26 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
     }
 
     /// <summary>
-    ///     Resolve the parameter type for a value the caller supplied without an explicit type.
-    ///     Keys off the value's CLR type unless a provider overrides it because its choice
-    ///     depends on the value itself. weasel#403.
+    ///     Resolve the parameter type for a value the caller supplied without an explicit type,
+    ///     or null when this provider has no mapping for it. Keys off the value's CLR type
+    ///     unless a provider overrides it because its choice depends on the value itself.
+    ///     weasel#403, weasel#404.
     /// </summary>
-    public virtual TParameterType ToParameterTypeForValue(object value)
+    public virtual TParameterType? TryGetDbTypeForValue(object value)
     {
-        return ToParameterType(value.GetType());
+        return TryGetDbType(value.GetType());
+    }
+
+    /// <summary>
+    ///     Resolve the parameter type for a value, throwing when this provider has no mapping.
+    ///     Prefer <see cref="TryGetDbTypeForValue" /> where deferring to the driver is
+    ///     acceptable. weasel#403.
+    /// </summary>
+    public TParameterType ToParameterTypeForValue(object value)
+    {
+        return TryGetDbTypeForValue(value) ??
+               throw new NotSupportedException($"Can't infer {typeof(TParameterType).Name} for value of type " +
+                                               value.GetType());
     }
 
     public Type[] ResolveTypes(TParameterType parameterType)
@@ -283,9 +312,12 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
         {
             SetParameterType(parameter, dbType.Value);
         }
-        else if (value != null)
+        else if (value != null && TryGetDbTypeForValue(value) is { } inferred)
         {
-            SetParameterType(parameter, ToParameterTypeForValue(value));
+            // Unmapped types are left untyped for the driver to infer, which is what the
+            // sibling AddParameter has always done. Providers that actively reject a type
+            // still throw out of TryGetDbTypeForValue. weasel#404.
+            SetParameterType(parameter, inferred);
         }
 
         parameter.Value = value ?? DBNull.Value;

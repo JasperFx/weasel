@@ -145,6 +145,32 @@ public class PostgresqlProviderTests
     }
 
     [Fact]
+    public void add_named_parameter_leaves_an_unmapped_type_for_the_driver_to_infer()
+    {
+        // AddNamedParameter used to call ToParameterType and throw "Can't infer NpgsqlDbType
+        // for type ..." here, while the sibling AddParameter accepted the same value happily.
+        // Both now defer to Npgsql for anything Weasel has no mapping for. weasel#404.
+        var command = new NpgsqlCommand();
+
+        Should.NotThrow(() => command.AddNamedParameter("n", new UnmappedTarget()));
+        Should.NotThrow(() => command.AddParameter(new UnmappedTarget()));
+    }
+
+    [Fact]
+    public void try_get_db_type_for_value_returns_null_for_an_unmapped_type()
+    {
+        PostgresqlProvider.Instance.TryGetDbTypeForValue(new UnmappedTarget()).ShouldBeNull();
+    }
+
+    [Fact]
+    public void to_parameter_type_for_value_still_throws_for_an_unmapped_type()
+    {
+        // The throwing overload is kept for callers that want the diagnostic.
+        Should.Throw<NotSupportedException>(() =>
+            PostgresqlProvider.Instance.ToParameterTypeForValue(new UnmappedTarget()));
+    }
+
+    [Fact]
     public void ipnetwork_resolves_to_cidr()
     {
         PostgresqlProvider.Instance
