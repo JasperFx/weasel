@@ -21,9 +21,40 @@ public class CommandExtensionsTests
         param.Value.ShouldBe("a");
         param.ParameterName.ShouldBe("p0");
 
+        // AddParameter was given no explicit type, so this asserts *Npgsql's* inference from
+        // the value rather than anything Weasel stamped on. That inference reads Npgsql's
+        // process-global type mapper and answers Unknown until the mapper has been seeded,
+        // which TestSetup does once at module load. Do not delete that warm-up. weasel#398.
         param.NpgsqlDbType.ShouldBe(NpgsqlDbType.Text);
 
         command.Parameters.ShouldContain(param);
+    }
+
+    [Fact]
+    public void add_parameter_honors_an_explicit_type()
+    {
+        var command = new NpgsqlCommand();
+
+        var param = command.AddParameter("a", NpgsqlDbType.Varchar);
+
+        // The explicit-type path is the one Weasel actually controls, so unlike the test
+        // above it holds no matter what state Npgsql's global type mapper is in.
+        param.NpgsqlDbType.ShouldBe(NpgsqlDbType.Varchar);
+    }
+
+    [Fact]
+    public void add_parameter_without_a_type_defers_to_npgsql_rather_than_weasels_mapping()
+    {
+        var command = new NpgsqlCommand();
+
+        var param = command.AddParameter(new DateTime(2026, 7, 30, 12, 0, 0, DateTimeKind.Utc));
+
+        // Weasel must NOT start stamping its own CLR-type mapping onto untyped parameters.
+        // Weasel maps DateTime to "timestamp without time zone" for every value, while
+        // Npgsql resolves per value: a Kind=Utc DateTime is "timestamp with time zone", and
+        // writing one as "timestamp without time zone" throws at execution time. weasel#398.
+        param.NpgsqlDbType.ShouldBe(NpgsqlDbType.TimestampTz);
+        Instance.ToParameterType(typeof(DateTime)).ShouldBe(NpgsqlDbType.Timestamp);
     }
 
     [Fact]
