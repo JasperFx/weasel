@@ -63,6 +63,16 @@ public interface IDatabaseProvider<in TCommand, in TParameter, TParameterType>: 
     TParameterType DoubleParameterType { get; }
     TParameterType? TryGetDbType(Type? type);
     TParameterType ToParameterType(Type type);
+
+    /// <summary>
+    ///     Resolve the parameter type for a value the caller supplied without an explicit type.
+    ///     Defaults to keying off the value's CLR type. Providers whose choice depends on the
+    ///     <em>value</em> rather than its type override this — PostgreSQL picks
+    ///     <c>timestamptz</c> vs <c>timestamp</c> from <see cref="DateTime.Kind" />, which a
+    ///     per-type mapping cannot express. weasel#403.
+    /// </summary>
+    TParameterType ToParameterTypeForValue(object value) => ToParameterType(value.GetType());
+
     Type[] ResolveTypes(TParameterType parameterType);
     string GetDatabaseType(Type memberType, EnumStorage enumStyle);
     void AddParameter(TCommand command, TParameter parameter);
@@ -124,6 +134,16 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
         }
 
         throw new NotSupportedException($"Can't infer {typeof(TParameterType).Name} for type " + type);
+    }
+
+    /// <summary>
+    ///     Resolve the parameter type for a value the caller supplied without an explicit type.
+    ///     Keys off the value's CLR type unless a provider overrides it because its choice
+    ///     depends on the value itself. weasel#403.
+    /// </summary>
+    public virtual TParameterType ToParameterTypeForValue(object value)
+    {
+        return ToParameterType(value.GetType());
     }
 
     public Type[] ResolveTypes(TParameterType parameterType)
@@ -265,7 +285,7 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
         }
         else if (value != null)
         {
-            SetParameterType(parameter, ToParameterType(value.GetType()));
+            SetParameterType(parameter, ToParameterTypeForValue(value));
         }
 
         parameter.Value = value ?? DBNull.Value;

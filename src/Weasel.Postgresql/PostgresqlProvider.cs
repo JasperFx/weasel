@@ -85,6 +85,35 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         return GetTypeMapping(dbType)?.ClrTypes ?? Type.EmptyTypes;
     }
 
+    /// <summary>
+    ///     PostgreSQL's choice between <c>timestamptz</c> and <c>timestamp</c> follows the
+    ///     <see cref="DateTime.Kind" /> of the value, not its CLR type: Npgsql rejects a
+    ///     <see cref="DateTimeKind.Utc" /> value written as <c>timestamp without time zone</c>.
+    ///     A per-type mapping cannot express that, so resolve those from the value. Everything
+    ///     else keys off the CLR type as usual. weasel#403.
+    /// </summary>
+    public override NpgsqlDbType ToParameterTypeForValue(object value)
+    {
+        switch (value)
+        {
+            case DateTime dateTime:
+                return timestampTypeFor(dateTime);
+
+            // Npgsql forbids mixing Kinds within one array, so the first element decides.
+            // Covers DateTime[] and List<DateTime>, both of which are IReadOnlyList<DateTime>.
+            case IReadOnlyList<DateTime> dateTimes:
+                return NpgsqlDbType.Array |
+                       (dateTimes.Count == 0 ? NpgsqlDbType.Timestamp : timestampTypeFor(dateTimes[0]));
+        }
+
+        return base.ToParameterTypeForValue(value);
+    }
+
+    private static NpgsqlDbType timestampTypeFor(DateTime value)
+    {
+        return value.Kind == DateTimeKind.Utc ? NpgsqlDbType.TimestampTz : NpgsqlDbType.Timestamp;
+    }
+
     private static NpgsqlTypeMapping? GetTypeMapping(Type type)
     {
         return NpgsqlTypeMapper

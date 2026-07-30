@@ -116,4 +116,33 @@ public class command_extensions_integrated_test: IntegrationContext
         (await reader.GetFieldValueAsync<int>(2)).ShouldBe(11);
     }
 
+    [Fact]
+    public async Task round_trip_a_utc_datetime_through_an_untyped_named_parameter()
+    {
+        // This only ever failed at execution time: AddNamedParameter stamped Timestamp for any
+        // DateTime, and Npgsql rejects a Kind=Utc value written as 'timestamp without time
+        // zone'. A unit assertion on the stamped type would not have caught the original
+        // report, so exercise the real write. weasel#403.
+        var table = new Table("general.utc_things");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn("moment", "timestamptz");
+
+        await ResetSchema();
+        await CreateSchemaObjectInDatabase(table);
+
+        var moment = new DateTime(2026, 7, 30, 12, 34, 56, DateTimeKind.Utc);
+
+        await theConnection
+            .CreateCommand("insert into general.utc_things (id, moment) values (@id, @moment)")
+            .With("id", 1)
+            .With("moment", moment)
+            .ExecuteNonQueryAsync();
+
+        await using var reader = await theConnection
+            .CreateCommand("select moment from general.utc_things where id = 1")
+            .ExecuteReaderAsync();
+
+        await reader.ReadAsync();
+        (await reader.GetFieldValueAsync<DateTime>(0)).ShouldBe(moment);
+    }
 }

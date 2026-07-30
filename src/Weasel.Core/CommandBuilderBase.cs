@@ -201,7 +201,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
         }
         else if (value != null)
         {
-            _provider.SetParameterType(parameter, _provider.ToParameterType(value.GetType()));
+            _provider.SetParameterType(parameter, _provider.ToParameterTypeForValue(value));
         }
 
         parameter.Value = value ?? DBNull.Value;
