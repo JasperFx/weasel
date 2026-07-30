@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Collections.Specialized;
 using System.Data;
@@ -6,7 +7,6 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Numerics;
 using System.Text.Json;
-using JasperFx.Core;
 using NetTopologySuite.Geometries;
 using NpgsqlTypes;
 
@@ -31,6 +31,63 @@ public class NpgsqlTypeMapping
 }
 
 /// <summary>
+///     Registry of <see cref="NpgsqlDbType" /> to <see cref="NpgsqlTypeMapping" />, keyed for
+///     lookup and enumerable by mapping. Consuming code registers custom mappings through the
+///     indexer, from any thread.
+/// </summary>
+/// <remarks>
+///     <para>
+///         This used to be a <c>JasperFx.Core.Cache</c>. Reads were already safe there — it is
+///         backed by an immutable <c>ImHashMap</c>, so an enumerating reader sees a snapshot and
+///         cannot tear. Writes were not: the indexer setter is a non-atomic read-modify-write
+///         over that map, so concurrent registrations silently clobbered one another. Eight
+///         threads registering 5,000 distinct keys each landed 7,660 of 40,000 — an 81% loss,
+///         with nothing to indicate a mapping had gone missing. weasel#406.
+///     </para>
+///     <para>
+///         <see cref="ConcurrentDictionary{TKey,TValue}" /> fixes the writes and keeps reads
+///         safe: <c>Values</c> hands back a snapshot, so enumeration never throws
+///         mid-registration. The surface is deliberately the same as the <c>Cache</c> it
+///         replaces — an indexer plus <see cref="IEnumerable{T}" /> over the mappings — so
+///         existing registration code is unaffected.
+///     </para>
+/// </remarks>
+public class NpgsqlTypeMappingRegistry: IEnumerable<NpgsqlTypeMapping>
+{
+    private readonly ConcurrentDictionary<NpgsqlDbType, NpgsqlTypeMapping> _values;
+
+    public NpgsqlTypeMappingRegistry(IDictionary<NpgsqlDbType, NpgsqlTypeMapping> seed)
+    {
+        _values = new ConcurrentDictionary<NpgsqlDbType, NpgsqlTypeMapping>(seed);
+    }
+
+    public NpgsqlTypeMapping this[NpgsqlDbType key]
+    {
+        get => _values[key];
+        set => _values[key] = value;
+    }
+
+    public int Count => _values.Count;
+
+    public bool TryGetValue(NpgsqlDbType key, out NpgsqlTypeMapping? value)
+    {
+        return _values.TryGetValue(key, out value);
+    }
+
+    public IEnumerator<NpgsqlTypeMapping> GetEnumerator()
+    {
+        // ConcurrentDictionary.Values is a point-in-time snapshot, so a registration landing
+        // mid-enumeration cannot disturb this.
+        return _values.Values.GetEnumerator();
+    }
+
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
+}
+
+/// <summary>
 ///     Class defining custom NpgsqlType <=> DbType <=> CLR types
 /// </summary>
 /// <remarks>
@@ -39,7 +96,7 @@ public class NpgsqlTypeMapping
 /// </remarks>
 public class NpgsqlTypeMapper
 {
-    public static readonly Cache<NpgsqlDbType, NpgsqlTypeMapping> Mappings = new(new Dictionary<NpgsqlDbType, NpgsqlTypeMapping>
+    public static readonly NpgsqlTypeMappingRegistry Mappings = new(new Dictionary<NpgsqlDbType, NpgsqlTypeMapping>
     {
         // Numeric types
         {NpgsqlDbType.Smallint,new NpgsqlTypeMapping(NpgsqlDbType.Smallint, DbType.Int16, "smallint", typeof(short), typeof(byte),
