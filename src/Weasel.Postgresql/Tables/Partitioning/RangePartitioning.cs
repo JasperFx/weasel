@@ -17,6 +17,31 @@ public class RangePartitioning: IPartitionStrategy
 
     public bool HasExistingDefault { get; private set; }
 
+    /// <summary>
+    /// The runtime partition manager that owns this table's partition set, if any. Set through
+    /// <see cref="UsePartitionManager"/>.
+    /// </summary>
+    public IRangePartitionManager? PartitionManager { get; private set; }
+
+    /// <summary>
+    /// Hand ownership of the partition set to a runtime manager — typically a
+    /// <see cref="ManagedRangePartitions"/> rolling time window — instead of declaring a static list of
+    /// ranges. The manager recomputes the expected partitions on every read, and delta detection becomes
+    /// purely additive so that a window rolling forward never triggers a table rebuild.
+    /// </summary>
+    public RangePartitioning UsePartitionManager(IRangePartitionManager manager)
+    {
+        PartitionManager = manager ?? throw new ArgumentNullException(nameof(manager));
+        return this;
+    }
+
+    /// <summary>
+    /// The partitions this strategy currently expects: the manager's set when one is attached, otherwise
+    /// the statically declared ranges.
+    /// </summary>
+    private IReadOnlyList<RangePartition> expectedRanges()
+        => PartitionManager == null ? _ranges : PartitionManager.Partitions().ToList();
+
     void IPartitionStrategy.WritePartitionBy(TextWriter writer)
     {
         writer.WriteLine($") PARTITION BY RANGE ({Columns.Join(", ")});");
@@ -34,10 +59,36 @@ public class RangePartitioning: IPartitionStrategy
 
             if (parent.IgnorePartitionsInMigration) return PartitionDelta.None;
 
-            var match = _ranges.OrderBy(x => x.Suffix).ToArray()
+            var expected = expectedRanges();
+
+            var match = expected.OrderBy(x => x.Suffix).ToArray()
                 .SequenceEqual(other._ranges.OrderBy(x => x.Suffix).ToArray());
 
             if (match) return PartitionDelta.None;
+
+            if (PartitionManager != null)
+            {
+                // weasel#401: a managed rolling window OWNS its partition set, and that set is a function
+                // of the clock. Every time "now" crosses a period boundary the declared window gains a
+                // partition at the leading edge and loses one at the trailing edge, so the two conditions
+                // the declarative branch below reads as drift — the actual database has partitions the
+                // declaration no longer names, and it has more of them than we asked for — are the normal
+                // steady state of a time-series table, not an anomaly. Rebuilding a multi-gigabyte table
+                // because last month rolled off would be catastrophic. Aged partitions are retired by the
+                // manager's retention pass (ManagedRangePartitions.DropAgedPartitionsAsync), which is a
+                // policy outcome rather than a migration, so migration only ever ADDS here.
+                //
+                // Match on the suffix rather than on full equality. The suffix already determines the
+                // bounds for a given policy, and the create path is CREATE TABLE IF NOT EXISTS keyed on
+                // the partition's NAME — so a partition reported as missing while a table of that name
+                // already exists would be silently skipped and then reported missing again on the next
+                // migration, forever. Matching on the name the create path actually uses keeps migration
+                // convergent.
+                var actualSuffixes = other._ranges.Select(x => x.Suffix).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                missing = expected.Where(x => !actualSuffixes.Contains(x.Suffix)).OfType<IPartition>().ToArray();
+                return missing.Length != 0 ? PartitionDelta.Additive : PartitionDelta.None;
+            }
 
             // We've already done a SequenceEqual, so we know the counts aren't the same
             // and if there are more actual partitions than expected, we need to do a rebalance
@@ -57,7 +108,7 @@ public class RangePartitioning: IPartitionStrategy
 
     public IEnumerable<string> PartitionTableNames(Table parent)
     {
-        foreach (var partition in _ranges)
+        foreach (var partition in expectedRanges())
         {
             yield return $"{parent.Identifier.Name.ToLowerInvariant()}_{partition.Suffix.ToLowerInvariant()}";
         }
@@ -75,6 +126,12 @@ public class RangePartitioning: IPartitionStrategy
     /// <returns></returns>
     public RangePartitioning AddRange<T>(string suffix, T from, T to)
     {
+        if (PartitionManager != null)
+        {
+            throw new InvalidOperationException(
+                "This table's partitions are owned by a partition manager, so statically declared ranges would be silently ignored. Remove the UsePartitionManager() call or the AddRange() call.");
+        }
+
         var partition = new RangePartition(suffix, from.FormatSqlValue(), to.FormatSqlValue());
         _ranges.Add(partition);
 
@@ -83,7 +140,7 @@ public class RangePartitioning: IPartitionStrategy
 
     void IPartitionStrategy.WriteCreateStatement(TextWriter writer, Table parent)
     {
-        foreach (IPartition partition in _ranges)
+        foreach (IPartition partition in expectedRanges())
         {
             partition.WriteCreateStatement(writer, parent);
             writer.WriteLine();
