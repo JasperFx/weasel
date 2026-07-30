@@ -114,8 +114,13 @@ public class TableColumn: ITableColumn
             return true;
         }
 
-        return Equals(actual) && (!detectDrift || HasSameDefaultAndNullability(actual));
+        return equalsVirtual(actual) && (!detectDrift || HasSameDefaultAndNullability(actual));
     }
+
+    // weasel#399: compare through the VIRTUAL Equals(object) so a subclass override
+    // participates. A bare Equals(actual) binds to the protected, non-virtual
+    // Equals(TableColumn) overload and silently bypasses it. See the PostgreSQL twin.
+    private bool equalsVirtual(TableColumn actual) => Equals((object)actual);
 
     internal bool HasSameComputedDefinition(TableColumn actual)
     {

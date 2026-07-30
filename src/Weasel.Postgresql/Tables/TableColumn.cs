@@ -131,7 +131,7 @@ public class TableColumn: ITableColumn
         {
             // the generation expression is the column's identity — defaults and
             // nullability drift don't apply to generated columns
-            return Equals(actual) && HasSameComputedDefinition(actual);
+            return equalsVirtual(actual) && HasSameComputedDefinition(actual);
         }
 
         if (actual.ComputedExpression.IsNotEmpty())
@@ -141,7 +141,7 @@ public class TableColumn: ITableColumn
             return true;
         }
 
-        return Equals(actual) && (!detectDrift || HasSameDefaultAndNullability(actual));
+        return equalsVirtual(actual) && (!detectDrift || HasSameDefaultAndNullability(actual));
     }
 
     internal bool HasSameComputedDefinition(TableColumn actual)
@@ -171,6 +171,17 @@ public class TableColumn: ITableColumn
                 : $"alter table {parent.Identifier} alter column {QuotedName} drop default;");
         }
     }
+
+    // weasel#399: MatchesForDelta must compare through the VIRTUAL Equals(object). Calling
+    // Equals(actual) there binds at compile time to the protected, non-virtual
+    // Equals(TableColumn) overload below, which silently bypasses any subclass override of
+    // Equals(object) — the seam consumers use to declare a wider actual column acceptable
+    // (Marten's integer mt_version tolerating an existing bigint, marten#4614/#4742). Before
+    // computed-column detection (weasel#373) the no-drift path passed a null comparer and
+    // ItemDelta fell back to the virtual Equals, so such columns compared equal; routing every
+    // comparison through MatchesForDelta changed that silently and classified the table as
+    // needing an update while emitting no SQL — an empty-change-set assert failure.
+    private bool equalsVirtual(TableColumn actual) => Equals((object)actual);
 
     protected bool Equals(TableColumn other)
     {
