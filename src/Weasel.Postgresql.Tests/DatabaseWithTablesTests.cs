@@ -5,6 +5,14 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests;
 
+/// <remarks>
+/// Every table here lives in the "integration" schema, which is what <see cref="IntegrationContext.ResetSchema" />
+/// actually resets for this class. They used to be created in "public", which nothing here
+/// isolates and which at least nine other test files also write to. xUnit serialises this
+/// collection against itself but runs other collections in parallel, so a concurrent drop in
+/// "public" would surface as either "relation ... does not exist" or, when it landed mid-scan
+/// of pg_index, "could not open relation with OID". See weasel#407.
+/// </remarks>
 [Collection("integration")]
 public class DatabaseWithTablesTests: IntegrationContext
 {
@@ -33,7 +41,7 @@ public class DatabaseWithTablesTests: IntegrationContext
     public void create_table_returns_configurable_table()
     {
         var db = new DatabaseWithTables("test", theDataSource);
-        var table = db.AddTable(new PostgresqlObjectName("public", "dwt_people"));
+        var table = db.AddTable(new PostgresqlObjectName("integration", "dwt_people"));
         table.ShouldNotBeNull();
         db.Tables.Count.ShouldBe(1);
         db.Tables[0].ShouldBeSameAs(table);
@@ -45,7 +53,7 @@ public class DatabaseWithTablesTests: IntegrationContext
         await ResetSchema();
 
         var db = new DatabaseWithTables("test", theDataSource);
-        var table = db.AddTable(new PostgresqlObjectName("public", "dwt_users"));
+        var table = db.AddTable(new PostgresqlObjectName("integration", "dwt_users"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 
@@ -59,7 +67,7 @@ public class DatabaseWithTablesTests: IntegrationContext
         await ResetSchema();
 
         var db = new DatabaseWithTables("test", theDataSource);
-        var table = db.AddTable(new PostgresqlObjectName("public", "dwt_contacts"));
+        var table = db.AddTable(new PostgresqlObjectName("integration", "dwt_contacts"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("name", typeof(string));
 
