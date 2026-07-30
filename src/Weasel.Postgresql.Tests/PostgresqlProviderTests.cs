@@ -86,6 +86,34 @@ public class PostgresqlProviderTests
     }
 
     [Fact]
+    public void ipnetwork_is_claimed_by_exactly_one_mapping()
+    {
+        // Guards the test above. IPNetwork used to be declared on both the cidr and the inet
+        // mapping, and GetTypeMapping breaks a tie with LastOrDefault over a Cache backed by
+        // an ImHashMap -- so "cidr" was winning on hash layout, not on anything declared.
+        // weasel#405.
+        NpgsqlTypeMapper.Mappings
+            .Count(mapping => mapping.ClrTypes.Contains(typeof(IPNetwork)))
+            .ShouldBe(1);
+    }
+
+    [Fact]
+    public void no_clr_type_is_claimed_by_more_than_one_mapping()
+    {
+        // Any CLR type reachable from two mappings has an order-dependent, effectively
+        // arbitrary resolution. Keep that structurally impossible rather than relying on
+        // enumeration order. weasel#405.
+        var doubleClaimed = NpgsqlTypeMapper.Mappings
+            .SelectMany(mapping => mapping.ClrTypes.Select(clrType => (clrType, mapping)))
+            .GroupBy(x => x.clrType)
+            .Where(g => g.Count() > 1)
+            .Select(g => $"{g.Key.Name} <- {string.Join(", ", g.Select(x => x.mapping.NpgsqlDbType))}")
+            .ToArray();
+
+        doubleClaimed.ShouldBeEmpty();
+    }
+
+    [Fact]
     public void canonicizesql_supports_tabs_as_whitespace()
     {
         var noTabsCanonized =
