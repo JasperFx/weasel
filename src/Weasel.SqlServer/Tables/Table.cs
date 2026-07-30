@@ -125,6 +125,24 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         return manager;
     }
 
+    /// <summary>
+    ///     Configure SQL Server RANGE partitioning driven by a rolling time window: a period size, how
+    ///     many periods to provision ahead of now, and how many to retain behind before a period is aged
+    ///     out. Weasel owns the <c>SPLIT RANGE</c> that rolls the window forward and the partition
+    ///     <c>TRUNCATE</c> + <c>MERGE RANGE</c> that retires an aged period. See
+    ///     <see cref="Partitioning.ManagedRangePartitions" />. Weasel #401.
+    /// </summary>
+    /// <param name="manager">
+    ///     The rolling-window strategy. The same instance is typically assigned to every table sharing a
+    ///     retention policy, so one call rolls them all forward.
+    /// </param>
+    public Partitioning.ManagedRangePartitions PartitionByRollingWindow(
+        Partitioning.ManagedRangePartitions manager)
+    {
+        SqlServerPartitioning = manager ?? throw new ArgumentNullException(nameof(manager));
+        return manager;
+    }
+
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         // Write partition function and scheme DDL before the table if partitioning is configured

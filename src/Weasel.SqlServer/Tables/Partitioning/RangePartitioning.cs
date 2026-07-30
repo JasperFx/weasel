@@ -6,7 +6,7 @@ namespace Weasel.SqlServer.Tables.Partitioning;
 ///     SQL Server RANGE partitioning via partition function + partition scheme.
 ///     Supports RANGE LEFT (default) and RANGE RIGHT boundary semantics.
 /// </summary>
-public class RangePartitioning : ISqlServerPartitioning
+public class RangePartitioning : ISplittablePartitioning
 {
     private readonly List<string> _boundaryValues = new();
 

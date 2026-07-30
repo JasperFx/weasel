@@ -65,10 +65,12 @@ public class TableDelta: SchemaObjectDelta<Table>
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
 
-        // Declarative RANGE partitioning round-trip. Only RangePartitioning is migrated here; managed
-        // strategies (e.g. ManagedTenantPartitions) own their boundaries at runtime and are left alone.
+        // RANGE partitioning round-trip. Only strategies that can migrate a boundary change in place are
+        // handled here; a strategy that owns its boundaries purely at runtime (ManagedTenantPartitions,
+        // whose ordinals are allocated on tenant sign-up) does not implement ISplittablePartitioning and
+        // is left alone.
         PartitioningDifference = SchemaPatchDifference.None;
-        if (expected.SqlServerPartitioning is Partitioning.RangePartitioning rangePartitioning)
+        if (expected.SqlServerPartitioning is Partitioning.ISplittablePartitioning rangePartitioning)
         {
             PartitioningDifference = rangePartitioning.CreateDelta(actual.PartitionInfo) switch
             {
@@ -146,7 +148,7 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         // Additive RANGE partition boundaries -> ALTER PARTITION FUNCTION ... SPLIT RANGE
         if (PartitioningDifference == SchemaPatchDifference.Update
-            && Expected.SqlServerPartitioning is Partitioning.RangePartitioning rangePartitioning
+            && Expected.SqlServerPartitioning is Partitioning.ISplittablePartitioning rangePartitioning
             && Actual?.PartitionInfo != null)
         {
             rangePartitioning.WriteSplitStatements(writer, Expected, Actual.PartitionInfo);
@@ -256,7 +258,7 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         // Roll an additive partition split back out -> ALTER PARTITION FUNCTION ... MERGE RANGE
         if (PartitioningDifference == SchemaPatchDifference.Update
-            && Expected.SqlServerPartitioning is Partitioning.RangePartitioning rangePartitioning
+            && Expected.SqlServerPartitioning is Partitioning.ISplittablePartitioning rangePartitioning
             && Actual?.PartitionInfo != null)
         {
             rangePartitioning.WriteMergeStatements(writer, Expected, Actual.PartitionInfo);

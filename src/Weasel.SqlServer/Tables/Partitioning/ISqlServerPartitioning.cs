@@ -51,6 +51,28 @@ public interface ISqlServerPartitioning
     PartitionDelta CreateDelta(SqlServerPartitionInfo? actual);
 }
 
+/// <summary>
+///     A partitioning strategy whose boundary changes can be migrated in place with
+///     <c>ALTER PARTITION FUNCTION ... SPLIT RANGE</c> rather than requiring the partition function and
+///     scheme to be rebuilt. <see cref="TableDelta" /> only migrates boundaries for strategies that
+///     implement this; a strategy that owns its boundaries purely at runtime (e.g.
+///     <see cref="ManagedTenantPartitions" />) deliberately does not, and is left alone by migration.
+/// </summary>
+public interface ISplittablePartitioning: ISqlServerPartitioning
+{
+    /// <summary>
+    ///     Write <c>ALTER PARTITION SCHEME ... NEXT USED</c> + <c>ALTER PARTITION FUNCTION ... SPLIT
+    ///     RANGE</c> for every expected boundary missing from <paramref name="actual" />.
+    /// </summary>
+    void WriteSplitStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual);
+
+    /// <summary>
+    ///     Write the <c>MERGE RANGE</c> statements that undo <see cref="WriteSplitStatements" />, so an
+    ///     additive partition migration can be rolled back.
+    /// </summary>
+    void WriteMergeStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual);
+}
+
 public enum PartitionDelta
 {
     /// <summary>No changes needed.</summary>
