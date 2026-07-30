@@ -82,9 +82,12 @@ public class NpgsqlTypeMapper
         {NpgsqlDbType.Multirange | NpgsqlDbType.TimestampTz, new NpgsqlTypeMapping(NpgsqlDbType.Multirange | NpgsqlDbType.TimestampTz, DbType.Object, "tstzmultirange")},
 
         // Network types
+        // IPNetwork belongs to cidr only. It used to be listed on inet as well, and which of
+        // the two won was decided by LastOrDefault over a hash-ordered ImHashMap -- i.e. by
+        // accident rather than by declaration. See weasel#405.
         {NpgsqlDbType.Cidr, new NpgsqlTypeMapping(NpgsqlDbType.Cidr, DbType.Object, "cidr", typeof(IPNetwork))},
         {NpgsqlDbType.Inet, new NpgsqlTypeMapping(NpgsqlDbType.Inet, DbType.Object, "inet", typeof(IPAddress),
-            typeof((IPAddress Address, int Subnet)), typeof(NpgsqlInet), typeof(IPNetwork), IPAddress.Loopback.GetType())},
+            typeof((IPAddress Address, int Subnet)), typeof(NpgsqlInet), IPAddress.Loopback.GetType())},
         {NpgsqlDbType.MacAddr, new NpgsqlTypeMapping(NpgsqlDbType.MacAddr, DbType.Object, "macaddr", typeof(PhysicalAddress))},
         {NpgsqlDbType.MacAddr8, new NpgsqlTypeMapping(NpgsqlDbType.MacAddr8, DbType.Object, "macaddr8")},
 
