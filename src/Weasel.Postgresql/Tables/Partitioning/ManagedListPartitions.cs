@@ -50,7 +50,10 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         var paths = _partitions.GroupBy(x => x.Value);
         foreach (var path in paths)
         {
-            yield return new ListPartition(path.Key, path.Select(x => $"'{x.Key}'").ToArray());
+            // weasel#416: build the bound literal through FormatSqlValue rather than interpolating the
+            // quotes here. The partition value is a raw tenant id in the managed-list model, so hand-rolling
+            // the quotes skipped escaping entirely.
+            yield return new ListPartition(path.Key, path.Select(x => x.Key.FormatSqlValue()).ToArray());
         }
     }
 

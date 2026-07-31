@@ -22,7 +22,22 @@ public static class PartitionExtensions
     }
 
     /// <summary>
-    /// Write the literal value of SQL for a given value. Places single quotes around strings
+    /// Write the literal value of SQL for a given value. Places single quotes around strings.
+    ///
+    /// <para>
+    /// Takes a <b>raw</b> value and produces a SQL literal. It is NOT idempotent and must not be handed a
+    /// value that is already a formatted literal — an embedded single quote is doubled, so re-formatting
+    /// would double it again. Values read back out of PostgreSQL are already literals and go straight to
+    /// the partition constructors (see <c>ListPartition.Parse</c>), never back through here.
+    /// </para>
+    ///
+    /// <para>
+    /// This used to short-circuit and return any string that merely started and ended with a single quote
+    /// verbatim, to make the function idempotent. That guess is unsound: "is this already a literal?"
+    /// cannot be answered from the shape of untrusted input, and the branch let a value that happened to
+    /// be quote-wrapped through with no escaping at all. Partition bound values are frequently tenant ids
+    /// supplied by an application, so the literal has to be built unconditionally. See weasel#416.
+    /// </para>
     /// </summary>
     /// <param name="value"></param>
     /// <typeparam name="T"></typeparam>
@@ -47,10 +62,16 @@ public static class PartitionExtensions
 
         if (value is bool b) return b.ToString().ToLowerInvariant();
 
-        if (value is string v && v.StartsWith("'") && v.EndsWith("'")) return v;
-
-        return $"'{value.ToString()}'";
+        return $"'{EscapeLiteral(value.ToString())}'";
     }
+
+    /// <summary>
+    /// Escape a value bound for the inside of a single-quoted PostgreSQL string literal by doubling any
+    /// embedded single quote — the only character that is special there under
+    /// <c>standard_conforming_strings = on</c> (the default since PostgreSQL 9.1). Mirrors
+    /// <c>quote_literal</c>.
+    /// </summary>
+    internal static string EscapeLiteral(string? raw) => raw is null ? string.Empty : raw.Replace("'", "''");
 
     /// <summary>
     /// Normalize a partition bound literal (either a declared value produced by <see cref="FormatSqlValue{T}"/>

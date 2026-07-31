@@ -138,6 +138,26 @@ public class RangePartitioning: IPartitionStrategy
         return this;
     }
 
+    /// <summary>
+    /// Add a range whose bounds are <b>already</b> formatted SQL literals — the shape PostgreSQL echoes back
+    /// from <c>pg_get_expr(relpartbound)</c>, where every bound comes back single-quoted. Use this instead of
+    /// <see cref="AddRange{T}"/> when the bounds have already been through
+    /// <see cref="PartitionExtensions.FormatSqlValue{T}"/> or came out of the catalog.
+    ///
+    /// <para>
+    /// <see cref="AddRange{T}"/> formats raw values and is deliberately not idempotent, so passing it a
+    /// literal would escape the quotes a second time. This used to work by accident: FormatSqlValue
+    /// short-circuited on any string that started and ended with a quote, which also meant a quote-wrapped
+    /// value skipped escaping entirely. See weasel#416.
+    /// </para>
+    /// </summary>
+    internal RangePartitioning AddRangeWithSqlLiterals(string suffix, string fromLiteral, string toLiteral)
+    {
+        _ranges.Add(new RangePartition(suffix, fromLiteral, toLiteral));
+
+        return this;
+    }
+
     void IPartitionStrategy.WriteCreateStatement(TextWriter writer, Table parent)
     {
         foreach (IPartition partition in expectedRanges())

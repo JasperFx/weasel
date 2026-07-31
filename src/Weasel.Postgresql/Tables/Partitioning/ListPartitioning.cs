@@ -46,6 +46,26 @@ public class ListPartitioning: IPartitionStrategy
         return this;
     }
 
+    /// <summary>
+    /// Add a partition whose values are <b>already</b> formatted SQL literals — the shape PostgreSQL echoes
+    /// back from <c>pg_get_expr(relpartbound)</c>, where every value comes back single-quoted. Use this
+    /// instead of <see cref="AddPartition{T}"/> when the values have already been through
+    /// <see cref="PartitionExtensions.FormatSqlValue{T}"/> or came out of the catalog.
+    ///
+    /// <para>
+    /// <see cref="AddPartition{T}"/> formats raw values and is deliberately not idempotent, so passing it a
+    /// literal would escape the quotes a second time. This used to work by accident: FormatSqlValue
+    /// short-circuited on any string that started and ended with a quote, which also meant a quote-wrapped
+    /// value skipped escaping entirely. See weasel#416.
+    /// </para>
+    /// </summary>
+    internal ListPartitioning AddPartitionWithSqlLiterals(string suffix, params string[] sqlLiterals)
+    {
+        _partitions.Add(new ListPartition(suffix, sqlLiterals));
+
+        return this;
+    }
+
     void IPartitionStrategy.WriteCreateStatement(TextWriter writer, Table parent)
     {
         var partitions = PartitionManager?.Partitions() ?? _partitions;

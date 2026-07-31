@@ -247,7 +247,7 @@ public class partitioning_deltas
             .AddRange("twenties", 20, 29);
 
         var readBack = new RangePartitioning { Columns = ["age"] }
-            .AddRange("twenties", "'20'", "'29'").As<IPartitionStrategy>();
+            .AddRangeWithSqlLiterals("twenties", "'20'", "'29'").As<IPartitionStrategy>();
 
         declared.As<IPartitionStrategy>().CreateDelta(table, readBack, out _).ShouldBe(PartitionDelta.None);
     }
@@ -264,8 +264,8 @@ public class partitioning_deltas
             .AddPartition("thirties", 30, 31);
 
         var readBack = new ListPartitioning { Columns = ["age"] }
-            .AddPartition("twenties", "'20'", "'21'")
-            .AddPartition("thirties", "'30'", "'31'").As<IPartitionStrategy>();
+            .AddPartitionWithSqlLiterals("twenties", "'20'", "'21'")
+            .AddPartitionWithSqlLiterals("thirties", "'30'", "'31'").As<IPartitionStrategy>();
 
         declared.As<IPartitionStrategy>().CreateDelta(table, readBack, out _).ShouldBe(PartitionDelta.None);
     }
@@ -281,7 +281,7 @@ public class partitioning_deltas
                 new DateTimeOffset(2026, 2, 1, 0, 0, 0, TimeSpan.Zero));
 
         var readBack = new RangePartitioning { Columns = ["bucket_end"] }
-            .AddRange("2026_01", "'2025-12-31 18:00:00-06'", "'2026-01-31 18:00:00-06'")
+            .AddRangeWithSqlLiterals("2026_01", "'2025-12-31 18:00:00-06'", "'2026-01-31 18:00:00-06'")
             .As<IPartitionStrategy>();
 
         declared.As<IPartitionStrategy>().CreateDelta(table, readBack, out _).ShouldBe(PartitionDelta.None);

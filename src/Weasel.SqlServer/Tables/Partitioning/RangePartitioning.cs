@@ -158,6 +158,12 @@ public class RangePartitioning : ISplittablePartitioning
         }
     }
 
+    /// <summary>
+    /// Render a raw value as a T-SQL literal. The catch-all arm doubles any embedded single quote — the only
+    /// character that is special inside a T-SQL string literal — so a value carrying one cannot terminate the
+    /// literal and add statements of its own. Mirrors the PostgreSQL side; see weasel#416. Numeric, bool and
+    /// date arms are rendered from typed values and cannot contain a quote.
+    /// </summary>
     internal static string FormatSqlValue<T>(T? value)
     {
         if (value == null) return "NULL";
@@ -168,7 +174,7 @@ public class RangePartitioning : ISplittablePartitioning
             int or long or short or byte or decimal or float or double => value.ToString()!,
             DateTime dt => $"'{dt:yyyy-MM-dd HH:mm:ss}'",
             DateTimeOffset dto => $"'{dto:yyyy-MM-dd HH:mm:ss.fffffff zzz}'",
-            _ => $"'{value}'"
+            _ => $"'{value.ToString()?.Replace("'", "''")}'"
         };
     }
 }
