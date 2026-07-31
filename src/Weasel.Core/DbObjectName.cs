@@ -3,6 +3,13 @@ namespace Weasel.Core;
 /// <summary>
 ///     Models a database object with both schema name and object name
 /// </summary>
+/// <remarks>
+///     This type does no validation whatsoever, and neither do its provider-specific subclasses. It is a
+///     value holder, not a sanitizing boundary -- constructing one, or going through a <c>Parse</c> or
+///     <c>From</c> factory, does not make a name safe to interpolate into DDL. Identifier validation lives
+///     in <c>Migrator.AssertValidIdentifier</c>, which the migration path applies to
+///     <see cref="Name" /> (weasel#416).
+/// </remarks>
 public class DbObjectName
 {
     [Obsolete("Use PostgresqlObjectName, SqlServerObjectName, or Parse method with IDatabaseProvider instead.")]

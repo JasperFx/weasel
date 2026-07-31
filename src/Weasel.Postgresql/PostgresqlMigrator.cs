@@ -334,16 +334,46 @@ $$;
 
     public override bool IsSystemColumn(string columnName) => SystemColumns.Contains(columnName);
 
+    /// <summary>
+    ///     Validates a database object name before it is written into DDL.
+    /// </summary>
+    /// <remarks>
+    ///     This is the only identifier check in the stack -- <see cref="DbObjectName" /> and
+    ///     <see cref="PostgresqlObjectName" /> do no validation of their own -- so it rejects the two
+    ///     characters that let a name escape the statement it is written into (weasel#416):
+    ///     <list type="bullet">
+    ///         <item>
+    ///             <c>"</c>, which closes a quoted identifier. Weasel quotes identifiers without doubling
+    ///             an embedded quote, so a name carrying one does not stay inside its own quotes.
+    ///         </item>
+    ///         <item><c>;</c>, which ends the statement and starts another.</item>
+    ///     </list>
+    ///     Whitespace is rejected in full rather than just the literal space it used to check, so that a
+    ///     newline cannot introduce a <c>--</c> comment into an unquoted name either.
+    /// </remarks>
     public override void AssertValidIdentifier(string name)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
-            throw new PostgresqlIdentifierInvalidException(name);
+            throw new PostgresqlIdentifierInvalidException(name, "it is null, empty, or entirely whitespace");
         }
 
-        if (name.IndexOf(' ') >= 0)
+        foreach (var c in name)
         {
-            throw new PostgresqlIdentifierInvalidException(name);
+            if (char.IsWhiteSpace(c))
+            {
+                throw new PostgresqlIdentifierInvalidException(name, "it contains whitespace");
+            }
+
+            if (c == '"')
+            {
+                throw new PostgresqlIdentifierInvalidException(name, "it contains a double quote");
+            }
+
+            if (c == ';')
+            {
+                throw new PostgresqlIdentifierInvalidException(name, "it contains a semicolon");
+            }
         }
 
         if (name.Length < NameDataLength)
