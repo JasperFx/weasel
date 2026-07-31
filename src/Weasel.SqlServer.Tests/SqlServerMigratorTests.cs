@@ -29,6 +29,93 @@ public class SqlServerMigratorTests
         table.Identifier.ShouldBe(identifier);
     }
 
+    /// <summary>
+    ///     weasel#416. AssertValidIdentifier is the only identifier check in the stack, and this provider's
+    ///     was an empty method body until now, so it has to reject the characters that let a name escape the
+    ///     statement it is written into. SQL Server delimits identifiers with <c>[...]</c> as well as
+    ///     <c>"..."</c>, so <c>]</c> matters alongside <c>"</c>; a <c>'</c> closes a string literal, which is
+    ///     where names land in the existence checks (<c>IF OBJECT_ID('...')</c>); a <c>;</c> starts a new
+    ///     statement.
+    /// </summary>
+    [Theory]
+    [InlineData("users\"", "a trailing double quote")]
+    [InlineData("\"users", "a leading double quote")]
+    [InlineData("us\"ers", "an embedded double quote")]
+    [InlineData("\"users\"", "a fully quote-wrapped name")]
+    [InlineData("users]", "a bracket that closes a delimited identifier")]
+    [InlineData("[users]", "a fully bracket-wrapped name")]
+    [InlineData("us]ers", "an embedded closing bracket")]
+    [InlineData("users]; drop table users; --", "a bracket-and-semicolon payload")]
+    [InlineData("users'", "a trailing single quote")]
+    [InlineData("us'ers", "an embedded single quote")]
+    [InlineData("users'); drop table users; --", "a quote-and-semicolon payload")]
+    [InlineData("users;", "a trailing semicolon")]
+    [InlineData("us;ers", "an embedded semicolon")]
+    public void assert_identifier_rejects_quote_bracket_and_semicolon(string name, string description)
+    {
+        var migrator = new SqlServerMigrator();
+
+        Should.Throw<InvalidOperationException>(
+            () => migrator.AssertValidIdentifier(name),
+            $"Expected {description} to be rejected");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("us ers")]
+    [InlineData("us\ters")]
+    [InlineData("us\ners")]
+    [InlineData("us\rers")]
+    [InlineData("users\n-- the rest of this statement is now a comment")]
+    public void assert_identifier_rejects_null_empty_and_whitespace(string? name)
+    {
+        var migrator = new SqlServerMigrator();
+
+        Should.Throw<InvalidOperationException>(() => migrator.AssertValidIdentifier(name!));
+    }
+
+    [Fact]
+    public void assert_identifier_rejects_names_past_the_sysname_limit()
+    {
+        var migrator = new SqlServerMigrator();
+
+        Should.NotThrow(() => migrator.AssertValidIdentifier(new string('a', 128)));
+        Should.Throw<InvalidOperationException>(() => migrator.AssertValidIdentifier(new string('a', 129)));
+    }
+
+    [Fact]
+    public void invalid_identifier_message_says_which_rule_was_broken()
+    {
+        var migrator = new SqlServerMigrator();
+
+        var ex = Should.Throw<InvalidOperationException>(() => migrator.AssertValidIdentifier("us]ers"));
+
+        ex.Message.ShouldContain("us]ers");
+        ex.Message.ShouldContain("closing square bracket");
+    }
+
+    /// <summary>
+    ///     Names Weasel and its consumers actually generate must keep working -- the tightening is aimed at
+    ///     a handful of characters, not at narrowing the identifier grammar.
+    /// </summary>
+    [Theory]
+    [InlineData("mt_doc_user")]
+    [InlineData("mt_stream")]
+    [InlineData("mt_doc_user_hilo")]
+    [InlineData("users$1")]
+    [InlineData("_leading_underscore")]
+    [InlineData("MixedCaseName")]
+    [InlineData("naïve_café")]
+    [InlineData("table-with-dashes")]
+    [InlineData("#temp_table")]
+    [InlineData("mt_doc_target.p_tenant_one")]
+    public void assert_identifier_still_accepts_ordinary_names(string name)
+    {
+        Should.NotThrow(() => new SqlServerMigrator().AssertValidIdentifier(name));
+    }
+
     [Fact]
     public async Task can_ensure_database_that_does_not_exist()
     {

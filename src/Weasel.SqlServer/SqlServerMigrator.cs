@@ -137,9 +137,40 @@ $$;
         return $":r {scriptName}";
     }
 
+    /// <summary>
+    ///     The characters SQL Server delimits identifiers with. <c>]</c> is what closes a
+    ///     <c>[...]</c> delimited identifier and <c>"</c> what closes a quoted one (SQL Server accepts both,
+    ///     the latter under <c>QUOTED_IDENTIFIER ON</c>); <c>[</c> is rejected alongside <c>]</c> so that an
+    ///     already-bracketed name is caught rather than being bracketed a second time.
+    /// </summary>
+    private const string UnsafeIdentifierCharacters = "[]\"";
+
+    /// <summary>
+    ///     SQL Server's identifier length limit -- <c>sysname</c> is <c>nvarchar(128)</c>, so anything
+    ///     longer is rejected by the server itself.
+    /// </summary>
+    public int MaxIdentifierLength { get; set; } = 128;
+
+    /// <summary>
+    ///     Validates a database object name before it is written into DDL. See
+    ///     <see cref="IdentifierValidation" /> for why each rule is here; this method had no body at all
+    ///     before weasel#416.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">The name cannot be safely written into DDL.</exception>
     public override void AssertValidIdentifier(string name)
     {
-        // Nothing yet
+        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
+        if (problem != null)
+        {
+            throw new InvalidOperationException(
+                $"SQL Server identifier '{name}' is not valid because {problem}.");
+        }
+
+        if (name.Length > MaxIdentifierLength)
+        {
+            throw new InvalidOperationException(
+                $"SQL Server identifiers cannot exceed {MaxIdentifierLength} characters. '{name}' is {name.Length} characters.");
+        }
     }
 
     private static async Task createSchemas(

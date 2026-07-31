@@ -84,19 +84,42 @@ public class SqliteMigrator: Migrator
         return $".read {scriptName}";
     }
 
+    /// <summary>
+    ///     The character SQLite delimits identifiers with. <see cref="SchemaUtils.QuoteName" /> does double
+    ///     an embedded <c>"</c>, but only quotes at all for reserved keywords, spaces, dashes and leading
+    ///     digits -- an ordinary-looking name carrying a quote is written out raw.
+    /// </summary>
+    private const string UnsafeIdentifierCharacters = "\"";
+
+    /// <summary>
+    ///     SQLite itself allows identifiers up to 1073741824 characters, which is not a useful limit; this
+    ///     is the practical one Weasel enforces, in line with the other providers.
+    /// </summary>
+    public int MaxIdentifierLength { get; set; } = 255;
+
+    /// <summary>
+    ///     Validates a database object name before it is written into DDL. See
+    ///     <see cref="IdentifierValidation" /> for why each rule is here; before weasel#416 this checked
+    ///     null/whitespace and length only.
+    /// </summary>
+    /// <remarks>
+    ///     The single quote matters here because SQLite's introspection path interpolates the table name
+    ///     into string literals -- <c>WHERE name = '...'</c> against <c>sqlite_master</c> and
+    ///     <c>pragma_table_info('...')</c> in <c>Table.FetchExisting</c>.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The name cannot be safely written into DDL.</exception>
     public override void AssertValidIdentifier(string name)
     {
-        if (string.IsNullOrWhiteSpace(name))
+        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
+        if (problem != null)
         {
-            throw new InvalidOperationException($"SQLite identifier cannot be empty or whitespace");
+            throw new InvalidOperationException($"SQLite identifier '{name}' is not valid because {problem}.");
         }
 
-        // SQLite is quite permissive with identifier names, but we should check for basic issues
-        // SQLite allows up to 1073741824 characters, but that's impractical
-        // We'll use a reasonable limit similar to other databases
-        if (name.Length > 255)
+        if (name.Length > MaxIdentifierLength)
         {
-            throw new InvalidOperationException($"SQLite identifier '{name}' is too long ({name.Length} characters). Maximum recommended length is 255.");
+            throw new InvalidOperationException(
+                $"SQLite identifier '{name}' is too long ({name.Length} characters). Maximum recommended length is {MaxIdentifierLength}.");
         }
     }
 

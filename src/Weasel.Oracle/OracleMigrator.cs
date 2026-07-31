@@ -116,11 +116,40 @@ END;");
         return $"@{scriptName}";
     }
 
+    /// <summary>
+    ///     The character Oracle delimits identifiers with. A <c>"</c> closes a quoted identifier, and
+    ///     <see cref="SchemaUtils.QuoteName" /> does not double an embedded one.
+    /// </summary>
+    private const string UnsafeIdentifierCharacters = "\"";
+
+    /// <summary>
+    ///     Oracle's identifier length limit (12.2 and later).
+    /// </summary>
+    public int MaxIdentifierLength { get; set; } = 128;
+
+    /// <summary>
+    ///     Validates a database object name before it is written into DDL. See
+    ///     <see cref="IdentifierValidation" /> for why each rule is here; before weasel#416 this checked
+    ///     length only, and threw <see cref="NullReferenceException" /> on a null name.
+    /// </summary>
+    /// <remarks>
+    ///     The single quote matters more on Oracle than elsewhere: Weasel wraps Oracle DDL in an anonymous
+    ///     PL/SQL block and runs it through <c>EXECUTE IMMEDIATE</c>, so the whole statement -- object name
+    ///     included -- is written inside a string literal.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The name cannot be safely written into DDL.</exception>
     public override void AssertValidIdentifier(string name)
     {
-        if (name.Length > 128)
+        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
+        if (problem != null)
         {
-            throw new InvalidOperationException($"Oracle identifiers cannot exceed 128 characters. '{name}' is {name.Length} characters.");
+            throw new InvalidOperationException($"Oracle identifier '{name}' is not valid because {problem}.");
+        }
+
+        if (name.Length > MaxIdentifierLength)
+        {
+            throw new InvalidOperationException(
+                $"Oracle identifiers cannot exceed {MaxIdentifierLength} characters. '{name}' is {name.Length} characters.");
         }
     }
 
