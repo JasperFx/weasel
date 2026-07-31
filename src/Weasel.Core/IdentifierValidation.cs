@@ -20,14 +20,15 @@ namespace Weasel.Core;
 ///         <c>'</c> closes a string literal, and object names do reach string literals on every provider --
 ///         the existence checks and introspection queries interpolate them (SQL Server's
 ///         <c>IF OBJECT_ID('...')</c>, Oracle's <c>WHERE table_name = '...'</c> inside an anonymous PL/SQL
-///         block, SQLite's <c>pragma_table_info('...')</c>). Whitespace is rejected in full rather than just
-///         the literal space character, so that a newline cannot introduce a <c>--</c> comment into an
-///         unquoted name.
+///         block, SQLite's <c>pragma_table_info('...')</c>), and PostgreSQL writes a sequence's name into
+///         one when a column defaults from it (<c>DEFAULT nextval('...')</c>). Whitespace is rejected in
+///         full rather than just the literal space character, so that a newline cannot introduce a
+///         <c>--</c> comment into an unquoted name.
 ///     </para>
 ///     <para>
 ///         The rest is per-provider, because the character that closes an identifier is not: SQL Server
-///         delimits with <c>[...]</c> as well as <c>"..."</c>, MySQL with backticks, Oracle and SQLite with
-///         <c>"</c>. Weasel's quoting helpers do not double an embedded delimiter (SQLite's
+///         delimits with <c>[...]</c> as well as <c>"..."</c>, MySQL with backticks, and Oracle, SQLite and
+///         PostgreSQL with <c>"</c>. Weasel's quoting helpers do not double an embedded delimiter (SQLite's
 ///         <c>SchemaUtils.QuoteName</c> does, but only quotes at all for keywords, spaces, dashes and
 ///         leading digits), so a name carrying one does not stay inside its own quotes.
 ///     </para>
