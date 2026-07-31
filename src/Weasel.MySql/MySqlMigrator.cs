@@ -107,12 +107,39 @@ public class MySqlMigrator: Migrator
         return $"source {scriptName}";
     }
 
+    /// <summary>
+    ///     The characters that are unsafe in a MySQL identifier beyond the universal ones: the backtick
+    ///     MySQL delimits identifiers with (<see cref="SchemaUtils.QuoteName" /> wraps every name in
+    ///     backticks and does not double an embedded one), the double quote that delimits identifiers under
+    ///     <c>ANSI_QUOTES</c> and string literals otherwise, and the backslash, which is an escape character
+    ///     inside MySQL string literals unless <c>NO_BACKSLASH_ESCAPES</c> is set -- a trailing one would
+    ///     otherwise swallow the closing quote of the literal a name is written into.
+    /// </summary>
+    private const string UnsafeIdentifierCharacters = "`\"\\";
+
+    /// <summary>
+    ///     MySQL's identifier length limit.
+    /// </summary>
+    public int MaxIdentifierLength { get; set; } = 64;
+
+    /// <summary>
+    ///     Validates a database object name before it is written into DDL. See
+    ///     <see cref="IdentifierValidation" /> for why each rule is here; before weasel#416 this checked
+    ///     length only, and threw <see cref="NullReferenceException" /> on a null name.
+    /// </summary>
+    /// <exception cref="ArgumentException">The name cannot be safely written into DDL.</exception>
     public override void AssertValidIdentifier(string name)
     {
-        // MySQL identifiers can be up to 64 characters
-        if (name.Length > 64)
+        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
+        if (problem != null)
         {
-            throw new ArgumentException($"MySQL identifier '{name}' exceeds the 64 character limit.");
+            throw new ArgumentException($"MySQL identifier '{name}' is not valid because {problem}.");
+        }
+
+        if (name.Length > MaxIdentifierLength)
+        {
+            throw new ArgumentException(
+                $"MySQL identifier '{name}' exceeds the {MaxIdentifierLength} character limit.");
         }
     }
 
