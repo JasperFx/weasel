@@ -192,6 +192,42 @@ IF NOT EXISTS ( SELECT  *
 ";
     }
 
+    /// <summary>
+    ///     SQL Server error 1801, "Database 'x' already exists". Raised by <c>CREATE DATABASE</c> when a
+    ///     concurrent caller created the database between our existence check and our create (weasel#415).
+    /// </summary>
+    private const int DatabaseAlreadyExists = 1801;
+
+    /// <summary>
+    ///     How long <see cref="EnsureDatabaseExistsAsync" /> will keep retrying a connection to the target
+    ///     database before giving up. A freshly created SQL Server database can briefly refuse logins, and
+    ///     on a cold container that window can run to tens of seconds -- so the method does not return until
+    ///     the database actually accepts a connection. Set to <see cref="TimeSpan.Zero" /> to make a single
+    ///     attempt and fail fast, which is usually what you want against a warm local server.
+    /// </summary>
+    public TimeSpan DatabaseAvailabilityTimeout { get; set; } = 30.Seconds();
+
+    /// <summary>
+    ///     How long <see cref="EnsureDatabaseExistsAsync" /> waits between connection attempts while the
+    ///     newly created database is still refusing logins.
+    /// </summary>
+    public TimeSpan DatabaseAvailabilityPollingInterval { get; set; } = 1.Seconds();
+
+    /// <summary>
+    ///     Creates the database named by the connection's <c>Initial Catalog</c> if it does not already
+    ///     exist, then blocks until that database accepts a connection.
+    /// </summary>
+    /// <remarks>
+    ///     Safe to call from several processes at once (weasel#415). The existence check and the
+    ///     <c>CREATE DATABASE</c> are not atomic -- SQL Server offers no form that makes them so -- so the
+    ///     loser of the race is recognised by error 1801 and treated as success. Waiting for the database to
+    ///     accept a connection is done unconditionally rather than only after we create it, because a
+    ///     concurrent creator leaves the same window open for us.
+    /// </remarks>
+    /// <exception cref="ArgumentException">The connection string does not name a database.</exception>
+    /// <exception cref="TimeoutException">
+    ///     The database exists but did not accept a connection within <see cref="DatabaseAvailabilityTimeout" />.
+    /// </exception>
     public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
     {
         var builder = new SqlConnectionStringBuilder(connection.ConnectionString);
@@ -202,24 +238,76 @@ IF NOT EXISTS ( SELECT  *
             throw new ArgumentException("The connection string does not specify a database name (Initial Catalog).");
         }
 
+        var targetConnectionString = builder.ConnectionString;
+
         builder.InitialCatalog = "master";
-        await using var adminConn = new SqlConnection(builder.ConnectionString);
-        await adminConn.OpenAsync(ct).ConfigureAwait(false);
-
-        var cmd = adminConn.CreateCommand();
-        cmd.CommandText = "SELECT DB_ID(@name)";
-        var param = cmd.CreateParameter();
-        param.ParameterName = "@name";
-        param.Value = databaseName;
-        cmd.Parameters.Add(param);
-
-        var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
-
-        if (result is null or DBNull)
+        await using (var adminConn = new SqlConnection(builder.ConnectionString))
         {
-            var createCmd = adminConn.CreateCommand();
-            createCmd.CommandText = $"CREATE DATABASE [{databaseName}]";
-            await createCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            await adminConn.OpenAsync(ct).ConfigureAwait(false);
+
+            var cmd = adminConn.CreateCommand();
+            cmd.CommandText = "SELECT DB_ID(@name)";
+            var param = cmd.CreateParameter();
+            param.ParameterName = "@name";
+            param.Value = databaseName;
+            cmd.Parameters.Add(param);
+
+            var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+
+            if (result is null or DBNull)
+            {
+                var createCmd = adminConn.CreateCommand();
+
+                // CREATE DATABASE takes no parameters, so the name has to be interpolated. Doubling ']'
+                // is what makes it a well-formed delimited identifier.
+                createCmd.CommandText = $"CREATE DATABASE [{databaseName.Replace("]", "]]")}]";
+
+                try
+                {
+                    await createCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+                catch (SqlException e) when (e.Number == DatabaseAlreadyExists)
+                {
+                    // Another caller created it between our DB_ID check and this statement. That is the
+                    // outcome we wanted anyway.
+                }
+            }
+        }
+
+        await waitUntilDatabaseAcceptsConnectionsAsync(targetConnectionString, databaseName, ct)
+            .ConfigureAwait(false);
+    }
+
+    private async Task waitUntilDatabaseAcceptsConnectionsAsync(
+        string connectionString,
+        string databaseName,
+        CancellationToken ct
+    )
+    {
+        var timeout = DatabaseAvailabilityTimeout;
+        var deadline = DateTimeOffset.UtcNow + timeout;
+
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+
+            try
+            {
+                await using var conn = new SqlConnection(connectionString);
+                await conn.OpenAsync(ct).ConfigureAwait(false);
+                return;
+            }
+            catch (SqlException e)
+            {
+                if (DateTimeOffset.UtcNow >= deadline)
+                {
+                    throw new TimeoutException(
+                        $"Database '{databaseName}' exists, but did not accept a connection within {timeout}. See {nameof(SqlServerMigrator)}.{nameof(DatabaseAvailabilityTimeout)} if the database needs longer to come online.",
+                        e);
+                }
+
+                await Task.Delay(DatabaseAvailabilityPollingInterval, ct).ConfigureAwait(false);
+            }
         }
     }
 

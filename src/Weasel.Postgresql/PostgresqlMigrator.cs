@@ -370,7 +370,17 @@ $$;
 
         if (!await adminConn.DatabaseExists(databaseName, ct).ConfigureAwait(false))
         {
-            await new DatabaseSpecification().BuildDatabase(adminConn, databaseName, ct).ConfigureAwait(false);
+            try
+            {
+                await new DatabaseSpecification().BuildDatabase(adminConn, databaseName, ct).ConfigureAwait(false);
+            }
+            catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.DuplicateDatabase)
+            {
+                // A concurrent caller created it between the existence check and this statement
+                // (weasel#415). That is the outcome we wanted anyway. Unlike SQL Server, PostgreSQL
+                // accepts connections to the new database as soon as CREATE DATABASE returns, so
+                // there is nothing further to wait for.
+            }
         }
     }
 
