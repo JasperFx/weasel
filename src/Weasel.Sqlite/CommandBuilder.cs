@@ -4,7 +4,7 @@ using Weasel.Core;
 
 namespace Weasel.Sqlite;
 
-public class CommandBuilder: CommandBuilderBase<SqliteCommand, SqliteParameter, SqliteType>
+public class CommandBuilder: CommandBuilderBase<SqliteCommand, SqliteParameter, SqliteType>, ICommandBuilder
 {
     public CommandBuilder(): this(new SqliteCommand())
     {
@@ -13,6 +13,51 @@ public class CommandBuilder: CommandBuilderBase<SqliteCommand, SqliteParameter, 
     public CommandBuilder(SqliteCommand command): base(SqliteProvider.Instance, '@', command)
     {
     }
+
+    /// <summary>
+    /// It became so common, that it's turned out to be convenient to place
+    /// this here
+    /// </summary>
+    public string TenantId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Append a single parameter through the dialect-neutral value path, returning the newly created
+    /// parameter upcast to <see cref="DbParameter" />.
+    /// <para>
+    /// Explicitly implemented, as in Weasel.Oracle: the base class already exposes void-returning
+    /// <c>AppendParameter</c> overloads, so a public member here would hide them and silently change
+    /// which one existing call sites bind to.
+    /// </para>
+    /// </summary>
+    DbParameter ICommandBuilder.AppendParameter(object value)
+    {
+        base.AppendParameter(value);
+        return _command.Parameters[^1];
+    }
+
+    void ICommandBuilder.AppendParameters(params object[] parameters)
+    {
+        if (parameters.Length == 0)
+            throw new ArgumentOutOfRangeException(nameof(parameters),
+                "Must be at least one parameter value, but got " + parameters.Length);
+
+        AppendParameter(parameters[0]);
+
+        for (var i = 1; i < parameters.Length; i++)
+        {
+            Append(", ");
+            AppendParameter(parameters[i]);
+        }
+    }
+
+    public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? seperator = null)
+    {
+        return new GroupedParameterBuilder(this, seperator);
+    }
+
+    // StartNewCommand is deliberately not overridden: the base is already a no-op, which is correct
+    // here because Microsoft.Data.Sqlite executes several semicolon-separated statements from one
+    // command.
 }
 
 public static class CommandBuilderExtensions
