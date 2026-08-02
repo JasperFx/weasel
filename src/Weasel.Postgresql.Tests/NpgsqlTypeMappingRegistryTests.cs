@@ -49,6 +49,8 @@ public class NpgsqlTypeMappingRegistryTests
     {
         const int seeded = 500;
         const int added = 5000;
+        const int passes = 50;
+        var patience = TimeSpan.FromSeconds(30);
 
         var registry = EmptyRegistry();
         for (var i = 0; i < seeded; i++)
@@ -56,31 +58,58 @@ public class NpgsqlTypeMappingRegistryTests
             registry[(NpgsqlDbType)i] = AnyMapping();
         }
 
-        // Bounded on both sides: the writer stops after a fixed number of registrations and the
-        // reader stops with it, so the dictionary cannot grow without limit underneath repeated
-        // full enumerations.
+        using var writingHasStarted = new ManualResetEventSlim(false);
+        using var readerIsFinished = new ManualResetEventSlim(false);
+
+        // The writer holds the concurrent window open for the reader instead of racing it to the
+        // finish: it registers the new keys, then keeps re-registering them -- which mutates the
+        // map without moving the final count -- until the reader has taken its passes. The reader
+        // in turn does not start until the first registration has landed, so every pass below is
+        // taken against a registry actively being written to.
+        //
+        // The earlier `while (!writer.IsCompleted)` shape had no such handshake: when the pool
+        // scheduled the writer promptly it finished all 5,000 registrations before the first
+        // IsCompleted check, the loop body never ran, and the test asserted nothing at all --
+        // green here, and intermittently red on the trailing `passes > 0` in CI.
         var writer = Task.Run(() =>
         {
             for (var i = 0; i < added; i++)
             {
                 registry[(NpgsqlDbType)(100_000 + i)] = AnyMapping();
+                writingHasStarted.Set();
+            }
+
+            while (!readerIsFinished.IsSet)
+            {
+                for (var i = 0; i < added && !readerIsFinished.IsSet; i++)
+                {
+                    registry[(NpgsqlDbType)(100_000 + i)] = AnyMapping();
+                }
             }
         });
 
-        var passes = 0;
-        while (!writer.IsCompleted)
+        try
         {
-            // Each read must see a coherent snapshot: never fewer than what was there before the
-            // writer started, and never a null hole.
-            var seen = registry.ToList();
-            seen.Count.ShouldBeGreaterThanOrEqualTo(seeded);
-            seen.ShouldAllBe(mapping => mapping != null);
-            passes++;
+            writingHasStarted.Wait(patience).ShouldBeTrue();
+
+            for (var pass = 0; pass < passes; pass++)
+            {
+                // Each read must see a coherent snapshot: never fewer than what was there before
+                // the writer started, and never a null hole.
+                var seen = registry.ToList();
+                seen.Count.ShouldBeGreaterThanOrEqualTo(seeded);
+                seen.ShouldAllBe(mapping => mapping != null);
+            }
+        }
+        finally
+        {
+            // In a finally so a failed assertion above releases the writer rather than hanging
+            // the run in its churn loop.
+            readerIsFinished.Set();
         }
 
         writer.GetAwaiter().GetResult();
         registry.Count.ShouldBe(seeded + added);
-        passes.ShouldBeGreaterThan(0);
     }
 
     [Fact]
