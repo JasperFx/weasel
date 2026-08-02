@@ -104,6 +104,13 @@ public class PostgresqlMigratorTests
     ///     the characters that let a name escape the statement it is written into. A '"' closes a quoted
     ///     identifier -- Weasel quotes without doubling an embedded quote -- and a ';' starts a new
     ///     statement. Both were permitted before this.
+    ///     <para>
+    ///         The single quote came with the move onto the shared IdentifierValidation. It is not
+    ///         uniformity for its own sake: Table.ColumnExpression.DefaultValueFromSequence writes a
+    ///         sequence's name into a string literal, DEFAULT nextval('{name}'), so a name carrying one
+    ///         closes that literal. PostgreSQL's introspection queries parameterise the name, which is why
+    ///         this is narrower here than on the providers that interpolate it.
+    ///     </para>
     /// </summary>
     [Theory]
     [InlineData("users\"", "a trailing double quote")]
@@ -111,6 +118,9 @@ public class PostgresqlMigratorTests
     [InlineData("us\"ers", "an embedded double quote")]
     [InlineData("\"users\"", "a fully quote-wrapped name")]
     [InlineData("users\"; drop table users; --", "a quote-and-semicolon payload")]
+    [InlineData("users'", "a trailing single quote")]
+    [InlineData("us'ers", "an embedded single quote")]
+    [InlineData("users'); drop table users; --", "a literal-breaking payload")]
     [InlineData("users;", "a trailing semicolon")]
     [InlineData("us;ers", "an embedded semicolon")]
     public void assert_identifier_rejects_quote_and_semicolon(string name, string description)
@@ -153,7 +163,7 @@ public class PostgresqlMigratorTests
 
     /// <summary>
     ///     Names Weasel and its consumers actually generate must keep working -- the tightening is aimed at
-    ///     two characters, not at narrowing the identifier grammar.
+    ///     a handful of characters, not at narrowing the identifier grammar.
     /// </summary>
     [Theory]
     [InlineData("mt_doc_user")]

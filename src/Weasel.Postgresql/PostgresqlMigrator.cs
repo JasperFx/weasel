@@ -335,45 +335,29 @@ $$;
     public override bool IsSystemColumn(string columnName) => SystemColumns.Contains(columnName);
 
     /// <summary>
+    ///     The character PostgreSQL delimits identifiers with. A <c>"</c> closes a quoted identifier, and
+    ///     <see cref="SchemaUtils.QuoteName" /> does not double an embedded one -- so a name carrying one
+    ///     does not stay inside its own quotes. The rest of what is rejected is universal and lives in
+    ///     <see cref="IdentifierValidation" />.
+    /// </summary>
+    private const string UnsafeIdentifierCharacters = "\"";
+
+    /// <summary>
     ///     Validates a database object name before it is written into DDL.
     /// </summary>
     /// <remarks>
     ///     This is the only identifier check in the stack -- <see cref="DbObjectName" /> and
-    ///     <see cref="PostgresqlObjectName" /> do no validation of their own -- so it rejects the two
-    ///     characters that let a name escape the statement it is written into (weasel#416):
-    ///     <list type="bullet">
-    ///         <item>
-    ///             <c>"</c>, which closes a quoted identifier. Weasel quotes identifiers without doubling
-    ///             an embedded quote, so a name carrying one does not stay inside its own quotes.
-    ///         </item>
-    ///         <item><c>;</c>, which ends the statement and starts another.</item>
-    ///     </list>
-    ///     Whitespace is rejected in full rather than just the literal space it used to check, so that a
-    ///     newline cannot introduce a <c>--</c> comment into an unquoted name either.
+    ///     <see cref="PostgresqlObjectName" /> do no validation of their own -- so it rejects the characters
+    ///     that let a name escape the statement it is written into: the double quote above, plus the
+    ///     semicolon, the single quote and whitespace that <see cref="IdentifierValidation.FindProblem" />
+    ///     rejects for every provider (weasel#416).
     /// </remarks>
     public override void AssertValidIdentifier(string name)
     {
-        if (string.IsNullOrWhiteSpace(name))
+        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
+        if (problem != null)
         {
-            throw new PostgresqlIdentifierInvalidException(name, "it is null, empty, or entirely whitespace");
-        }
-
-        foreach (var c in name)
-        {
-            if (char.IsWhiteSpace(c))
-            {
-                throw new PostgresqlIdentifierInvalidException(name, "it contains whitespace");
-            }
-
-            if (c == '"')
-            {
-                throw new PostgresqlIdentifierInvalidException(name, "it contains a double quote");
-            }
-
-            if (c == ';')
-            {
-                throw new PostgresqlIdentifierInvalidException(name, "it contains a semicolon");
-            }
+            throw new PostgresqlIdentifierInvalidException(name, problem);
         }
 
         if (name.Length < NameDataLength)
