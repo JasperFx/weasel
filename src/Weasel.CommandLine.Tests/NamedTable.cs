@@ -42,7 +42,17 @@ public class TestDatabaseWithTables: PostgresqlDatabase
 {
     /// <inheritdoc />
     public TestDatabaseWithTables(AutoCreate autoCreate, string identifier) :
-        base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, new NpgsqlDataSourceBuilder(ConnectionSource.ConnectionString).Build())
+        this(autoCreate, identifier, ConnectionSource.ConnectionString)
+    {
+    }
+
+    /// <summary>
+    ///     Targets a specific connection string, so a test can spread databases across more than one
+    ///     physical database — which is what makes db-apply's physical-database grouping (weasel#431)
+    ///     actually exercise cross-group parallelism.
+    /// </summary>
+    public TestDatabaseWithTables(AutoCreate autoCreate, string identifier, string connectionString) :
+        base(new DefaultMigrationLogger(), autoCreate, new PostgresqlMigrator(), identifier, new NpgsqlDataSourceBuilder(connectionString).Build())
     {
     }
 

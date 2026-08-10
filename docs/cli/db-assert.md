@@ -16,7 +16,15 @@ dotnet run -- db-assert -d MyDatabase
 
 ## Behavior
 
-This command calls `AssertDatabaseMatchesConfigurationAsync()` on each discovered database. If the actual database state differs from the expected configuration, it throws a `DatabaseValidationException` and the process exits with a non-zero exit code.
+This command calls `AssertDatabaseMatchesConfigurationAsync()` on each discovered database. Every database is checked -- a failure never stops the rest of the walk -- and each failing database's `DatabaseValidationException` is printed as it happens. If any database failed, the process exits with a non-zero exit code.
+
+Like [db-apply](/cli/db-apply), the walk honors `--parallel` for fleets of databases:
+
+```bash
+dotnet run -- db-assert --parallel 8
+```
+
+Targets sharing a `DatabaseUri` (the same physical database) are always checked sequentially within the group; the parallelism counts physical databases in flight. The default is `1`, strictly sequential.
 
 ## CI/CD Usage
 

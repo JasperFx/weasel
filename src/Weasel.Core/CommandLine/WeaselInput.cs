@@ -16,6 +16,16 @@ public class WeaselInput: NetCoreInput
     public string? DatabaseFlag { get; set; }
 
     /// <summary>
+    ///     Maximum degree of parallelism for the commands that walk every database (db-apply,
+    ///     db-assert). Counted in *physical* databases: targets are grouped by their DatabaseUri and a
+    ///     group is always processed sequentially within itself, since parallel DDL against one
+    ///     physical database only contends on its locks. Defaults to 1 — strictly sequential, exactly
+    ///     the pre-weasel#431 behavior — so nothing changes for anyone who does not opt in.
+    /// </summary>
+    [Description("Maximum number of physical databases to process in parallel for db-apply/db-assert. Targets sharing a DatabaseUri are always processed sequentially. Default is 1 (sequential)")]
+    public int ParallelFlag { get; set; } = 1;
+
+    /// <summary>
     ///     Where discovery progress is written. Resolved lazily so that a host which replaces
     ///     <see cref="AnsiConsole.Console" /> after this input is constructed is still respected.
     /// </summary>

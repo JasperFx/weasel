@@ -289,6 +289,13 @@ public class DefaultMigrationLogger: IMigrationLogger
         _writer = writer ?? throw new ArgumentNullException(nameof(writer));
     }
 
+    /// <summary>
+    ///     Where this logger writes, or null when it writes to the console. Lets tooling that wants to
+    ///     buffer per-database output (parallel db-apply, weasel#431) distinguish a console-bound logger
+    ///     it may safely redirect from one a host already pointed somewhere deliberate.
+    /// </summary>
+    internal TextWriter? Writer => _writer;
+
     public void SchemaChange(string sql)
     {
         // Resolved per call rather than captured in the constructor: Console.Out is reassignable, and a
