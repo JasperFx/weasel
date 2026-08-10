@@ -253,11 +253,47 @@ public interface IMigrationLogger
     void OnFailure(DbCommand command, Exception ex);
 }
 
+/// <summary>
+///     Implemented by databases whose migration logger can be replaced after construction, so that a
+///     caller applying many databases can route each one's DDL somewhere of its own -- a buffer it
+///     flushes as an attributable unit, rather than interleaved lines from several appliers at once.
+///     <para>
+///     Deliberately separate from <see cref="IDatabase" />: adding a member there would break every
+///     implementation outside this repository. A database that does not implement this simply keeps
+///     whatever logger it was constructed with.
+///     </para>
+/// </summary>
+public interface IDatabaseWithMigrationLogger
+{
+    IMigrationLogger MigrationLogger { get; set; }
+}
+
 public class DefaultMigrationLogger: IMigrationLogger
 {
+    private readonly TextWriter? _writer;
+
+    public DefaultMigrationLogger()
+    {
+    }
+
+    /// <summary>
+    ///     Route the migration DDL to <paramref name="writer" /> instead of the console. Pass a
+    ///     <see cref="StringWriter" /> to buffer one database's output so it can be emitted as a unit;
+    ///     the resulting logger is still a <see cref="DefaultMigrationLogger" />, which matters because
+    ///     every provider's <c>executeDelta</c> checks for exactly this type to decide whether to
+    ///     rethrow a failed statement with its original stack trace or hand it to
+    ///     <see cref="OnFailure" />.
+    /// </summary>
+    public DefaultMigrationLogger(TextWriter writer)
+    {
+        _writer = writer ?? throw new ArgumentNullException(nameof(writer));
+    }
+
     public void SchemaChange(string sql)
     {
-        Console.WriteLine(sql);
+        // Resolved per call rather than captured in the constructor: Console.Out is reassignable, and a
+        // host that redirects it after building its databases should still be obeyed.
+        (_writer ?? Console.Out).WriteLine(sql);
     }
 
     public void OnFailure(DbCommand command, Exception ex)
