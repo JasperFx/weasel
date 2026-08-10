@@ -224,12 +224,6 @@ IF NOT EXISTS ( SELECT  *
     }
 
     /// <summary>
-    ///     SQL Server error 1801, "Database 'x' already exists". Raised by <c>CREATE DATABASE</c> when a
-    ///     concurrent caller created the database between our existence check and our create (weasel#415).
-    /// </summary>
-    private const int DatabaseAlreadyExists = 1801;
-
-    /// <summary>
     ///     How long <see cref="EnsureDatabaseExistsAsync" /> will keep retrying a connection to the target
     ///     database before giving up. A freshly created SQL Server database can briefly refuse logins, and
     ///     on a cold container that window can run to tens of seconds -- so the method does not return until
@@ -250,10 +244,13 @@ IF NOT EXISTS ( SELECT  *
     /// </summary>
     /// <remarks>
     ///     Safe to call from several processes at once (weasel#415). The existence check and the
-    ///     <c>CREATE DATABASE</c> are not atomic -- SQL Server offers no form that makes them so -- so the
-    ///     loser of the race is recognised by error 1801 and treated as success. Waiting for the database to
-    ///     accept a connection is done unconditionally rather than only after we create it, because a
-    ///     concurrent creator leaves the same window open for us.
+    ///     <c>CREATE DATABASE</c> are not atomic -- SQL Server offers no form that makes them so -- so a
+    ///     failed create is judged by whether the database exists afterwards rather than by the error it
+    ///     raised. Matching error 1801 alone was not enough: SQL Server serializes database creation, and
+    ///     under real contention a losing session is killed with a severe error carrying no useful number
+    ///     instead of getting the tidy "already exists". Waiting for the database to accept a connection is
+    ///     done unconditionally rather than only after we create it, because a concurrent creator leaves
+    ///     the same window open for us.
     /// </remarks>
     /// <exception cref="ArgumentException">The connection string does not name a database.</exception>
     /// <exception cref="TimeoutException">
@@ -272,20 +269,13 @@ IF NOT EXISTS ( SELECT  *
         var targetConnectionString = builder.ConnectionString;
 
         builder.InitialCatalog = "master";
-        await using (var adminConn = new SqlConnection(builder.ConnectionString))
+        var adminConnectionString = builder.ConnectionString;
+
+        await using (var adminConn = new SqlConnection(adminConnectionString))
         {
             await adminConn.OpenAsync(ct).ConfigureAwait(false);
 
-            var cmd = adminConn.CreateCommand();
-            cmd.CommandText = "SELECT DB_ID(@name)";
-            var param = cmd.CreateParameter();
-            param.ParameterName = "@name";
-            param.Value = databaseName;
-            cmd.Parameters.Add(param);
-
-            var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
-
-            if (result is null or DBNull)
+            if (!await databaseExistsAsync(adminConn, databaseName, ct).ConfigureAwait(false))
             {
                 var createCmd = adminConn.CreateCommand();
 
@@ -297,16 +287,63 @@ IF NOT EXISTS ( SELECT  *
                 {
                     await createCmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 }
-                catch (SqlException e) when (e.Number == DatabaseAlreadyExists)
+                catch (SqlException)
                 {
-                    // Another caller created it between our DB_ID check and this statement. That is the
-                    // outcome we wanted anyway.
+                    // Losing the creation race is decided by the postcondition, not by the error code.
+                    // Error 1801 is only the tidy outcome; SQL Server serializes CREATE DATABASE and
+                    // under real contention it will instead kill a losing session outright with a severe
+                    // error carrying no useful number, which the old `when (e.Number == 1801)` filter
+                    // let straight through to the caller. What matters either way is whether the
+                    // database is now there.
+                    if (!await databaseExistsOnNewConnectionAsync(adminConnectionString, databaseName, ct)
+                            .ConfigureAwait(false))
+                    {
+                        throw;
+                    }
                 }
             }
         }
 
         await waitUntilDatabaseAcceptsConnectionsAsync(targetConnectionString, databaseName, ct)
             .ConfigureAwait(false);
+    }
+
+    private static async Task<bool> databaseExistsAsync(SqlConnection conn, string databaseName,
+        CancellationToken ct)
+    {
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT DB_ID(@name)";
+
+        var param = cmd.CreateParameter();
+        param.ParameterName = "@name";
+        param.Value = databaseName;
+        cmd.Parameters.Add(param);
+
+        var result = await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false);
+
+        return result is not (null or DBNull);
+    }
+
+    /// <summary>
+    ///     Re-checks existence on a connection of its own. The severe error that a losing CREATE DATABASE
+    ///     racer gets is raised with <c>breakConnection</c> set, so the connection that issued the
+    ///     statement is already dead by the time we want to ask this question on it.
+    /// </summary>
+    private static async Task<bool> databaseExistsOnNewConnectionAsync(string adminConnectionString,
+        string databaseName, CancellationToken ct)
+    {
+        try
+        {
+            await using var conn = new SqlConnection(adminConnectionString);
+            await conn.OpenAsync(ct).ConfigureAwait(false);
+
+            return await databaseExistsAsync(conn, databaseName, ct).ConfigureAwait(false);
+        }
+        catch (SqlException)
+        {
+            // Could not find out. Report the original creation failure rather than this one.
+            return false;
+        }
     }
 
     private async Task waitUntilDatabaseAcceptsConnectionsAsync(
