@@ -25,7 +25,17 @@ The command reports one of:
 
 ## Many databases
 
-Databases are applied one at a time, in sequence, and each one's progress is reported as `(n/total)` so a long walk over a sharded or multi-tenanted store can be watched.
+Before anything can be applied, the databases have to be discovered -- each registered `IDatabaseSource` is asked to build its list, and for a sharded tenancy source that is real work, not bookkeeping. Discovery is therefore announced before it starts and reported per source as it goes:
+
+```
+Discovering databases...
+  MartenDatabaseSource: 512 databases in 28.1s
+Found 1037 databases in 30.6s
+```
+
+The per-source line is the useful one when discovery is slow: it says which tenancy source the time went to, which is otherwise invisible from the command. This reporting applies to every command that resolves databases, not just `db-apply`.
+
+Databases are then applied one at a time, in sequence, and each one's progress is reported as `(n/total)` so a long walk over a sharded or multi-tenanted store can be watched.
 
 Because `db-apply` is a one-shot command that owns its data sources, each database's connection pool is released as soon as that database is done, rather than being left to age out on its own idle lifetime. Peak connection usage therefore stays at roughly the one database being applied, instead of trailing an idle pool per recently-applied database -- which matters when applying across hundreds of databases on a server that is near `max_connections`.
 
