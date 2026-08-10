@@ -28,7 +28,23 @@ namespace Weasel.Core.Migrations;
 /// </summary>
 internal static class SchemaFingerprint
 {
-    public const string TableName = "weasel_schema_fingerprint";
+    public const string TableName = "weasel_schema_fingerprints";
+
+    /// <summary>
+    /// The pre-weasel#439 table: a single row (<c>id = 1</c>) holding one fingerprint. Dropped
+    /// best-effort on the first record, because two logical databases sharing a physical database
+    /// overwrote each other in it. It is a cache, so discarding it costs one full apply.
+    /// </summary>
+    private const string LegacyTableName = "weasel_schema_fingerprint";
+
+    /// <summary>
+    /// How many stamps to keep. Rows are keyed by fingerprint rather than by any per-database identity
+    /// -- there is no identity available here that is reliably distinct between two stores sharing a
+    /// physical database -- so a configuration change leaves the old row behind rather than replacing
+    /// it, and co-located databases each add their own. Every eviction is self-healing: a database
+    /// whose stamp was pruned simply runs one full apply and re-stamps.
+    /// </summary>
+    private const int MaxStamps = 25;
 
     public static string ComputeFingerprint(Migrator migrator, ISchemaObject[] objects)
     {
@@ -46,26 +62,35 @@ internal static class SchemaFingerprint
     }
 
     /// <summary>
-    /// Reads the stored fingerprint. A missing table (fresh database, feature never used) simply
-    /// reads as "no stamp".
+    /// Is this exact configuration already stamped? Asking for one fingerprint rather than reading
+    /// "the" fingerprint is what makes co-located databases independent: each looks only for its own
+    /// hash and is indifferent to its neighbours' rows. A missing table (fresh database, feature never
+    /// used) simply reads as "no stamp".
     /// </summary>
-    public static async Task<string?> TryReadAsync(DbConnection conn, string schemaName, CancellationToken ct)
+    public static async Task<bool> HasStampAsync(DbConnection conn, string schemaName, string fingerprint,
+        CancellationToken ct)
     {
         try
         {
             await using var cmd = conn.CreateCommand();
-            cmd.CommandText = $"select fingerprint from {schemaName}.{TableName} where id = 1";
-            return await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false) as string;
+            cmd.CommandText = $"select fingerprint from {schemaName}.{TableName} where fingerprint = @fingerprint";
+
+            var parameter = cmd.CreateParameter();
+            parameter.ParameterName = "@fingerprint";
+            parameter.Value = fingerprint;
+            cmd.Parameters.Add(parameter);
+
+            return await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false) is string;
         }
         catch (DbException)
         {
             // Table (or schema) does not exist yet — no stamp, run the full apply.
-            return null;
+            return false;
         }
     }
 
     /// <summary>
-    /// Upserts the stamp after a successful full apply. Table creation is attempted first and an
+    /// Records the stamp after a successful full apply. Table creation is attempted first and an
     /// "already exists" failure is swallowed — plain CREATE TABLE keeps this provider-neutral
     /// (not every provider supports IF NOT EXISTS).
     /// </summary>
@@ -76,7 +101,7 @@ internal static class SchemaFingerprint
         {
             await using var create = conn.CreateCommand();
             create.CommandText =
-                $"create table {schemaName}.{TableName} (id int not null primary key, fingerprint varchar(128) not null, applied_at varchar(64) not null)";
+                $"create table {schemaName}.{TableName} (fingerprint varchar(128) not null primary key, applied_at varchar(64) not null)";
             await create.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
         catch (DbException)
@@ -84,24 +109,92 @@ internal static class SchemaFingerprint
             // Already exists — fine.
         }
 
-        await using var delete = conn.CreateCommand();
-        delete.CommandText = $"delete from {schemaName}.{TableName} where id = 1";
-        await delete.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        await dropLegacyTableAsync(conn, schemaName, ct).ConfigureAwait(false);
 
-        await using var insert = conn.CreateCommand();
-        insert.CommandText =
-            $"insert into {schemaName}.{TableName} (id, fingerprint, applied_at) values (1, @fingerprint, @appliedAt)";
+        // Delete-then-insert rather than an upsert: the syntax for the latter is not portable, and
+        // this runs only on the slow path, immediately after a full apply.
+        await using (var delete = conn.CreateCommand())
+        {
+            delete.CommandText = $"delete from {schemaName}.{TableName} where fingerprint = @fingerprint";
+            AddParameter(delete, "@fingerprint", fingerprint);
+            await delete.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
 
-        var fingerprintParam = insert.CreateParameter();
-        fingerprintParam.ParameterName = "@fingerprint";
-        fingerprintParam.Value = fingerprint;
-        insert.Parameters.Add(fingerprintParam);
+        await using (var insert = conn.CreateCommand())
+        {
+            insert.CommandText =
+                $"insert into {schemaName}.{TableName} (fingerprint, applied_at) values (@fingerprint, @appliedAt)";
+            AddParameter(insert, "@fingerprint", fingerprint);
+            AddParameter(insert, "@appliedAt", DateTimeOffset.UtcNow.ToString("O"));
+            await insert.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
 
-        var appliedAtParam = insert.CreateParameter();
-        appliedAtParam.ParameterName = "@appliedAt";
-        appliedAtParam.Value = DateTimeOffset.UtcNow.ToString("O");
-        insert.Parameters.Add(appliedAtParam);
+        await pruneAsync(conn, schemaName, ct).ConfigureAwait(false);
+    }
 
-        await insert.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    private static void AddParameter(DbCommand command, string name, string value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
+
+    /// <summary>
+    /// Removes the single-row table this replaced, so a database upgrading to weasel#439 does not carry
+    /// a dead table around forever. Best effort: it is housekeeping, and a caller without DROP rights
+    /// should still get a working stamp.
+    /// </summary>
+    private static async Task dropLegacyTableAsync(DbConnection conn, string schemaName, CancellationToken ct)
+    {
+        try
+        {
+            await using var drop = conn.CreateCommand();
+            drop.CommandText = $"drop table {schemaName}.{LegacyTableName}";
+            await drop.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        catch (DbException)
+        {
+            // Not there, or not ours to drop.
+        }
+    }
+
+    /// <summary>
+    /// Caps the table at <see cref="MaxStamps" /> rows, oldest first. The ranking is done client-side
+    /// against the ISO-8601 timestamps (which sort lexicographically, being fixed-width UTC) because
+    /// "delete all but the newest N" has no portable spelling — LIMIT, TOP and FETCH FIRST are all
+    /// provider-specific. Best effort for the same reason as the legacy drop: an apply that succeeded
+    /// must not be reported as failed because its housekeeping could not run.
+    /// </summary>
+    private static async Task pruneAsync(DbConnection conn, string schemaName, CancellationToken ct)
+    {
+        try
+        {
+            var timestamps = new List<string>();
+
+            await using (var read = conn.CreateCommand())
+            {
+                read.CommandText = $"select applied_at from {schemaName}.{TableName} order by applied_at desc";
+                await using var reader = await read.ExecuteReaderAsync(ct).ConfigureAwait(false);
+                while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                {
+                    timestamps.Add(reader.GetString(0));
+                }
+            }
+
+            if (timestamps.Count <= MaxStamps)
+            {
+                return;
+            }
+
+            await using var delete = conn.CreateCommand();
+            delete.CommandText = $"delete from {schemaName}.{TableName} where applied_at < @threshold";
+            AddParameter(delete, "@threshold", timestamps[MaxStamps - 1]);
+            await delete.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+        catch (DbException)
+        {
+            // Housekeeping only — an uncapped table still works correctly.
+        }
     }
 }

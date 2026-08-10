@@ -363,9 +363,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             // after a successful full apply of this exact configuration.
             if (fingerprint != null)
             {
-                var stored = await SchemaFingerprint.TryReadAsync(conn, Migrator.DefaultSchemaName, ct)
-                    .ConfigureAwait(false);
-                if (fingerprint == stored)
+                var stamped = await SchemaFingerprint
+                    .HasStampAsync(conn, Migrator.DefaultSchemaName, fingerprint, ct).ConfigureAwait(false);
+                if (stamped)
                 {
                     MarkAllFeaturesAsChecked();
                     return SchemaPatchDifference.None;
@@ -397,9 +397,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                 // replica racing this one) may have applied + stamped while we waited.
                 if (fingerprint != null)
                 {
-                    var stored = await SchemaFingerprint.TryReadAsync(conn, Migrator.DefaultSchemaName, ct)
-                        .ConfigureAwait(false);
-                    if (fingerprint == stored)
+                    var stamped = await SchemaFingerprint
+                        .HasStampAsync(conn, Migrator.DefaultSchemaName, fingerprint, ct).ConfigureAwait(false);
+                    if (stamped)
                     {
                         MarkAllFeaturesAsChecked();
                         await globalLock.ReleaseLock(conn, ct).ConfigureAwait(false);

@@ -30,16 +30,24 @@ public class schema_fingerprint_tests: IntegrationContext, IAsyncLifetime
 
         // The stamp lives in the migrator's default schema ('public') — clear it so tests are
         // order-independent.
+        await theConnection.CreateCommand("drop table if exists public.weasel_schema_fingerprints")
+            .ExecuteNonQueryAsync();
         await theConnection.CreateCommand("drop table if exists public.weasel_schema_fingerprint")
             .ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    /// The newest stamp. Since weasel#439 the table holds a row per configuration rather than a single
+    /// row, so that co-located databases don't overwrite each other; for this one-database fixture the
+    /// most recent row is "the" stamp.
+    /// </summary>
     private async Task<string?> readStampAsync()
     {
         try
         {
             return await theConnection
-                .CreateCommand("select fingerprint from public.weasel_schema_fingerprint where id = 1")
+                .CreateCommand(
+                    "select fingerprint from public.weasel_schema_fingerprints order by applied_at desc limit 1")
                 .ExecuteScalarAsync() as string;
         }
         catch (Npgsql.PostgresException e) when (e.SqlState == Npgsql.PostgresErrorCodes.UndefinedTable)
