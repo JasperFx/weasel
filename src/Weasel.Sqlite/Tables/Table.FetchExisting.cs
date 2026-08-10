@@ -19,7 +19,7 @@ SELECT sql FROM sqlite_master
 WHERE type = 'table' AND name = '{sanitizedName}';
 
 -- Get column information using PRAGMA (PRAGMA doesn't support parameter binding)
-SELECT * FROM pragma_table_info('{sanitizedName}');
+{ColumnQuery(sanitizedName)}
 
 -- Get index information
 SELECT name, sql FROM sqlite_master
@@ -29,6 +29,25 @@ WHERE type = 'index' AND tbl_name = '{sanitizedName}' AND sql IS NOT NULL;
 SELECT * FROM pragma_foreign_key_list('{sanitizedName}');
 ");
     }
+
+    /// <summary>
+    /// The column introspection query, shared by <see cref="ConfigureQueryCommand" /> and
+    /// <see cref="FetchExistingAsync" /> so the two can never drift apart.
+    /// <para>
+    /// <c>table_xinfo</c> rather than <c>table_info</c>: <c>table_info</c> omits generated columns
+    /// entirely, so a table declaring one was read back without it and the delta re-added it on every
+    /// single run -- the second migration then failed with <c>duplicate column name</c> (weasel#426).
+    /// </para>
+    /// <para>
+    /// The columns are listed explicitly, and in <c>table_info</c>'s order, because
+    /// <see cref="readColumnsAsync" /> reads them positionally. <c>hidden</c> distinguishes the two:
+    /// 0 is an ordinary column, 2 and 3 are VIRTUAL and STORED generated columns (both of which we
+    /// want), and 1 is a virtual table's hidden column -- an fts5 table's, say -- which
+    /// <c>table_info</c> never showed us and which we have no business reporting as a real column.
+    /// </para>
+    /// </summary>
+    private static string ColumnQuery(string sanitizedName) =>
+        $"""SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_xinfo('{sanitizedName}') WHERE hidden <> 1;""";
 
     public async Task<Table?> FetchExistingAsync(SqliteConnection conn, CancellationToken ct = default)
     {
@@ -42,7 +61,7 @@ SELECT sql FROM sqlite_master
 WHERE type = 'table' AND name = '{tableName}';
 
 -- Get column information using PRAGMA
-SELECT * FROM pragma_table_info('{tableName}');
+{ColumnQuery(tableName)}
 
 -- Get index information
 SELECT name, sql FROM sqlite_master
@@ -118,7 +137,7 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
     {
         var primaryKeys = new List<string>();
 
-        // PRAGMA table_info returns: cid, name, type, notnull, dflt_value, pk
+        // ColumnQuery projects: cid, name, type, notnull, dflt_value, pk
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var name = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false); // name

@@ -43,6 +43,10 @@ table.AddColumn("email_domain", "TEXT")
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L56-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_generated_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+Generated columns are read back during delta detection, so a table declaring one converges on the second migration run rather than re-adding the column every time. Adding a `Virtual` generated column to an existing table is an `ALTER TABLE ADD COLUMN`; adding a `Stored` one is not — SQLite rejects that outright, so Weasel migrates it through a table recreation instead.
+
+The generation *expression* is not read back from the database (unlike PostgreSQL, where it comes from the catalog). A column is matched on name and type only, so changing the expression of an existing generated column is not detected as a delta and will not migrate on its own.
+
 ## Foreign Keys
 
 Foreign keys must be defined inline at table creation. SQLite does not support `ALTER TABLE ADD CONSTRAINT`:
