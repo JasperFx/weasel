@@ -209,6 +209,27 @@ public class SqlServerMigratorTests
     }
 
     /// <summary>
+    ///     A failed CREATE DATABASE is now judged by whether the database exists afterwards rather than by
+    ///     the error number, so this pins the other half of that: a create that genuinely failed, leaving
+    ///     no database behind, must still reach the caller instead of being swallowed as a lost race.
+    ///     A whitespace name is the reproducible stand-in -- SQL Server derives the physical file name
+    ///     from it and cannot create " .mdf".
+    /// </summary>
+    [Fact]
+    public async Task ensure_database_still_throws_when_the_create_genuinely_fails()
+    {
+        var builder = new SqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+        {
+            InitialCatalog = " "
+        };
+
+        await using var conn = new SqlConnection(builder.ConnectionString);
+
+        await Should.ThrowAsync<SqlException>(
+            () => new SqlServerMigrator().EnsureDatabaseExistsAsync(conn));
+    }
+
+    /// <summary>
     ///     A database name carrying a ']' would otherwise close the delimited identifier early.
     /// </summary>
     [Fact]
