@@ -211,10 +211,10 @@ migrator.UseSchemaFingerprinting = true;
 ```
 
 With the flag enabled, a successful **full** apply stamps a SHA-256 fingerprint of the configured
-schema's expected DDL into `{DefaultSchemaName}.weasel_schema_fingerprint`. The next full apply
-recomputes the fingerprint in memory and, when it matches the stamp, returns immediately — no global
-lock, no catalog introspection. Any configuration change (a new table, column, index, or managed
-partition) changes the fingerprint and re-enables the real apply, which then refreshes the stamp.
+schema's expected DDL into `{DefaultSchemaName}.weasel_schema_fingerprints`. The next full apply
+recomputes the fingerprint in memory and, when that exact fingerprint is present, returns immediately —
+no global lock, no catalog introspection. Any configuration change (a new table, column, index, or
+managed partition) changes the fingerprint and re-enables the real apply, which then adds a new stamp.
 
 Semantics to be aware of:
 
@@ -226,3 +226,16 @@ Semantics to be aware of:
   (`EnsureStorageExistsAsync`) behave exactly as before.
 * Concurrent appliers re-check the stamp after attaining the global migration lock, so replicas racing
   through a rolling update do the introspection work at most once per configuration.
+* Rows are keyed by the **fingerprint itself**, not by any per-database identity, so several logical
+  databases sharing one physical database each keep their own stamp instead of overwriting each other's.
+  A configuration change therefore leaves the previous row in place rather than replacing it; the table
+  is capped at the 25 most recent stamps. Eviction is harmless — a database whose stamp was pruned runs
+  one full apply and stamps again.
+
+::: warning
+Before weasel#439 the stamp was a single row in `weasel_schema_fingerprint` (singular), which meant two
+logical databases on the same physical database silently overwrote each other's fingerprint and neither
+ever short-circuited — measurably slower than leaving the feature off. If you evaluated fingerprinting
+on a multi-store deployment and saw no benefit, that was why. The obsolete table is dropped
+automatically on the first stamp after upgrading.
+:::
