@@ -26,7 +26,8 @@ public abstract class IntegrationContext
         await conn.DropSchemaAsync(schemaName);
     }
 
-    internal Task<bool> ExecuteCommand<TCommand>() where TCommand : JasperFxAsyncCommand<WeaselInput>, new()
+    internal Task<bool> ExecuteCommand<TCommand>(Action<WeaselInput>? configure = null,
+        params IDatabase[] additionalDatabases) where TCommand : JasperFxAsyncCommand<WeaselInput>, new()
     {
         var command = new TCommand();
         var builder = Host.CreateDefaultBuilder().ConfigureServices(services =>
@@ -35,10 +36,15 @@ public abstract class IntegrationContext
             {
                 services.AddSingleton<IDatabase>(database);
             }
+
+            foreach (var database in additionalDatabases)
+            {
+                services.AddSingleton(database);
+            }
         });
 
         var input = new WeaselInput() { HostBuilder = builder };
-
+        configure?.Invoke(input);
 
         return command.Execute(input);
     }
