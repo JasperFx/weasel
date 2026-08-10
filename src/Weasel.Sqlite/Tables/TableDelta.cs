@@ -170,6 +170,20 @@ public class TableDelta: SchemaObjectDelta<Table>
             return true;
         }
 
+        // SQLite accepts ALTER TABLE ADD COLUMN for a VIRTUAL generated column, but rejects a STORED
+        // one outright ("cannot add a STORED column") -- it would have to compute and materialize a
+        // value for every existing row. Recreation is the only way to introduce one.
+        var renamedMissing = new HashSet<string>(
+            _renamedColumns.Select(r => r.Expected.Name), StringComparer.OrdinalIgnoreCase);
+
+        if (Columns.Missing.Any(c =>
+                c.GeneratedType == GeneratedColumnType.Stored
+                && c.GeneratedExpression.IsNotEmpty()
+                && !renamedMissing.Contains(c.Name)))
+        {
+            return true;
+        }
+
         // Check if columns being dropped are referenced by FKs or are part of the PK
         if (Columns.Extras.Any())
         {
@@ -315,6 +329,15 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         foreach (var expectedCol in Expected.Columns)
         {
+            // SQLite refuses writes to a generated column, so it must stay out of the INSERT even when
+            // it exists on both sides. Its value re-derives from the base columns we do copy. Before
+            // weasel#426 this was accidentally safe -- generated columns were invisible in Actual, so
+            // they were never "in both" -- and reading them properly is what makes it necessary.
+            if (expectedCol.GeneratedExpression.IsNotEmpty())
+            {
+                continue;
+            }
+
             if (renameMap.TryGetValue(expectedCol.Name, out var oldName))
             {
                 // Renamed column: select from old name into new name
