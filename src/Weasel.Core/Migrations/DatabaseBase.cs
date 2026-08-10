@@ -6,11 +6,12 @@ using JasperFx.Descriptors;
 
 namespace Weasel.Core.Migrations;
 
-public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TConnection : DbConnection, new()
+public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDatabaseWithMigrationLogger
+    where TConnection : DbConnection, new()
 {
     private readonly ConcurrentDictionary<Type, bool> _checks = new();
     private readonly Func<TConnection> _connectionSource;
-    private readonly IMigrationLogger _logger;
+    private IMigrationLogger _logger;
     private readonly TimedLock _migrateLocker = new();
     private readonly List<IDatabaseInitializer<TConnection>> _initializers = new();
 
@@ -29,6 +30,16 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection> where TC
     }
 
     public DatabaseId Id { get; protected set; }
+
+    /// <summary>
+    ///     Where this database's migration DDL is written. Swappable so that tooling applying many
+    ///     databases can give each one its own destination -- see <see cref="IDatabaseWithMigrationLogger" />.
+    /// </summary>
+    public IMigrationLogger MigrationLogger
+    {
+        get => _logger;
+        set => _logger = value ?? throw new ArgumentNullException(nameof(value));
+    }
 
     public abstract DatabaseDescriptor Describe();
 

@@ -197,7 +197,16 @@ public interface IMigrationLogger_Sample
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L43-L49' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_imigrationlogger_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
-The default logger writes SQL to `Console.WriteLine` and rethrows exceptions.
+The default logger writes SQL to the console and rethrows exceptions. It also accepts a `TextWriter`, which is the simplest way to capture one database's DDL without implementing the interface:
+
+```cs
+var buffer = new StringWriter();
+database.MigrationLogger = new DefaultMigrationLogger(buffer);
+```
+
+Prefer this over a hand-rolled `IMigrationLogger` when all you want is redirection. Every provider checks `logger is DefaultMigrationLogger` to decide whether a failed migration statement is rethrown with its original stack trace or handed to `OnFailure`, so a custom type changes the stack trace you get on a failure, while the `TextWriter` overload does not.
+
+Databases implementing `IDatabaseWithMigrationLogger` — which includes everything deriving from `DatabaseBase<T>` — expose `MigrationLogger` as a settable property, so tooling that applies many databases can give each one its own destination rather than having them all write to a shared console.
 
 ## Schema Fingerprinting
 
