@@ -17,15 +17,20 @@ select column_name, data_type, character_maximum_length, null as udt_name, colum
 from information_schema.columns where table_schema = @{schemaParam} and table_name = @{nameParam}
 order by ordinal_position;
 
+-- CONSTRAINT_COLUMN_USAGE cannot express key order, so the primary key comes from sys.index_columns
+-- via the backing index: key_ordinal is the declared order, which for a composite key is not
+-- necessarily the table's column order.
 select
-    COLUMN_NAME,
-    CONSTRAINT_NAME
-from
-    INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE
-where
-    TABLE_SCHEMA = @{schemaParam} and
-    TABLE_NAME = @{nameParam} and
-    CONSTRAINT_NAME in (select constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where TABLE_CONSTRAINTS.TABLE_NAME = @{nameParam} and TABLE_CONSTRAINTS.TABLE_SCHEMA = @{schemaParam} and CONSTRAINT_TYPE = 'PRIMARY KEY')
+    c.name as COLUMN_NAME,
+    kc.name as CONSTRAINT_NAME
+from sys.key_constraints kc
+    inner join sys.tables t on t.object_id = kc.parent_object_id
+    inner join sys.schemas s on s.schema_id = t.schema_id
+    inner join sys.indexes i on i.object_id = kc.parent_object_id and i.index_id = kc.unique_index_id
+    inner join sys.index_columns ic on ic.object_id = i.object_id and ic.index_id = i.index_id
+    inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
+where s.name = @{schemaParam} and t.name = @{nameParam} and kc.type = 'PK'
+order by ic.key_ordinal;
 
    select
           parent.name as constraint_name,
@@ -46,7 +51,8 @@ where
        inner join sys.columns cfk on fk.referenced_object_id = cfk.object_id and fk.referenced_column_id = cfk.column_id
    where
         s.name = @{schemaParam} and
-        t.name = @{nameParam};
+        t.name = @{nameParam}
+   order by parent.name, fk.constraint_column_id;
 
 
 
@@ -83,8 +89,14 @@ from
 where
         t.name = @{nameParam} and
         s.name = @{schemaParam}
+-- key_ordinal is the index's key order; index_column_id is just the column's position in the
+-- table. Ordering by the latter silently reorders a composite index -- (ProductId, Id) came back
+-- as (Id, ProductId), which is a different index. Included columns carry key_ordinal 0, so they
+-- are separated out first.
 order by
     ic.index_id,
+    ic.is_included_column,
+    ic.key_ordinal,
     ic.index_column_id;
 
 
@@ -144,6 +156,8 @@ where s.name = @{schemaParam} and t.name = @{nameParam};
         var (pks, primaryKeyName) = await readPrimaryKeysAsync(reader, ct).ConfigureAwait(false);
         foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
         existing.PrimaryKeyName = primaryKeyName;
+        // Declared key order, which for a composite key need not match the table's column order.
+        existing.SetPrimaryKeyOrder(pks);
 
 
         await readForeignKeysAsync(reader, existing, ct).ConfigureAwait(false);

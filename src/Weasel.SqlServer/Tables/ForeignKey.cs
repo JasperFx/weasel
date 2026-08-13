@@ -12,16 +12,21 @@ public class ForeignKey: ForeignKeyBase
     {
     }
 
+    // Declaration order is preserved on both sides. These setters used to sort each side
+    // independently, which made a composite FK whose two sides don't sort into the same relative
+    // order pair the wrong columns together -- ColumnNames[i] must stay matched to LinkedNames[i].
+    // The sort was compensating for the catalog query having no ORDER BY; that query now orders by
+    // constraint_column_id instead. See Table.FetchExisting.cs.
     public override string[] ColumnNames
     {
         get => _columnNames;
-        set => _columnNames = value.Select(SchemaUtils.Unbracket).OrderBy(x => x).ToArray();
+        set => _columnNames = value.Select(SchemaUtils.Unbracket).ToArray();
     }
 
     public override string[] LinkedNames
     {
         get => _linkedNames;
-        set => _linkedNames = value.Select(SchemaUtils.Unbracket).OrderBy(x => x).ToArray();
+        set => _linkedNames = value.Select(SchemaUtils.Unbracket).ToArray();
     }
 
 #pragma warning disable CS0618 // Type or member is obsolete

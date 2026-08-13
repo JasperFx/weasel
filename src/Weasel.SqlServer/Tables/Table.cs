@@ -33,15 +33,29 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     {
     }
 
+    private IReadOnlyList<string>? _primaryKeyOrder;
+
     /// <inheritdoc />
     /// <remarks>
-    ///     SQL Server derives the primary key column list from
+    ///     For a table declared in code, SQL Server derives the primary key column list from
     ///     <see cref="TableBase{TColumn,TIndex,TForeignKey}.Columns" /> rather
     ///     than storing it separately, so the list refreshes automatically as
-    ///     columns are flagged with <c>IsPrimaryKey</c>.
+    ///     columns are flagged with <c>IsPrimaryKey</c>. A table read back out of the database
+    ///     instead carries its declared key order, which for a composite key need not match the
+    ///     order the columns appear in the table.
     /// </remarks>
     public override IReadOnlyList<string> PrimaryKeyColumns =>
-        _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
+        _primaryKeyOrder ?? _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
+
+    /// <summary>
+    ///     Pin the primary key's column order explicitly, rather than deriving it from column order.
+    ///     Passing an empty list clears the override.
+    /// </summary>
+    public void SetPrimaryKeyOrder(IEnumerable<string> columnNames)
+    {
+        var ordered = columnNames.ToArray();
+        _primaryKeyOrder = ordered.Length == 0 ? null : ordered;
+    }
 
     /// <inheritdoc />
     /// <inheritdoc />
