@@ -47,7 +47,8 @@ public class schema_name_escaping
     {
         await using var conn = new Microsoft.Data.SqlClient.SqlConnection(ConnectionSource.ConnectionString);
         await conn.OpenAsync();
-        await conn.CreateCommand("if object_id('dbo.victim') is null create table dbo.victim (id int)")
+        await conn.CreateCommand(
+                "if object_id('dbo.schema_escaping_victim') is null create table dbo.schema_escaping_victim (id int)")
             .ExecuteNonQueryAsync();
 
         // The statement is expected to fail or to create an oddly-named schema; what it must not do
@@ -60,10 +61,12 @@ public class schema_name_escaping
         {
         }
 
-        var stillThere = await conn.CreateCommand("select count(*) from sys.tables where name = 'victim'")
+        // Identified rather than counted by name: sys.tables spans every schema in the database, so
+        // counting by bare name picks up same-named tables belonging to other tests.
+        var stillThere = await conn.CreateCommand("select object_id('dbo.schema_escaping_victim')")
             .ExecuteScalarAsync();
-        Convert.ToInt32(stillThere).ShouldBe(1);
+        stillThere.ShouldNotBe(DBNull.Value);
 
-        await conn.CreateCommand("drop table if exists dbo.victim").ExecuteNonQueryAsync();
+        await conn.CreateCommand("drop table if exists dbo.schema_escaping_victim").ExecuteNonQueryAsync();
     }
 }

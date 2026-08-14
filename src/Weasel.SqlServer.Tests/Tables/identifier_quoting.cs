@@ -77,11 +77,12 @@ public class identifier_quoting: IntegrationContext
         await CreateSchemaObjectInDatabase(table);
 
         // The whole point: the DROP was carried as part of an identifier, not run as a statement.
+        // Identified rather than counted by name -- sys.tables spans every schema in the database.
         var victimStillThere = await theConnection
-            .CreateCommand("select count(*) from sys.tables where name = 'victim'")
+            .CreateCommand("select object_id('quoting.victim')")
             .ExecuteScalarAsync();
 
-        Convert.ToInt32(victimStillThere).ShouldBe(1);
+        victimStillThere.ShouldNotBe(DBNull.Value);
     }
 
     /// <summary>
