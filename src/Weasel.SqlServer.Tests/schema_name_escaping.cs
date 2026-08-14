@@ -42,6 +42,36 @@ public class schema_name_escaping
         sql.ShouldContain("x'') PRINT");
     }
 
+    /// <summary>
+    ///     One test per site, deliberately. The two escapes are independent — a name breaks out of
+    ///     the sys.schemas literal, OR out of the nested EXEC('...') literal — so a single test that
+    ///     only exercises one of them passes while the other is still open. That is exactly how the
+    ///     EXEC nesting survived the first round of fixes here.
+    /// </summary>
+    [Fact]
+    public async Task ensure_schema_exists_does_not_execute_an_injected_payload()
+    {
+        await using var conn = new Microsoft.Data.SqlClient.SqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        await conn.CreateCommand(
+                "if object_id('dbo.ensure_schema_victim') is null create table dbo.ensure_schema_victim (id int)")
+            .ExecuteNonQueryAsync();
+
+        try
+        {
+            await conn.EnsureSchemaExists("y') PRINT 1; DROP TABLE IF EXISTS dbo.ensure_schema_victim; --");
+        }
+        catch (Microsoft.Data.SqlClient.SqlException)
+        {
+        }
+
+        var stillThere = await conn.CreateCommand("select object_id('dbo.ensure_schema_victim')")
+            .ExecuteScalarAsync();
+        stillThere.ShouldNotBe(DBNull.Value);
+
+        await conn.CreateCommand("drop table if exists dbo.ensure_schema_victim").ExecuteNonQueryAsync();
+    }
+
     [Fact]
     public async Task an_injected_schema_name_does_not_execute_its_payload()
     {
