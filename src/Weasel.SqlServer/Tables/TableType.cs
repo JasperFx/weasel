@@ -21,7 +21,7 @@ public class TableType: ISchemaObject
 
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
-        writer.Write($"CREATE TYPE {Identifier.QualifiedName} AS TABLE (");
+        writer.Write($"CREATE TYPE {Identifier} AS TABLE (");
 
         writer.Write(_columns.Select(x => x.Declaration()).Join(", "));
         writer.WriteLine(")");
@@ -41,7 +41,7 @@ from
     inner join sys.types on sys.columns.system_type_id = sys.types.system_type_id
     inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id
 where
-    sys.table_types.name = '{Identifier.Name}' and sys.schemas.name = '{Identifier.Schema}'
+    sys.table_types.name = '{SchemaUtils.EscapeLiteral(Identifier.Name)}' and sys.schemas.name = '{SchemaUtils.EscapeLiteral(Identifier.Schema)}'
 order by
     sys.columns.column_id
 ");
@@ -151,7 +151,7 @@ order by
         public string Declaration()
         {
             var nullability = AllowNulls ? "NULL" : "NOT NULL";
-            return $"{Name} {DatabaseType} {nullability}";
+            return $"{SchemaUtils.QuoteName(Name)} {DatabaseType} {nullability}";
         }
 
         protected bool Equals(TableTypeColumn other)

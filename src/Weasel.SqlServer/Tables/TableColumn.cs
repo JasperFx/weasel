@@ -150,7 +150,8 @@ public class TableColumn: ITableColumn
             writer.WriteLine(
                 $"select {variable} = dc.name from sys.default_constraints dc " +
                 $"inner join sys.columns c on c.default_object_id = dc.object_id " +
-                $"where dc.parent_object_id = OBJECT_ID('{parent.Identifier}') and c.name = '{Name}';");
+                $"where dc.parent_object_id = OBJECT_ID('{SchemaUtils.EscapeLiteral(parent.Identifier.QualifiedName)}') " +
+                $"and c.name = '{SchemaUtils.EscapeLiteral(Name)}';");
             writer.WriteLine(
                 $"if {variable} is not null exec('alter table {parent.Identifier} drop constraint ' + {variable});");
 
@@ -262,7 +263,7 @@ public abstract class ColumnCheck
             return Declaration();
         }
 
-        return $"CONSTRAINT {Name} {Declaration()}";
+        return $"CONSTRAINT {SchemaUtils.QuoteName(Name)} {Declaration()}";
     }
 }
 

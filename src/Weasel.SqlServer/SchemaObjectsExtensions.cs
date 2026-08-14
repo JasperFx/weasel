@@ -57,8 +57,8 @@ public static class SchemaObjectsExtensions
             var sql = $@"
 IF NOT EXISTS ( SELECT  *
                 FROM    sys.schemas
-                WHERE   name = N'{schemaName}' )
-    EXEC('CREATE SCHEMA [{schemaName}]');
+                WHERE   name = N'{SchemaUtils.EscapeLiteral(schemaName)}' )
+    EXEC('CREATE SCHEMA {SchemaUtils.BracketName(schemaName)}');
 
 ";
 
@@ -89,12 +89,12 @@ IF NOT EXISTS ( SELECT  *
     {
         var procedures = await conn
             .CreateCommand(
-                $"select routine_name from information_schema.routines where routine_schema = '{schemaName}' and routine_type = 'PROCEDURE';")
+                $"select routine_name from information_schema.routines where routine_schema = '{SchemaUtils.EscapeLiteral(schemaName)}' and routine_type = 'PROCEDURE';")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var functions = await conn
             .CreateCommand(
-                $"select routine_name from information_schema.routines where routine_schema = '{schemaName}' and routine_type = 'FUNCTION';")
+                $"select routine_name from information_schema.routines where routine_schema = '{SchemaUtils.EscapeLiteral(schemaName)}' and routine_type = 'FUNCTION';")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         // Drop all FK constraints - both within schema AND from other schemas referencing this schema
@@ -107,10 +107,10 @@ SELECT
 FROM sys.foreign_keys fk
 WHERE
     -- FKs within the schema (outgoing)
-    SCHEMA_NAME(fk.schema_id) = '{schemaName}'
+    SCHEMA_NAME(fk.schema_id) = '{SchemaUtils.EscapeLiteral(schemaName)}'
     OR
     -- FKs from other schemas referencing tables in this schema (incoming)
-    SCHEMA_NAME(OBJECTPROPERTY(fk.referenced_object_id, 'SchemaId')) = '{schemaName}'")
+    SCHEMA_NAME(OBJECTPROPERTY(fk.referenced_object_id, 'SchemaId')) = '{SchemaUtils.EscapeLiteral(schemaName)}'")
             .FetchListAsync<string>(async r =>
             {
                 var fkSchema = await r.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
@@ -121,17 +121,17 @@ WHERE
             }, cancellation: ct).ConfigureAwait(false);
 
         var tables = await conn
-            .CreateCommand($"select table_name from information_schema.tables where table_schema = '{schemaName}'")
+            .CreateCommand($"select table_name from information_schema.tables where table_schema = '{SchemaUtils.EscapeLiteral(schemaName)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var sequences = await conn
             .CreateCommand(
-                $"select sequence_name from information_schema.sequences where sequence_schema = '{schemaName}'")
+                $"select sequence_name from information_schema.sequences where sequence_schema = '{SchemaUtils.EscapeLiteral(schemaName)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var tableTypes = await conn
             .CreateCommand(
-                $"select sys.table_types.name from sys.table_types inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id where sys.schemas.name = '{schemaName}'")
+                $"select sys.table_types.name from sys.table_types inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id where sys.schemas.name = '{SchemaUtils.EscapeLiteral(schemaName)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var drops = new List<string>();

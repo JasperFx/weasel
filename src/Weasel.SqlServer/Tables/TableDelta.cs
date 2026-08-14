@@ -105,7 +105,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate();
         if (primaryKeyDroppedBeforeColumnChanges)
         {
-            writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName};");
+            writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
         }
 
         // Missing columns
@@ -160,7 +160,7 @@ public class TableDelta: SchemaObjectDelta<Table>
             case SchemaPatchDifference.Update:
                 if (!primaryKeyDroppedBeforeColumnChanges)
                 {
-                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {Actual!.PrimaryKeyName};");
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
                 }
 
                 writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
@@ -201,7 +201,7 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         foreach (var change in CheckConstraints.Different)
         {
-            writer.WriteLine($"alter table {Expected.Identifier} drop constraint [{change.Actual.Name}];");
+            writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.BracketName(change.Actual.Name)};");
             writer.WriteLine($"alter table {Expected.Identifier} add {Table.CheckConstraintDeclaration(change.Expected)};");
         }
     }
@@ -222,7 +222,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         if (primaryKeyDroppedBeforeColumnChanges)
         {
             writer.WriteLine(
-                $"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                $"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
         }
 
         // Extra columns
@@ -270,7 +270,7 @@ public class TableDelta: SchemaObjectDelta<Table>
             case SchemaPatchDifference.Update:
                 if (!primaryKeyDroppedBeforeColumnChanges)
                 {
-                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
                 }
 
                 writer.WriteLine($"alter table {Expected.Identifier} add {Actual!.PrimaryKeyDeclaration()};");
@@ -279,7 +279,7 @@ public class TableDelta: SchemaObjectDelta<Table>
             case SchemaPatchDifference.Create:
                 if (!primaryKeyDroppedBeforeColumnChanges)
                 {
-                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
                 }
                 break;
 

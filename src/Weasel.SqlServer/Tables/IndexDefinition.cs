@@ -112,19 +112,22 @@ public class IndexDefinition: ITableIndex
 
         builder.Append("CREATE ");
 
-        if (IsClustered)
-        {
-            builder.Append("CLUSTERED ");
-        }
-
+        // UNIQUE comes before CLUSTERED; the reverse order is a syntax error.
         if (IsUnique)
         {
             builder.Append("UNIQUE ");
         }
 
+        if (IsClustered)
+        {
+            builder.Append("CLUSTERED ");
+        }
+
         builder.Append("INDEX ");
 
-        builder.Append(Name);
+        // Bracketed: real databases carry index names that are not regular identifiers -- an
+        // unfilled "<Name of Missing Index, sysname,>" template turns up more than once in the wild.
+        builder.Append(SchemaUtils.QuoteName(Name));
 
 
         builder.Append(" ON ");
@@ -132,6 +135,16 @@ public class IndexDefinition: ITableIndex
 
         builder.Append(" ");
         builder.Append(correctedExpression());
+
+        // Clause order is fixed by SQL Server's grammar: INCLUDE, then WHERE, then WITH. Emitting
+        // them in any other order is a syntax error, which only shows up on an index that uses more
+        // than one of them at once.
+        if (_includedColumns.Any())
+        {
+            builder.Append(" INCLUDE (");
+            builder.Append(_includedColumns.Select(SchemaUtils.QuoteName).Join(", "));
+            builder.Append(')');
+        }
 
         if (Predicate.IsNotEmpty())
         {
@@ -142,13 +155,6 @@ public class IndexDefinition: ITableIndex
         if (FillFactor.HasValue && FillFactor > 0)
         {
             builder.Append($" WITH (fillfactor={FillFactor})");
-        }
-
-        if (_includedColumns.Any())
-        {
-            builder.Append(" INCLUDE (");
-            builder.Append(_includedColumns.Join(", "));
-            builder.Append(')');
         }
 
         builder.Append(";");
@@ -164,7 +170,9 @@ public class IndexDefinition: ITableIndex
             throw new InvalidOperationException("IndexDefinition requires at least one field");
         }
 
-        var expression = Columns.Join(", ");
+        // Quoted: a column named "Table" (or any other reserved word) is legal in SQL Server and
+        // turns up in real schemas. QuoteName leaves ordinary identifiers untouched.
+        var expression = Columns.Select(SchemaUtils.QuoteName).Join(", ");
 
         if (SortOrder != SortOrder.Asc)
         {

@@ -49,8 +49,8 @@ from sys.sql_modules
 inner join sys.objects on sys.sql_modules.object_id = sys.objects.object_id
 inner join sys.schemas on sys.objects.schema_id = sys.schemas.schema_id
 where
-    sys.objects.name = '{Identifier.Name}' and
-    sys.schemas.name = '{Identifier.Schema}'
+    sys.objects.name = '{SchemaUtils.EscapeLiteral(Identifier.Name)}' and
+    sys.schemas.name = '{SchemaUtils.EscapeLiteral(Identifier.Schema)}'
 ");
     }
 

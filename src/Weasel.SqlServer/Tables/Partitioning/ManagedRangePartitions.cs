@@ -152,22 +152,22 @@ public class ManagedRangePartitions: ISplittablePartitioning
         var pfName = PartitionFunctionName(parent);
         var psName = PartitionSchemeName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{psName}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME [{psName}];");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION [{pfName}];");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
+        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
+        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
 
-        writer.Write($"CREATE PARTITION FUNCTION [{pfName}] ({SqlDataType}) AS RANGE RIGHT");
+        writer.Write($"CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType}) AS RANGE RIGHT");
         writer.Write($" FOR VALUES ({Boundaries().Join(", ")})");
         writer.WriteLine(";");
 
-        writer.WriteLine($"CREATE PARTITION SCHEME [{psName}] AS PARTITION [{pfName}] ALL TO ([{Filegroup}]);");
+        writer.WriteLine($"CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
     }
 
     /// <inheritdoc />
     public void WriteOnClause(TextWriter writer, Table parent)
     {
-        writer.Write($" ON [{PartitionSchemeName(parent)}]([{Column}])");
+        writer.Write($" ON [{PartitionSchemeName(parent)}]({SchemaUtils.BracketName(Column)})");
     }
 
     /// <inheritdoc />
@@ -176,10 +176,10 @@ public class ManagedRangePartitions: ISplittablePartitioning
         var psName = PartitionSchemeName(parent);
         var pfName = PartitionFunctionName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{psName}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME [{psName}];");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION [{pfName}];");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
+        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
+        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
     }
 
     /// <inheritdoc />
@@ -229,8 +229,8 @@ public class ManagedRangePartitions: ISplittablePartitioning
 
         foreach (var boundary in Boundaries().Where(x => !actualSet.Contains(x)))
         {
-            writer.WriteLine($"ALTER PARTITION SCHEME [{psName}] NEXT USED [{Filegroup}];");
-            writer.WriteLine($"ALTER PARTITION FUNCTION [{pfName}]() SPLIT RANGE ({boundary});");
+            writer.WriteLine($"ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(Filegroup)};");
+            writer.WriteLine($"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({boundary});");
         }
     }
 
@@ -242,7 +242,7 @@ public class ManagedRangePartitions: ISplittablePartitioning
 
         foreach (var boundary in Boundaries().Where(x => !actualSet.Contains(x)))
         {
-            writer.WriteLine($"ALTER PARTITION FUNCTION [{pfName}]() MERGE RANGE ({boundary});");
+            writer.WriteLine($"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() MERGE RANGE ({boundary});");
         }
     }
 
@@ -399,13 +399,13 @@ public class ManagedRangePartitions: ISplittablePartitioning
         {
             await using (var nextUsed = conn.CreateCommand())
             {
-                nextUsed.CommandText = $"ALTER PARTITION SCHEME [{psName}] NEXT USED [{Filegroup}];";
+                nextUsed.CommandText = $"ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(Filegroup)};";
                 await nextUsed.ExecuteNonQueryAsync(token).ConfigureAwait(false);
             }
 
             await using (var split = conn.CreateCommand())
             {
-                split.CommandText = $"ALTER PARTITION FUNCTION [{pfName}]() SPLIT RANGE ({boundary});";
+                split.CommandText = $"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({boundary});";
                 await split.ExecuteNonQueryAsync(token).ConfigureAwait(false);
             }
 
@@ -464,7 +464,7 @@ public class ManagedRangePartitions: ISplittablePartitioning
             }
 
             await using var merge = conn.CreateCommand();
-            merge.CommandText = $"ALTER PARTITION FUNCTION [{pfName}]() MERGE RANGE ({boundary.Literal});";
+            merge.CommandText = $"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() MERGE RANGE ({boundary.Literal});";
             await merge.ExecuteNonQueryAsync(token).ConfigureAwait(false);
 
             logger.LogInformation(
@@ -500,7 +500,7 @@ public class ManagedRangePartitions: ISplittablePartitioning
         // $PARTITION takes the partition function by name, which cannot be parameterized. pfName is
         // Weasel-generated from the table and column names, not user input.
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = $"SELECT $PARTITION.[{pfName}]({literal});";
+        cmd.CommandText = $"SELECT $PARTITION.{SchemaUtils.BracketName(pfName)}({literal});";
 
         var result = await cmd.ExecuteScalarAsync(token).ConfigureAwait(false);
 

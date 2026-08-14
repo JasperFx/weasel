@@ -276,11 +276,14 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
     internal string PrimaryKeyDeclaration()
     {
-        return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
+        // Bracketed: EF6 databases carry a primary key literally named "PK_dbo.__MigrationHistory",
+        // and an unquoted dot ends the identifier.
+        return
+            $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({PrimaryKeyColumns.Select(SchemaUtils.QuoteName).Join(", ")})";
     }
 
     internal static string CheckConstraintDeclaration(TableCheckConstraint constraint)
-        => $"CONSTRAINT [{constraint.Name}] CHECK ({constraint.Expression})";
+        => $"CONSTRAINT {SchemaUtils.BracketName(constraint.Name)} CHECK ({constraint.Expression})";
 
     public ColumnExpression AddColumn(TableColumn column)
     {

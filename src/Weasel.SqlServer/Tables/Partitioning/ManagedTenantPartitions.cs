@@ -214,14 +214,14 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         var psName = PartitionSchemeName(parent);
 
         // Drop existing for idempotent creation (matches RangePartitioning).
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{psName}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME [{psName}];");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION [{pfName}];");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
+        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
+        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
 
         var boundaries = OrderedBoundaries();
 
-        writer.Write($"CREATE PARTITION FUNCTION [{pfName}] ({SqlDataType}) AS RANGE RIGHT");
+        writer.Write($"CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType}) AS RANGE RIGHT");
         if (boundaries.Length > 0)
         {
             writer.Write(" FOR VALUES (");
@@ -231,13 +231,13 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
         writer.WriteLine(";");
         writer.WriteLine(
-            $"CREATE PARTITION SCHEME [{psName}] AS PARTITION [{pfName}] ALL TO ([{Filegroup}]);");
+            $"CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
     }
 
     /// <inheritdoc />
     public void WriteOnClause(TextWriter writer, Table parent)
     {
-        writer.Write($" ON [{PartitionSchemeName(parent)}]([{Column}])");
+        writer.Write($" ON [{PartitionSchemeName(parent)}]({SchemaUtils.BracketName(Column)})");
     }
 
     /// <inheritdoc />
@@ -246,10 +246,10 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         var psName = PartitionSchemeName(parent);
         var pfName = PartitionFunctionName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{psName}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME [{psName}];");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION [{pfName}];");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
+        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
+        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
     }
 
     /// <inheritdoc />
@@ -317,8 +317,8 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
                 continue;
             }
 
-            writer.WriteLine($"ALTER PARTITION SCHEME [{psName}] NEXT USED [{Filegroup}];");
-            writer.WriteLine($"ALTER PARTITION FUNCTION [{pfName}]() SPLIT RANGE ({boundary});");
+            writer.WriteLine($"ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(Filegroup)};");
+            writer.WriteLine($"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({boundary});");
         }
     }
 
@@ -899,7 +899,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
                 {
                     await using var purge = conn.CreateCommand();
                     purge.CommandText =
-                        $"DELETE FROM {table.Identifier.QualifiedName} WHERE [{Column}] = @ordinal;";
+                        $"DELETE FROM {table.Identifier.QualifiedName} WHERE {SchemaUtils.BracketName(Column)} = @ordinal;";
                     purge.Parameters.AddWithValue("@ordinal", ordinal);
                     try
                     {
@@ -922,7 +922,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
                 await using var merge = conn.CreateCommand();
                 merge.CommandText =
-                    $"ALTER PARTITION FUNCTION [{pfName}]() MERGE RANGE ({ordinal});";
+                    $"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() MERGE RANGE ({ordinal});";
                 try
                 {
                     await merge.ExecuteNonQueryAsync(token).ConfigureAwait(false);
@@ -1089,14 +1089,14 @@ OUTPUT inserted.ordinal;";
                     await using (var nextUsed = conn.CreateCommand())
                     {
                         nextUsed.CommandText =
-                            $"ALTER PARTITION SCHEME [{psName}] NEXT USED [{Filegroup}];";
+                            $"ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(Filegroup)};";
                         await nextUsed.ExecuteNonQueryAsync(token).ConfigureAwait(false);
                     }
 
                     await using (var split = conn.CreateCommand())
                     {
                         split.CommandText =
-                            $"ALTER PARTITION FUNCTION [{pfName}]() SPLIT RANGE ({ordinal});";
+                            $"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({ordinal});";
                         await split.ExecuteNonQueryAsync(token).ConfigureAwait(false);
                     }
 
