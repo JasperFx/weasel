@@ -92,8 +92,8 @@ public class ForeignKey: ForeignKeyBase
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier}");
         writer.WriteLine(
-            $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteName).Join(", ")})");
-        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
+            $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})");
+        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
         writer.WriteCascadeAction("ON UPDATE", OnUpdate);
         writer.Write(";");

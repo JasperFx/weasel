@@ -109,6 +109,55 @@ public class identifier_quoting: IntegrationContext
         table.ToBasicCreateTableSql().ShouldContain("CONSTRAINT [ck_price] CHECK");
     }
 
+    /// <summary>
+    ///     Column lists were never quoted at all before this change, so a user whose column needed
+    ///     brackets had to write them into the string themselves. Re-escaping those would name a
+    ///     column that does not exist, so an entry that is already bracketed end to end is passed
+    ///     through untouched.
+    /// </summary>
+    [Theory]
+    [InlineData("price", "price")]           // ordinary, unchanged
+    [InlineData("Table", "[Table]")]         // reserved word, previously emitted bare and broken
+    [InlineData("[payload]", "[payload]")]   // caller already bracketed it, left alone
+    [InlineData("[a]]b]", "[a]]b]")]         // properly escaped already, left alone
+    [InlineData("unit price", "[unit price]")]
+    public void quote_column_entry_passes_through_what_is_already_bracketed(string name, string expected)
+    {
+        SchemaUtils.QuoteColumnEntry(name).ShouldBe(expected);
+    }
+
+    /// <summary>
+    ///     The pass-through must not become a hole. A lone <c>]</c> inside means the entry is not
+    ///     a well-formed bracketed name, so it gets escaped on its own terms.
+    /// </summary>
+    [Fact]
+    public void quote_column_entry_does_not_pass_through_an_unbalanced_name()
+    {
+        SchemaUtils.QuoteColumnEntry("[ix] ON dbo.t(id); DROP TABLE dbo.victim; --]")
+            .ShouldBe("[[ix]] ON dbo.t(id); DROP TABLE dbo.victim; --]]]");
+    }
+
+    /// <summary>
+    ///     A column list entry that was working before must still work. Master emitted these bare,
+    ///     so the bracketed name resolved correctly.
+    /// </summary>
+    [Fact]
+    public async Task an_index_on_a_column_the_user_bracketed_themselves_still_works()
+    {
+        await ResetSchema();
+
+        var table = new Table("quoting.prebracket");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn("Table", "varchar(50)").NotNull();
+        // How a user had to spell it before column lists were quoted at all.
+        table.Indexes.Add(new IndexDefinition("ix_prebracket") { Columns = ["[Table]"] });
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var existing = await table.FetchExistingAsync(theConnection);
+        existing!.IndexFor("ix_prebracket")!.Columns.ShouldBe(["Table"]);
+    }
+
     [Fact]
     public async Task an_index_whose_name_is_not_a_regular_identifier_can_be_created()
     {

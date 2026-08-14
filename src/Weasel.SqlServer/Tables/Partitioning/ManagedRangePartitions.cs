@@ -167,7 +167,7 @@ public class ManagedRangePartitions: ISplittablePartitioning
     /// <inheritdoc />
     public void WriteOnClause(TextWriter writer, Table parent)
     {
-        writer.Write($" ON [{PartitionSchemeName(parent)}]({SchemaUtils.BracketName(Column)})");
+        writer.Write($" ON {SchemaUtils.BracketName(PartitionSchemeName(parent))}({SchemaUtils.BracketName(Column)})");
     }
 
     /// <inheritdoc />

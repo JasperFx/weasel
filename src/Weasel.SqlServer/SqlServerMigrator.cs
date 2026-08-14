@@ -104,8 +104,8 @@ $$;
         {
             writer.WriteLine($@"IF EXISTS ( SELECT  *
                     FROM    sys.schemas
-                    WHERE   name = N'{schemaName}' )
-        EXEC('DROP SCHEMA {SchemaUtils.BracketName(schemaName)}');
+                    WHERE   name = N'{SchemaUtils.EscapeLiteral(schemaName)}' )
+        EXEC('DROP SCHEMA {SchemaUtils.EscapeLiteral(SchemaUtils.BracketName(schemaName))}');
 ");
         }
     }
@@ -217,8 +217,8 @@ $$;
         return $@"
 IF NOT EXISTS ( SELECT  *
                 FROM    sys.schemas
-                WHERE   name = N'{schemaName}' )
-    EXEC('CREATE SCHEMA {SchemaUtils.BracketName(schemaName)}');
+                WHERE   name = N'{SchemaUtils.EscapeLiteral(schemaName)}' )
+    EXEC('CREATE SCHEMA {SchemaUtils.EscapeLiteral(SchemaUtils.BracketName(schemaName))}');
 
 ";
     }

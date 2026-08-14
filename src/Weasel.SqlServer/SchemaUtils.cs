@@ -47,6 +47,40 @@ public static class SchemaUtils
             : BracketName(name);
 
     /// <summary>
+    ///     Quote one entry of a column list, leaving an entry the caller already bracketed alone.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Column lists were never quoted at all before, so users whose column needed brackets
+    ///         had no option but to bracket it themselves inside the string. Running
+    ///         <see cref="QuoteName" /> over those would re-escape a name that was already correct
+    ///         and emit a column that does not exist. This is the only place that pass-through is
+    ///         safe, and only because it is narrow: the entry must be bracketed end to end with every
+    ///         interior <c>]</c> already doubled, which is exactly the output of
+    ///         <see cref="BracketName" />.
+    ///     </para>
+    ///     <para>
+    ///         That narrowness is what keeps the injection closed. A name merely starting with
+    ///         <c>[</c> and ending with <c>]</c> does not qualify —
+    ///         <c>[ix] ON t(id); DROP TABLE victim; --]</c> contains a lone <c>]</c>, so it is
+    ///         bracketed on its own terms rather than passed through.
+    ///     </para>
+    /// </remarks>
+    public static string QuoteColumnEntry(string name)
+        => IsAlreadyBracketed(name) ? name : QuoteName(name);
+
+    private static bool IsAlreadyBracketed(string name)
+    {
+        if (name.IsEmpty() || name.Length < 2 || name[0] != '[' || name[^1] != ']')
+        {
+            return false;
+        }
+
+        var inner = name.Substring(1, name.Length - 2);
+        return !inner.Replace("]]", "").Contains(']');
+    }
+
+    /// <summary>
     ///     A regular identifier: a letter, <c>_</c> or <c>#</c> first, then letters, digits,
     ///     <c>_</c>, <c>@</c>, <c>$</c> or <c>#</c>. "Letter" follows the Unicode standard, so a name
     ///     like <c>Grüße</c> needs no brackets and its DDL is unchanged.

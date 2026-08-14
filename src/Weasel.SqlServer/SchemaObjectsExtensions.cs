@@ -58,7 +58,7 @@ public static class SchemaObjectsExtensions
 IF NOT EXISTS ( SELECT  *
                 FROM    sys.schemas
                 WHERE   name = N'{SchemaUtils.EscapeLiteral(schemaName)}' )
-    EXEC('CREATE SCHEMA {SchemaUtils.BracketName(schemaName)}');
+    EXEC('CREATE SCHEMA {SchemaUtils.EscapeLiteral(SchemaUtils.BracketName(schemaName))}');
 
 ";
 

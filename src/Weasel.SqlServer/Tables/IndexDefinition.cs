@@ -142,7 +142,7 @@ public class IndexDefinition: ITableIndex
         if (_includedColumns.Any())
         {
             builder.Append(" INCLUDE (");
-            builder.Append(_includedColumns.Select(SchemaUtils.QuoteName).Join(", "));
+            builder.Append(_includedColumns.Select(SchemaUtils.QuoteColumnEntry).Join(", "));
             builder.Append(')');
         }
 
@@ -172,7 +172,7 @@ public class IndexDefinition: ITableIndex
 
         // Quoted: a column named "Table" (or any other reserved word) is legal in SQL Server and
         // turns up in real schemas. QuoteName leaves ordinary identifiers untouched.
-        var expression = Columns.Select(SchemaUtils.QuoteName).Join(", ");
+        var expression = Columns.Select(SchemaUtils.QuoteColumnEntry).Join(", ");
 
         if (SortOrder != SortOrder.Asc)
         {
