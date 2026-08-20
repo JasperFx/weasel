@@ -4,9 +4,53 @@
 any schema whose names are not all plain lowercase identifiers, and three behaviours change in
 ways you can observe from the outside.
 
+::: danger Go straight to 9.25.1
+**9.25.0 refuses to create a table whose primary key constraint name is longer than the engine's
+identifier limit**, and 9.24 accepted it. The names it rejects are entirely conventional — just
+long, which a wide composite key on a long table name produces easily. Fixed in 9.25.1; see
+[the 9.25.1 fix](#what-9-25-1-fixes) below.
+:::
+
 If your schema uses conventional names throughout — lowercase, no spaces, no reserved words, no
-brackets — the emitted DDL is byte-identical to 9.24 and there is nothing here to do except read
+brackets — the emitted DDL is byte-identical to 9.24 **with the one exception above**, and there is
+nothing else here to do except read
 [the one that looks like a regression](#the-one-that-looks-like-a-regression).
+
+## What 9.25.1 fixes
+
+[#485](https://github.com/JasperFx/weasel/issues/485) and
+[#486](https://github.com/JasperFx/weasel/issues/486) — one root cause, two symptoms.
+
+9.25.0 started validating the names a table writes that are not database objects of their own —
+its columns, its primary key constraint, its check constraints
+([#468](https://github.com/JasperFx/weasel/pull/468)). It ran them through the provider's
+`AssertValidIdentifier`, which also enforces the **length** limit. Schemas that applied cleanly on
+9.24 began throwing.
+
+The length rule does not belong there, and Weasel's own code already said so. An *object* name the
+database truncates becomes unaddressable and drifts on every check afterwards — worth refusing. A
+*local* identifier is only ever emitted inside its own table's DDL and never addressed by name
+again, and `TableDelta` already compares both `PrimaryKeyName` and the primary key column list
+through `TruncatedNameIdentifier` **precisely so a truncated one still matches**. Weasel was
+handling truncated local identifiers downstream while refusing to create them upstream.
+
+`Migrator.AssertValidLocalIdentifier` now applies the same safety rules with no length limit. A
+quote, a semicolon, a line break, leading or trailing whitespace are still rejected wherever they
+appear. The base implementation defers to `AssertValidIdentifier`, so a provider outside this
+repository keeps the stricter behaviour until it opts in.
+
+::: warning The quiet half
+#486 presented as a `23505` on `pk_mt_event_progression` during a Marten per-tenant daemon
+catch-up — an error naming a table with nothing to do with identifiers. The rejection had aborted
+a projection's schema application, and the daemon then ran against storage that was never created.
+**The loud failure and the quiet one were the same rejection.** If you saw anything strange on
+9.25.0, this is worth ruling out before looking further.
+:::
+
+Also in 9.25.1: **functions on MySQL and Oracle**
+([#482](https://github.com/JasperFx/weasel/issues/482)), which completes the object type matrix
+apart from check constraints on Oracle, MySQL and SQLite
+([#488](https://github.com/JasperFx/weasel/issues/488) — a pre-existing gap, not a 9.25 change).
 
 ## At a glance
 
