@@ -31,14 +31,20 @@ namespace Weasel.Core.Tests;
 /// </remarks>
 public class table_identifier_coverage_conformance
 {
-    public static TheoryData<string, Func<ITable>> Providers =>
+    /// <summary>
+    ///     The third value is whether the provider emits check constraints. Oracle, MySQL and
+    ///     SQLite refuse them rather than accepting one they will not write (weasel#488), so there
+    ///     is no check constraint name for them to validate — the absence is correct rather than a
+    ///     coverage gap, and saying so here keeps it visible.
+    /// </summary>
+    public static TheoryData<string, Func<ITable>, bool> Providers =>
         new()
         {
-            { "SqlServer", () => new SqlServer.Tables.Table("dbo.people") },
-            { "MySql", () => new MySql.Tables.Table("weasel_testing.people") },
-            { "Sqlite", () => new Sqlite.Tables.Table("people") },
-            { "Postgresql", () => new Postgresql.Tables.Table("public.people") },
-            { "Oracle", () => new Oracle.Tables.Table("WEASEL.PEOPLE") }
+            { "SqlServer", () => new SqlServer.Tables.Table("dbo.people"), true },
+            { "MySql", () => new MySql.Tables.Table("weasel_testing.people"), false },
+            { "Sqlite", () => new Sqlite.Tables.Table("people"), false },
+            { "Postgresql", () => new Postgresql.Tables.Table("public.people"), true },
+            { "Oracle", () => new Oracle.Tables.Table("WEASEL.PEOPLE"), false }
         };
 
     /// <summary>
@@ -46,7 +52,8 @@ public class table_identifier_coverage_conformance
     ///     over a named column, an ordinary column, an index, a foreign key, and a check
     ///     constraint. Built through <see cref="ITable" /> so it is the same table on all five.
     /// </summary>
-    private static ITable BuildFullyDressedTable(Func<ITable> factory, out string[] expected)
+    private static ITable BuildFullyDressedTable(Func<ITable> factory, bool emitsCheckConstraints,
+        out string[] expected)
     {
         var table = factory();
 
@@ -57,19 +64,25 @@ public class table_identifier_coverage_conformance
         table.PrimaryKeyName = "pk_people_id";
         table.AddIndex("idx_people_email", ["email"]);
         table.AddForeignKey("fk_people_state", table.Identifier, ["state_id"], ["id"]);
-        table.AddCheckConstraint("ck_people_email_present", "email is not null");
 
-        expected =
-        [
+        var names = new List<string>
+        {
             table.Identifier.Name,
             "id",
             "email",
             "state_id",
             "pk_people_id",
             "idx_people_email",
-            "fk_people_state",
-            "ck_people_email_present"
-        ];
+            "fk_people_state"
+        };
+
+        if (emitsCheckConstraints)
+        {
+            table.AddCheckConstraint("ck_people_email_present", "email is not null");
+            names.Add("ck_people_email_present");
+        }
+
+        expected = names.ToArray();
 
         return table;
     }
@@ -86,9 +99,10 @@ public class table_identifier_coverage_conformance
 
     [Theory]
     [MemberData(nameof(Providers))]
-    public void every_name_the_table_writes_is_reachable_by_validation(string provider, Func<ITable> factory)
+    public void every_name_the_table_writes_is_reachable_by_validation(
+        string provider, Func<ITable> factory, bool emitsCheckConstraints)
     {
-        var table = BuildFullyDressedTable(factory, out var expected);
+        var table = BuildFullyDressedTable(factory, emitsCheckConstraints, out var expected);
         var validated = EveryValidatedName(table).ToArray();
 
         foreach (var name in expected)
@@ -106,9 +120,10 @@ public class table_identifier_coverage_conformance
     /// </summary>
     [Theory]
     [MemberData(nameof(Providers))]
-    public void all_names_carries_the_table_its_indexes_and_its_foreign_keys(string provider, Func<ITable> factory)
+    public void all_names_carries_the_table_its_indexes_and_its_foreign_keys(
+        string provider, Func<ITable> factory, bool emitsCheckConstraints)
     {
-        var table = BuildFullyDressedTable(factory, out _);
+        var table = BuildFullyDressedTable(factory, emitsCheckConstraints, out _);
         var names = table.AllNames().Select(x => x.Name).ToArray();
 
         names.ShouldContain(x => string.Equals(x, table.Identifier.Name, StringComparison.OrdinalIgnoreCase),
@@ -121,17 +136,22 @@ public class table_identifier_coverage_conformance
 
     [Theory]
     [MemberData(nameof(Providers))]
-    public void local_identifiers_carry_the_names_that_are_not_objects(string provider, Func<ITable> factory)
+    public void local_identifiers_carry_the_names_that_are_not_objects(
+        string provider, Func<ITable> factory, bool emitsCheckConstraints)
     {
-        var table = BuildFullyDressedTable(factory, out _);
+        var table = BuildFullyDressedTable(factory, emitsCheckConstraints, out _);
         var locals = ((ISchemaObjectWithLocalIdentifiers)table).LocalIdentifiers().ToArray();
 
         locals.ShouldContain(x => string.Equals(x, "email", StringComparison.OrdinalIgnoreCase),
             $"{provider} omits a column name");
         locals.ShouldContain(x => string.Equals(x, "pk_people_id", StringComparison.OrdinalIgnoreCase),
             $"{provider} omits the primary key constraint name");
-        locals.ShouldContain(x => string.Equals(x, "ck_people_email_present", StringComparison.OrdinalIgnoreCase),
-            $"{provider} omits a check constraint name");
+
+        if (emitsCheckConstraints)
+        {
+            locals.ShouldContain(x => string.Equals(x, "ck_people_email_present", StringComparison.OrdinalIgnoreCase),
+                $"{provider} omits a check constraint name");
+        }
     }
 
     /// <summary>
@@ -142,7 +162,8 @@ public class table_identifier_coverage_conformance
     /// </summary>
     [Theory]
     [MemberData(nameof(Providers))]
-    public void a_table_without_a_primary_key_offers_no_primary_key_name(string provider, Func<ITable> factory)
+    public void a_table_without_a_primary_key_offers_no_primary_key_name(
+        string provider, Func<ITable> factory, bool emitsCheckConstraints)
     {
         var table = factory();
         table.AddColumn("email", typeof(string));

@@ -67,19 +67,30 @@ public class migration_path_identifier_validation
         ex.Message.ShouldContain("pk\"broken");
     }
 
+    /// <summary>
+    ///     This used to assert that a check constraint with a delimiter in its name was rejected by
+    ///     the migration path. SQLite no longer gets that far: weasel#488 made the constraint itself
+    ///     refused, because Weasel does not emit check constraints on SQLite and accepting one meant
+    ///     silently leaving it out of the DDL.
+    /// </summary>
+    /// <remarks>
+    ///     The name validation it used to cover is not lost — it is on
+    ///     <c>Weasel.Core.Tests.table_identifier_coverage_conformance</c>, which runs against every
+    ///     provider that emits check constraints. What is asserted here now is the refusal, and
+    ///     that it happens up front rather than at migration time, which is the whole point of it.
+    /// </remarks>
     [Fact]
-    public async Task a_check_constraint_name_is_rejected()
+    public void a_check_constraint_is_refused_because_sqlite_would_not_emit_it()
     {
         var db = NewDatabase();
         var table = db.AddTable(new DbObjectName("main", "mpiv_check"));
         table.AddPrimaryKeyColumn("id", typeof(int));
         table.AddColumn("qty", typeof(int));
-        table.AddCheckConstraint("ck\"broken", "qty > 0");
 
-        var ex = await Should.ThrowAsync<InvalidOperationException>(
-            () => db.ApplyAllConfiguredChangesToDatabaseAsync());
+        var ex = Should.Throw<NotSupportedException>(
+            () => table.AddCheckConstraint("ck_qty_positive", "qty > 0"));
 
-        ex.Message.ShouldContain("ck\"broken");
+        ex.Message.ShouldContain("weasel#488");
     }
 
     /// <summary>

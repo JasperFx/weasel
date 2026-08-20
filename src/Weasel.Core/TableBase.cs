@@ -76,13 +76,38 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     public IList<TForeignKey> ForeignKeys { get; } = new List<TForeignKey>();
     public IList<TIndex> Indexes { get; } = new List<TIndex>();
 
+    private IList<TableCheckConstraint>? _checkConstraints;
+
     /// <summary>
-    ///     Named table-level CHECK constraints. Emitted in CREATE TABLE and
-    ///     compared during delta detection by the providers that support it
-    ///     (PostgreSQL, SQL Server); see <see cref="TableCheckConstraint" /> for
-    ///     the conservative comparison semantics.
+    ///     Named table-level CHECK constraints. Emitted in CREATE TABLE and compared during delta
+    ///     detection by the providers that support it (PostgreSQL, SQL Server); see
+    ///     <see cref="TableCheckConstraint" /> for the conservative comparison semantics.
     /// </summary>
-    public IList<TableCheckConstraint> CheckConstraints { get; } = new List<TableCheckConstraint>();
+    /// <remarks>
+    ///     On a provider that does not emit them this collection refuses everything added to it
+    ///     rather than holding a constraint that will never reach the database (weasel#488). See
+    ///     <see cref="SupportsCheckConstraints" />.
+    /// </remarks>
+    public IList<TableCheckConstraint> CheckConstraints
+        => _checkConstraints ??= SupportsCheckConstraints
+            ? new List<TableCheckConstraint>()
+            : new UnsupportedCheckConstraints(ProviderName);
+
+    /// <summary>
+    ///     Whether this provider writes check constraints into its DDL and compares them.
+    ///     PostgreSQL and SQL Server do; Oracle, MySQL and SQLite do not yet (weasel#488), and
+    ///     override this to <c>false</c> so that asking for one is refused rather than ignored.
+    /// </summary>
+    /// <remarks>
+    ///     Read lazily rather than in the constructor, so an override is never called before the
+    ///     subclass is built.
+    /// </remarks>
+    protected virtual bool SupportsCheckConstraints => true;
+
+    /// <summary>
+    ///     The provider's name, for the message a refused check constraint carries.
+    /// </summary>
+    protected virtual string ProviderName => GetType().Namespace?.Split('.').ElementAtOrDefault(1) ?? "this provider";
 
     /// <summary>
     ///     Names of indexes that this table intentionally ignores during delta
@@ -277,7 +302,10 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     TableCheckConstraint ITable.AddCheckConstraint(string name, string expression)
     {
         var constraint = new TableCheckConstraint(name, expression);
+
+        // Throws on a provider that will not emit it -- see UnsupportedCheckConstraints.
         CheckConstraints.Add(constraint);
+
         return constraint;
     }
 

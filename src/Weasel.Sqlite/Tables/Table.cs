@@ -194,6 +194,15 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     /// </remarks>
     public IList<string> ExistingTriggers { get; } = new List<string>();
 
+    /// <summary>
+    ///     Sqlite has check constraints; Weasel does not emit them here yet (weasel#488). False so
+    ///     that asking for one throws rather than being accepted and silently dropped.
+    /// </summary>
+    protected override bool SupportsCheckConstraints => false;
+
+    /// <inheritdoc />
+    protected override string ProviderName => "SQLite";
+
     public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
