@@ -138,4 +138,154 @@ public class foreign_key_backing_indexes: IntegrationContext
         delta!.Indexes!.Extras.ShouldBeEmpty();
         delta.Difference.ShouldBe(SchemaPatchDifference.None);
     }
+
+    [Fact]
+    public async Task a_redundant_index_is_dropped_once_a_declared_index_covers_the_constraint()
+    {
+        await DropTableAsync("`weasel_testing`.`fkidx_child_6`");
+        await createParentAsync("fkidx_parent_6");
+
+        // Two indexes, either of which can back the constraint. This is what a caller is left
+        // with after they add a wider index and stop declaring the narrow one.
+        await CreateTableAsync(
+            """
+            CREATE TABLE `weasel_testing`.`fkidx_child_6` (
+                `id` INT NOT NULL,
+                `parent_id` INT NULL,
+                `name` VARCHAR(100) NULL,
+                PRIMARY KEY (`id`),
+                INDEX `idx_fkidx_child_6_parent_id` (`parent_id`),
+                INDEX `idx_fkidx_child_6_parent_id_name` (`parent_id`, `name`),
+                CONSTRAINT `fk_fkidx_child_6_parent_id` FOREIGN KEY (`parent_id`)
+                    REFERENCES `weasel_testing`.`fkidx_parent_6` (`id`)
+            ) ENGINE=InnoDB
+            """);
+
+        var expected = new Table("weasel_testing.fkidx_child_6");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<int>("parent_id").ForeignKeyTo(
+            new MySqlObjectName("weasel_testing", "fkidx_parent_6"), "id");
+        expected.AddColumn<string>("name");
+        expected.Indexes.Add(new IndexDefinition("idx_fkidx_child_6_parent_id_name")
+            .AgainstColumns("parent_id", "name"));
+
+        var delta = await expected.FindDeltaAsync(theConnection) as TableDelta;
+
+        // The declared index is covering the constraint, so the other one is only an extra.
+        delta!.Indexes!.Extras.Single().Name.ShouldBe("idx_fkidx_child_6_parent_id");
+
+        await expected.ApplyChangesAsync(theConnection);
+
+        (await expected.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+
+        var existing = await expected.FetchExistingAsync(theConnection);
+        existing!.Indexes.Single().Name.ShouldBe("idx_fkidx_child_6_parent_id_name");
+        existing.ForeignKeys.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task declaring_an_index_over_the_implicit_one_settles_in_a_single_pass()
+    {
+        await DropTableAsync("`weasel_testing`.`fkidx_child_7`");
+        var parent = await createParentAsync("fkidx_parent_7");
+
+        var actual = new Table("weasel_testing.fkidx_child_7");
+        actual.AddColumn<int>("id").AsPrimaryKey();
+        actual.AddColumn<int>("parent_id").ForeignKeyTo(parent.Identifier, "id");
+        await actual.CreateAsync(theConnection);
+
+        // The declared index does not exist yet, so it cannot be leaned on and the implicit
+        // index is still protected -- no DROP INDEX is emitted for it. InnoDB retires it on
+        // its own the moment the declared index appears, so one pass is still enough.
+        var expected = new Table("weasel_testing.fkidx_child_7");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<int>("parent_id").ForeignKeyTo(parent.Identifier, "id").AddIndex();
+
+        var delta = await expected.FindDeltaAsync(theConnection) as TableDelta;
+        delta!.Indexes!.Extras.ShouldBeEmpty();
+
+        await expected.ApplyChangesAsync(theConnection);
+
+        (await expected.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+
+        var existing = await expected.FetchExistingAsync(theConnection);
+        existing!.Indexes.Single().Name.ShouldBe("idx_fkidx_child_7_parent_id");
+        existing.ForeignKeys.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task the_primary_key_backing_a_constraint_leaves_nothing_to_protect()
+    {
+        await DropTableAsync("`weasel_testing`.`fkidx_child_8`");
+        var parent = await createParentAsync("fkidx_parent_8");
+
+        // The constrained column is the primary key, so MySQL backs the constraint with the
+        // primary key index and never creates one of its own. A secondary index on the same
+        // column is pure redundancy and has to stay droppable.
+        await CreateTableAsync(
+            """
+            CREATE TABLE `weasel_testing`.`fkidx_child_8` (
+                `id` INT NOT NULL,
+                PRIMARY KEY (`id`),
+                CONSTRAINT `fk_fkidx_child_8_id` FOREIGN KEY (`id`)
+                    REFERENCES `weasel_testing`.`fkidx_parent_8` (`id`)
+            ) ENGINE=InnoDB
+            """);
+        await CreateTableAsync(
+            "CREATE INDEX `idx_fkidx_child_8_id` ON `weasel_testing`.`fkidx_child_8` (`id`)");
+
+        var expected = new Table("weasel_testing.fkidx_child_8");
+        expected.AddColumn<int>("id").AsPrimaryKey().ForeignKeyTo(parent.Identifier, "id");
+
+        var delta = await expected.FindDeltaAsync(theConnection) as TableDelta;
+
+        delta!.Indexes!.Extras.Single().Name.ShouldBe("idx_fkidx_child_8_id");
+
+        await expected.ApplyChangesAsync(theConnection);
+
+        (await expected.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+        (await expected.FetchExistingAsync(theConnection))!.ForeignKeys.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task exactly_one_backing_index_is_kept_when_two_cover_the_same_constraint()
+    {
+        await DropTableAsync("`weasel_testing`.`fkidx_child_9`");
+        await createParentAsync("fkidx_parent_9");
+
+        // Same two covering indexes as above, but now the expected table declares neither.
+        // One of them still has to survive to keep InnoDB happy -- but only one.
+        await CreateTableAsync(
+            """
+            CREATE TABLE `weasel_testing`.`fkidx_child_9` (
+                `id` INT NOT NULL,
+                `parent_id` INT NULL,
+                `name` VARCHAR(100) NULL,
+                PRIMARY KEY (`id`),
+                INDEX `idx_fkidx_child_9_parent_id` (`parent_id`),
+                INDEX `idx_fkidx_child_9_parent_id_name` (`parent_id`, `name`),
+                CONSTRAINT `fk_fkidx_child_9_parent_id` FOREIGN KEY (`parent_id`)
+                    REFERENCES `weasel_testing`.`fkidx_parent_9` (`id`)
+            ) ENGINE=InnoDB
+            """);
+
+        var expected = new Table("weasel_testing.fkidx_child_9");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<int>("parent_id").ForeignKeyTo(
+            new MySqlObjectName("weasel_testing", "fkidx_parent_9"), "id");
+        expected.AddColumn<string>("name");
+
+        var delta = await expected.FindDeltaAsync(theConnection) as TableDelta;
+
+        // The narrow one is the one worth keeping: it is the least use for anything else.
+        delta!.Indexes!.Extras.Single().Name.ShouldBe("idx_fkidx_child_9_parent_id_name");
+
+        await expected.ApplyChangesAsync(theConnection);
+
+        (await expected.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+
+        var existing = await expected.FetchExistingAsync(theConnection);
+        existing!.Indexes.Single().Name.ShouldBe("idx_fkidx_child_9_parent_id");
+        existing.ForeignKeys.Count.ShouldBe(1);
+    }
 }

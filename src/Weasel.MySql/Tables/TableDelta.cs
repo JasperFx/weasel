@@ -40,12 +40,8 @@ public class TableDelta: SchemaObjectDelta<Table>
             actual.ForeignKeys,
             (e, a) => e.IsEquivalentTo(a));
 
-        Indexes = new ItemDelta<IndexDefinition>(
-            expected.Indexes,
-            comparableIndexes(expected, actual, ForeignKeys),
-            (e, a) => e.Matches(a, expected));
-
-        // Check primary key differences
+        // Ahead of the index comparison, which needs to know whether the primary key is
+        // staying put: MySQL is happy to back a foreign key with the primary key index.
         var expectedPks = expected.PrimaryKeyColumns.OrderBy(x => x).ToList();
         var actualPks = actual.PrimaryKeyColumns.OrderBy(x => x).ToList();
 
@@ -53,6 +49,12 @@ public class TableDelta: SchemaObjectDelta<Table>
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
+
+        Indexes = new ItemDelta<IndexDefinition>(
+            expected.Indexes,
+            comparableIndexes(expected, actual, ForeignKeys,
+                PrimaryKeyDifference == SchemaPatchDifference.None),
+            (e, a) => e.Matches(a, expected));
 
         // Partition strategy can't be altered in place — flag as needing manual intervention
         if (expected.PartitionStrategy != actual.PartitionStrategy)
@@ -86,15 +88,37 @@ public class TableDelta: SchemaObjectDelta<Table>
     ///     named after the constraint, or an existing index that already covers the
     ///     constrained columns — and <c>information_schema.STATISTICS</c> reports it like
     ///     any other index. InnoDB then refuses to drop it while the constraint still
-    ///     needs it (error 1553), so an index that exists only to back a surviving foreign
-    ///     key is not an "extra" and must be kept out of the comparison entirely.
-    ///     Indexes the expected table declares by name are always compared, so real drift
-    ///     on a deliberately declared index is still detected.
+    ///     needs it (error 1553).
     /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         What InnoDB actually requires is that <em>some</em> index cover the constrained
+    ///         columns, not that any particular one survive. So only the last remaining cover is
+    ///         held back from the comparison: as soon as another index will still be there once
+    ///         the migration finishes, every other backing index is an ordinary extra and gets
+    ///         dropped like one. That is what keeps a redundant index — the implicit one left
+    ///         behind after the caller declares their own, say — from being protected forever.
+    ///     </para>
+    ///     <para>
+    ///         A cover has to be one the DROP INDEX statements can rely on already being in
+    ///         place: an index the expected table declares and that the database already has
+    ///         unchanged, or the primary key when it is not being rebuilt. An index that is
+    ///         about to be created, or dropped and recreated, is not there when it would be
+    ///         needed and does not count. That costs nothing when a declared index is replacing
+    ///         an implicit one, because InnoDB retires its own backing index by itself the
+    ///         moment another index can serve the constraint — so the CREATE INDEX alone
+    ///         settles it, and the next comparison sees no extra at all.
+    ///     </para>
+    ///     <para>
+    ///         Indexes the expected table declares by name are always compared, so real drift on
+    ///         a deliberately declared index is still detected.
+    ///     </para>
+    /// </remarks>
     private static IEnumerable<IndexDefinition> comparableIndexes(
         Table expected,
         Table actual,
-        ItemDelta<ForeignKey> foreignKeys)
+        ItemDelta<ForeignKey> foreignKeys,
+        bool primaryKeyIsStable)
     {
         var dropped = foreignKeys.Extras.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -106,23 +130,87 @@ public class TableDelta: SchemaObjectDelta<Table>
             return actual.Indexes;
         }
 
-        return actual.Indexes.Where(index =>
-            expected.Indexes.Any(e => e.Name.Equals(index.Name, StringComparison.OrdinalIgnoreCase))
-            || !surviving.Any(fk => backs(index, fk)));
+        var declared = expected.Indexes.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var kept = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var fk in surviving)
+        {
+            if (isCovered(expected, actual, fk, kept, primaryKeyIsStable))
+            {
+                continue;
+            }
+
+            // Nothing is guaranteed to be there for this constraint, so exactly one of the
+            // indexes that could be backing it has to stay. Prefer the one MySQL creates
+            // itself, then the narrowest — the least useful for anything but the constraint.
+            var keeper = actual.Indexes
+                .Where(index => backs(index, fk))
+                .OrderBy(index => index.Name.Equals(fk.Name, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(index => index.Columns.Length)
+                .ThenBy(index => index.Name, StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault();
+
+            if (keeper != null)
+            {
+                kept.Add(keeper.Name);
+            }
+        }
+
+        return actual.Indexes.Where(index => declared.Contains(index.Name) || !kept.Contains(index.Name));
+    }
+
+    /// <summary>
+    ///     True when <paramref name="foreignKey" /> is certain to still have a backing index
+    ///     after the migration runs, without holding anything else back.
+    /// </summary>
+    private static bool isCovered(
+        Table expected,
+        Table actual,
+        ForeignKey foreignKey,
+        IReadOnlyCollection<string> kept,
+        bool primaryKeyIsStable)
+    {
+        if (primaryKeyIsStable && covers(actual.PrimaryKeyColumns, foreignKey))
+        {
+            return true;
+        }
+
+        if (actual.Indexes.Any(index => kept.Contains(index.Name) && backs(index, foreignKey)))
+        {
+            return true;
+        }
+
+        // Only an index that is already in place and staying that way. One the expected table
+        // declares but the database does not have yet is created after the drops, and one that
+        // is being altered is dropped and recreated — neither is there when it would be needed.
+        return expected.Indexes.Any(index =>
+        {
+            if (!backs(index, foreignKey))
+            {
+                return false;
+            }
+
+            var current = actual.Indexes.FirstOrDefault(x =>
+                x.Name.Equals(index.Name, StringComparison.OrdinalIgnoreCase));
+
+            return current != null && index.Matches(current, expected);
+        });
     }
 
     /// <summary>
     ///     True when MySQL could be using <paramref name="index" /> as the backing index for
     ///     <paramref name="foreignKey" /> — that is, the constrained columns are the leftmost
-    ///     prefix of the index. More than one index can qualify; protecting all of them only
-    ///     risks leaving a redundant index in place, while protecting none breaks the migration.
+    ///     prefix of the index. More than one index can qualify, which is exactly why
+    ///     <see cref="isCovered" /> exists: only the last of them is worth protecting.
     /// </summary>
     private static bool backs(IndexDefinition index, ForeignKey foreignKey)
+        => covers(index.Columns, foreignKey);
+
+    private static bool covers(IReadOnlyList<string> indexColumns, ForeignKey foreignKey)
     {
-        var indexColumns = index.Columns;
         var keyColumns = foreignKey.ColumnNames;
 
-        if (keyColumns.Length == 0 || indexColumns.Length < keyColumns.Length)
+        if (keyColumns.Length == 0 || indexColumns.Count < keyColumns.Length)
         {
             return false;
         }
