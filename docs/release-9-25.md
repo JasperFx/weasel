@@ -12,10 +12,13 @@ brackets — the emitted DDL is byte-identical to 9.24 and there is nothing here
 
 | Change | Who is affected | Action |
 | --- | --- | --- |
+| **SQLite no longer drops your table to change a column** | Anyone on SQLite applying a type, foreign key or primary key change with `AutoCreate.All` | None — but read below, because you may have lost data on an earlier version |
+| **Oracle now sees index, foreign key and primary key drift** | Every Oracle user | Expect a first run that finally applies indexes it had silently been ignoring |
 | Column names are no longer rewritten | Anyone who declared a column with a space in the name | Write the underscore yourself, or accept the new name |
 | SQL Server quotes identifiers it previously left bare | Names that are not regular identifiers | None — the DDL was invalid before |
 | A name you bracketed yourself is passed through and unbracketed in the model | SQL Server callers who bracketed to work around the above | Stop bracketing; compare against the bare name |
 | MySQL `Table.Identifier` renders and compares differently | Anyone comparing `DbObjectName` instances directly | Compare through `MySqlObjectName` |
+| `Weasel.MySql.Sequence` is obsolete | Anyone using it — though nothing could consume it | Use `AUTO_INCREMENT` |
 | Schema fingerprints re-evaluate once | Anyone using `Migrator.UseSchemaFingerprinting` | None — expect one "everything changed" pass |
 
 ## ⚠️ Column names are no longer rewritten
@@ -105,11 +108,52 @@ upgrade** — in particular the schema fingerprint stamps behind
 
 That is a one-time "everything looks changed" pass, not drift. The second run is quiet.
 
+## Two bugs that were losing work silently
+
+Neither was reported by a user. Both were found by the parity work in
+[#455](https://github.com/JasperFx/weasel/issues/455), and both had been failing quietly.
+
+### SQLite dropped the table to change a column
+
+[#477](https://github.com/JasperFx/weasel/issues/477). `TableDelta` has always had a careful
+rebuild — create a new table, copy the surviving columns, drop the old one, rename. **The migrator
+never called it.** A change needing a rebuild reports `Invalid`, and `Invalid` was answered by
+dropping the object and creating it again.
+
+Measured on a column type change: **one row before, zero after** — and a schema that looked
+entirely correct afterwards.
+
+Affects every SQLite change that `ALTER TABLE` cannot express: a column type change, a foreign key
+added or removed, a primary key change. It needs `AutoCreate.All`, which is what a developer
+resetting a local database and `db-apply` on an environment configured for it both use.
+
+If you have applied such a change on 9.24 or earlier, the data is gone and this release cannot
+bring it back. It will not happen again.
+
+### Oracle could not see indexes, foreign keys or primary keys
+
+[#474](https://github.com/JasperFx/weasel/issues/474). ODP.NET will not execute several statements
+from one command, so an Oracle schema object could register exactly one introspection query — and
+`Table` spent it on columns. Everything else was invisible to `SchemaMigration.DetermineAsync`,
+which is what `ApplyChangesAsync`, `ApplyAllConfiguredChangesToDatabaseAsync` and
+`AssertDatabaseMatchesConfigurationAsync` all go through.
+
+In practice: a declared index was created with the table and never touched again. Adding one to an
+existing table did nothing. Changing one did nothing. Removing one left it in place. And
+`AssertDatabaseMatchesConfigurationAsync` reported a clean match throughout.
+
+**Expect your first Oracle run on 9.25 to apply index and foreign key changes it had been
+ignoring.** That is the backlog being worked off, not new drift.
+
 ## New in this release
 
 | | |
 | --- | --- |
 | **Views on SQL Server, Oracle and MySQL** | [#450](https://github.com/JasperFx/weasel/issues/450). All five providers now model views. MySQL's is the interesting one — it rewrites a view's definition when it stores it, so Weasel canonicalizes your SQL through the server to compare. That needs CREATE VIEW permission on the assert path as well as the apply path; see [Object Type Support](/core/object-types). |
+| **Triggers, on all five providers** | [#452](https://github.com/JasperFx/weasel/issues/452). The one whole category no provider modelled. They are independent schema objects that declare a target, not something a table owns — see [Triggers](/core/triggers). |
+| **Stored procedures on PostgreSQL, MySQL and Oracle** | [#451](https://github.com/JasperFx/weasel/issues/451). SQL Server had the only implementation; it now derives from a shared `StoredProcedureBase`. See [Stored Procedures](/core/procedures). |
+| **Oracle packages, materialized views and synonyms; SQL Server synonyms; PostgreSQL enums, domains and composites** | [#453](https://github.com/JasperFx/weasel/issues/453). |
+| **A shared index scenario matrix** | [#449](https://github.com/JasperFx/weasel/issues/449). Eleven create-then-introspect scenarios run against every provider. It found three real defects on its first run, including that SQLite was comparing indexes by name alone. |
 | **Every identifier a table writes is validated** | [#448](https://github.com/JasperFx/weasel/issues/448). Column names, the primary key constraint name and check constraint names were previously validated by no provider at all. |
 | **An interior space is a legal identifier** | `unit price` passes validation. A leading or trailing space, a tab and a line break still do not. |
 | **Oracle teardown drops what it used to leave behind** | [#465](https://github.com/JasperFx/weasel/issues/465). Triggers, packages, synonyms, object types and materialized views. |
@@ -128,3 +172,20 @@ Additive, but on public abstract types that downstream providers derive from:
 | `CommandBuilderBase.Command` | Exposes the command being built, so a provider's `ConfigureQueryCommand` can set driver options its introspection query depends on. Oracle needs it: `ALL_VIEWS.TEXT` is a LONG and ODP.NET reads it back empty by default. |
 | `IdentifierRules` | The shared quoting contract. Each provider's static `SchemaUtils` delegates to it, so no DDL call site changed. |
 | `TableBase.NormalizeIdentifier` | `protected virtual`, called from the `PrimaryKeyName` setter. A no-op by default; only SQL Server overrides it. |
+| `TriggerBase` | The cross-provider trigger model. |
+| `StoredProcedureBase` | The cross-provider stored procedure model, lifted from SQL Server's implementation. |
+| `ISchemaObjectDeltaWithRebuild` | Lets a delta say "I cannot express this as an `ALTER`, but I can make the change without losing the data". An interface rather than a new `SchemaPatchDifference` value, because the enum is public and consumers switch on it. |
+| `IBatchedCommandBuilder`, `SchemaObjectBase.CreateCommandBuilder` | Let a schema object register more than one introspection query on a provider whose driver executes one statement per command. Oracle is the only such provider. |
+
+## Refused rather than ignored
+
+Four properties that used to accept a value and silently do nothing now throw, naming the
+supported alternative. A caller gets what they set, or an exception — never a quietly narrower
+object.
+
+| Property | Why |
+| --- | --- |
+| `IndexDefinition.Predicate` on MySQL and Oracle | Neither engine has partial indexes. It was never emitted and never compared. |
+| `Sequence.IncrementBy` on MySQL | The table-based emulation never honoured it. |
+| `Trigger.Condition` on SQL Server and MySQL | Neither has a `WHEN` clause. |
+| `Trigger.Timing = Before` on SQL Server | SQL Server has no `BEFORE` trigger. |
