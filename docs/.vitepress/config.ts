@@ -45,7 +45,8 @@ export default withMermaid(
             { text: 'Introduction', link: '/guide/' },
             { text: 'Installation', link: '/guide/installation' },
             { text: 'Quick Start', link: '/guide/quickstart' },
-            { text: 'Migrating from 8.x to 9.0', link: '/migration-guide' }
+            { text: 'Migrating from 8.x to 9.0', link: '/migration-guide' },
+            { text: 'Upgrading to 9.25', link: '/release-9-25' }
           ]
         },
         {
@@ -57,7 +58,9 @@ export default withMermaid(
             { text: 'Command Builders & Batching', link: '/core/command-builders' },
             { text: 'Extension Methods', link: '/core/extension-methods' },
             { text: 'Multi-Tenancy', link: '/core/multi-tenancy' },
-            { text: 'Provider Trait Matrix', link: '/core/provider-trait-matrix' }
+            { text: 'Provider Trait Matrix', link: '/core/provider-trait-matrix' },
+            { text: 'Object Type Support', link: '/core/object-types' },
+            { text: 'Identifiers & Quoting', link: '/core/identifiers' }
           ]
         },
         {

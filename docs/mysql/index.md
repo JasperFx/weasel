@@ -67,3 +67,23 @@ await migrator.EnsureDatabaseExistsAsync(conn);
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MySqlSamples.cs#L31-L35' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_mysql_ensure_database_exists' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+## Identifiers
+
+MySQL delimits with backticks and **delimits unconditionally** — it is the one provider for which
+"was this name left bare?" is never the right question. An embedded backtick is escaped by
+doubling it. A backslash is rejected outright: it is an escape character inside MySQL string
+literals unless `NO_BACKSLASH_ESCAPES` is set, so a trailing one would swallow the closing quote
+of a literal a name is written into.
+
+9.25 normalizes identifiers on the way into the model, which is visible in two places:
+
+- `Table(DbObjectName)` normalizes to `MySqlObjectName`, so `Table.Identifier.QualifiedName`
+  renders as `` `schema`.`name` `` rather than `schema.name`. `Table(string)` already parsed
+  through `MySqlProvider` and is unaffected.
+- **`table.Identifier` no longer compares equal to a plain `new DbObjectName(schema, name)`** for
+  the same table. That inequality was the fix, not the bug — a hand-built identifier never
+  matched the catalog, so foreign keys reported drift on every check.
+
+See [Identifiers and Quoting](/core/identifiers) for the cross-provider rules and
+[Upgrading to 9.25](/release-9-25) for the migration notes.
