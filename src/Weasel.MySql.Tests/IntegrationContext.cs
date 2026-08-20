@@ -26,17 +26,14 @@ public abstract class IntegrationContext: IAsyncLifetime
         await CreateSchemaAsync(schemaName);
     }
 
-    protected async Task CreateSchemaAsync(string schemaName)
-    {
-        await using var cmd = theConnection.CreateCommand($"CREATE DATABASE IF NOT EXISTS `{schemaName}`");
-        await cmd.ExecuteNonQueryAsync();
-    }
+    // These were hand-rolled here because Weasel.MySql had no schema extensions at all -- the one
+    // provider of five without them. It does now (weasel#465), so the fixture uses the shipped
+    // API and the tests exercise it on every run.
+    protected Task CreateSchemaAsync(string schemaName)
+        => theConnection.CreateSchemaAsync(schemaName);
 
-    protected async Task DropSchemaAsync(string schemaName)
-    {
-        await using var cmd = theConnection.CreateCommand($"DROP DATABASE IF EXISTS `{schemaName}`");
-        await cmd.ExecuteNonQueryAsync();
-    }
+    protected Task DropSchemaAsync(string schemaName)
+        => theConnection.DropSchemaAsync(schemaName);
 
     protected async Task CreateTableAsync(string sql)
     {

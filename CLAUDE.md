@@ -110,6 +110,30 @@ Each database has:
 ### SchemaMigration
 Aggregates deltas across objects, determines action needed: `None`, `Update`, `Create`, `Delete`, `Recreate`
 
+### Adding a new schema object type
+
+Schema teardown splits two ways, and only one of them is safe against additions:
+
+| Provider | `DropSchemaAsync` strategy |
+|---|---|
+| PostgreSQL | `DROP SCHEMA … CASCADE` — the server cascades |
+| MySQL | `DROP DATABASE IF EXISTS` — the server cascades |
+| SQLite | enumerates `sqlite_master` |
+| SQL Server | enumerates `information_schema` / `sys` |
+| Oracle | enumerates `all_*` |
+
+**Whenever a new object type becomes creatable, the three enumerating teardowns have to learn
+about it too.** They will not fail loudly — the object simply survives, and the next thing that
+depends on an empty schema breaks instead. SQL Server's teardown was silently broken for views for
+as long as nothing could create one (weasel#464); Oracle's was the same trap, found before it was
+armed (weasel#465).
+
+So: adding an `ISchemaObject` is not done until `DropSchemaAsync` on SQLite, SQL Server and Oracle
+drops it, with a test that creates one and asserts the schema is empty afterwards. Note also that
+Oracle's `DropSchemaAsync` empties the schema rather than dropping it — a session cannot drop its
+own user — and that a materialized view's container table appears in `all_tables` under the same
+name.
+
 ### CreationStyle Enum
 - `CreateIfNotExists` - Safe creation (default)
 - `DropThenCreate` - Drop existing first
