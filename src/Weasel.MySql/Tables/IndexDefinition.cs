@@ -11,7 +11,7 @@ public class IndexDefinition: ITableIndex
 
     public IndexDefinition(string indexName)
     {
-        _indexName = indexName;
+        _indexName = SchemaUtils.Unquote(indexName);
     }
 
     protected IndexDefinition()
@@ -28,7 +28,7 @@ public class IndexDefinition: ITableIndex
         set
         {
             _columns.Clear();
-            _columns.AddRange(value);
+            _columns.AddRange(value.Select(SchemaUtils.Unquote));
         }
     }
 
@@ -85,7 +85,7 @@ public class IndexDefinition: ITableIndex
 
             return deriveIndexName();
         }
-        set => _indexName = value;
+        set => _indexName = SchemaUtils.Unquote(value);
     }
 
     protected virtual string deriveIndexName()
@@ -99,7 +99,7 @@ public class IndexDefinition: ITableIndex
     public IndexDefinition AgainstColumns(params string[] columns)
     {
         _columns.Clear();
-        _columns.AddRange(columns);
+        _columns.AddRange(columns.Select(SchemaUtils.Unquote));
         return this;
     }
 
@@ -126,7 +126,7 @@ public class IndexDefinition: ITableIndex
         }
 
         builder.Append("INDEX ");
-        builder.Append($"`{Name}`");
+        builder.Append($"{SchemaUtils.QuoteName(Name)}");
         builder.Append(" ON ");
         builder.Append(parent.Identifier.QualifiedName);
         builder.Append(" ");
@@ -161,7 +161,7 @@ public class IndexDefinition: ITableIndex
 
         var columns = Columns.Select(c =>
         {
-            var col = $"`{c}`";
+            var col = $"{SchemaUtils.QuoteName(c)}";
             if (PrefixLength.HasValue)
             {
                 col += $"({PrefixLength.Value})";
@@ -213,6 +213,6 @@ public class IndexDefinition: ITableIndex
 
     public void AddColumn(string columnName)
     {
-        _columns.Add(columnName);
+        _columns.Add(SchemaUtils.Unquote(columnName));
     }
 }

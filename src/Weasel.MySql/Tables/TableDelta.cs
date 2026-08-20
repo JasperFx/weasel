@@ -252,7 +252,7 @@ public class TableDelta: SchemaObjectDelta<Table>
 
             foreach (var column in Columns.Extras)
             {
-                writer.WriteLine($"ALTER TABLE {Expected.Identifier.QualifiedName} DROP COLUMN `{column.Name}`;");
+                writer.WriteLine($"ALTER TABLE {Expected.Identifier.QualifiedName} DROP COLUMN {SchemaUtils.QuoteName(column.Name)};");
             }
 
             foreach (var change in Columns.Different)
@@ -271,13 +271,13 @@ public class TableDelta: SchemaObjectDelta<Table>
             foreach (var fk in ForeignKeys.Extras)
             {
                 writer.WriteLine(
-                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY `{fk.Name}`;");
+                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY {SchemaUtils.QuoteName(fk.Name)};");
             }
 
             foreach (var change in ForeignKeys.Different)
             {
                 writer.WriteLine(
-                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY `{change.Actual.Name}`;");
+                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY {SchemaUtils.QuoteName(change.Actual.Name)};");
             }
         }
 
@@ -285,12 +285,12 @@ public class TableDelta: SchemaObjectDelta<Table>
         {
             foreach (var index in Indexes.Extras)
             {
-                writer.WriteLine($"DROP INDEX `{index.Name}` ON {Expected.Identifier.QualifiedName};");
+                writer.WriteLine($"DROP INDEX {SchemaUtils.QuoteName(index.Name)} ON {Expected.Identifier.QualifiedName};");
             }
 
             foreach (var change in Indexes.Different)
             {
-                writer.WriteLine($"DROP INDEX `{change.Actual.Name}` ON {Expected.Identifier.QualifiedName};");
+                writer.WriteLine($"DROP INDEX {SchemaUtils.QuoteName(change.Actual.Name)} ON {Expected.Identifier.QualifiedName};");
                 writer.WriteLine(change.Expected.ToDDL(Expected));
             }
 
@@ -323,7 +323,7 @@ public class TableDelta: SchemaObjectDelta<Table>
 
             if (Expected.PrimaryKeyColumns.Any())
             {
-                var pkColumns = Expected.PrimaryKeyColumns.Select(c => $"`{c}`").Join(", ");
+                var pkColumns = Expected.PrimaryKeyColumns.Select(c => $"{SchemaUtils.QuoteName(c)}").Join(", ");
                 writer.WriteLine($"ALTER TABLE {Expected.Identifier.QualifiedName} ADD PRIMARY KEY ({pkColumns});");
             }
         }
@@ -342,7 +342,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         {
             foreach (var column in Columns.Missing)
             {
-                writer.WriteLine($"ALTER TABLE {Expected.Identifier.QualifiedName} DROP COLUMN `{column.Name}`;");
+                writer.WriteLine($"ALTER TABLE {Expected.Identifier.QualifiedName} DROP COLUMN {SchemaUtils.QuoteName(column.Name)};");
             }
 
             foreach (var column in Columns.Extras)
@@ -363,7 +363,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         {
             foreach (var index in Indexes.Missing)
             {
-                writer.WriteLine($"DROP INDEX `{index.Name}` ON {Expected.Identifier.QualifiedName};");
+                writer.WriteLine($"DROP INDEX {SchemaUtils.QuoteName(index.Name)} ON {Expected.Identifier.QualifiedName};");
             }
 
             foreach (var index in Indexes.Extras)
@@ -378,7 +378,7 @@ public class TableDelta: SchemaObjectDelta<Table>
             foreach (var fk in ForeignKeys.Missing)
             {
                 writer.WriteLine(
-                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY `{fk.Name}`;");
+                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY {SchemaUtils.QuoteName(fk.Name)};");
             }
 
             foreach (var fk in ForeignKeys.Extras)

@@ -7,8 +7,8 @@ namespace Weasel.MySql;
 public class MySqlObjectName: DbObjectName
 {
     protected override string QuotedQualifiedName => Schema.IsEmpty()
-        ? $"`{Name}`"
-        : $"`{Schema}`.`{Name}`";
+        ? SchemaUtils.QuoteName(Name)
+        : $"{SchemaUtils.QuoteName(Schema)}.{SchemaUtils.QuoteName(Name)}";
 
     public MySqlObjectName(string schema, string name)
         : base(schema, name, ComputeQualifiedName(schema, name))
@@ -18,8 +18,8 @@ public class MySqlObjectName: DbObjectName
     private static string ComputeQualifiedName(string schema, string name)
     {
         return schema.IsEmpty()
-            ? $"`{name}`"
-            : $"`{schema}`.`{name}`";
+            ? SchemaUtils.QuoteName(name)
+            : $"{SchemaUtils.QuoteName(schema)}.{SchemaUtils.QuoteName(name)}";
     }
 
     private MySqlObjectName(DbObjectName dbObjectName): this(dbObjectName.Schema, dbObjectName.Name)

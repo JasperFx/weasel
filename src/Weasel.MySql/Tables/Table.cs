@@ -37,6 +37,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         name as MySqlObjectName ?? MySqlObjectName.From(name);
 
     /// <inheritdoc />
+    protected override string NormalizeIdentifier(string name) => SchemaUtils.Unquote(name);
+
+    /// <inheritdoc />
     public override IReadOnlyList<string> PrimaryKeyColumns =>
         _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
 
@@ -135,7 +138,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             // Add inline UNIQUE KEY declarations for AUTO_INCREMENT columns
             foreach (var index in autoIncrementUniqueIndexes)
             {
-                lines.Add($"    UNIQUE KEY `{index.Name}` (`{index.Columns[0]}`)");
+                lines.Add($"    UNIQUE KEY {SchemaUtils.QuoteName(index.Name)} ({SchemaUtils.QuoteName(index.Columns[0])})");
             }
 
             for (var i = 0; i < lines.Count - 1; i++)
@@ -159,7 +162,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             // Add inline UNIQUE KEY declarations for AUTO_INCREMENT columns
             foreach (var index in autoIncrementUniqueIndexes)
             {
-                lines.Add($"UNIQUE KEY `{index.Name}` (`{index.Columns[0]}`)");
+                lines.Add($"UNIQUE KEY {SchemaUtils.QuoteName(index.Name)} ({SchemaUtils.QuoteName(index.Columns[0])})");
             }
 
             for (var i = 0; i < lines.Count - 1; i++)
@@ -269,7 +272,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
     internal string PrimaryKeyDeclaration()
     {
-        var columns = PrimaryKeyColumns.Select(c => $"`{c}`").Join(", ");
+        var columns = PrimaryKeyColumns.Select(c => $"{SchemaUtils.QuoteName(c)}").Join(", ");
         return $"    PRIMARY KEY ({columns})";
     }
 

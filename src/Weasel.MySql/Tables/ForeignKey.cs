@@ -9,7 +9,7 @@ public class ForeignKey: ForeignKeyBase
     private readonly List<string> _columnNames = new();
     private readonly List<string> _linkedNames = new();
 
-    public ForeignKey(string name) : base(name)
+    public ForeignKey(string name) : base(SchemaUtils.Unquote(name))
     {
     }
 
@@ -102,9 +102,9 @@ public class ForeignKey: ForeignKeyBase
         }
 
         var builder = new StringBuilder();
-        builder.Append($"ALTER TABLE {parent.Identifier.QualifiedName} ADD CONSTRAINT `{Name}` ");
-        builder.Append($"FOREIGN KEY ({_columnNames.Select(c => $"`{c}`").Join(", ")}) ");
-        builder.Append($"REFERENCES {LinkedTable.QualifiedName} ({_linkedNames.Select(c => $"`{c}`").Join(", ")})");
+        builder.Append($"ALTER TABLE {parent.Identifier.QualifiedName} ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} ");
+        builder.Append($"FOREIGN KEY ({_columnNames.Select(c => $"{SchemaUtils.QuoteName(c)}").Join(", ")}) ");
+        builder.Append($"REFERENCES {LinkedTable.QualifiedName} ({_linkedNames.Select(c => $"{SchemaUtils.QuoteName(c)}").Join(", ")})");
 
         if (OnDelete != CascadeAction.NoAction)
         {
