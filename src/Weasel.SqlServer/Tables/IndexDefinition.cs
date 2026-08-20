@@ -13,7 +13,7 @@ public class IndexDefinition: ITableIndex
 
     public IndexDefinition(string indexName)
     {
-        _indexName = indexName;
+        _indexName = SchemaUtils.Unbracket(indexName);
     }
 
     protected IndexDefinition()
@@ -30,7 +30,7 @@ public class IndexDefinition: ITableIndex
         set
         {
             _columns.Clear();
-            _columns.AddRange(value);
+            _columns.AddRange(value.Select(SchemaUtils.Unbracket));
         }
     }
 
@@ -40,7 +40,7 @@ public class IndexDefinition: ITableIndex
         set
         {
             _includedColumns.Clear();
-            _includedColumns.AddRange(value);
+            _includedColumns.AddRange(value.Select(SchemaUtils.Unbracket));
         }
     }
 
@@ -86,7 +86,7 @@ public class IndexDefinition: ITableIndex
 
             return deriveIndexName();
         }
-        set => _indexName = value;
+        set => _indexName = SchemaUtils.Unbracket(value);
     }
 
     protected virtual string deriveIndexName()
@@ -102,7 +102,7 @@ public class IndexDefinition: ITableIndex
     public IndexDefinition AgainstColumns(params string[] columns)
     {
         _columns.Clear();
-        _columns.AddRange(columns);
+        _columns.AddRange(columns.Select(SchemaUtils.Unbracket));
         return this;
     }
 
@@ -142,7 +142,7 @@ public class IndexDefinition: ITableIndex
         if (_includedColumns.Any())
         {
             builder.Append(" INCLUDE (");
-            builder.Append(_includedColumns.Select(SchemaUtils.QuoteColumnEntry).Join(", "));
+            builder.Append(_includedColumns.Select(SchemaUtils.QuoteName).Join(", "));
             builder.Append(')');
         }
 
@@ -172,7 +172,7 @@ public class IndexDefinition: ITableIndex
 
         // Quoted: a column named "Table" (or any other reserved word) is legal in SQL Server and
         // turns up in real schemas. QuoteName leaves ordinary identifiers untouched.
-        var expression = Columns.Select(SchemaUtils.QuoteColumnEntry).Join(", ");
+        var expression = Columns.Select(SchemaUtils.QuoteName).Join(", ");
 
         if (SortOrder != SortOrder.Asc)
         {
@@ -224,11 +224,11 @@ public class IndexDefinition: ITableIndex
 
     public void AddColumn(string columnName)
     {
-        _columns.Add(columnName);
+        _columns.Add(SchemaUtils.Unbracket(columnName));
     }
 
     public void AddIncludedColumn(string columnName)
     {
-        _includedColumns.Add(columnName);
+        _includedColumns.Add(SchemaUtils.Unbracket(columnName));
     }
 }

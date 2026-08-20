@@ -116,8 +116,17 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     public string PrimaryKeyName
     {
         get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : DefaultPrimaryKeyName();
-        set => _primaryKeyName = value;
+        set => _primaryKeyName = NormalizeIdentifier(value);
     }
+
+    /// <summary>
+    ///     Hook for a provider that accepts identifiers the caller has already delimited.
+    ///     The model has to hold the name the database will report back, or the two never
+    ///     compare equal and the table reports drift on every check. Default is a no-op;
+    ///     only SQL Server overrides it today, because only its callers had to bracket
+    ///     names themselves to get valid DDL.
+    /// </summary>
+    protected virtual string NormalizeIdentifier(string name) => name;
 
     /// <inheritdoc cref="ITable.PreserveIdentifierCase" />
     public bool PreserveIdentifierCase { get; set; }

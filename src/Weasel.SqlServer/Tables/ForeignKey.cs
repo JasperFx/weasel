@@ -8,20 +8,20 @@ public class ForeignKey: ForeignKeyBase
     private string[] _columnNames = null!;
     private string[] _linkedNames = null!;
 
-    public ForeignKey(string name) : base(name)
+    public ForeignKey(string name) : base(SchemaUtils.Unbracket(name))
     {
     }
 
     public override string[] ColumnNames
     {
         get => _columnNames;
-        set => _columnNames = value.OrderBy(x => x).ToArray();
+        set => _columnNames = value.Select(SchemaUtils.Unbracket).OrderBy(x => x).ToArray();
     }
 
     public override string[] LinkedNames
     {
         get => _linkedNames;
-        set => _linkedNames = value.OrderBy(x => x).ToArray();
+        set => _linkedNames = value.Select(SchemaUtils.Unbracket).OrderBy(x => x).ToArray();
     }
 
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -92,8 +92,8 @@ public class ForeignKey: ForeignKeyBase
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier}");
         writer.WriteLine(
-            $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})");
-        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})");
+            $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteName).Join(", ")})");
+        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
         writer.WriteCascadeAction("ON UPDATE", OnUpdate);
         writer.Write(";");

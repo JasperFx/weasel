@@ -22,7 +22,9 @@ public class TableColumn: ITableColumn
         // by default but legacy schemas often use PascalCase. Lowercasing here
         // produced duplicate-column DDL when callers added the same logical column
         // with different casings (issue: JasperFx/polecat#45).
-        Name = name.Trim().Replace(' ', '_');
+        // Unbracketed first: a caller who wrote "[Order Date]" means the column Order Date,
+        // and the database will report it back that way.
+        Name = SchemaUtils.Unbracket(name.Trim()).Replace(' ', '_');
         Type = type.ToLowerInvariant();
     }
 
