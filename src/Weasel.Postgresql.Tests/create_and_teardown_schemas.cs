@@ -6,7 +6,11 @@ using Xunit;
 
 namespace Weasel.Postgresql.Tests;
 
-[Collection("schemas")]
+// Shares a collection with the schema fingerprint fixtures. The [InlineData("public")] case below
+// calls ResetSchemaAsync("public"), which is a DROP SCHEMA ... CASCADE followed by a CREATE -- it
+// takes public.weasel_schema_fingerprints with it. Run in parallel with a fingerprint test, that
+// surfaces over there as "relation public.weasel_schema_fingerprints does not exist" (weasel#440).
+[Collection("public schema")]
 public class create_and_teardown_schemas: IntegrationContext
 {
     public create_and_teardown_schemas(): base("schemas")
