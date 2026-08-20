@@ -155,7 +155,10 @@ public class IndexDefinition: ITableIndex
             throw new InvalidOperationException("IndexDefinition requires at least one field");
         }
 
-        var expression = Columns.Join(", ");
+        // Quoted: a column named "Order Date" or a reserved word is legal and now reaches here
+        // unrewritten (weasel#458). QuoteName leaves a conventional Oracle identifier bare, so
+        // the folded path is unchanged.
+        var expression = Columns.Select(SchemaUtils.QuoteName).Join(", ");
 
         if (SortOrder != SortOrder.Asc)
         {

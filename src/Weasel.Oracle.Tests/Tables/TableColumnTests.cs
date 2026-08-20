@@ -20,11 +20,22 @@ public class TableColumnTests
         column.Type.ShouldBe("VARCHAR2(100)");
     }
 
+    /// <summary>
+    ///     This asserted <c>first name</c> becoming <c>first_name</c> until weasel#458. The
+    ///     expectation changed rather than the test being deleted, because the rewrite was real
+    ///     and long-standing — it just was not anybody's decision. Only <c>TableColumn</c> did it,
+    ///     so an index or foreign key over the same name still said <c>first name</c> and
+    ///     referenced a column that did not exist.
+    /// </summary>
+    /// <remarks>
+    ///     A space is a legal identifier character (weasel#448) and every provider quotes for shape
+    ///     (weasel#447), so the caller's name is now the column's name.
+    /// </remarks>
     [Fact]
-    public void spaces_in_name_are_replaced_with_underscores()
+    public void a_space_in_a_name_is_kept_rather_than_rewritten()
     {
         var column = new TableColumn("first name", "VARCHAR2(100)");
-        column.Name.ShouldBe("first_name");
+        column.Name.ShouldBe("first name");
     }
 
     [Fact]

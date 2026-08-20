@@ -333,6 +333,16 @@ public class IndexDefinition: ITableIndex
 
         var expression = Columns.Select(x =>
         {
+            // A name the parent actually declares as a column is a column, whatever it looks
+            // like. Without this check the heuristic below reads "Order Date" as an expression
+            // and emits it bare, producing an index over a column that does not exist -- the
+            // bug weasel#458 was opened for. Columns may legally carry spaces now that nothing
+            // rewrites them into underscores.
+            if (parent?.HasColumn(x) == true)
+            {
+                return SchemaUtils.QuoteName(x);
+            }
+
             if (x.StartsWith('(') || x.Contains(' ') || x.Contains('-') || x.Contains('\''))
                 return x;
 

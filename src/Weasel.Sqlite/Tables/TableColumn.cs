@@ -6,7 +6,13 @@ namespace Weasel.Sqlite.Tables;
 
 public class TableColumn: ITableColumn
 {
-    public TableColumn(string name, string type)
+    /// <param name="preserveCase">
+    ///     Keep the caller's casing instead of folding to lowercase. SQLite identifiers are
+    ///     case-insensitive so the folding is only cosmetic, but it was the one provider with no
+    ///     way to turn it off, which meant a table reproducing a schema another tool created came
+    ///     back reporting the wrong casing (weasel#458).
+    /// </param>
+    public TableColumn(string name, string type, bool preserveCase = false)
     {
         if (string.IsNullOrEmpty(name))
         {
@@ -18,11 +24,12 @@ public class TableColumn: ITableColumn
             throw new ArgumentOutOfRangeException(nameof(type));
         }
 
-        // SQLite is case-insensitive, normalize names to lowercase
-        // Undelimited first: a caller who wrote "order date" means that column, and the
-        // catalog reports it back bare. The lowercasing and space handling that follow are
-        // long-standing SQLite behaviour, untouched here (see weasel#458).
-        Name = SchemaUtils.Unquote(name.Trim()).ToLowerInvariant().Trim().Replace(' ', '_');
+        // Undelimited first: a caller who wrote "order date" means that column, and the catalog
+        // reports it back bare -- so that is the column that gets created, rather than order_date
+        // (weasel#458).
+        var unquoted = SchemaUtils.Unquote(name.Trim());
+
+        Name = preserveCase ? unquoted : unquoted.ToLowerInvariant();
         // Normalize type using provider
         Type = SqliteProvider.Instance.ConvertSynonyms(type);
     }
