@@ -212,6 +212,15 @@ END;
     /// <inheritdoc />
     protected override string NormalizeIdentifier(string name) => SchemaUtils.Unquote(name);
 
+    /// <summary>
+    ///     Oracle has check constraints; Weasel does not emit them here yet (weasel#488). False so
+    ///     that asking for one throws rather than being accepted and silently dropped.
+    /// </summary>
+    protected override bool SupportsCheckConstraints => false;
+
+    /// <inheritdoc />
+    protected override string ProviderName => "Oracle";
+
     public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;

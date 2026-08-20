@@ -10,6 +10,7 @@ Three symbols, and the distinction between the last two matters:
 | --- | --- |
 | ✓ | Weasel models it: `WriteCreateStatement`, delta detection, and teardown |
 | ✗ | The engine has it, Weasel does not model it yet — an open issue, not a decision |
+| refused | The engine has it, Weasel does not model it yet, and says so by throwing rather than accepting it silently |
 | — | Not a concept in this engine, so there is nothing to model |
 
 ## The matrix
@@ -19,7 +20,7 @@ Three symbols, and the distinction between the last two matters:
 | Table | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Index | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Foreign key | ✓ | ✓ | ✓ | ✓ | ✓ (inline only) |
-| Check constraint | ✓ | ✓ | ✗ | ✗ | ✗ |
+| Check constraint | ✓ | ✓ | refused | refused | refused |
 | Primary key | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Sequence | ✓ | ✓ | ✓ | — (obsolete emulation) | — |
 | View | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -37,7 +38,7 @@ Three symbols, and the distinction between the last two matters:
 
 - **Triggers** are modelled as independent schema objects that declare a target rather than as something a table owns, which is why they are a row here and not part of the table row. A trigger does not always have a table — SQL Server's `INSTEAD OF` triggers attach to views — and PostgreSQL's call a function, so they compose with `Function` rather than carrying their own body. See [Triggers](/core/triggers).
 - **Functions and stored procedures** are on all four engines that have them. SQLite has neither as a schema object — its functions are registered per connection.
-- **Check constraints are the one remaining gap** — [#488](https://github.com/JasperFx/weasel/issues/488). `TableBase.CheckConstraints` accepts them on all five providers, but only PostgreSQL and SQL Server emit them; on Oracle, MySQL and SQLite the constraint is held in the model and silently left out of the DDL.
+- **Check constraints are refused on Oracle, MySQL and SQLite** — [#488](https://github.com/JasperFx/weasel/issues/488). All three engines have them; Weasel does not emit them there yet. Until it does, `AddCheckConstraint` and the `CheckConstraints` collection both throw, rather than accepting a constraint that would be silently left out of the DDL. That is the rule from [#449](https://github.com/JasperFx/weasel/issues/449): a caller gets what they set, or an exception, never a quietly narrower object.
 - **Oracle packages** model the specification and the body as one object with two parts, because that is what they are: `all_source` lists them separately, they compile separately, and a body can be invalid while its spec is fine. A spec-only package — shared constants and types — is legal and supported.
 - **PostgreSQL user-defined types** cover enums, domains and composites through one class, because the catalog makes no distinction between them and neither does anything Weasel does with them.
 - **PostgreSQL materialized views already work**, through `Weasel.Postgresql.Views.MaterializedView`, which is `View` with a different `ViewType` and an optional access method. That row was ✗ in the first draft of this page and the check below caught it on its first run, which is the argument for the check.
