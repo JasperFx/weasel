@@ -59,7 +59,8 @@ namespace Weasel.Core;
 ///     <see cref="ForeignKeyBase" /> so the <see cref="ITable.ForeignKeys" />
 ///     contravariance works.
 /// </typeparam>
-public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase, ITable
+public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase, ITable,
+    ISchemaObjectWithLocalIdentifiers
     where TColumn : ITableColumn
     where TIndex : ITableIndex
     where TForeignKey : ForeignKeyBase
@@ -117,6 +118,34 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     {
         get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : DefaultPrimaryKeyName();
         set => _primaryKeyName = NormalizeIdentifier(value);
+    }
+
+    /// <summary>
+    ///     The names this table writes into its DDL that are not database objects in their own
+    ///     right, and so cannot travel through <see cref="SchemaObjectBase.AllNames" />: every
+    ///     column, the primary key constraint name, and every check constraint name.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The primary key name only appears when the table actually declares a primary key.
+    ///         <see cref="PrimaryKeyName" /> falls back to <see cref="DefaultPrimaryKeyName" />
+    ///         whenever it has not been set, so reading it unconditionally would validate a name
+    ///         that is never emitted — and every provider derives that default from the table name,
+    ///         which has already been checked.
+    ///     </para>
+    ///     <para>
+    ///         Index and foreign key names are deliberately absent: they are real named objects and
+    ///         belong in <see cref="SchemaObjectBase.AllNames" />, where every provider already
+    ///         yields them.
+    ///     </para>
+    /// </remarks>
+    public virtual IEnumerable<string> LocalIdentifiers()
+    {
+        foreach (var column in Columns) yield return column.Name;
+
+        if (PrimaryKeyColumns.Any()) yield return PrimaryKeyName;
+
+        foreach (var constraint in CheckConstraints) yield return constraint.Name;
     }
 
     /// <summary>

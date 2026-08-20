@@ -336,10 +336,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
 
         var objects = AllObjects().ToArray();
 
-        foreach (var objectName in objects.SelectMany(x => x.AllNames()))
-        {
-            Migrator.AssertValidIdentifier(objectName.Name);
-        }
+        assertValidIdentifiers(objects);
 
         foreach (var postProcessing in objects.OfType<ISchemaObjectWithPostProcessing>().ToArray())
         {
@@ -539,6 +536,39 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
         await generateOrUpdateFeature(featureType, feature, token, false).ConfigureAwait(false);
     }
 
+    /// <summary>
+    ///     Run every identifier these objects will write into DDL through the provider's
+    ///     <see cref="Migrator.AssertValidIdentifier" />: the named objects they create
+    ///     (<see cref="ISchemaObject.AllNames" />) and, for those that declare them, the names
+    ///     that are not objects of their own — columns, primary key, check constraints
+    ///     (<see cref="ISchemaObjectWithLocalIdentifiers" />, weasel#448).
+    /// </summary>
+    /// <remarks>
+    ///     This is the migration path only, and deliberately so. Calling a schema object's
+    ///     <c>WriteCreateStatement</c> or <c>ApplyChangesAsync</c> directly bypasses it — those
+    ///     callers get correct quoting rather than a rejection, which is what makes a legacy name
+    ///     like <c>unit price</c> usable through the direct API while the migration path stays
+    ///     strict about what it will create.
+    /// </remarks>
+    private void assertValidIdentifiers(IEnumerable<ISchemaObject> objects)
+    {
+        foreach (var schemaObject in objects)
+        {
+            foreach (var objectName in schemaObject.AllNames())
+            {
+                Migrator.AssertValidIdentifier(objectName.Name);
+            }
+
+            if (schemaObject is ISchemaObjectWithLocalIdentifiers withLocals)
+            {
+                foreach (var name in withLocals.LocalIdentifiers())
+                {
+                    Migrator.AssertValidIdentifier(name);
+                }
+            }
+        }
+    }
+
     protected async ValueTask generateOrUpdateFeature(Type featureType, IFeatureSchema feature, CancellationToken token,
         bool skipPostProcessing)
     {
@@ -550,10 +580,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
 
         var schemaObjects = feature.Objects;
 
-        foreach (var objectName in schemaObjects.SelectMany(x => x.AllNames()))
-        {
-            Migrator.AssertValidIdentifier(objectName.Name);
-        }
+        assertValidIdentifiers(schemaObjects);
 
         if (!skipPostProcessing)
         {
