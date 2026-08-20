@@ -16,14 +16,25 @@ public enum PartitionStrategy
 
 public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 {
+    /// <summary>
+    ///     The identifier is always normalized to a <see cref="MySqlObjectName" />. A plain
+    ///     <see cref="DbObjectName" /> renders its qualified name unquoted, which both breaks
+    ///     DDL for any identifier that needs escaping and — because DbObjectName equality is
+    ///     a comparison of those qualified names — makes a hand-built identifier compare
+    ///     unequal to the same table read back out of the catalog. That mismatch showed up as
+    ///     a foreign key that reported drift on every single schema check (wolverine#3983).
+    /// </summary>
     public Table(DbObjectName name)
-        : base(name ?? throw new ArgumentNullException(nameof(name)))
+        : base(Normalize(name ?? throw new ArgumentNullException(nameof(name))))
     {
     }
 
     public Table(string tableName): this(DbObjectName.Parse(MySqlProvider.Instance, tableName))
     {
     }
+
+    internal static MySqlObjectName Normalize(DbObjectName name) =>
+        name as MySqlObjectName ?? MySqlObjectName.From(name);
 
     /// <inheritdoc />
     public override IReadOnlyList<string> PrimaryKeyColumns =>
@@ -391,10 +402,12 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             string? fkName = null, CascadeAction onDelete = CascadeAction.NoAction,
             CascadeAction onUpdate = CascadeAction.NoAction)
         {
-            var identifier = _parent.Identifier as MySqlObjectName ?? MySqlObjectName.From(_parent.Identifier);
+            var identifier = Normalize(_parent.Identifier);
             var fk = new ForeignKey(fkName ?? identifier.ToIndexName("fk", Column.Name))
             {
-                LinkedTable = referencedIdentifier,
+                // Normalized for the same reason the table's own identifier is: the catalog
+                // hands back a MySqlObjectName, and an unquoted one never compares equal to it.
+                LinkedTable = Normalize(referencedIdentifier),
                 ColumnNames = new[] { Column.Name },
                 LinkedNames = new[] { referencedColumnName },
                 OnDelete = onDelete,
