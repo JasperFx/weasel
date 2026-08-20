@@ -42,6 +42,40 @@ public interface ISchemaObjectWithPostProcessing : ISchemaObject
 ///     (weasel#448). Before that, a table's identifier, index names and foreign key names were
 ///     checked and everything else went straight into the DDL unexamined.
 /// </remarks>
+/// <summary>
+///     A delta that reports <see cref="SchemaPatchDifference.Invalid" /> because the change cannot
+///     be made in place, but which knows how to make it anyway without losing the data.
+/// </summary>
+/// <remarks>
+///     <para>
+///         <c>Invalid</c> means "I cannot express this as an ALTER", and the default answer to it
+///         is to drop the object and create it again. For a table that answer throws away every row
+///         — which is right when there is no alternative, and catastrophic when there is.
+///     </para>
+///     <para>
+///         SQLite is where there is one. It cannot change a column's type, add a foreign key or
+///         change a primary key with <c>ALTER TABLE</c>, so every such change is <c>Invalid</c> —
+///         and its <c>TableDelta</c> has always known how to do it properly: create a new table,
+///         copy the surviving columns across, drop the old one, rename, and put the indexes and
+///         triggers back. Nothing called it, so a column type change silently emptied the table
+///         (weasel#477).
+///     </para>
+///     <para>
+///         Implementing this does not make the change safe enough to apply under
+///         <c>AutoCreate.CreateOrUpdate</c>. It is still destructive in the sense that matters for
+///         permission — a column being removed takes its data with it — so it still requires
+///         <c>AutoCreate.All</c>. What changes is only what <c>All</c> then does.
+///     </para>
+/// </remarks>
+public interface ISchemaObjectDeltaWithRebuild : ISchemaObjectDelta
+{
+    /// <summary>
+    ///     Whether <see cref="ISchemaObjectDelta.WriteUpdate" /> can carry out this change without
+    ///     discarding the object's data. When false the caller falls back to drop-and-create.
+    /// </summary>
+    bool CanRebuildInPlace { get; }
+}
+
 public interface ISchemaObjectWithLocalIdentifiers : ISchemaObject
 {
     /// <summary>

@@ -219,6 +219,15 @@ public abstract class
                 return true;
 
             case SchemaPatchDifference.Invalid:
+                if (delta is ISchemaObjectDeltaWithRebuild { CanRebuildInPlace: true })
+                {
+                    // The delta cannot express the change as an ALTER, but it can make it without
+                    // discarding the data. Dropping and recreating would be a silent data loss
+                    // (weasel#477).
+                    delta.WriteUpdate(this, writer);
+                    return true;
+                }
+
                 delta.SchemaObject.WriteDropStatement(this, writer);
                 delta.SchemaObject.WriteCreateStatement(this, writer);
                 return true;

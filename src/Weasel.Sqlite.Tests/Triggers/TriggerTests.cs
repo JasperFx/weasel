@@ -35,25 +35,20 @@ public class TriggerTests
     }
 
     /// <summary>
-    ///     Run SQLite's table rebuild: create a new table, copy the surviving columns, drop the old
-    ///     one, rename, and put the indexes and triggers back.
+    ///     Run SQLite's table rebuild through the migrator: create a new table, copy the surviving
+    ///     columns, drop the old one, rename, and put the indexes and triggers back.
     /// </summary>
     /// <remarks>
-    ///     Driven through <c>TableDelta.WriteUpdate</c> rather than through the migrator on purpose.
-    ///     A rebuild reports <see cref="SchemaPatchDifference.Invalid" />, and <c>Migrator</c>
-    ///     answers <c>Invalid</c> by dropping and recreating the table — so the migrator never
-    ///     reaches this path at all, and takes the table's rows with it when it goes. That is
-    ///     weasel#477, a separate bug; the trigger restoration is emitted here and is correct
-    ///     wherever the rebuild runs.
+    ///     A rebuild reports <see cref="SchemaPatchDifference.Invalid" /> and so needs
+    ///     <see cref="AutoCreate.All" />. It used to need more than that: the migrator answered
+    ///     <c>Invalid</c> by dropping and recreating the table, so the rebuild — and this trigger
+    ///     restoration with it — never ran at all. weasel#477 fixed that, and these now exercise the
+    ///     path a caller actually takes.
     /// </remarks>
     private static async Task rebuildAsync(SqliteConnection conn, Table table)
     {
-        var delta = await table.FindDeltaAsync(conn);
-
-        var writer = new StringWriter();
-        delta.WriteUpdate(new SqliteMigrator(), writer);
-
-        await conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
+        var migration = await SchemaMigration.DetermineAsync(conn, CancellationToken.None, table);
+        await new SqliteMigrator().ApplyAllAsync(conn, migration, AutoCreate.All);
     }
 
     private static Trigger NewTrigger(string body = "UPDATE trg_orders SET note = 'touched' WHERE id = NEW.id")
