@@ -1,5 +1,6 @@
 using Shouldly;
 using Weasel.Core;
+using Weasel.MySql;
 using Weasel.SqlServer;
 using Xunit;
 
@@ -16,9 +17,9 @@ namespace Weasel.Core.Tests;
 /// <remarks>
 ///     <para>
 ///         Providers join the suite as their fixes land (weasel#447). SQL Server is here because
-///         it is the reference implementation the contract was lifted from. MySQL, SQLite,
-///         PostgreSQL and Oracle each join in the PR that fixes them — adding a provider is one
-///         entry in <see cref="Providers" />.
+///         it is the reference implementation the contract was lifted from, and MySQL joined with
+///         its own fix. SQLite, PostgreSQL and Oracle each join in the PR that fixes them — adding
+///         a provider is one entry in <see cref="Providers" />.
 ///     </para>
 ///     <para>
 ///         Deliberately pure string logic: no connection, no container, so it runs everywhere and
@@ -28,7 +29,11 @@ namespace Weasel.Core.Tests;
 public class identifier_rules_conformance
 {
     public static TheoryData<string, IdentifierRules> Providers =>
-        new() { { "SqlServer", SqlServerIdentifierRules.Instance } };
+        new()
+        {
+            { "SqlServer", SqlServerIdentifierRules.Instance },
+            { "MySql", MySqlIdentifierRules.Instance }
+        };
 
     /// <summary>
     ///     Names that have to survive a round trip through the dialect. Each one either broke a
@@ -155,13 +160,24 @@ public class identifier_rules_conformance
         rules.IsDelimited("").ShouldBeFalse($"{provider} called an empty name delimited");
     }
 
+    /// <summary>
+    ///     Not every dialect quotes conditionally — MySQL delimits every identifier, which is what
+    ///     keeps its generated DDL byte-identical to what it emitted before it could escape its own
+    ///     delimiter. So the invariant is keyed off the provider's own answer: whatever it says does
+    ///     not need delimiting, it has to leave alone.
+    /// </summary>
     [Theory]
     [MemberData(nameof(Providers))]
-    public void an_ordinary_name_is_left_bare(string provider, IdentifierRules rules)
+    public void a_name_that_needs_no_delimiting_is_left_bare(string provider, IdentifierRules rules)
     {
         foreach (var name in new[] { "orders", "_internal", "price$" })
         {
-            rules.Quote(name).ShouldBe(name, $"{provider} needlessly delimited '{name}'");
+            if (rules.RequiresDelimiting(name))
+            {
+                continue;
+            }
+
+            rules.Quote(name).ShouldBe(name, $"{provider} delimited '{name}' after saying it need not be");
         }
     }
 

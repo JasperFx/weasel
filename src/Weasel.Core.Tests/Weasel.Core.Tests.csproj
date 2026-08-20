@@ -14,6 +14,7 @@
       <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
       <!-- Referenced for the cross-provider identifier conformance suite. Pure string logic;
            no database, no containers. -->
+      <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" />
       <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
     </ItemGroup>
 

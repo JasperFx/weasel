@@ -7,7 +7,10 @@ public class TableColumn: ITableColumn
 {
     public TableColumn(string name, string type)
     {
-        Name = name;
+        // Undelimited on the way in: a caller who wrote `Order Date` means the column
+        // Order Date, and that is the name the catalog will report back. A model holding the
+        // delimited spelling never compares equal to it and drifts on every check.
+        Name = SchemaUtils.Unquote(name);
         Type = type;
     }
 
@@ -19,7 +22,7 @@ public class TableColumn: ITableColumn
     public string? DefaultExpression { get; set; }
     public Table? Parent { get; set; }
 
-    public string QuotedName => $"`{Name}`";
+    public string QuotedName => $"{SchemaUtils.QuoteName(Name)}";
 
     public string RawType()
     {

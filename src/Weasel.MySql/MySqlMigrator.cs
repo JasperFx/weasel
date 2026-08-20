@@ -77,7 +77,7 @@ public class MySqlMigrator: Migrator
     {
         foreach (var schemaName in schemaNames)
         {
-            writer.WriteLine($"DROP DATABASE IF EXISTS `{schemaName}`;");
+            writer.WriteLine($"DROP DATABASE IF EXISTS {SchemaUtils.QuoteName(schemaName)};");
         }
     }
 
@@ -195,7 +195,7 @@ public class MySqlMigrator: Migrator
 
     public static string CreateDatabaseStatementFor(string databaseName)
     {
-        return $"CREATE DATABASE IF NOT EXISTS `{databaseName}`;";
+        return $"CREATE DATABASE IF NOT EXISTS {SchemaUtils.QuoteName(databaseName)};";
     }
 
     public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
@@ -213,7 +213,7 @@ public class MySqlMigrator: Migrator
         await adminConn.OpenAsync(ct).ConfigureAwait(false);
 
         var cmd = adminConn.CreateCommand();
-        cmd.CommandText = $"CREATE DATABASE IF NOT EXISTS `{databaseName}`";
+        cmd.CommandText = $"CREATE DATABASE IF NOT EXISTS {SchemaUtils.QuoteName(databaseName)}";
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 

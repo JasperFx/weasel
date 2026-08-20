@@ -1,23 +1,44 @@
+using JasperFx.Core;
+using Weasel.Core;
+
 namespace Weasel.MySql;
 
-public static class SchemaUtils
+/// <summary>
+///     MySQL's identifier rules. Everything that is not dialect-specific lives in
+///     <see cref="IdentifierRules" />; what stays here is the backtick delimiter, MySQL's
+///     regular-identifier rule, and its keyword list.
+/// </summary>
+public sealed class MySqlIdentifierRules: IdentifierRules
 {
-    public static string QuoteName(string name)
+    public static readonly MySqlIdentifierRules Instance = new();
+
+    protected override char Open => '`';
+    protected override char Close => '`';
+
+    /// <summary>
+    ///     MySQL delimits every identifier, which is what it has always done here — keeping it
+    ///     means the generated DDL for an ordinary schema is byte-identical to before. What
+    ///     changes is that an embedded backtick is now doubled instead of closing the quoting.
+    /// </summary>
+    public override bool RequiresDelimiting(string name) => true;
+
+    /// <summary>
+    ///     Unquoted MySQL identifiers permit ASCII letters, digits, <c>_</c> and <c>$</c>, plus
+    ///     extended characters, and may not consist solely of digits. Since
+    ///     <see cref="RequiresDelimiting" /> is always true this only informs callers; it does not
+    ///     gate the quoting.
+    /// </summary>
+    public override bool IsRegularIdentifier(string name)
     {
-        return $"`{name}`";
+        if (name.IsEmpty() || name.All(char.IsDigit))
+        {
+            return false;
+        }
+
+        return name.All(c => char.IsLetterOrDigit(c) || c == '_' || c == '$');
     }
 
-    public static string QuoteQualifiedName(string schema, string name)
-    {
-        return string.IsNullOrEmpty(schema)
-            ? QuoteName(name)
-            : $"{QuoteName(schema)}.{QuoteName(name)}";
-    }
-
-    public static bool IsReservedKeyword(string name)
-    {
-        return ReservedKeywords.Contains(name, StringComparer.OrdinalIgnoreCase);
-    }
+    public override bool IsReservedWord(string name) => ReservedKeywords.Contains(name);
 
     private static readonly HashSet<string> ReservedKeywords = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -43,4 +64,27 @@ public static class SchemaUtils
         "UNLOCK", "UNSIGNED", "UPDATE", "USAGE", "USE", "USING", "VALUES",
         "VARBINARY", "VARCHAR", "WHEN", "WHERE", "WHILE", "WITH", "WRITE", "XOR"
     };
+}
+
+/// <summary>
+///     The static facade the MySQL DDL writers call. Delegates to
+///     <see cref="MySqlIdentifierRules" />.
+/// </summary>
+public static class SchemaUtils
+{
+    /// <inheritdoc cref="IdentifierRules.Quote" />
+    public static string QuoteName(string name) => MySqlIdentifierRules.Instance.Quote(name);
+
+    public static string QuoteQualifiedName(string schema, string name)
+        => string.IsNullOrEmpty(schema)
+            ? QuoteName(name)
+            : $"{QuoteName(schema)}.{QuoteName(name)}";
+
+    /// <inheritdoc cref="IdentifierRules.Undelimit" />
+    public static string Unquote(string name) => MySqlIdentifierRules.Instance.Undelimit(name);
+
+    /// <inheritdoc cref="IdentifierRules.EscapeLiteral" />
+    public static string EscapeLiteral(string value) => IdentifierRules.EscapeLiteral(value);
+
+    public static bool IsReservedKeyword(string name) => MySqlIdentifierRules.Instance.IsReservedWord(name);
 }
