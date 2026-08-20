@@ -1,9 +1,9 @@
 # Triggers
 
-Triggers work on all five providers. They are the one whole category of database object that no
-provider modelled until 9.26, and the one with the most variation between engines — so the shared
-model is deliberately small and each provider refuses what it cannot express rather than quietly
-narrowing it.
+Triggers work on all five providers as of 9.25. They were the one whole category of database
+object that no provider modelled, and the one with the most variation between engines — so the
+shared model is deliberately small and each provider refuses what it cannot express rather than
+quietly narrowing it.
 
 ## A trigger is not owned by its table
 
