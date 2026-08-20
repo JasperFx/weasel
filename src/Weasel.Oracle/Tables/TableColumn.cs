@@ -34,13 +34,11 @@ public class TableColumn: ITableColumn
 
         _preserveCase = preserveCase;
         // Undelimited first: a caller who wrote "ORDER DATE" means that column, and Oracle
-        // reports it back bare. The casing and space handling that follow are long-standing
-        // behaviour, untouched here (see weasel#458).
+        // reports it back bare. Case folding is what preserveCase turns off, and nothing else --
+        // it used to silently turn off a space-to-underscore rewrite as well (weasel#458).
         var unquoted = SchemaUtils.Unquote(name.Trim());
 
-        Name = preserveCase
-            ? unquoted.Trim()
-            : unquoted.ToLowerInvariant().Trim().Replace(' ', '_');
+        Name = preserveCase ? unquoted : unquoted.ToLowerInvariant();
         Type = type.ToUpperInvariant();
     }
 

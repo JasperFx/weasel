@@ -23,8 +23,9 @@ public class TableColumn: ITableColumn
         // produced duplicate-column DDL when callers added the same logical column
         // with different casings (issue: JasperFx/polecat#45).
         // Unbracketed first: a caller who wrote "[Order Date]" means the column Order Date,
-        // and the database will report it back that way.
-        Name = SchemaUtils.Unbracket(name.Trim()).Replace(' ', '_');
+        // and the database will report it back that way -- so that is the column that gets
+        // created, rather than Order_Date (weasel#458).
+        Name = SchemaUtils.Unbracket(name.Trim());
         Type = type.ToLowerInvariant();
     }
 

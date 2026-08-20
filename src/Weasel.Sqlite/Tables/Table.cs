@@ -219,7 +219,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     /// </summary>
     public ColumnExpression AddColumn(string name, string type)
     {
-        var column = new TableColumn(name, type) { Parent = this };
+        var column = new TableColumn(name, type, PreserveIdentifierCase) { Parent = this };
         _columns.Add(column);
         return new ColumnExpression(this, column);
     }

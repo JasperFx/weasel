@@ -231,7 +231,11 @@ END;
             return $"CONSTRAINT \"{PrimaryKeyName}\" PRIMARY KEY ({columns})";
         }
 
-        return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
+        // Quoted for shape: a primary key over a column named "Order Date" reaches here
+        // unrewritten now (weasel#458), and QuoteName leaves a conventional identifier bare so
+        // the folded path emits exactly what it did before.
+        return
+            $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({PrimaryKeyColumns.Select(SchemaUtils.QuoteName).Join(", ")})";
     }
 
     public ColumnExpression AddColumn(TableColumn column)
