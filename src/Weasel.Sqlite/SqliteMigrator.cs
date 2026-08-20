@@ -162,12 +162,12 @@ public class SqliteMigrator: Migrator
 
         foreach (var table in tables)
         {
-            sb.AppendLine($"DELETE FROM \"{table.Name}\";");
+            sb.AppendLine($"DELETE FROM {SchemaUtils.QuoteName(table.Name)};");
         }
 
         if (resetIdentity)
         {
-            var names = string.Join(", ", tables.Select(t => $"'{t.Name}'"));
+            var names = string.Join(", ", tables.Select(t => $"'{SchemaUtils.EscapeLiteral(t.Name)}'"));
             sb.AppendLine($"DELETE FROM sqlite_sequence WHERE name IN ({names});");
         }
 

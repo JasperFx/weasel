@@ -70,15 +70,33 @@ public class SchemaUtilsTests
         quoted.ShouldBe(expected);
     }
 
+    /// <summary>
+    ///     This test used to assert the opposite — that a name containing a double quote was left
+    ///     bare, because it had no space, was not a keyword and did not start with a digit. Those
+    ///     were the only four things the old rule looked at, so the escaping below it, which was
+    ///     written and correct, was never reached for the one character that most needs it. The
+    ///     name went out raw and closed whatever it was written into (weasel#447).
+    /// </summary>
     [Fact]
-    public void quote_name_with_embedded_quotes_no_quoting_needed()
+    public void quote_name_escapes_an_embedded_quote_rather_than_emitting_it_raw()
     {
-        // If the name doesn't meet any criteria for quoting, embedded quotes are left as-is
         var name = "my\"column";
+
         var quoted = SchemaUtils.QuoteName(name);
 
-        // Since "my\"column" doesn't have spaces, isn't a keyword, doesn't start with digit, it's not quoted
-        quoted.ShouldBe("my\"column");
+        quoted.ShouldBe("\"my\"\"column\"");
+        SchemaUtils.Unquote(quoted).ShouldBe(name);
+    }
+
+    /// <summary>
+    ///     <c>char.IsDigit(name[0])</c> threw <c>IndexOutOfRangeException</c> on an empty name,
+    ///     where every other provider returned it unchanged.
+    /// </summary>
+    [Fact]
+    public void an_empty_name_is_returned_rather_than_throwing()
+    {
+        SchemaUtils.QuoteName("").ShouldBe("");
+        SchemaUtils.Unquote("").ShouldBe("");
     }
 
     [Theory]

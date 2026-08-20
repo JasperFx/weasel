@@ -1,26 +1,47 @@
+using JasperFx.Core;
+using Weasel.Core;
+
 namespace Weasel.Sqlite;
 
-public static class SchemaUtils
+/// <summary>
+///     SQLite's identifier rules. Everything that is not dialect-specific lives in
+///     <see cref="IdentifierRules" />; what stays here is the double-quote delimiter, SQLite's
+///     regular-identifier rule, and its keyword list.
+/// </summary>
+public sealed class SqliteIdentifierRules: IdentifierRules
 {
+    public static readonly SqliteIdentifierRules Instance = new();
+
+    protected override char Open => '"';
+    protected override char Close => '"';
+
     /// <summary>
-    /// Quotes an identifier name using double quotes for SQLite.
-    /// SQLite uses double quotes for identifiers per SQL standard.
+    ///     A regular identifier: a letter or <c>_</c> first, then letters, digits, <c>_</c> or
+    ///     <c>$</c>.
     /// </summary>
-    public static string QuoteName(string name)
+    /// <remarks>
+    ///     This replaces a hand-written list — the old rule quoted only for a reserved keyword, a
+    ///     space, a hyphen or a leading digit, so a name containing anything else (a dot, a
+    ///     parenthesis, or a double quote itself) went out bare. The double-quote case was the sharp
+    ///     one: the escaping was written and correct, but the name never reached it.
+    /// </remarks>
+    public override bool IsRegularIdentifier(string name)
     {
-        // SQLite is case-insensitive by default, but we quote reserved keywords
-        // and any identifier that needs escaping
-        if (ReservedKeywords.Contains(name, StringComparer.OrdinalIgnoreCase) ||
-            name.Contains(' ') ||
-            name.Contains('-') ||
-            char.IsDigit(name[0]))
+        if (name.IsEmpty())
         {
-            // Escape any double quotes in the name by doubling them
-            return $"\"{name.Replace("\"", "\"\"")}\"";
+            return false;
         }
 
-        return name;
+        if (!char.IsLetter(name[0]) && name[0] != '_')
+        {
+            return false;
+        }
+
+        return name.Skip(1).All(c => char.IsLetterOrDigit(c) || c == '_' || c == '$');
     }
+
+    public override bool IsReservedWord(string name)
+        => ReservedKeywords.Contains(name, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// SQLite reserved keywords that should be quoted when used as identifiers.
@@ -176,4 +197,22 @@ public static class SchemaUtils
         "WITH",
         "WITHOUT"
     ];
+}
+
+/// <summary>
+///     The static facade the SQLite DDL writers call. Delegates to
+///     <see cref="SqliteIdentifierRules" />.
+/// </summary>
+public static class SchemaUtils
+{
+    /// <inheritdoc cref="IdentifierRules.Quote" />
+    public static string QuoteName(string name) => SqliteIdentifierRules.Instance.Quote(name);
+
+    /// <inheritdoc cref="IdentifierRules.Undelimit" />
+    public static string Unquote(string name) => SqliteIdentifierRules.Instance.Undelimit(name);
+
+    /// <inheritdoc cref="IdentifierRules.EscapeLiteral" />
+    public static string EscapeLiteral(string value) => IdentifierRules.EscapeLiteral(value);
+
+    public static bool IsReservedKeyword(string name) => SqliteIdentifierRules.Instance.IsReservedWord(name);
 }

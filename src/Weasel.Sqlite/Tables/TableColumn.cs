@@ -19,7 +19,10 @@ public class TableColumn: ITableColumn
         }
 
         // SQLite is case-insensitive, normalize names to lowercase
-        Name = name.ToLowerInvariant().Trim().Replace(' ', '_');
+        // Undelimited first: a caller who wrote "order date" means that column, and the
+        // catalog reports it back bare. The lowercasing and space handling that follow are
+        // long-standing SQLite behaviour, untouched here (see weasel#458).
+        Name = SchemaUtils.Unquote(name.Trim()).ToLowerInvariant().Trim().Replace(' ', '_');
         // Normalize type using provider
         Type = SqliteProvider.Instance.ConvertSynonyms(type);
     }
