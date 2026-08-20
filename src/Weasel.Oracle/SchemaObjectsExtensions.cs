@@ -110,6 +110,10 @@ public static class SchemaObjectsExtensions
                 $"SELECT object_name FROM all_objects WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}' AND object_type = 'FUNCTION'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
+        var views = await conn
+            .CreateCommand($"SELECT view_name FROM all_views WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}'")
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+
         var tables = await conn
             .CreateCommand($"SELECT table_name FROM all_tables WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
@@ -122,6 +126,9 @@ public static class SchemaObjectsExtensions
         var drops = new List<string>();
         drops.AddRange(procedures.Select(name => $"DROP PROCEDURE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
         drops.AddRange(functions.Select(name => $"DROP FUNCTION {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
+        // Views ahead of tables: DROP TABLE ... CASCADE CONSTRAINTS invalidates a dependent view
+        // rather than dropping it, so a view left behind survives the teardown (weasel#465).
+        drops.AddRange(views.Select(name => $"DROP VIEW {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
         drops.AddRange(tables.Select(name => $"DROP TABLE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)} CASCADE CONSTRAINTS"));
         drops.AddRange(sequences.Select(name => $"DROP SEQUENCE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
 
