@@ -1,3 +1,4 @@
+using System.Data;
 using Oracle.ManagedDataAccess.Client;
 using Weasel.Core;
 using Xunit;
@@ -15,9 +16,17 @@ public abstract class IntegrationContext: IAsyncLifetime
         _schemaName = schemaName.ToUpperInvariant();
     }
 
+    /// <summary>
+    ///     Reset the schema under test. Safe to call more than once in a test: ODP.NET throws
+    ///     ORA-50005 on a second <c>OpenAsync</c> against an open connection, which made a second
+    ///     reset look like a product failure rather than a fixture one.
+    /// </summary>
     protected async Task ResetSchema()
     {
-        await theConnection.OpenAsync();
+        if (theConnection.State == ConnectionState.Closed)
+        {
+            await theConnection.OpenAsync();
+        }
 
         await theConnection.ResetSchemaAsync(_schemaName);
     }
