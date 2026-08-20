@@ -354,11 +354,7 @@ $$;
     /// </remarks>
     public override void AssertValidIdentifier(string name)
     {
-        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
-        if (problem != null)
-        {
-            throw new PostgresqlIdentifierInvalidException(name, problem);
-        }
+        AssertValidLocalIdentifier(name);
 
         if (name.Length < NameDataLength)
         {
@@ -366,6 +362,25 @@ $$;
         }
 
         throw new PostgresqlIdentifierTooLongException(NameDataLength, name);
+    }
+
+    /// <summary>
+    ///     The safety half of <see cref="AssertValidIdentifier" />, without the length limit.
+    /// </summary>
+    /// <remarks>
+    ///     A column, primary key or check constraint name is only ever emitted inside its own
+    ///     table's DDL and is never addressed by name afterwards, and the delta comparison already
+    ///     reads both sides through TruncatedNameIdentifier so a name PostgreSQL truncated still
+    ///     matches. Refusing to create one would reject schemas the rest of Weasel handles
+    ///     (weasel#485). The safety rules still apply in full.
+    /// </remarks>
+    public override void AssertValidLocalIdentifier(string name)
+    {
+        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
+        if (problem != null)
+        {
+            throw new PostgresqlIdentifierInvalidException(name, problem);
+        }
     }
 
     public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)

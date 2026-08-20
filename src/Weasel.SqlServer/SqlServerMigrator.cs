@@ -159,17 +159,32 @@ $$;
     /// <exception cref="InvalidOperationException">The name cannot be safely written into DDL.</exception>
     public override void AssertValidIdentifier(string name)
     {
-        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
-        if (problem != null)
-        {
-            throw new InvalidOperationException(
-                $"SQL Server identifier '{name}' is not valid because {problem}.");
-        }
+        AssertValidLocalIdentifier(name);
 
         if (name.Length > MaxIdentifierLength)
         {
             throw new InvalidOperationException(
                 $"SQL Server identifiers cannot exceed {MaxIdentifierLength} characters. '{name}' is {name.Length} characters.");
+        }
+    }
+
+    /// <summary>
+    ///     The safety half of <see cref="AssertValidIdentifier" />, without the length limit.
+    /// </summary>
+    /// <remarks>
+    ///     A column, primary key or check constraint name is only ever emitted inside its own
+    ///     table's DDL and is never addressed by name afterwards, and the delta comparison already
+    ///     reads both sides through TruncatedNameIdentifier so a name SQL Server truncated still
+    ///     matches. Refusing to create one would reject schemas the rest of Weasel handles
+    ///     (weasel#485). The safety rules still apply in full.
+    /// </remarks>
+    public override void AssertValidLocalIdentifier(string name)
+    {
+        var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);
+        if (problem != null)
+        {
+            throw new InvalidOperationException(
+                $"SQL Server identifier '{name}' is not valid because {problem}.");
         }
     }
 

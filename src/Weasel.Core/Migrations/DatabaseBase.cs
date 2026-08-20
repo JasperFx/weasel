@@ -563,7 +563,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             {
                 foreach (var name in withLocals.LocalIdentifiers())
                 {
-                    Migrator.AssertValidIdentifier(name);
+                    Migrator.AssertValidLocalIdentifier(name);
                 }
             }
         }
