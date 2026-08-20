@@ -72,3 +72,24 @@ migrator.WriteSchemaCreationSql(new[] { "myschema" }, writer);
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L41-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_schema_management' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+## Identifiers
+
+SQL Server delimits with `[name]` and escapes an embedded `]` by doubling it. Weasel brackets any
+name that is not a regular identifier or that is a reserved word, and leaves ordinary names bare.
+
+Two things changed in 9.25 that are visible from the outside:
+
+- **Names that were previously emitted bare are now bracketed.** Ordinary schemas are
+  byte-identical; anything that is not a regular identifier now brackets, because the DDL was
+  invalid before.
+- **A name you bracketed yourself is honoured, and stored unbracketed in the model.**
+  `AddColumn("[Order Date]", …)` names the column `Order Date`, and `TableColumn.Name`,
+  `IndexDefinition.Name`, `ForeignKey.Name` and `PrimaryKeyName` all hold the bare name. A name
+  that genuinely contains its own brackets can no longer be expressed.
+
+Unlike PostgreSQL, Oracle and SQLite, SQL Server never folds the casing you supply — legacy
+schemas are full of PascalCase and lowercasing produced duplicate-column DDL.
+
+See [Identifiers and Quoting](/core/identifiers) for the cross-provider rules and
+[Upgrading to 9.25](/release-9-25) for the migration notes.
