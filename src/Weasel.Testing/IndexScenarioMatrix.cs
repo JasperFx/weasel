@@ -97,17 +97,19 @@ public abstract class IndexScenarioMatrix
     ///     Compute the delta for this table the way this provider's own callers do.
     /// </summary>
     /// <remarks>
-    ///     The default is <see cref="SchemaMigration.DetermineAsync(DbConnection, CancellationToken, ISchemaObject[])" />,
-    ///     which is the migration path. Oracle overrides it: its
-    ///     <c>CreateDeltaAsync(DbDataReader)</c> reads columns only — ODP.NET cannot return several
-    ///     result sets from one command — so index drift is invisible on the batched path and only
-    ///     <c>Table.FindDeltaAsync(OracleConnection)</c> sees it. That limitation is documented on
-    ///     the method and is a real gap in Oracle's migration path, not something for this harness
-    ///     to paper over silently.
+    ///     The migration path, through the provider's own command builder. No provider overrides
+    ///     this any more: Oracle did while its batched delta read columns only, and weasel#474
+    ///     closed that.
     /// </remarks>
     protected virtual async Task<ISchemaObjectDelta> FindDeltaAsync(DbConnection conn, ITable table)
     {
-        var migration = await SchemaMigration.DetermineAsync(conn, CancellationToken.None, table).ConfigureAwait(false);
+        // Through the provider's own builder, because that is how the migration path assembles the
+        // batch -- and on Oracle it is the difference between one introspection query and six
+        // (weasel#474).
+        var builder = CreateMigrator().CreateCommandBuilder(conn);
+        var migration = await SchemaMigration.DetermineAsync(conn, builder, CancellationToken.None, table)
+            .ConfigureAwait(false);
+
         return migration.Deltas.Single();
     }
 

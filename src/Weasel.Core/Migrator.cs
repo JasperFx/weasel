@@ -274,6 +274,19 @@ public abstract class
     ///     this database engine
     /// </summary>
     /// <param name="name"></param>
+    /// <summary>
+    ///     A command builder for this dialect, used by <c>SchemaMigration.DetermineAsync</c> to
+    ///     assemble the batch of introspection queries.
+    /// </summary>
+    /// <remarks>
+    ///     The default is the dialect-neutral <see cref="DbCommandBuilder" />, which concatenates
+    ///     every statement into one command and reads one result set per statement. Oracle
+    ///     overrides it: ODP.NET will not execute several statements from a single command, so its
+    ///     builder splits the batch and the reader chains across the pieces (weasel#474). A provider
+    ///     that does not override this behaves exactly as it always has.
+    /// </remarks>
+    public virtual DbCommandBuilder CreateCommandBuilder(DbConnection conn) => new(conn);
+
     public abstract void AssertValidIdentifier(string name);
 
     /// <summary>
