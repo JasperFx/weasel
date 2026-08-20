@@ -96,41 +96,99 @@ public static class SchemaObjectsExtensions
             .FetchListAsync<string>(cancellation: ct);
     }
 
+    /// <summary>
+    ///     Empty an Oracle schema of every object Weasel can create and every object type that
+    ///     blocks a clean teardown if it is left behind.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <strong>It does not drop the schema itself.</strong> An Oracle schema is a user, and
+    ///         the only statement that drops one is <c>DROP USER … CASCADE</c> — which a session
+    ///         cannot run against its own user (ORA-01940: cannot drop a user that is currently
+    ///         connected), which is exactly how Weasel and its tests use this. So the name is kept
+    ///         for symmetry with the other four providers and the behaviour is stated here instead
+    ///         (weasel#465).
+    ///     </para>
+    ///     <para>
+    ///         PostgreSQL and MySQL delegate teardown to the server's own cascade and cannot fall
+    ///         behind. This one enumerates, so it carries a standing cost: <em>every new creatable
+    ///         object type has to be added here too.</em> SQL Server's teardown was silently broken
+    ///         for views for exactly as long as nothing could create one (weasel#464).
+    ///     </para>
+    ///     <para>
+    ///         Order matters. Triggers first, because a trigger can be owned here while firing on a
+    ///         table elsewhere. Views ahead of tables, because <c>DROP TABLE … CASCADE
+    ///         CONSTRAINTS</c> <em>invalidates</em> a dependent view rather than dropping it.
+    ///         Materialized views ahead of tables for the same reason, and their container tables
+    ///         are excluded from the table sweep — Oracle lists them in <c>all_tables</c>, and
+    ///         dropping one directly fails. Types last, because a table column can be declared with
+    ///         one.
+    ///     </para>
+    /// </remarks>
     public static async Task DropSchemaAsync(this OracleConnection conn, string schemaName, CancellationToken ct = default)
     {
-        var upperSchema = schemaName.ToUpperInvariant();
+        var upperSchema = SchemaUtils.EscapeLiteral(schemaName.ToUpperInvariant());
 
-        var procedures = await conn
-            .CreateCommand(
-                $"SELECT object_name FROM all_objects WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}' AND object_type = 'PROCEDURE'")
-            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+        async Task<IReadOnlyList<string?>> fetchAsync(string sql)
+            => await conn.CreateCommand(sql).FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
-        var functions = await conn
-            .CreateCommand(
-                $"SELECT object_name FROM all_objects WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}' AND object_type = 'FUNCTION'")
-            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+        var triggers = await fetchAsync(
+            $"SELECT trigger_name FROM all_triggers WHERE owner = '{upperSchema}'").ConfigureAwait(false);
 
-        var views = await conn
-            .CreateCommand($"SELECT view_name FROM all_views WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}'")
-            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+        var packages = await fetchAsync(
+            $"SELECT object_name FROM all_objects WHERE owner = '{upperSchema}' AND object_type = 'PACKAGE'")
+            .ConfigureAwait(false);
 
-        var tables = await conn
-            .CreateCommand($"SELECT table_name FROM all_tables WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}'")
-            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+        var procedures = await fetchAsync(
+            $"SELECT object_name FROM all_objects WHERE owner = '{upperSchema}' AND object_type = 'PROCEDURE'")
+            .ConfigureAwait(false);
 
-        var sequences = await conn
-            .CreateCommand(
-                $"SELECT sequence_name FROM all_sequences WHERE sequence_owner = '{SchemaUtils.EscapeLiteral(upperSchema)}'")
-            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+        var functions = await fetchAsync(
+            $"SELECT object_name FROM all_objects WHERE owner = '{upperSchema}' AND object_type = 'FUNCTION'")
+            .ConfigureAwait(false);
+
+        var views = await fetchAsync(
+            $"SELECT view_name FROM all_views WHERE owner = '{upperSchema}'").ConfigureAwait(false);
+
+        var materializedViews = await fetchAsync(
+            $"SELECT mview_name FROM all_mviews WHERE owner = '{upperSchema}'").ConfigureAwait(false);
+
+        // Oracle lists a materialized view's container table and a nested table's storage table in
+        // all_tables, and DROP TABLE against either one fails (ORA-12083 / ORA-22913). The mview
+        // drop and the parent table drop take them.
+        var tables = await fetchAsync(
+            $"""
+             SELECT table_name FROM all_tables
+             WHERE owner = '{upperSchema}'
+               AND nested = 'NO'
+               AND table_name NOT IN (SELECT mview_name FROM all_mviews WHERE owner = '{upperSchema}')
+             """).ConfigureAwait(false);
+
+        var sequences = await fetchAsync(
+            $"SELECT sequence_name FROM all_sequences WHERE sequence_owner = '{upperSchema}'").ConfigureAwait(false);
+
+        var synonyms = await fetchAsync(
+            $"SELECT synonym_name FROM all_synonyms WHERE owner = '{upperSchema}'").ConfigureAwait(false);
+
+        var types = await fetchAsync(
+            $"SELECT type_name FROM all_types WHERE owner = '{upperSchema}'").ConfigureAwait(false);
+
+        var schema = SchemaUtils.QuoteName(schemaName);
+        string Qualified(string? name) => $"{schema}.{SchemaUtils.QuoteName(name!)}";
 
         var drops = new List<string>();
-        drops.AddRange(procedures.Select(name => $"DROP PROCEDURE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
-        drops.AddRange(functions.Select(name => $"DROP FUNCTION {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
-        // Views ahead of tables: DROP TABLE ... CASCADE CONSTRAINTS invalidates a dependent view
-        // rather than dropping it, so a view left behind survives the teardown (weasel#465).
-        drops.AddRange(views.Select(name => $"DROP VIEW {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
-        drops.AddRange(tables.Select(name => $"DROP TABLE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)} CASCADE CONSTRAINTS"));
-        drops.AddRange(sequences.Select(name => $"DROP SEQUENCE {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name!)}"));
+        drops.AddRange(triggers.Select(name => $"DROP TRIGGER {Qualified(name)}"));
+        drops.AddRange(packages.Select(name => $"DROP PACKAGE {Qualified(name)}"));
+        drops.AddRange(procedures.Select(name => $"DROP PROCEDURE {Qualified(name)}"));
+        drops.AddRange(functions.Select(name => $"DROP FUNCTION {Qualified(name)}"));
+        drops.AddRange(views.Select(name => $"DROP VIEW {Qualified(name)}"));
+        drops.AddRange(materializedViews.Select(name => $"DROP MATERIALIZED VIEW {Qualified(name)}"));
+        drops.AddRange(tables.Select(name => $"DROP TABLE {Qualified(name)} CASCADE CONSTRAINTS"));
+        drops.AddRange(sequences.Select(name => $"DROP SEQUENCE {Qualified(name)}"));
+        drops.AddRange(synonyms.Select(name => $"DROP SYNONYM {Qualified(name)}"));
+        // FORCE so a type still referenced by something this sweep could not see does not stop the
+        // teardown; the reference is left invalid rather than the schema left dirty.
+        drops.AddRange(types.Select(name => $"DROP TYPE {Qualified(name)} FORCE"));
 
         foreach (var drop in drops)
         {
@@ -138,15 +196,30 @@ public static class SchemaObjectsExtensions
             {
                 await conn.CreateCommand(drop).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
-            catch (OracleException ex) when (ex.Number == 942 || ex.Number == 4043 || ex.Number == 2289)
+            catch (OracleException ex) when (IsAlreadyGone(ex))
             {
-                // ORA-00942: table or view does not exist
-                // ORA-04043: object does not exist
-                // ORA-02289: sequence does not exist
-                // These can happen due to concurrent test execution, so we ignore them
+                // Something else dropped it first, or it went with its parent -- a trigger with its
+                // table, a package body with its package. Concurrent test execution hits this too.
             }
         }
     }
+
+    /// <summary>
+    ///     The "you asked me to drop something that is not there" family. Every one of these means
+    ///     the teardown's goal is already met for that object, so swallowing them is safe; anything
+    ///     else is a real failure and propagates.
+    /// </summary>
+    private static bool IsAlreadyGone(OracleException ex)
+        => ex.Number switch
+        {
+            942 => true,   // ORA-00942: table or view does not exist
+            1434 => true,  // ORA-01434: private synonym to be dropped does not exist
+            2289 => true,  // ORA-02289: sequence does not exist
+            4043 => true,  // ORA-04043: object does not exist
+            4080 => true,  // ORA-04080: trigger does not exist
+            12003 => true, // ORA-12003: materialized view does not exist
+            _ => false
+        };
 
     public static Task CreateSchemaAsync(this OracleConnection conn, string schemaName, CancellationToken ct = default)
     {
