@@ -25,7 +25,7 @@ Three symbols, and the distinction between the last two matters:
 | View | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Materialized view | ✓ | — | ✗ | — | — |
 | Function | ✓ | ✓ | ✗ | ✗ | connection-scoped |
-| Stored procedure | ✗ | ✓ | ✗ | ✗ | — |
+| Stored procedure | ✓ | ✓ | ✓ | ✓ | — |
 | Trigger | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Package | — | — | ✗ | — | — |
 | Synonym | — | ✗ | ✗ | — | — |
@@ -36,7 +36,7 @@ Three symbols, and the distinction between the last two matters:
 ### Reading the gaps
 
 - **Triggers** are modelled as independent schema objects that declare a target rather than as something a table owns, which is why they are a row here and not part of the table row. A trigger does not always have a table — SQL Server's `INSTEAD OF` triggers attach to views — and PostgreSQL's call a function, so they compose with `Function` rather than carrying their own body. See [Triggers](/core/triggers).
-- **Functions on Oracle and MySQL, and stored procedures on PostgreSQL, MySQL and Oracle**, are [#450](https://github.com/JasperFx/weasel/issues/450) and [#451](https://github.com/JasperFx/weasel/issues/451).
+- **Functions on Oracle and MySQL** are [#450](https://github.com/JasperFx/weasel/issues/450). Stored procedures are on all four engines that have them; SQLite has no such concept.
 - **The long tail** — Oracle packages, materialized views and synonyms, SQL Server synonyms, PostgreSQL user-defined types — is [#453](https://github.com/JasperFx/weasel/issues/453).
 - **PostgreSQL materialized views already work**, through `Weasel.Postgresql.Views.MaterializedView`, which is `View` with a different `ViewType` and an optional access method. That row was ✗ in the first draft of this page and the check below caught it on its first run, which is the argument for the check.
 

@@ -48,6 +48,7 @@ public class object_type_support_matrix
         ("Postgresql", "Function", "Weasel.Postgresql.Functions.Function"),
         ("Postgresql", "Extension", "Weasel.Postgresql.Extension"),
         ("Postgresql", "Trigger", "Weasel.Postgresql.Triggers.Trigger"),
+        ("Postgresql", "StoredProcedure", "Weasel.Postgresql.Procedures.StoredProcedure"),
 
         ("SqlServer", "Table", "Weasel.SqlServer.Tables.Table"),
         ("SqlServer", "Sequence", "Weasel.SqlServer.Sequence"),
@@ -61,11 +62,13 @@ public class object_type_support_matrix
         ("Oracle", "Sequence", "Weasel.Oracle.Sequence"),
         ("Oracle", "View", "Weasel.Oracle.Views.View"),
         ("Oracle", "Trigger", "Weasel.Oracle.Triggers.Trigger"),
+        ("Oracle", "StoredProcedure", "Weasel.Oracle.Procedures.StoredProcedure"),
 
         ("MySql", "Table", "Weasel.MySql.Tables.Table"),
         ("MySql", "Sequence", "Weasel.MySql.Sequence"),
         ("MySql", "View", "Weasel.MySql.Views.View"),
         ("MySql", "Trigger", "Weasel.MySql.Triggers.Trigger"),
+        ("MySql", "StoredProcedure", "Weasel.MySql.Procedures.StoredProcedure"),
 
         ("Sqlite", "Table", "Weasel.Sqlite.Tables.Table"),
         ("Sqlite", "View", "Weasel.Sqlite.Views.View"),
@@ -89,9 +92,6 @@ public class object_type_support_matrix
     public static TheoryData<string, string, string> NotSupported =>
         new()
         {
-            { "Postgresql", "Weasel.Postgresql.Procedures.StoredProcedure", "#451" },
-            { "MySql", "Weasel.MySql.Procedures.StoredProcedure", "#451" },
-            { "Oracle", "Weasel.Oracle.Procedures.StoredProcedure", "#451" },
             { "Oracle", "Weasel.Oracle.Functions.Function", "#450" },
             { "Oracle", "Weasel.Oracle.Views.MaterializedView", "#453" },
             { "MySql", "Weasel.MySql.Functions.Function", "#450" }
