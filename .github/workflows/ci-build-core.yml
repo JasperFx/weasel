@@ -1,0 +1,48 @@
+name: Core CI Build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  config: Release
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      matrix:
+        framework:
+          - net9.0
+          - net10.0
+
+    name: Core ${{ matrix.framework }}
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v5
+      with:
+          dotnet-version: |
+              9.0.x
+              10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore --configuration ${{ env.config }}
+
+    # Weasel.Core.Tests was not run by any workflow before this one. No services needed:
+    # these are unit tests, including the cross-provider identifier conformance suite,
+    # which is pure string logic against each provider's IdentifierRules.
+    - name: Test
+      run: dotnet test src/Weasel.Core.Tests/Weasel.Core.Tests.csproj --no-build --verbosity normal --configuration ${{ env.config }} --framework ${{ matrix.framework }}

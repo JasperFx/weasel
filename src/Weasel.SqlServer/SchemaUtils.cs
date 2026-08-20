@@ -1,93 +1,20 @@
 using JasperFx.Core;
-using System.Text.RegularExpressions;
+using Weasel.Core;
 
 namespace Weasel.SqlServer;
 
-public static class SchemaUtils
+/// <summary>
+///     SQL Server's identifier rules. Everything that is not dialect-specific — delimiting,
+///     escaping, the already-delimited pass-through, undelimiting, string literal escaping —
+///     lives in <see cref="IdentifierRules" />; what stays here is the delimiter pair, SQL
+///     Server's regular-identifier rule, and its keyword list.
+/// </summary>
+public sealed class SqlServerIdentifierRules: IdentifierRules
 {
-    /// <summary>
-    ///     Wrap a name in delimiters, escaping any embedded <c>]</c>, unless the caller has
-    ///     already bracketed it themselves.
-    /// </summary>
-    /// <remarks>
-    ///     For the call sites that have always bracketed. Ordinary names come out exactly as
-    ///     they did before, so their generated DDL is byte-identical; see <see cref="QuoteName" />
-    ///     for the pass-through rule the two share.
-    /// </remarks>
-    public static string BracketName(string name)
-        => name.IsEmpty() || IsAlreadyBracketed(name) ? name : Bracket(name);
+    public static readonly SqlServerIdentifierRules Instance = new();
 
-    /// <summary>
-    ///     Escape a value being written into a SQL string literal, by doubling its single quotes.
-    /// </summary>
-    /// <remarks>
-    ///     Object names reach string literals in the introspection and drift-correction queries
-    ///     (<c>OBJECT_ID('...')</c>, <c>c.name = '...'</c>). Bracketing is the wrong tool there — a
-    ///     literal is terminated by <c>'</c>, not by <c>]</c>.
-    /// </remarks>
-    public static string EscapeLiteral(string value)
-        => value.IsEmpty() ? value : value.Replace("'", "''");
-
-    /// <summary>
-    ///     Bracket a name only when it is not a regular SQL Server identifier, so DDL for an
-    ///     ordinary schema is unchanged.
-    /// </summary>
-    /// <remarks>
-    ///     <para>
-    ///         A name the caller has already bracketed is passed through untouched. Weasel emitted
-    ///         most identifiers bare until 9.25, so bracketing the name yourself was the only way to
-    ///         use one that needed delimiting; re-escaping those now would silently rename the
-    ///         object — a column declared as <c>[Order Date]</c> would be created under the literal
-    ///         name <c>[Order Date]</c>, brackets and all. The cost is that a name genuinely
-    ///         containing its own brackets cannot be expressed, which is the rarer case by far.
-    ///     </para>
-    ///     <para>
-    ///         The pass-through is narrow enough not to be a hole: the name has to be bracketed end
-    ///         to end with every interior <c>]</c> already doubled, which is exactly what
-    ///         <see cref="Bracket" /> produces. A name that merely starts with <c>[</c> and ends
-    ///         with <c>]</c> does not qualify — <c>[ix] ON t(id); DROP TABLE victim; --]</c> carries
-    ///         a lone <c>]</c>, so it is escaped on its own terms and the DDL it is carrying stays
-    ///         inert inside a single delimited identifier.
-    ///     </para>
-    /// </remarks>
-    public static string QuoteName(string name)
-        => name.IsEmpty() || (IsRegularIdentifier(name) && !IsReservedWord(name)) || IsAlreadyBracketed(name)
-            ? name
-            : Bracket(name);
-
-    /// <summary>
-    ///     Strip the delimiters off a name the caller bracketed themselves, undoubling any
-    ///     interior <c>]]</c>. A name that is not properly bracketed is returned as it is.
-    /// </summary>
-    /// <remarks>
-    ///     The inverse of <see cref="Bracket" />, and the counterpart to the pass-through in
-    ///     <see cref="QuoteName" />. Emitting the caller's brackets untouched is only half the
-    ///     job: the database reports the bare name back, and a model still holding the bracketed
-    ///     spelling never compares equal to it, so the table reported drift on every check. The
-    ///     SQL Server model normalizes names through this as they arrive, so what it holds is
-    ///     always the name the database will report.
-    /// </remarks>
-    public static string Unbracket(string name)
-        => IsAlreadyBracketed(name) ? name.Substring(1, name.Length - 2).Replace("]]", "]") : name;
-
-    /// <summary>
-    ///     Delimit a name unconditionally, with no pass-through. Only for a value that is the
-    ///     object's literal name and cannot have been pre-bracketed by a caller — a database name
-    ///     read out of a connection string, where <c>[</c> and <c>]</c> are part of the name.
-    /// </summary>
-    internal static string Bracket(string name)
-        => $"[{name.Replace("]", "]]")}]";
-
-    private static bool IsAlreadyBracketed(string name)
-    {
-        if (name.IsEmpty() || name.Length < 2 || name[0] != '[' || name[^1] != ']')
-        {
-            return false;
-        }
-
-        var inner = name.Substring(1, name.Length - 2);
-        return !inner.Replace("]]", "").Contains(']');
-    }
+    protected override char Open => '[';
+    protected override char Close => ']';
 
     /// <summary>
     ///     A regular identifier: a letter, <c>_</c> or <c>#</c> first, then letters, digits,
@@ -101,8 +28,8 @@ public static class SchemaUtils
     ///     excluded — it is accepted unbracketed for a column or an index, and bracketing does not
     ///     change its meaning anywhere (<c>[#t]</c> is still a temp table), so excluding it would
     ///     only churn DDL for no benefit.
-    /// </summary>
-    public static bool IsRegularIdentifier(string name)
+    /// </remarks>
+    public override bool IsRegularIdentifier(string name)
     {
         if (name.IsEmpty())
         {
@@ -126,7 +53,7 @@ public static class SchemaUtils
         return true;
     }
 
-    public static bool IsReservedWord(string name)
+    public override bool IsReservedWord(string name)
         => ReservedKeywords.Contains(name, StringComparer.InvariantCultureIgnoreCase);
 
     private static readonly string[] ReservedKeywords =
@@ -318,4 +245,33 @@ public static class SchemaUtils
         "PROC",
         "RANK"
     ];
+}
+
+/// <summary>
+///     The static facade the SQL Server DDL writers call. Delegates to
+///     <see cref="SqlServerIdentifierRules" />; the behaviour and the doc comments for each
+///     operation live there and in <see cref="IdentifierRules" />.
+/// </summary>
+public static class SchemaUtils
+{
+    /// <inheritdoc cref="IdentifierRules.DelimitIfNeeded" />
+    public static string BracketName(string name) => SqlServerIdentifierRules.Instance.DelimitIfNeeded(name);
+
+    /// <inheritdoc cref="IdentifierRules.EscapeLiteral" />
+    public static string EscapeLiteral(string value) => IdentifierRules.EscapeLiteral(value);
+
+    /// <inheritdoc cref="IdentifierRules.Quote" />
+    public static string QuoteName(string name) => SqlServerIdentifierRules.Instance.Quote(name);
+
+    /// <inheritdoc cref="IdentifierRules.Undelimit" />
+    public static string Unbracket(string name) => SqlServerIdentifierRules.Instance.Undelimit(name);
+
+    /// <inheritdoc cref="IdentifierRules.Delimit" />
+    internal static string Bracket(string name) => SqlServerIdentifierRules.Instance.Delimit(name);
+
+    /// <inheritdoc cref="IdentifierRules.IsRegularIdentifier" />
+    public static bool IsRegularIdentifier(string name) => SqlServerIdentifierRules.Instance.IsRegularIdentifier(name);
+
+    /// <inheritdoc cref="IdentifierRules.IsReservedWord" />
+    public static bool IsReservedWord(string name) => SqlServerIdentifierRules.Instance.IsReservedWord(name);
 }
