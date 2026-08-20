@@ -135,10 +135,10 @@ END;"
 ///     Oracle applies a function change with <c>CREATE OR REPLACE FUNCTION</c> alone.
 /// </summary>
 /// <remarks>
-///     The drop has to be an anonymous PL/SQL block, so a drop-then-create pair arrives as a block
-///     followed by a DDL statement — which ODP.NET cannot execute as one command (PLS-00103), and
-///     Oracle's migrator executes one command per delta. This is the fifth object type to need this
-///     shape; see the note on weasel#455 about hoisting it into the provider.
+///     The write behaviour is <see cref="OracleReplaceDelta" />'s, applied here rather than
+///     inherited: a function delta also needs <see cref="SchemaObjectDelta{T}" />'s expected/actual
+///     comparison, and a type cannot have both bases. Delegating keeps the rule in one place —
+///     see that type for why a drop may not be prefixed to the create.
 /// </remarks>
 public class FunctionDelta: SchemaObjectDelta<Function>
 {
@@ -171,27 +171,24 @@ public class FunctionDelta: SchemaObjectDelta<Function>
         => sql.Replace("\r\n", "").Replace("\n", "").Replace("\r", "").Replace("\t", "")
             .Replace(" ", "").Trim().TrimEnd(';').ToUpperInvariant();
 
+    /// <summary>
+    ///     The drop for a removed function has to come from <see cref="SchemaObjectDelta{T}.Actual" />,
+    ///     not from <c>Expected</c>.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="FunctionBase.DropStatements" /> returns an <em>empty</em> array when
+    ///     <see cref="FunctionBase.IsRemoved" /> is set — a removed function is a declaration that
+    ///     something should not exist, and it carries no body to build a drop from. The object that
+    ///     can produce the drop is the one read out of the database. Flattening this to
+    ///     <c>Expected</c> emits nothing at all and the function survives the migration, which is
+    ///     what <c>a_function_marked_for_removal_is_dropped</c> catches.
+    /// </remarks>
     public override void WriteUpdate(Migrator rules, TextWriter writer)
-    {
-        if (Expected.IsRemoved)
-        {
-            Actual!.WriteDropStatement(rules, writer);
-            return;
-        }
-
-        Expected.WriteCreateStatement(rules, writer);
-    }
+        => OracleReplaceDelta.WriteReplacement(
+            Expected.IsRemoved ? Actual! : Expected, Expected.IsRemoved, rules, writer);
 
     public override void WriteRollback(Migrator rules, TextWriter writer)
-    {
-        if (Actual == null)
-        {
-            Expected.WriteDropStatement(rules, writer);
-            return;
-        }
-
-        Actual.WriteCreateStatement(rules, writer);
-    }
+        => OracleReplaceDelta.WriteReplacement(Actual ?? Expected, Actual == null, rules, writer);
 
     public override string ToString() => $"{Expected.Identifier.QualifiedName} Diff";
 }

@@ -82,28 +82,26 @@ END;");
     }
 
     /// <summary>
-    ///     <c>CREATE OR REPLACE PROCEDURE</c> does the whole job, so an update is that statement
-    ///     alone.
+    ///     <c>CREATE OR REPLACE PROCEDURE</c> does the whole job, so the update is that statement
+    ///     alone — see <see cref="OracleReplaceDelta" /> for why nothing may be prefixed to it.
     /// </summary>
-    /// <remarks>
-    ///     The default delta writes a DROP first, and Oracle's drop has to be an anonymous PL/SQL
-    ///     block — so the pair arrives as a block followed by a DDL statement, which ODP.NET cannot
-    ///     execute as one command (PLS-00103). The same trap the Oracle view and trigger slices hit.
-    /// </remarks>
     protected override ISchemaObjectDelta CreateDelta(string? existing)
     {
         if (IsRemoved)
         {
-            return new StoredProcedureDelta(this,
-                existing == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update);
+            // isRemoved: the update is the drop, alone -- which is a lone PL/SQL block and so a
+            // perfectly good command.
+            return new OracleReplaceDelta(this,
+                existing == null ? SchemaPatchDifference.None : SchemaPatchDifference.Update,
+                isRemoved: true);
         }
 
         if (existing == null)
         {
-            return new StoredProcedureDelta(this, SchemaPatchDifference.Create);
+            return new OracleReplaceDelta(this, SchemaPatchDifference.Create);
         }
 
-        return new StoredProcedureDelta(this,
+        return new OracleReplaceDelta(this,
             Matches(existing) ? SchemaPatchDifference.None : SchemaPatchDifference.Update);
     }
 
@@ -121,41 +119,4 @@ END;");
 
     public async Task<bool> ExistsInDatabaseAsync(OracleConnection conn, CancellationToken ct = default)
         => await FetchExistingSourceAsync(conn, ct).ConfigureAwait(false) != null;
-}
-
-/// <summary>
-///     Oracle applies a procedure change with <c>CREATE OR REPLACE PROCEDURE</c> alone — one
-///     statement, which is all Oracle's migrator can execute per delta.
-/// </summary>
-internal class StoredProcedureDelta: ISchemaObjectDelta
-{
-    private readonly StoredProcedure _procedure;
-
-    public StoredProcedureDelta(StoredProcedure procedure, SchemaPatchDifference difference)
-    {
-        _procedure = procedure;
-        Difference = difference;
-    }
-
-    public ISchemaObject SchemaObject => _procedure;
-
-    public SchemaPatchDifference Difference { get; }
-
-    public void WriteUpdate(Migrator rules, TextWriter writer)
-    {
-        if (_procedure.IsRemoved)
-        {
-            _procedure.WriteDropStatement(rules, writer);
-            return;
-        }
-
-        _procedure.WriteCreateStatement(rules, writer);
-    }
-
-    public void WriteRollback(Migrator rules, TextWriter writer)
-    {
-    }
-
-    public void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
-        => throw new NotSupportedException();
 }

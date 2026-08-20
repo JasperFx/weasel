@@ -89,12 +89,12 @@ END;");
 
         if (existing == null)
         {
-            return new ViewDelta(this, SchemaPatchDifference.Create);
+            return new OracleReplaceDelta(this, SchemaPatchDifference.Create);
         }
 
         return NormalizeSql(existing) == NormalizeSql(ViewSql)
-            ? new ViewDelta(this, SchemaPatchDifference.None)
-            : new ViewDelta(this, SchemaPatchDifference.Update);
+            ? new OracleReplaceDelta(this, SchemaPatchDifference.None)
+            : new OracleReplaceDelta(this, SchemaPatchDifference.Update);
     }
 
     public async Task<View?> FetchExistingAsync(OracleConnection conn, CancellationToken ct = default)
@@ -133,44 +133,4 @@ END;");
             .Trim()
             .TrimEnd(';')
             .ToUpperInvariant();
-}
-
-/// <summary>
-///     Oracle applies a view change with <c>CREATE OR REPLACE VIEW</c> and nothing else, so the
-///     update is the create statement on its own.
-/// </summary>
-/// <remarks>
-///     The default <see cref="SchemaObjectDelta" /> writes a DROP ahead of the CREATE. On Oracle
-///     the drop has to be an anonymous PL/SQL block — there is no <c>DROP VIEW IF EXISTS</c> before
-///     23c — so the pair arrives as a PL/SQL block followed by a DDL statement, and ODP.NET cannot
-///     execute that as one command (PLS-00103: Encountered the symbol "CREATE"). Oracle's migrator
-///     executes one command per delta, so the delta itself has to be a single statement.
-/// </remarks>
-internal class ViewDelta: ISchemaObjectDelta
-{
-    private readonly View _view;
-
-    public ViewDelta(View view, SchemaPatchDifference difference)
-    {
-        _view = view;
-        Difference = difference;
-    }
-
-    public ISchemaObject SchemaObject => _view;
-
-    public SchemaPatchDifference Difference { get; }
-
-    public void WriteUpdate(Migrator rules, TextWriter writer)
-    {
-        _view.WriteCreateStatement(rules, writer);
-    }
-
-    public void WriteRollback(Migrator rules, TextWriter writer)
-    {
-    }
-
-    public void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
-    {
-        throw new NotSupportedException();
-    }
 }
