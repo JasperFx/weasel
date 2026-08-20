@@ -140,7 +140,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
 
         await initializeSchema(conn, ct).ConfigureAwait(false);
 
-        var migration = await SchemaMigration.DetermineAsync(conn, ct, group.Objects).ConfigureAwait(false);
+        var migration = await SchemaMigration.DetermineAsync(conn, Migrator.CreateCommandBuilder(conn), ct, group.Objects).ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
 
@@ -260,7 +260,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
         await conn.OpenAsync(ct).ConfigureAwait(false);
         await initializeSchema(conn, ct).ConfigureAwait(false);
 
-        var result = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
+        var result = await SchemaMigration.DetermineAsync(conn, Migrator.CreateCommandBuilder(conn), ct, objects).ConfigureAwait(false);
         await conn.CloseAsync().ConfigureAwait(false);
         return result;
     }
@@ -405,7 +405,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                 }
 
                 await initializeSchema(conn, ct).ConfigureAwait(false);
-                var patch = await SchemaMigration.DetermineAsync(conn, ct, objects).ConfigureAwait(false);
+                var patch = await SchemaMigration.DetermineAsync(conn, Migrator.CreateCommandBuilder(conn), ct, objects).ConfigureAwait(false);
 
                 if (patch.Difference != SchemaPatchDifference.None)
                 {
@@ -611,7 +611,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
         await conn.OpenAsync(ct).ConfigureAwait(false);
         await initializeSchema(conn, ct).ConfigureAwait(false);
 
-        var migration = await SchemaMigration.DetermineAsync(conn, ct, schemaObjects).ConfigureAwait(false);
+        var migration = await SchemaMigration.DetermineAsync(conn, Migrator.CreateCommandBuilder(conn), ct, schemaObjects).ConfigureAwait(false);
 
         if (migration.Difference == SchemaPatchDifference.None)
         {

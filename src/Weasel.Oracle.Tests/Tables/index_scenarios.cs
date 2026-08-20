@@ -11,8 +11,16 @@ namespace Weasel.Oracle.Tests.Tables;
 ///     Oracle's rows of the shared index scenario matrix (weasel#449).
 /// </summary>
 /// <remarks>
-///     Oracle has no partial indexes, so <c>an_unsupported_index_property_is_refused_rather_than_ignored</c>
-///     is the live scenario here: <c>Predicate</c> used to be settable and did nothing at all.
+///     <para>
+///         Oracle has no partial indexes, so <c>an_unsupported_index_property_is_refused_rather_than_ignored</c>
+///         is the live scenario here: <c>Predicate</c> used to be settable and did nothing at all.
+///     </para>
+///     <para>
+///         These ran through <c>Table.FindDeltaAsync</c> rather than the migration path when the
+///         matrix landed, because Oracle's batched delta read columns only. weasel#474 fixed that,
+///         and the override is gone — this is the ordinary path now, the same one every other
+///         provider's rows use.
+///     </para>
 /// </remarks>
 [Collection("integration")]
 public class index_scenarios: IndexScenarioMatrix
@@ -32,16 +40,6 @@ public class index_scenarios: IndexScenarioMatrix
     protected override Migrator CreateMigrator() => new OracleMigrator();
 
     protected override ITable NewTable(string name) => new Table($"{SchemaName}.{name}");
-
-    /// <summary>
-    ///     Oracle's batched delta path reads columns only — <c>CreateDeltaAsync(DbDataReader)</c>
-    ///     says so on the method — because ODP.NET cannot return several result sets from one
-    ///     command. So index drift is invisible to <c>SchemaMigration.DetermineAsync</c>, which is
-    ///     what <c>ApplyChangesAsync</c> and the whole migration path use. These scenarios go
-    ///     through <c>FindDeltaAsync</c>, the only path on Oracle that sees an index at all.
-    /// </summary>
-    protected override async Task<ISchemaObjectDelta> FindDeltaAsync(DbConnection conn, ITable table)
-        => await ((Table)table).FindDeltaAsync((OracleConnection)conn);
 
     protected override (int Different, int Extra, int Missing) IndexDifferences(ISchemaObjectDelta delta)
         => delta is TableDelta table

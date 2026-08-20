@@ -138,6 +138,20 @@ END;");
     ///     included -- is written inside a string literal.
     /// </remarks>
     /// <exception cref="InvalidOperationException">The name cannot be safely written into DDL.</exception>
+    /// <summary>
+    ///     Oracle builds its introspection batch through <see cref="OracleDbCommandBuilder" />,
+    ///     which splits on <c>StartNewCommand</c> and hands back one command per statement.
+    /// </summary>
+    /// <remarks>
+    ///     ODP.NET does not implement the ADO.NET batching API and Oracle will not execute several
+    ///     semicolon-separated statements from one command, so before weasel#474 an Oracle schema
+    ///     object could register exactly one query — and <c>Table</c> spent it on columns. Indexes,
+    ///     foreign keys and the primary key were therefore invisible to every caller that went
+    ///     through <c>SchemaMigration.DetermineAsync</c>, which is the entire migration path.
+    /// </remarks>
+    public override Weasel.Core.DbCommandBuilder CreateCommandBuilder(DbConnection conn)
+        => new OracleDbCommandBuilder();
+
     public override void AssertValidIdentifier(string name)
     {
         var problem = IdentifierValidation.FindProblem(name, UnsafeIdentifierCharacters);

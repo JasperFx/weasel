@@ -400,36 +400,20 @@ public static class SchemaObjectsExtensions
     /// Oracle doesn't support multiple result sets in a single command like PostgreSQL or SQL Server,
     /// so we must execute each schema object's query individually.
     /// </summary>
-    private static async Task<SchemaMigration> DetermineOracleMigrationAsync(
+    /// <summary>
+    ///     Determine a migration for these objects, through the Oracle command builder.
+    /// </summary>
+    /// <remarks>
+    ///     This used to sniff for <c>Tables.Table</c> and route it to
+    ///     <c>Table.FindDeltaAsync</c>, because the generic path read columns only and would have
+    ///     missed every index, foreign key and primary key. weasel#474 removed the reason:
+    ///     <c>OracleDbCommandBuilder</c> splits the batch into one command per statement and the
+    ///     reader chains across them, so an Oracle schema object can register as many introspection
+    ///     queries as it needs. One path for every object type now, and no type test.
+    /// </remarks>
+    private static Task<SchemaMigration> DetermineOracleMigrationAsync(
         OracleConnection conn,
         CancellationToken ct,
         params ISchemaObject[] schemaObjects)
-    {
-        var deltas = new List<ISchemaObjectDelta>();
-
-        foreach (var schemaObject in schemaObjects)
-        {
-            // For Table objects, use the Oracle-specific FindDeltaAsync which fetches
-            // full metadata (columns, PKs, FKs, indexes) via separate queries.
-            // The generic CreateDeltaAsync only reads columns from a single result set.
-            if (schemaObject is Tables.Table table)
-            {
-                var delta = await table.FindDeltaAsync(conn, ct).ConfigureAwait(false);
-                deltas.Add(delta);
-            }
-            else
-            {
-                var builder = new Weasel.Core.DbCommandBuilder(conn);
-                schemaObject.ConfigureQueryCommand(builder);
-
-                await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
-                var delta = await schemaObject.CreateDeltaAsync(reader, ct).ConfigureAwait(false);
-                deltas.Add(delta);
-
-                await reader.CloseAsync().ConfigureAwait(false);
-            }
-        }
-
-        return new SchemaMigration(deltas);
-    }
+        => SchemaMigration.DetermineAsync(conn, new OracleDbCommandBuilder(), ct, schemaObjects);
 }

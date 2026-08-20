@@ -62,8 +62,26 @@ public class SchemaMigration
     /// <param name="conn"></param>
     /// <param name="schemaObjects"></param>
     /// <returns></returns>
+    public static Task<SchemaMigration> DetermineAsync(
+        DbConnection conn,
+        CancellationToken ct,
+        params ISchemaObject[] schemaObjects
+    ) => DetermineAsync(conn, new DbCommandBuilder(conn), ct, schemaObjects);
+
+    /// <summary>
+    ///     Create a SchemaMigration using a command builder the caller supplies.
+    /// </summary>
+    /// <remarks>
+    ///     Only Oracle needs this: ODP.NET will not execute several statements from a single
+    ///     command, so <c>OracleDbCommandBuilder</c> splits the batch and the reader chains across
+    ///     the pieces. Without it every Oracle schema object was limited to one introspection query,
+    ///     which is why index, foreign key and primary key drift was invisible to the whole
+    ///     migration path (weasel#474). Callers reach it through
+    ///     <see cref="Migrator.CreateCommandBuilder" />.
+    /// </remarks>
     public static async Task<SchemaMigration> DetermineAsync(
         DbConnection conn,
+        DbCommandBuilder builder,
         CancellationToken ct,
         params ISchemaObject[] schemaObjects
     )
@@ -75,9 +93,14 @@ public class SchemaMigration
             return new SchemaMigration(deltas);
         }
 
-        var builder = new DbCommandBuilder(conn);
+        for (var i = 0; i < schemaObjects.Length; i++)
+        {
+            // Between objects, not before the first: a builder that splits on this boundary would
+            // otherwise open with an empty statement.
+            if (i > 0) builder.StartNewCommand();
 
-        foreach (var schemaObject in schemaObjects) schemaObject.ConfigureQueryCommand(builder);
+            schemaObjects[i].ConfigureQueryCommand(builder);
+        }
 
         await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
 

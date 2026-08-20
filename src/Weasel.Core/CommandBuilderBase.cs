@@ -6,6 +6,21 @@ using JasperFx.Core;
 
 namespace Weasel.Core;
 
+/// <summary>
+///     A command builder that can hand back its batch as one or more executable commands. Every
+///     Weasel builder can, because <see cref="CommandBuilderBase{TCommand,TParameter,TParameterType}" />
+///     implements it — but only Oracle's ever returns more than one, since ODP.NET will not execute
+///     several statements from a single command (weasel#474).
+/// </summary>
+/// <remarks>
+///     Separate from <see cref="ICommandBuilder{TCommand}" /> so that adding it breaks nothing that
+///     implements that interface outside this repository.
+/// </remarks>
+public interface IBatchedCommandBuilder
+{
+    IReadOnlyList<DbCommand> CompileCommands();
+}
+
 public interface ICommandBuilder<out TCommand>
     where TCommand : DbCommand
 {
@@ -20,7 +35,7 @@ public interface ICommandBuilder<out TCommand>
 /// <typeparam name="TTransaction"></typeparam>
 /// <typeparam name="TParameterType"></typeparam>
 /// <typeparam name="TDataReader"></typeparam>
-public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandBuilder<TCommand>
+public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandBuilder<TCommand>, IBatchedCommandBuilder
     where TCommand : DbCommand
     where TParameter : DbParameter
     where TParameterType : struct
@@ -607,6 +622,32 @@ public static class CommandBuilderExtensions
         CancellationToken ct = default
     ) where T : DbCommand
     {
+        // A builder that splits its batch hands back one command per statement -- Oracle is the
+        // only one that does, because ODP.NET cannot execute several statements from a single
+        // command. Chaining the readers makes the split invisible to whatever reads the results,
+        // which is what lets Oracle register more than one introspection query (weasel#474).
+        if (commandBuilder is IBatchedCommandBuilder batched)
+        {
+            var commands = batched.CompileCommands();
+
+            if (commands.Count > 0)
+            {
+                foreach (var command in commands)
+                {
+                    command.Connection = connection;
+                    command.Transaction = tx;
+                }
+
+                // Got to remember to make this disposed by caller.
+                // The single-command case cannot fall through to Compile(): a builder that splits
+                // consumes its accumulated SQL while compiling, so a second Compile() would hand
+                // back a command with empty CommandText.
+                return commands.Count == 1
+                    ? commands[0].ExecuteReaderAsync(ct)
+                    : MultiCommandDataReader.OpenAsync(commands, ct);
+            }
+        }
+
         var cmd = commandBuilder.Compile();
 
         cmd.Connection = connection;
