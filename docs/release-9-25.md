@@ -4,7 +4,7 @@
 any schema whose names are not all plain lowercase identifiers, and three behaviours change in
 ways you can observe from the outside.
 
-::: danger Go straight to 9.25.1
+::: danger Go straight to the latest 9.25.x
 **9.25.0 refuses to create a table whose primary key constraint name is longer than the engine's
 identifier limit**, and 9.24 accepted it. The names it rejects are entirely conventional — just
 long, which a wide composite key on a long table name produces easily. Fixed in 9.25.1; see
@@ -15,6 +15,47 @@ If your schema uses conventional names throughout — lowercase, no spaces, no r
 brackets — the emitted DDL is byte-identical to 9.24 **with the one exception above**, and there is
 nothing else here to do except read
 [the one that looks like a regression](#the-one-that-looks-like-a-regression).
+
+## What 9.25.2 changes
+
+One behaviour change and one refactor.
+
+### ⚠️ A check constraint is now refused where it would have been ignored
+
+[#488](https://github.com/JasperFx/weasel/issues/488). `TableBase.CheckConstraints` is on the
+shared base, so every provider's `Table` accepted a check constraint. **Only PostgreSQL and SQL
+Server ever wrote one into the DDL.** On Oracle, MySQL and SQLite the constraint sat in the model,
+never reached the database, and was never compared during delta detection either — so a caller got
+a table without the constraint they asked for and nothing said so.
+
+Both entry points now throw on those three:
+
+```csharp
+table.AddCheckConstraint("ck_orders_qty", "quantity > 0");                  // NotSupportedException
+table.CheckConstraints.Add(new TableCheckConstraint("ck", "quantity > 0")); // NotSupportedException
+```
+
+The collection refuses as well as the method, because adding to it directly is the more common
+spelling and throwing from only one of them would have left the silent path open.
+
+**If you call either on Oracle, MySQL or SQLite you will now get an exception where you previously
+got silence.** Nothing of value is lost — the constraint was never created — but the failure moves
+from invisible to loud, which is the point. The engines all support check constraints; Weasel does
+not emit them there yet, and the message says so and points at the issue.
+
+This is the rule [#449](https://github.com/JasperFx/weasel/issues/449) settled, applied to the one
+place it had been missed: a caller who sets a property gets it, or gets an exception, never a
+quietly narrower object. It was missed because the property lives on `TableBase` rather than on
+each provider's own type, so there was no per-provider surface to audit.
+
+### Oracle deltas share one implementation
+
+[#492](https://github.com/JasperFx/weasel/pull/492). Six Oracle object types — views, triggers,
+stored procedures, packages, synonyms and functions — had each written out the same delta class
+after hitting the same failure separately. They now share `OracleReplaceDelta`.
+
+No behaviour change and no API you were likely using: the six replaced classes were `internal`.
+`Weasel.Oracle.Functions.FunctionDelta` is public and stays, now delegating to the shared rule.
 
 ## What 9.25.1 fixes
 
@@ -56,6 +97,7 @@ apart from check constraints on Oracle, MySQL and SQLite
 
 | Change | Who is affected | Action |
 | --- | --- | --- |
+| **A check constraint is refused on Oracle, MySQL and SQLite** (9.25.2) | Anyone calling `AddCheckConstraint` on those three | You now get an exception where you got silence — the constraint was never created either way |
 | **SQLite no longer drops your table to change a column** | Anyone on SQLite applying a type, foreign key or primary key change with `AutoCreate.All` | None — but read below, because you may have lost data on an earlier version |
 | **Oracle now sees index, foreign key and primary key drift** | Every Oracle user | Expect a first run that finally applies indexes it had silently been ignoring |
 | Column names are no longer rewritten | Anyone who declared a column with a space in the name | Write the underscore yourself, or accept the new name |
@@ -233,3 +275,4 @@ object.
 | `Sequence.IncrementBy` on MySQL | The table-based emulation never honoured it. |
 | `Trigger.Condition` on SQL Server and MySQL | Neither has a `WHEN` clause. |
 | `Trigger.Timing = Before` on SQL Server | SQL Server has no `BEFORE` trigger. |
+| `AddCheckConstraint` and `CheckConstraints.Add` on Oracle, MySQL and SQLite | Weasel does not emit check constraints there yet. Added in 9.25.2 — see [above](#a-check-constraint-is-now-refused-where-it-would-have-been-ignored). |
