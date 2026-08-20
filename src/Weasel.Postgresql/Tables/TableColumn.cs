@@ -30,9 +30,14 @@ public class TableColumn: ITableColumn
             throw new ArgumentOutOfRangeException(nameof(type));
         }
 
+        // Unquoted first: a caller who wrote "Order Date" means that column, and the catalog
+        // reports it back bare. The casing and space handling that follow are long-standing
+        // behaviour, untouched here (see weasel#458).
+        var unquoted = SchemaUtils.Unquote(name.Trim());
+
         Name = preserveCase
-            ? name.Trim()
-            : name.ToLowerInvariant().Trim().Replace(' ', '_');
+            ? unquoted.Trim()
+            : unquoted.ToLowerInvariant().Trim().Replace(' ', '_');
         Type = type.ToLowerInvariant();
     }
 
