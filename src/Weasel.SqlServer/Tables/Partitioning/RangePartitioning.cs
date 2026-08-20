@@ -64,13 +64,13 @@ public class RangePartitioning : ISplittablePartitioning
         var rangeDir = IsRangeRight ? "RIGHT" : "LEFT";
 
         // Drop existing (for idempotent creation)
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{psName}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME [{psName}];");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION [{pfName}];");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
+        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
+        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
 
         // Create partition function
-        writer.Write($"CREATE PARTITION FUNCTION [{pfName}] ({SqlDataType})");
+        writer.Write($"CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType})");
         writer.Write($" AS RANGE {rangeDir}");
         if (_boundaryValues.Any())
         {
@@ -80,12 +80,12 @@ public class RangePartitioning : ISplittablePartitioning
         writer.WriteLine(";");
 
         // Create partition scheme
-        writer.WriteLine($"CREATE PARTITION SCHEME [{psName}] AS PARTITION [{pfName}] ALL TO ([{Filegroup}]);");
+        writer.WriteLine($"CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
     }
 
     public void WriteOnClause(TextWriter writer, Table parent)
     {
-        writer.Write($" ON [{PartitionSchemeName(parent)}]([{Column}])");
+        writer.Write($" ON {SchemaUtils.BracketName(PartitionSchemeName(parent))}({SchemaUtils.BracketName(Column)})");
     }
 
     public void WriteDropDdl(TextWriter writer, Table parent)
@@ -93,10 +93,10 @@ public class RangePartitioning : ISplittablePartitioning
         var psName = PartitionSchemeName(parent);
         var pfName = PartitionFunctionName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{psName}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME [{psName}];");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION [{pfName}];");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
+        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
+        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
+        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
     }
 
     public PartitionDelta CreateDelta(SqlServerPartitionInfo? actual)
@@ -134,8 +134,8 @@ public class RangePartitioning : ISplittablePartitioning
         {
             if (!actualSet.Contains(boundary))
             {
-                writer.WriteLine($"ALTER PARTITION SCHEME [{psName}] NEXT USED [{Filegroup}];");
-                writer.WriteLine($"ALTER PARTITION FUNCTION [{pfName}]() SPLIT RANGE ({boundary});");
+                writer.WriteLine($"ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(Filegroup)};");
+                writer.WriteLine($"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({boundary});");
             }
         }
     }
@@ -153,7 +153,7 @@ public class RangePartitioning : ISplittablePartitioning
         {
             if (!actualSet.Contains(boundary))
             {
-                writer.WriteLine($"ALTER PARTITION FUNCTION [{pfName}]() MERGE RANGE ({boundary});");
+                writer.WriteLine($"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() MERGE RANGE ({boundary});");
             }
         }
     }

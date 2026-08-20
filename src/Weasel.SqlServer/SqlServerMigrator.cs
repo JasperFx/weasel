@@ -104,8 +104,8 @@ $$;
         {
             writer.WriteLine($@"IF EXISTS ( SELECT  *
                     FROM    sys.schemas
-                    WHERE   name = N'{schemaName}' )
-        EXEC('DROP SCHEMA [{schemaName}]');
+                    WHERE   name = N'{SchemaUtils.EscapeLiteral(schemaName)}' )
+        EXEC('DROP SCHEMA {SchemaUtils.EscapeLiteral(SchemaUtils.BracketName(schemaName))}');
 ");
         }
     }
@@ -217,8 +217,8 @@ $$;
         return $@"
 IF NOT EXISTS ( SELECT  *
                 FROM    sys.schemas
-                WHERE   name = N'{schemaName}' )
-    EXEC('CREATE SCHEMA [{schemaName}]');
+                WHERE   name = N'{SchemaUtils.EscapeLiteral(schemaName)}' )
+    EXEC('CREATE SCHEMA {SchemaUtils.EscapeLiteral(SchemaUtils.BracketName(schemaName))}');
 
 ";
     }
@@ -281,7 +281,7 @@ IF NOT EXISTS ( SELECT  *
 
                 // CREATE DATABASE takes no parameters, so the name has to be interpolated. Doubling ']'
                 // is what makes it a well-formed delimited identifier.
-                createCmd.CommandText = $"CREATE DATABASE [{databaseName.Replace("]", "]]")}]";
+                createCmd.CommandText = $"CREATE DATABASE {SchemaUtils.BracketName(databaseName)}";
 
                 try
                 {
@@ -400,14 +400,14 @@ IF NOT EXISTS ( SELECT  *
 
         foreach (var table in tables)
         {
-            sb.AppendLine($"DELETE FROM {table.QualifiedName};");
+            sb.AppendLine($"DELETE FROM {table};");
         }
 
         if (resetIdentity)
         {
             foreach (var table in tables)
             {
-                sb.AppendLine($"BEGIN TRY DBCC CHECKIDENT('{table.QualifiedName}', RESEED, 0); END TRY BEGIN CATCH END CATCH;");
+                sb.AppendLine($"BEGIN TRY DBCC CHECKIDENT('{table}', RESEED, 0); END TRY BEGIN CATCH END CATCH;");
             }
         }
 

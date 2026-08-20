@@ -159,7 +159,8 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             writer.WriteLine("SELECT {0} = {1} + 'ALTER TABLE ' + QUOTENAME(OBJECT_SCHEMA_NAME(fk.parent_object_id)) + '.' + QUOTENAME(OBJECT_NAME(fk.parent_object_id)) + ' DROP CONSTRAINT ' + QUOTENAME(fk.name) + ';'",
                 sqlVariableName, sqlVariableName);
             writer.WriteLine("FROM sys.foreign_keys AS fk");
-            writer.WriteLine("WHERE fk.referenced_object_id = OBJECT_ID('{0}');", Identifier);
+            writer.WriteLine("WHERE fk.referenced_object_id = OBJECT_ID('{0}');",
+                SchemaUtils.EscapeLiteral(Identifier.QualifiedName));
             writer.WriteLine("EXEC sp_executesql {0};", sqlVariableName);
 
             writer.WriteLine("DROP TABLE IF EXISTS {0};", Identifier);
@@ -167,7 +168,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         }
         else
         {
-            writer.WriteLine("IF OBJECT_ID('{0}') IS NULL", Identifier);
+            writer.WriteLine("IF OBJECT_ID('{0}') IS NULL", SchemaUtils.EscapeLiteral(Identifier.QualifiedName));
             writer.WriteLine("BEGIN");
             writer.WriteLine("CREATE TABLE {0} (", Identifier);
         }
@@ -276,11 +277,14 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
     internal string PrimaryKeyDeclaration()
     {
-        return $"CONSTRAINT {PrimaryKeyName} PRIMARY KEY ({PrimaryKeyColumns.Join(", ")})";
+        // Bracketed: EF6 databases carry a primary key literally named "PK_dbo.__MigrationHistory",
+        // and an unquoted dot ends the identifier.
+        return
+            $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({PrimaryKeyColumns.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})";
     }
 
     internal static string CheckConstraintDeclaration(TableCheckConstraint constraint)
-        => $"CONSTRAINT [{constraint.Name}] CHECK ({constraint.Expression})";
+        => $"CONSTRAINT {SchemaUtils.BracketName(constraint.Name)} CHECK ({constraint.Expression})";
 
     public ColumnExpression AddColumn(TableColumn column)
     {

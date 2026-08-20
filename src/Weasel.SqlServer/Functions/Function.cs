@@ -22,7 +22,9 @@ public class Function: FunctionBase
 
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
-        writer.WriteLine($"EXEC sp_executesql N'{RawBody}';");
+        // The body goes inside a string literal, so its own quotes have to be doubled. Without
+        // this, any function containing a string literal produced an unclosed-quote syntax error.
+        writer.WriteLine($"EXEC sp_executesql N'{RawBody?.Replace("'", "''")}';");
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)

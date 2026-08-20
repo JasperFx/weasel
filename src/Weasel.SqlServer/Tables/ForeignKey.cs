@@ -91,8 +91,9 @@ public class ForeignKey: ForeignKeyBase
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier}");
-        writer.WriteLine($"ADD CONSTRAINT {Name} FOREIGN KEY({ColumnNames.Join(", ")})");
-        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Join(", ")})");
+        writer.WriteLine(
+            $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})");
+        writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
         writer.WriteCascadeAction("ON UPDATE", OnUpdate);
         writer.Write(";");
@@ -101,6 +102,6 @@ public class ForeignKey: ForeignKeyBase
 
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
-        writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {Name};");
+        writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {SchemaUtils.QuoteName(Name)};");
     }
 }
