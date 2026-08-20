@@ -21,15 +21,15 @@ Three symbols, and the distinction between the last two matters:
 | Foreign key | ✓ | ✓ | ✓ | ✓ | ✓ (inline only) |
 | Check constraint | ✓ | ✓ | ✗ | ✗ | ✗ |
 | Primary key | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Sequence | ✓ | ✓ | ✓ | table-emulated | table-emulated |
+| Sequence | ✓ | ✓ | ✓ | — (obsolete emulation) | — |
 | View | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Materialized view | ✓ | — | ✗ | — | — |
+| Materialized view | ✓ | — | ✓ | — | — |
 | Function | ✓ | ✓ | ✗ | ✗ | connection-scoped |
 | Stored procedure | ✓ | ✓ | ✓ | ✓ | — |
 | Trigger | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Package | — | — | ✗ | — | — |
-| Synonym | — | ✗ | ✗ | — | — |
-| User-defined type | ✗ | ✓ (table types) | ✗ | — | — |
+| Package | — | — | ✓ | — | — |
+| Synonym | — | ✓ | ✓ | — | — |
+| User-defined type | ✓ (enum/domain/composite) | ✓ (table types) | — | — | — |
 | Extension | ✓ | — | — | — | — |
 | Partitioning | ✓ (hash/range/list) | ✓ (range) | ✓ | ✓ | — |
 
@@ -37,7 +37,8 @@ Three symbols, and the distinction between the last two matters:
 
 - **Triggers** are modelled as independent schema objects that declare a target rather than as something a table owns, which is why they are a row here and not part of the table row. A trigger does not always have a table — SQL Server's `INSTEAD OF` triggers attach to views — and PostgreSQL's call a function, so they compose with `Function` rather than carrying their own body. See [Triggers](/core/triggers).
 - **Functions on Oracle and MySQL** are [#450](https://github.com/JasperFx/weasel/issues/450). Stored procedures are on all four engines that have them; SQLite has no such concept.
-- **The long tail** — Oracle packages, materialized views and synonyms, SQL Server synonyms, PostgreSQL user-defined types — is [#453](https://github.com/JasperFx/weasel/issues/453).
+- **Oracle packages** model the specification and the body as one object with two parts, because that is what they are: `all_source` lists them separately, they compile separately, and a body can be invalid while its spec is fine. A spec-only package — shared constants and types — is legal and supported.
+- **PostgreSQL user-defined types** cover enums, domains and composites through one class, because the catalog makes no distinction between them and neither does anything Weasel does with them.
 - **PostgreSQL materialized views already work**, through `Weasel.Postgresql.Views.MaterializedView`, which is `View` with a different `ViewType` and an optional access method. That row was ✗ in the first draft of this page and the check below caught it on its first run, which is the argument for the check.
 
 ### SQLite functions are a different thing
@@ -49,10 +50,20 @@ them repeatable, not to model a schema object.
 
 ### Sequences on MySQL and SQLite
 
-Neither engine has a native `SEQUENCE`. Both providers emulate one with a table, which is why
-they read `table-emulated` above rather than ✓ or —. The emulation is deliberate and supported:
-what [#453](https://github.com/JasperFx/weasel/issues/453) settled is that Weasel emulates
-*operations* an engine lacks but does not invent *objects* it does not have.
+Neither engine has a native `SEQUENCE` — MySQL never has, at any version; it is MariaDB 10.3 that
+added them.
+
+**`Weasel.MySql.Sequence` is `[Obsolete]`.** It emulates a sequence with a single-row table, and
+nothing can consume it: `current_value` is never read or incremented, there is no next-value
+operation anywhere, and its delta only checks existence. Use `AUTO_INCREMENT`.
+
+That follows the rule [#453](https://github.com/JasperFx/weasel/issues/453) settled: **emulate
+operations, not objects.** SQLite's table recreation around its `ALTER` limits and MySQL's DDL
+ordering around foreign-key backing indexes are fine, because the end state is the object the
+caller declared and the emulation is invisible. An emulated *object* makes `AllObjects()` and
+introspection lie, and the semantics diverge where it matters — a real sequence does not roll back
+and does not serialize writers; a table-backed counter does both. Which is why SQLite does not get
+one either.
 
 ## Teardown has to keep up
 

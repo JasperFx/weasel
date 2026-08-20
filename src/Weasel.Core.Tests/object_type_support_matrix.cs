@@ -49,6 +49,7 @@ public class object_type_support_matrix
         ("Postgresql", "Extension", "Weasel.Postgresql.Extension"),
         ("Postgresql", "Trigger", "Weasel.Postgresql.Triggers.Trigger"),
         ("Postgresql", "StoredProcedure", "Weasel.Postgresql.Procedures.StoredProcedure"),
+        ("Postgresql", "UserDefinedType", "Weasel.Postgresql.Types.UserDefinedType"),
 
         ("SqlServer", "Table", "Weasel.SqlServer.Tables.Table"),
         ("SqlServer", "Sequence", "Weasel.SqlServer.Sequence"),
@@ -57,12 +58,16 @@ public class object_type_support_matrix
         ("SqlServer", "StoredProcedure", "Weasel.SqlServer.Procedures.StoredProcedure"),
         ("SqlServer", "TableType", "Weasel.SqlServer.Tables.TableType"),
         ("SqlServer", "Trigger", "Weasel.SqlServer.Triggers.Trigger"),
+        ("SqlServer", "Synonym", "Weasel.SqlServer.Synonyms.Synonym"),
 
         ("Oracle", "Table", "Weasel.Oracle.Tables.Table"),
         ("Oracle", "Sequence", "Weasel.Oracle.Sequence"),
         ("Oracle", "View", "Weasel.Oracle.Views.View"),
         ("Oracle", "Trigger", "Weasel.Oracle.Triggers.Trigger"),
         ("Oracle", "StoredProcedure", "Weasel.Oracle.Procedures.StoredProcedure"),
+        ("Oracle", "MaterializedView", "Weasel.Oracle.Views.MaterializedView"),
+        ("Oracle", "Synonym", "Weasel.Oracle.Synonyms.Synonym"),
+        ("Oracle", "Package", "Weasel.Oracle.Packages.Package"),
 
         ("MySql", "Table", "Weasel.MySql.Tables.Table"),
         ("MySql", "Sequence", "Weasel.MySql.Sequence"),
@@ -93,7 +98,6 @@ public class object_type_support_matrix
         new()
         {
             { "Oracle", "Weasel.Oracle.Functions.Function", "#450" },
-            { "Oracle", "Weasel.Oracle.Views.MaterializedView", "#453" },
             { "MySql", "Weasel.MySql.Functions.Function", "#450" }
         };
 
