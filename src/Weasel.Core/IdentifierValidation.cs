@@ -53,11 +53,21 @@ public static class IdentifierValidation
             return "it is null, empty, or entirely whitespace";
         }
 
+        // Leading and trailing whitespace is always a typo, and allowing it would silently create
+        // an object under a name nobody meant, which then drifts forever. Interior whitespace is a
+        // different thing entirely -- "unit price" is somebody's real legacy column.
+        if (name![0] == ' ' || char.IsWhiteSpace(name[0]) || char.IsWhiteSpace(name[^1]))
+        {
+            return "it starts or ends with whitespace";
+        }
+
         foreach (var c in name)
         {
-            if (char.IsWhiteSpace(c))
+            if (char.IsWhiteSpace(c) && c != ' ')
             {
-                return "it contains whitespace";
+                // A newline or a tab can introduce a -- comment into an unquoted name; a plain
+                // space cannot.
+                return "it contains a line break or tab";
             }
 
             if (c is ';' or '\'' || unsafeCharacters.Contains(c))

@@ -14,14 +14,41 @@ public class IdentifierValidationTests
         IdentifierValidation.FindProblem(name, "\"").ShouldBe("it is null, empty, or entirely whitespace");
     }
 
+    /// <summary>
+    ///     A line break or a tab can introduce a <c>--</c> comment into an unquoted name, so those stay
+    ///     rejected. A plain interior space cannot, and every provider quotes for shape as of weasel#447,
+    ///     so <c>unit price</c> — somebody's real legacy column — is now allowed through (weasel#448).
+    /// </summary>
     [Theory]
-    [InlineData("us ers")]
     [InlineData("us\ters")]
     [InlineData("us\ners")]
     [InlineData("us\rers")]
-    public void all_whitespace_characters_are_rejected_not_just_the_space(string name)
+    public void a_line_break_or_tab_is_still_rejected(string name)
     {
-        IdentifierValidation.FindProblem(name, "\"").ShouldBe("it contains whitespace");
+        IdentifierValidation.FindProblem(name, "\"").ShouldBe("it contains a line break or tab");
+    }
+
+    [Theory]
+    [InlineData("us ers")]
+    [InlineData("unit price")]
+    [InlineData("PK_dbo.__MigrationHistory")]
+    public void an_interior_space_is_allowed_now_that_every_provider_quotes_for_shape(string name)
+    {
+        IdentifierValidation.FindProblem(name, "\"").ShouldBeNull();
+    }
+
+    /// <summary>
+    ///     Leading or trailing whitespace is a typo every time. Allowing it would silently create an
+    ///     object under a name nobody meant, which then drifts forever — so it stays rejected even
+    ///     though the interior case is now permitted.
+    /// </summary>
+    [Theory]
+    [InlineData(" users")]
+    [InlineData("users ")]
+    [InlineData("\tusers")]
+    public void leading_or_trailing_whitespace_is_still_rejected(string name)
+    {
+        IdentifierValidation.FindProblem(name, "\"").ShouldBe("it starts or ends with whitespace");
     }
 
     /// <summary>

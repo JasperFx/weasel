@@ -139,11 +139,15 @@ public class SqliteMigratorTests
     /// </summary>
     [Theory]
     [InlineData(null)]
-    [InlineData("us ers")]
     [InlineData("us\ters")]
     [InlineData("us\ners")]
     [InlineData("us\rers")]
     [InlineData("users\n-- the rest of this statement is now a comment")]
+    /// <remarks>
+    ///     An interior space is deliberately absent from this list as of weasel#448: every provider
+    ///     quotes for shape now (weasel#447), so "unit price" is safe and is somebody's real legacy
+    ///     column. A line break or tab still is not — it can smuggle a '--' comment into the statement.
+    /// </remarks>
     public void assert_identifier_rejects_null_and_interior_whitespace(string? name)
     {
         var migrator = new SqliteMigrator();
