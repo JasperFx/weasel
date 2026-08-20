@@ -6,14 +6,16 @@ namespace Weasel.SqlServer;
 public static class SchemaUtils
 {
     /// <summary>
-    ///     Wrap a name in brackets unconditionally, escaping any embedded <c>]</c>.
+    ///     Wrap a name in delimiters, escaping any embedded <c>]</c>, unless the caller has
+    ///     already bracketed it themselves.
     /// </summary>
     /// <remarks>
-    ///     For the call sites that have always bracketed. Keeping them on this rather than
-    ///     <see cref="QuoteName" /> means their generated DDL is byte-identical to before.
+    ///     For the call sites that have always bracketed. Ordinary names come out exactly as
+    ///     they did before, so their generated DDL is byte-identical; see <see cref="QuoteName" />
+    ///     for the pass-through rule the two share.
     /// </remarks>
     public static string BracketName(string name)
-        => name.IsEmpty() ? name : $"[{name.Replace("]", "]]")}]";
+        => name.IsEmpty() || IsAlreadyBracketed(name) ? name : Bracket(name);
 
     /// <summary>
     ///     Escape a value being written into a SQL string literal, by doubling its single quotes.
@@ -32,42 +34,49 @@ public static class SchemaUtils
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         There is deliberately no "it already looks bracketed, leave it alone" shortcut. A name
-    ///         that merely starts with <c>[</c> and ends with <c>]</c> is not necessarily bracketed —
-    ///         it can be an ordinary name that happens to contain both characters, and returning it
-    ///         verbatim let arbitrary DDL through:
-    ///         <c>[ix] ON t(id); DROP TABLE victim; --]</c> passed through untouched and executed.
-    ///         Every name is escaped on its own terms; a name literally called <c>[x]</c> correctly
-    ///         becomes <c>[[x]]]</c>.
+    ///         A name the caller has already bracketed is passed through untouched. Weasel emitted
+    ///         most identifiers bare until 9.25, so bracketing the name yourself was the only way to
+    ///         use one that needed delimiting; re-escaping those now would silently rename the
+    ///         object — a column declared as <c>[Order Date]</c> would be created under the literal
+    ///         name <c>[Order Date]</c>, brackets and all. The cost is that a name genuinely
+    ///         containing its own brackets cannot be expressed, which is the rarer case by far.
+    ///     </para>
+    ///     <para>
+    ///         The pass-through is narrow enough not to be a hole: the name has to be bracketed end
+    ///         to end with every interior <c>]</c> already doubled, which is exactly what
+    ///         <see cref="Bracket" /> produces. A name that merely starts with <c>[</c> and ends
+    ///         with <c>]</c> does not qualify — <c>[ix] ON t(id); DROP TABLE victim; --]</c> carries
+    ///         a lone <c>]</c>, so it is escaped on its own terms and the DDL it is carrying stays
+    ///         inert inside a single delimited identifier.
     ///     </para>
     /// </remarks>
     public static string QuoteName(string name)
-        => name.IsEmpty() || (IsRegularIdentifier(name) && !IsReservedWord(name))
+        => name.IsEmpty() || (IsRegularIdentifier(name) && !IsReservedWord(name)) || IsAlreadyBracketed(name)
             ? name
-            : BracketName(name);
+            : Bracket(name);
 
     /// <summary>
-    ///     Quote one entry of a column list, leaving an entry the caller already bracketed alone.
+    ///     Strip the delimiters off a name the caller bracketed themselves, undoubling any
+    ///     interior <c>]]</c>. A name that is not properly bracketed is returned as it is.
     /// </summary>
     /// <remarks>
-    ///     <para>
-    ///         Column lists were never quoted at all before, so users whose column needed brackets
-    ///         had no option but to bracket it themselves inside the string. Running
-    ///         <see cref="QuoteName" /> over those would re-escape a name that was already correct
-    ///         and emit a column that does not exist. This is the only place that pass-through is
-    ///         safe, and only because it is narrow: the entry must be bracketed end to end with every
-    ///         interior <c>]</c> already doubled, which is exactly the output of
-    ///         <see cref="BracketName" />.
-    ///     </para>
-    ///     <para>
-    ///         That narrowness is what keeps the injection closed. A name merely starting with
-    ///         <c>[</c> and ending with <c>]</c> does not qualify —
-    ///         <c>[ix] ON t(id); DROP TABLE victim; --]</c> contains a lone <c>]</c>, so it is
-    ///         bracketed on its own terms rather than passed through.
-    ///     </para>
+    ///     The inverse of <see cref="Bracket" />, and the counterpart to the pass-through in
+    ///     <see cref="QuoteName" />. Emitting the caller's brackets untouched is only half the
+    ///     job: the database reports the bare name back, and a model still holding the bracketed
+    ///     spelling never compares equal to it, so the table reported drift on every check. The
+    ///     SQL Server model normalizes names through this as they arrive, so what it holds is
+    ///     always the name the database will report.
     /// </remarks>
-    public static string QuoteColumnEntry(string name)
-        => IsAlreadyBracketed(name) ? name : QuoteName(name);
+    public static string Unbracket(string name)
+        => IsAlreadyBracketed(name) ? name.Substring(1, name.Length - 2).Replace("]]", "]") : name;
+
+    /// <summary>
+    ///     Delimit a name unconditionally, with no pass-through. Only for a value that is the
+    ///     object's literal name and cannot have been pre-bracketed by a caller — a database name
+    ///     read out of a connection string, where <c>[</c> and <c>]</c> are part of the name.
+    /// </summary>
+    internal static string Bracket(string name)
+        => $"[{name.Replace("]", "]]")}]";
 
     private static bool IsAlreadyBracketed(string name)
     {

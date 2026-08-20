@@ -13,11 +13,11 @@ internal class ItemDelta<T> where T : INamed
     {
         comparison ??= (expected, actual) => expected.Equals(actual);
         // SQL Server identifiers are case-insensitive under the default collation
-        var expecteds = expectedItems.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
+        var expecteds = expectedItems.ToDictionary(NameKey, StringComparer.OrdinalIgnoreCase);
 
         foreach (var actual in actualItems)
         {
-            if (expecteds.TryGetValue(actual.Name, out var expected))
+            if (expecteds.TryGetValue(NameKey(actual), out var expected))
             {
                 if (comparison(expected, actual))
                 {
@@ -34,9 +34,17 @@ internal class ItemDelta<T> where T : INamed
             }
         }
 
-        var actuals = actualItems.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
-        _missing.AddRange(expectedItems.Where(x => !actuals.ContainsKey(x.Name)));
+        var actuals = actualItems.ToDictionary(NameKey, StringComparer.OrdinalIgnoreCase);
+        _missing.AddRange(expectedItems.Where(x => !actuals.ContainsKey(NameKey(x))));
     }
+
+    /// <summary>
+    ///     Pair on the undelimited name. The provider's own types normalize as names arrive,
+    ///     but <see cref="TableCheckConstraint" /> is a shared Weasel.Core type the caller
+    ///     constructs directly, so a name they bracketed themselves reaches the comparison
+    ///     as-is and would never match the bare name the database reports.
+    /// </summary>
+    private static string NameKey(T item) => SchemaUtils.Unbracket(item.Name);
 
     public IReadOnlyList<Change<T>> Different => _different;
 

@@ -44,6 +44,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
 
     /// <inheritdoc />
+    /// <inheritdoc />
+    protected override string NormalizeIdentifier(string name) => SchemaUtils.Unbracket(name);
+
     protected override string DefaultPrimaryKeyName()
         => $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
 
@@ -280,7 +283,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         // Bracketed: EF6 databases carry a primary key literally named "PK_dbo.__MigrationHistory",
         // and an unquoted dot ends the identifier.
         return
-            $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({PrimaryKeyColumns.Select(SchemaUtils.QuoteColumnEntry).Join(", ")})";
+            $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({PrimaryKeyColumns.Select(SchemaUtils.QuoteName).Join(", ")})";
     }
 
     internal static string CheckConstraintDeclaration(TableCheckConstraint constraint)

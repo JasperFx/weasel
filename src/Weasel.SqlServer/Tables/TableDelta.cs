@@ -44,9 +44,10 @@ public class TableDelta: SchemaObjectDelta<Table>
         // table declares participate, and actual constraints the expected table
         // doesn't know about are never treated as extras to drop.
         var relevantActualChecks = actual.CheckConstraints
-            .Where(a => expected.CheckConstraints.Any(e => e.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase)));
+            .Where(a => expected.CheckConstraints.Any(e =>
+                SchemaUtils.Unbracket(e.Name).Equals(SchemaUtils.Unbracket(a.Name), StringComparison.OrdinalIgnoreCase)));
         CheckConstraints = new ItemDelta<TableCheckConstraint>(expected.CheckConstraints, relevantActualChecks,
-            (e, a) => e.Matches(a));
+            checkConstraintsMatch);
 
         PrimaryKeyDifference = SchemaPatchDifference.None;
         if (expected.PrimaryKeyName.IsEmpty())
@@ -82,6 +83,16 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         return determinePatchDifference();
     }
+
+    /// <summary>
+    ///     <see cref="TableCheckConstraint.Matches" /> compares names verbatim, and a name the
+    ///     caller bracketed themselves never equals the bare name the catalog reports back.
+    ///     Pairing has already matched the two on the undelimited name by this point, so all
+    ///     that is left to decide is whether the expression changed.
+    /// </summary>
+    private static bool checkConstraintsMatch(TableCheckConstraint expected, TableCheckConstraint actual)
+        => TableCheckConstraint.Canonicalize(expected.Expression)
+           == TableCheckConstraint.Canonicalize(actual.Expression);
 
     public override void WriteUpdate(Migrator rules, TextWriter writer)
     {

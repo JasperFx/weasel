@@ -280,8 +280,10 @@ IF NOT EXISTS ( SELECT  *
                 var createCmd = adminConn.CreateCommand();
 
                 // CREATE DATABASE takes no parameters, so the name has to be interpolated. Doubling ']'
-                // is what makes it a well-formed delimited identifier.
-                createCmd.CommandText = $"CREATE DATABASE {SchemaUtils.BracketName(databaseName)}";
+                // is what makes it a well-formed delimited identifier. Bracket rather than
+                // BracketName: this name comes off a connection string, where a leading '[' is part
+                // of the name and not a delimiter the caller added.
+                createCmd.CommandText = $"CREATE DATABASE {SchemaUtils.Bracket(databaseName)}";
 
                 try
                 {
