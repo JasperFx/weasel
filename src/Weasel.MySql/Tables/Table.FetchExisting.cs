@@ -60,7 +60,13 @@ WHERE tc.TABLE_SCHEMA = @{schemaParam}
     AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
 ORDER BY tc.CONSTRAINT_NAME, kcu.ORDINAL_POSITION;
 
--- Indexes (excluding primary key)
+-- Indexes, excluding the primary key and any index MySQL created implicitly to back a
+-- foreign key. MySQL requires an index on the referencing column and silently creates one
+-- when none exists, naming it after the constraint. Such an index is not part of the table
+-- as declared, so reading it back as an ordinary index makes every delta want to drop it,
+-- and InnoDB refuses while the constraint still needs it. An index the caller declared
+-- explicitly is reused by the constraint and keeps its own name, so it is still returned
+-- here and stays under Weasel's management.
 SELECT
     s.INDEX_NAME,
     s.COLUMN_NAME,
@@ -71,6 +77,14 @@ FROM information_schema.STATISTICS s
 WHERE s.TABLE_SCHEMA = @{schemaParam}
     AND s.TABLE_NAME = @{nameParam}
     AND s.INDEX_NAME != 'PRIMARY'
+    AND NOT EXISTS (
+        SELECT 1
+        FROM information_schema.TABLE_CONSTRAINTS tc
+        WHERE tc.TABLE_SCHEMA = s.TABLE_SCHEMA
+            AND tc.TABLE_NAME = s.TABLE_NAME
+            AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'
+            AND tc.CONSTRAINT_NAME = s.INDEX_NAME
+    )
 ORDER BY s.INDEX_NAME, s.SEQ_IN_INDEX;
 ");
     }

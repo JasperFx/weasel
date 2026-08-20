@@ -244,4 +244,80 @@ public class detecting_table_deltas: IntegrationContext
         existing.Indexes.Count.ShouldBeGreaterThanOrEqualTo(1);
         existing.Indexes.Any(i => i.IsUnique).ShouldBeTrue();
     }
+
+    [Fact]
+    public async Task foreign_key_backing_index_does_not_produce_a_delta()
+    {
+        await DropTableAsync("`weasel_testing`.`fk_index_orders`");
+        await DropTableAsync("`weasel_testing`.`fk_index_customers`");
+
+        var customers = new Table("weasel_testing.fk_index_customers");
+        customers.AddColumn<int>("id").AsPrimaryKey();
+        await customers.CreateAsync(theConnection);
+
+        var orders = new Table("weasel_testing.fk_index_orders");
+        orders.AddColumn<int>("id").AsPrimaryKey();
+        orders.AddColumn<int>("customer_id").ForeignKeyTo(customers, "id");
+        await orders.CreateAsync(theConnection);
+
+        // MySQL silently creates an index to back the foreign key and names it after the
+        // constraint. Reading that back as an ordinary index made the table look like it had
+        // an index nobody declared, so every delta wanted to drop it -- and InnoDB refuses
+        // while the constraint still needs it, so the migration failed on every single run.
+        var delta = await orders.FindDeltaAsync(theConnection);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task foreign_key_backing_index_is_not_read_back_as_an_index()
+    {
+        await DropTableAsync("`weasel_testing`.`fk_index_only_orders`");
+        await DropTableAsync("`weasel_testing`.`fk_index_only_customers`");
+
+        var customers = new Table("weasel_testing.fk_index_only_customers");
+        customers.AddColumn<int>("id").AsPrimaryKey();
+        await customers.CreateAsync(theConnection);
+
+        var orders = new Table("weasel_testing.fk_index_only_orders");
+        orders.AddColumn<int>("id").AsPrimaryKey();
+        orders.AddColumn<int>("customer_id").ForeignKeyTo(customers, "id");
+        await orders.CreateAsync(theConnection);
+
+        var existing = await orders.FetchExistingAsync(theConnection);
+
+        existing.ShouldNotBeNull();
+        existing.ForeignKeys.Count.ShouldBe(1);
+        existing.Indexes.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task an_explicit_index_on_a_foreign_key_column_is_still_tracked()
+    {
+        await DropTableAsync("`weasel_testing`.`fk_explicit_idx_orders`");
+        await DropTableAsync("`weasel_testing`.`fk_explicit_idx_customers`");
+
+        var customers = new Table("weasel_testing.fk_explicit_idx_customers");
+        customers.AddColumn<int>("id").AsPrimaryKey();
+        await customers.CreateAsync(theConnection);
+
+        // An index the caller declares is created first, so the constraint reuses it rather
+        // than making its own. It therefore keeps its own name and must stay under Weasel's
+        // management -- the exclusion above must not swallow it.
+        var orders = new Table("weasel_testing.fk_explicit_idx_orders");
+        orders.AddColumn<int>("id").AsPrimaryKey();
+        orders.AddColumn<int>("customer_id")
+            .ForeignKeyTo(customers, "id")
+            .AddIndex();
+        await orders.CreateAsync(theConnection);
+
+        var existing = await orders.FetchExistingAsync(theConnection);
+
+        existing.ShouldNotBeNull();
+        existing.ForeignKeys.Count.ShouldBe(1);
+        existing.Indexes.Count.ShouldBe(1);
+        existing.Indexes.Single().Name.ShouldBe("idx_fk_explicit_idx_orders_customer_id");
+
+        (await orders.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
 }
