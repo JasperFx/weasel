@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 using JasperFx.Core;
 using Weasel.Core;
 
@@ -208,18 +209,34 @@ public class IndexDefinition: ITableIndex
         }
     }
 
+    /// <summary>
+    ///     Normalize an index's DDL for comparison against the same index read back out of
+    ///     <c>sys.indexes</c>.
+    /// </summary>
+    /// <remarks>
+    ///     SQL Server rewrites a filtered index's predicate when it stores it: <c>quantity > 0</c>
+    ///     comes back as <c>([quantity]&gt;(0))</c>. Brackets and the spacing around comparison
+    ///     operators therefore have to be normalized away, or every filtered index reports drift on
+    ///     every check — the disease weasel#445 and weasel#446 were about, found here by the shared
+    ///     index scenario matrix (weasel#449).
+    /// </remarks>
     public static string CanonicizeDdl(IndexDefinition index, Table parent)
     {
-        return index.ToDDL(parent)
-                .Replace("\"\"", "\"")
-                .Replace("  ", " ")
-                .Replace("(", "")
-                .Replace(")", "")
-                .Replace("INDEX CONCURRENTLY", "INDEX")
-                .Replace("::text", "")
-                .Replace(" ->> ", "->>")
-                .Replace("->", "->").TrimEnd(new[] { ';' })
-            ;
+        var sql = index.ToDDL(parent)
+            .Replace("\"\"", "\"")
+            .Replace("  ", " ")
+            .Replace("(", "")
+            .Replace(")", "")
+            .Replace("[", "")
+            .Replace("]", "")
+            .Replace("INDEX CONCURRENTLY", "INDEX")
+            .Replace("::text", "")
+            .Replace(" ->> ", "->>")
+            .Replace("->", "->")
+            .TrimEnd(';');
+
+        // Collapse the whitespace SQL Server adds or removes around operators and separators.
+        return Regex.Replace(sql, @"\s*([<>=!+\-*/,]+)\s*", "$1");
     }
 
     public void AddColumn(string columnName)

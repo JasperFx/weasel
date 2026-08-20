@@ -49,9 +49,29 @@ public class IndexDefinition: ITableIndex
     }
 
     /// <summary>
-    ///     The constraint expression for a partial index (WHERE clause)
+    ///     Always <c>null</c>. Oracle has no partial indexes, so the setter throws rather than
+    ///     accepting a predicate it will not honour.
     /// </summary>
-    public string? Predicate { get; set; }
+    /// <remarks>
+    ///     This property used to be settable and did nothing at all — never emitted into DDL, never
+    ///     read during delta detection. A caller who set one got an index silently wider than the
+    ///     one they asked for, with no error and no drift to notice (weasel#449). The supported way
+    ///     to index a subset of rows on Oracle is a function-based index over a <c>CASE</c>
+    ///     expression that returns NULL for the rows to exclude.
+    /// </remarks>
+    public string? Predicate
+    {
+        get => null;
+        set
+        {
+            if (value != null)
+            {
+                throw new NotSupportedException(
+                    "Oracle does not support partial indexes. Use a function-based index over a CASE "
+                    + "expression that returns NULL for the excluded rows instead.");
+            }
+        }
+    }
 
     string[]? Weasel.Core.ITableIndex.IncludeColumns
     {

@@ -33,10 +33,29 @@ public class IndexDefinition: ITableIndex
     }
 
     /// <summary>
-    ///     The constraint expression for a partial index (WHERE clause).
-    ///     Note: MySQL doesn't support partial indexes natively in the same way as PostgreSQL.
+    ///     Always <c>null</c>. MySQL has no partial indexes, so the setter throws rather than
+    ///     accepting a predicate it will not honour.
     /// </summary>
-    public string? Predicate { get; set; }
+    /// <remarks>
+    ///     This property used to be settable and did nothing at all — never emitted into DDL, never
+    ///     read during delta detection. A caller who set one got an index silently wider than the
+    ///     one they asked for, with no error and no drift to notice (weasel#449). The supported way
+    ///     to index a subset of rows on MySQL is a generated column carrying the condition, indexed
+    ///     normally.
+    /// </remarks>
+    public string? Predicate
+    {
+        get => null;
+        set
+        {
+            if (value != null)
+            {
+                throw new NotSupportedException(
+                    "MySQL does not support partial indexes. Add a generated column for the condition "
+                    + "and index that instead.");
+            }
+        }
+    }
 
     string[]? Weasel.Core.ITableIndex.IncludeColumns
     {

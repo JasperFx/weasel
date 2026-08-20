@@ -36,9 +36,15 @@ public class TableDelta: SchemaObjectDelta<Table>
         }
 
         Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
+        // The comparison is not optional. Without it ItemDelta falls back to IndexDefinition's
+        // Equals, which compares the name and nothing else -- so an index that changed from
+        // non-unique to unique, or moved to different columns, reported no difference at all and
+        // was never corrected. SQLite was the only provider not passing its Matches (weasel#449);
+        // PostgreSQL, SQL Server and Oracle all did.
         Indexes = new ItemDelta<IndexDefinition>(
             expected.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)),
-            actual.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)));
+            actual.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)),
+            (e, a) => e.Matches(a, expected));
 
         ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
 
