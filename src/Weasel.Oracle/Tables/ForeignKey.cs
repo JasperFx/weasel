@@ -8,7 +8,7 @@ public class ForeignKey: ForeignKeyBase
     private string[] _columnNames = null!;
     private string[] _linkedNames = null!;
 
-    public ForeignKey(string name) : base(name)
+    public ForeignKey(string name) : base(SchemaUtils.Unquote(name))
     {
     }
 

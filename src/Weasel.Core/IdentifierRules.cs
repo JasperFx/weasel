@@ -87,7 +87,31 @@ public abstract class IdentifierRules
     public string Quote(string name)
         => name.IsEmpty() || !RequiresDelimiting(name) || (PassThroughDelimitedNames && IsDelimited(name))
             ? name
-            : Delimit(name);
+            : Delimit(DelimitedForm(name));
+
+    /// <summary>
+    ///     The spelling a name takes once it has to be delimited. Identity for most dialects.
+    /// </summary>
+    /// <remarks>
+    ///     Oracle folds an undelimited identifier to upper case, so a name that has to be delimited
+    ///     — because it is reserved, or because of its shape — must be delimited in the folded
+    ///     spelling to land on the same object it would have had bare. Delimiting
+    ///     <c>order date</c> as <c>"order date"</c> would name a different column from the
+    ///     <c>ORDER_DATE</c> everything else in the schema resolves to.
+    /// </remarks>
+    protected virtual string DelimitedForm(string name) => name;
+
+    /// <summary>
+    ///     Whether two spellings denote the same object once this dialect has resolved them.
+    ///     Ordinal by default.
+    /// </summary>
+    /// <remarks>
+    ///     Oracle folds, so <c>order date</c> and <c>ORDER DATE</c> are one object there and two
+    ///     everywhere else. This is what lets "quoting must not change which object a name refers
+    ///     to" be stated once and hold for a folding dialect as well as a preserving one — without
+    ///     weakening it into a case-insensitive comparison for the providers that do preserve case.
+    /// </remarks>
+    public virtual bool SameObject(string a, string b) => string.Equals(a, b, StringComparison.Ordinal);
 
     /// <summary>
     ///     True when the name is delimited end to end with every interior close character already

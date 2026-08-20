@@ -88,7 +88,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}' AND owner = '{Identifier.Schema.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{SchemaUtils.EscapeLiteral(Identifier.Name.ToUpperInvariant())}' AND owner = '{SchemaUtils.EscapeLiteral(Identifier.Schema.ToUpperInvariant())}';
     IF v_count > 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE {Identifier} CASCADE CONSTRAINTS';
     END IF;
@@ -103,7 +103,7 @@ END;
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}' AND owner = '{Identifier.Schema.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{SchemaUtils.EscapeLiteral(Identifier.Name.ToUpperInvariant())}' AND owner = '{SchemaUtils.EscapeLiteral(Identifier.Schema.ToUpperInvariant())}';
     IF v_count = 0 THEN
         EXECUTE IMMEDIATE '");
             writer.WriteLine($"CREATE TABLE {Identifier} (");
@@ -200,7 +200,7 @@ BEGIN
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{Identifier.Name.ToUpperInvariant()}' AND owner = '{Identifier.Schema.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{SchemaUtils.EscapeLiteral(Identifier.Name.ToUpperInvariant())}' AND owner = '{SchemaUtils.EscapeLiteral(Identifier.Schema.ToUpperInvariant())}';
     IF v_count > 0 THEN
         EXECUTE IMMEDIATE 'DROP TABLE {Identifier} CASCADE CONSTRAINTS';
     END IF;
@@ -208,6 +208,9 @@ END;
 /
 ");
     }
+
+    /// <inheritdoc />
+    protected override string NormalizeIdentifier(string name) => SchemaUtils.Unquote(name);
 
     public override IEnumerable<DbObjectName> AllNames()
     {

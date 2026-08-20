@@ -47,7 +47,7 @@ END;");
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM all_sequences WHERE sequence_name = '{Identifier.Name.ToUpperInvariant()}' AND sequence_owner = '{Identifier.Schema.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_sequences WHERE sequence_name = '{SchemaUtils.EscapeLiteral(Identifier.Name.ToUpperInvariant())}' AND sequence_owner = '{SchemaUtils.EscapeLiteral(Identifier.Schema.ToUpperInvariant())}';
     IF v_count > 0 THEN
         EXECUTE IMMEDIATE 'DROP SEQUENCE {Identifier}';
     END IF;

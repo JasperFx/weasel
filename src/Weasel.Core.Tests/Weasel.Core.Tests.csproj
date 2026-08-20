@@ -18,6 +18,7 @@
       <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
       <ProjectReference Include="..\Weasel.Sqlite\Weasel.Sqlite.csproj" />
       <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
+      <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
     </ItemGroup>
 
     <Import Project="../../Tests.Build.props" />
