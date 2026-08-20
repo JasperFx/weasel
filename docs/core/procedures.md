@@ -1,8 +1,8 @@
-# Stored Procedures
+# Stored Procedures and Functions
 
-Stored procedures work on the four engines that have them. SQLite does not — it has no such
-concept, and `Weasel.Sqlite.Functions` registers connection-scoped functions rather than modelling
-a schema object.
+Stored procedures and functions work on the four engines that have them. SQLite does not — it has
+no such concept, and `Weasel.Sqlite.Functions` registers connection-scoped functions rather than
+modelling a schema object.
 
 ## You supply the whole statement
 
@@ -73,3 +73,50 @@ A procedure body is full of them, and MySQL's migrator used to split delta SQL o
 execute the fragments — which shredded every `BEGIN … END` block it saw. It no longer splits;
 MySqlConnector executes several statements from one command perfectly well. Fixed in
 [#452](https://github.com/JasperFx/weasel/issues/452) for triggers, which have the same shape.
+
+## Functions
+
+Functions work the same way on the same providers, through `Function` rather than
+`StoredProcedure`. PostgreSQL and SQL Server have had them since before the parity work; MySQL and
+Oracle gained them in 9.25.1 ([#482](https://github.com/JasperFx/weasel/issues/482)).
+
+```csharp
+var function = new Function("weasel_testing.fn_double", @"
+CREATE FUNCTION `weasel_testing`.fn_double(n INT) RETURNS INT DETERMINISTIC
+BEGIN
+  RETURN n * 2;
+END");
+
+await function.ApplyChangesAsync(connection);
+```
+
+The catalogs store the same things they store for a procedure, so comparison works the same way:
+
+| Provider | Read from | What is stored |
+| --- | --- | --- |
+| PostgreSQL | `pg_get_functiondef` | the whole statement, rendered by the server |
+| SQL Server | `sys.sql_modules` | verbatim |
+| MySQL | `information_schema.ROUTINES` | the body from `BEGIN`, without the header |
+| Oracle | `all_source` | from `FUNCTION` onwards, without `CREATE OR REPLACE` and without the schema qualifier |
+
+Only Oracle has `CREATE OR REPLACE FUNCTION`. The other three drop and recreate, which their
+`WriteCreateStatement` does in one go, so applying a function is idempotent everywhere.
+
+`Function.ForRemoval(name)` declares a function that should not exist: the migration drops it and
+creates nothing.
+
+::: warning MySQL needs more than CREATE ROUTINE
+Creating a function needs `CREATE ROUTINE`, and on a server with binary logging enabled it also
+needs `SUPER` or `log_bin_trust_function_creators`. MySQL refuses otherwise with a message about
+the SUPER privilege that never mentions functions:
+
+```
+You do not have the SUPER privilege and binary logging is enabled
+```
+:::
+
+::: tip SQLite has no function objects
+SQLite functions are registered against a *connection* through `Microsoft.Data.Sqlite` and vanish
+when it closes, so there is nothing for a migration to create. See
+[Object Type Support](/core/object-types).
+:::

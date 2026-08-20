@@ -62,7 +62,7 @@ export default withMermaid(
             { text: 'Object Type Support', link: '/core/object-types' },
             { text: 'Identifiers & Quoting', link: '/core/identifiers' },
             { text: 'Triggers', link: '/core/triggers' },
-            { text: 'Stored Procedures', link: '/core/procedures' }
+            { text: 'Stored Procedures & Functions', link: '/core/procedures' }
           ]
         },
         {

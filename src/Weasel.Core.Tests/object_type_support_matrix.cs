@@ -65,6 +65,7 @@ public class object_type_support_matrix
         ("Oracle", "View", "Weasel.Oracle.Views.View"),
         ("Oracle", "Trigger", "Weasel.Oracle.Triggers.Trigger"),
         ("Oracle", "StoredProcedure", "Weasel.Oracle.Procedures.StoredProcedure"),
+        ("Oracle", "Function", "Weasel.Oracle.Functions.Function"),
         ("Oracle", "MaterializedView", "Weasel.Oracle.Views.MaterializedView"),
         ("Oracle", "Synonym", "Weasel.Oracle.Synonyms.Synonym"),
         ("Oracle", "Package", "Weasel.Oracle.Packages.Package"),
@@ -72,6 +73,7 @@ public class object_type_support_matrix
         ("MySql", "Table", "Weasel.MySql.Tables.Table"),
         ("MySql", "Sequence", "Weasel.MySql.Sequence"),
         ("MySql", "View", "Weasel.MySql.Views.View"),
+        ("MySql", "Function", "Weasel.MySql.Functions.Function"),
         ("MySql", "Trigger", "Weasel.MySql.Triggers.Trigger"),
         ("MySql", "StoredProcedure", "Weasel.MySql.Procedures.StoredProcedure"),
 
@@ -90,17 +92,6 @@ public class object_type_support_matrix
         }
     }
 
-    /// <summary>
-    ///     Every ✗ in the matrix — the engine has it, Weasel does not model it yet. Each carries the
-    ///     issue that will change the answer, so the failure message says what to do.
-    /// </summary>
-    public static TheoryData<string, string, string> NotSupported =>
-        new()
-        {
-            { "Oracle", "Weasel.Oracle.Functions.Function", "#482" },
-            { "MySql", "Weasel.MySql.Functions.Function", "#482" }
-        };
-
     [Theory]
     [MemberData(nameof(Supported))]
     public void a_supported_object_type_really_is_a_schema_object(
@@ -113,14 +104,6 @@ public class object_type_support_matrix
 
         typeof(ISchemaObject).IsAssignableFrom(type).ShouldBeTrue(
             $"{typeName} exists but is not an ISchemaObject, so {provider} cannot migrate a {objectType}");
-    }
-
-    [Theory]
-    [MemberData(nameof(NotSupported))]
-    public void an_unsupported_object_type_really_is_absent(string provider, string typeName, string issue)
-    {
-        AssemblyFor(provider).GetType(typeName).ShouldBeNull(
-            $"{typeName} exists now, so docs/core/object-types.md and {issue} are both out of date");
     }
 
     /// <summary>
