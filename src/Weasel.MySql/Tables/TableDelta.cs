@@ -35,15 +35,15 @@ public class TableDelta: SchemaObjectDelta<Table>
             actual.Columns,
             (e, a) => e.IsEquivalentTo(a));
 
-        Indexes = new ItemDelta<IndexDefinition>(
-            expected.Indexes,
-            actual.Indexes,
-            (e, a) => e.Matches(a, expected));
-
         ForeignKeys = new ItemDelta<ForeignKey>(
             expected.ForeignKeys,
             actual.ForeignKeys,
             (e, a) => e.IsEquivalentTo(a));
+
+        Indexes = new ItemDelta<IndexDefinition>(
+            expected.Indexes,
+            comparableIndexes(expected, actual, ForeignKeys),
+            (e, a) => e.Matches(a, expected));
 
         // Check primary key differences
         var expectedPks = expected.PrimaryKeyColumns.OrderBy(x => x).ToList();
@@ -79,6 +79,63 @@ public class TableDelta: SchemaObjectDelta<Table>
         if (PrimaryKeyDifference != SchemaPatchDifference.None) return true;
 
         return false;
+    }
+
+    /// <summary>
+    ///     MySQL creates a backing index for every FOREIGN KEY constraint — normally one
+    ///     named after the constraint, or an existing index that already covers the
+    ///     constrained columns — and <c>information_schema.STATISTICS</c> reports it like
+    ///     any other index. InnoDB then refuses to drop it while the constraint still
+    ///     needs it (error 1553), so an index that exists only to back a surviving foreign
+    ///     key is not an "extra" and must be kept out of the comparison entirely.
+    ///     Indexes the expected table declares by name are always compared, so real drift
+    ///     on a deliberately declared index is still detected.
+    /// </summary>
+    private static IEnumerable<IndexDefinition> comparableIndexes(
+        Table expected,
+        Table actual,
+        ItemDelta<ForeignKey> foreignKeys)
+    {
+        var dropped = foreignKeys.Extras.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // A foreign key that is itself being dropped stops protecting its index in the
+        // same migration, because the DROP FOREIGN KEY is emitted first.
+        var surviving = actual.ForeignKeys.Where(fk => !dropped.Contains(fk.Name)).ToArray();
+        if (surviving.Length == 0)
+        {
+            return actual.Indexes;
+        }
+
+        return actual.Indexes.Where(index =>
+            expected.Indexes.Any(e => e.Name.Equals(index.Name, StringComparison.OrdinalIgnoreCase))
+            || !surviving.Any(fk => backs(index, fk)));
+    }
+
+    /// <summary>
+    ///     True when MySQL could be using <paramref name="index" /> as the backing index for
+    ///     <paramref name="foreignKey" /> — that is, the constrained columns are the leftmost
+    ///     prefix of the index. More than one index can qualify; protecting all of them only
+    ///     risks leaving a redundant index in place, while protecting none breaks the migration.
+    /// </summary>
+    private static bool backs(IndexDefinition index, ForeignKey foreignKey)
+    {
+        var indexColumns = index.Columns;
+        var keyColumns = foreignKey.ColumnNames;
+
+        if (keyColumns.Length == 0 || indexColumns.Length < keyColumns.Length)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < keyColumns.Length; i++)
+        {
+            if (!indexColumns[i].Equals(keyColumns[i], StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public override void WriteUpdate(Migrator migrator, TextWriter writer)
@@ -117,7 +174,25 @@ public class TableDelta: SchemaObjectDelta<Table>
             }
         }
 
-        // Handle index changes - drop extras first, then add missing
+        // Ordering matters, and it is not symmetric: InnoDB refuses to drop an index that a
+        // foreign key still needs (error 1553), and refuses to add a foreign key that has no
+        // covering index. So every constraint comes off first, then indexes are reshaped, then
+        // the constraints go back on against the indexes they need.
+        if (ForeignKeys != null)
+        {
+            foreach (var fk in ForeignKeys.Extras)
+            {
+                writer.WriteLine(
+                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY `{fk.Name}`;");
+            }
+
+            foreach (var change in ForeignKeys.Different)
+            {
+                writer.WriteLine(
+                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY `{change.Actual.Name}`;");
+            }
+        }
+
         if (Indexes != null)
         {
             foreach (var index in Indexes.Extras)
@@ -137,19 +212,10 @@ public class TableDelta: SchemaObjectDelta<Table>
             }
         }
 
-        // Handle foreign key changes - drop extras first, then add missing
         if (ForeignKeys != null)
         {
-            foreach (var fk in ForeignKeys.Extras)
-            {
-                writer.WriteLine(
-                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY `{fk.Name}`;");
-            }
-
             foreach (var change in ForeignKeys.Different)
             {
-                writer.WriteLine(
-                    $"ALTER TABLE {Expected.Identifier.QualifiedName} DROP FOREIGN KEY `{change.Actual.Name}`;");
                 writer.WriteLine(change.Expected.ToDDL(Expected));
             }
 
