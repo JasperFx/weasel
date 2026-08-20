@@ -93,6 +93,20 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     }
 
     /// <summary>
+    ///     The command being built, before <see cref="Compile" /> has put the accumulated SQL on
+    ///     it. Exposed so a provider-specific <see cref="ISchemaObject.ConfigureQueryCommand" />
+    ///     can set driver options its introspection query depends on.
+    /// </summary>
+    /// <remarks>
+    ///     Oracle is why this exists (weasel#450). <c>ALL_VIEWS.TEXT</c> is a LONG column, and
+    ///     ODP.NET's <c>InitialLONGFetchSize</c> defaults to 0 — so the column reads back empty
+    ///     unless the command is told otherwise, and the schema object is the only thing that
+    ///     knows its own query reads a LONG. Setting it here rather than globally keeps the option
+    ///     with the query that needs it.
+    /// </remarks>
+    public TCommand Command => _command;
+
+    /// <summary>
     ///     Build out the batched ADO.Net command
     /// </summary>
     /// <returns></returns>
