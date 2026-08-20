@@ -135,6 +135,13 @@ WHERE
                 $"select sequence_name from information_schema.sequences where sequence_schema = '{SchemaUtils.EscapeLiteral(schemaName)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
+        // Synonyms: weasel#453 made them creatable, and CLAUDE.md's rule is that a new object type
+        // is not done until the enumerating teardowns know about it.
+        var synonyms = await conn
+            .CreateCommand(
+                $"select s.name from sys.synonyms s inner join sys.schemas sch on sch.schema_id = s.schema_id where sch.name = '{SchemaUtils.EscapeLiteral(schemaName)}'")
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+
         var tableTypes = await conn
             .CreateCommand(
                 $"select sys.table_types.name from sys.table_types inner join sys.schemas on sys.table_types.schema_id = sys.schemas.schema_id where sys.schemas.name = '{SchemaUtils.EscapeLiteral(schemaName)}'")
@@ -150,6 +157,7 @@ WHERE
         drops.AddRange(tables.Select(name => $"drop table if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(sequences.Select(name => $"drop sequence if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(tableTypes.Select(x => $"DROP TYPE IF EXISTS {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(x)};"));
+        drops.AddRange(synonyms.Select(name => $"drop synonym if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
 
 
         foreach (var drop in drops)

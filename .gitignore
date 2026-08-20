@@ -195,6 +195,10 @@ PublishScripts/
 **/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
+# ...and except our own source. Weasel.Oracle models Oracle PACKAGE objects, and the natural
+# directory name for them collides with the NuGet restore folder this rule is aimed at. Without
+# this the files are silently untracked and the branch does not compile (weasel#453).
+!src/**/[Pp]ackages/*.cs
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files

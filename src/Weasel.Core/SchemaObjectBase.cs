@@ -91,10 +91,26 @@ public abstract class SchemaObjectBase: ISchemaObject
     ///     <c>FindDeltaAsync(NpgsqlConnection, CancellationToken)</c>) that simply forwards
     ///     to this method.
     /// </summary>
-    public async Task<ISchemaObjectDelta> FindDeltaAsync(
+    public Task<ISchemaObjectDelta> FindDeltaAsync(
         DbConnection conn, CancellationToken ct = default)
+        => FindDeltaAsync(conn, CreateCommandBuilder(conn), ct);
+
+    /// <summary>
+    ///     The command builder this object's <see cref="ConfigureQueryCommand" /> should be built
+    ///     against. The neutral one by default; a schema object that registers more than one
+    ///     statement on a provider whose driver executes them one at a time overrides it.
+    /// </summary>
+    /// <remarks>
+    ///     Oracle is the only such provider — ODP.NET will not execute several statements from one
+    ///     command, and <c>OracleDbCommandBuilder</c> splits the batch so the reader can chain
+    ///     across the pieces (weasel#474). Without this hook, an Oracle object registering two
+    ///     queries had them concatenated into one command and failed with ORA-03048.
+    /// </remarks>
+    protected virtual DbCommandBuilder CreateCommandBuilder(DbConnection conn) => new(conn);
+
+    public async Task<ISchemaObjectDelta> FindDeltaAsync(
+        DbConnection conn, DbCommandBuilder builder, CancellationToken ct = default)
     {
-        var builder = new DbCommandBuilder(conn);
         ConfigureQueryCommand(builder);
 
         await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
