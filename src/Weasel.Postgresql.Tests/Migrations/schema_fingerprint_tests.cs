@@ -14,7 +14,7 @@ namespace Weasel.Postgresql.Tests.Migrations;
 /// verification route. Any configuration change (new table/column/partition) changes the hash and
 /// re-enables the full apply.
 /// </summary>
-[Collection("fingerprint")]
+[Collection("public schema")]
 public class schema_fingerprint_tests: IntegrationContext, IAsyncLifetime
 {
     private readonly TestDatabaseWithTables theDatabase;

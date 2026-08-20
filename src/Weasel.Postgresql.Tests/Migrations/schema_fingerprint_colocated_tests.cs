@@ -13,9 +13,10 @@ namespace Weasel.Postgresql.Tests.Migrations;
 /// its own, every apply ran in full, and each one paid an extra SELECT and upsert for the privilege:
 /// measurably slower than leaving fingerprinting off. Exactly the topology it was meant to help.
 /// </summary>
-// Same collection as schema_fingerprint_tests: both fixtures share public.weasel_schema_fingerprints
-// and drop it on setup, so they must not run in parallel.
-[Collection("fingerprint")]
+// The stamp table lives in the migrator's default schema, which PostgresqlMigrator hardcodes to
+// "public" -- so every fixture that mutates the public schema has to be serialized against this one,
+// not just the fixtures that read the stamps. That is the whole "public schema" collection.
+[Collection("public schema")]
 public class schema_fingerprint_colocated_tests: IntegrationContext, IAsyncLifetime
 {
     private const string OtherSchema = "fingerprint_colocated_other";
