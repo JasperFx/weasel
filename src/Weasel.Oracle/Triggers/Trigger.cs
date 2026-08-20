@@ -87,7 +87,7 @@ END;");
 
         if (existing == null)
         {
-            return new TriggerDelta(this, SchemaPatchDifference.Create);
+            return new OracleReplaceDelta(this, SchemaPatchDifference.Create);
         }
 
         // all_triggers stores only the body, not the header, so that is what gets compared.
@@ -98,8 +98,8 @@ END;");
         var expected = index < 0 ? expectedBody : expectedBody[index..];
 
         return NormalizeBody(existing) == NormalizeBody(expected)
-            ? new TriggerDelta(this, SchemaPatchDifference.None)
-            : new TriggerDelta(this, SchemaPatchDifference.Update);
+            ? new OracleReplaceDelta(this, SchemaPatchDifference.None)
+            : new OracleReplaceDelta(this, SchemaPatchDifference.Update);
     }
 
     public async Task<string?> FetchExistingBodyAsync(OracleConnection conn, CancellationToken ct = default)
@@ -125,34 +125,4 @@ END;");
         var body = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
         return string.IsNullOrWhiteSpace(body) ? null : body;
     }
-}
-
-/// <summary>
-///     Oracle applies a trigger change with <c>CREATE OR REPLACE TRIGGER</c> alone. The default
-///     <see cref="SchemaObjectDelta" /> writes a DROP first, and Oracle's drop has to be an
-///     anonymous PL/SQL block, so the pair arrives as a block followed by a DDL statement — which
-///     ODP.NET cannot execute as one command, the same trap the Oracle view slice hit.
-/// </summary>
-internal class TriggerDelta: ISchemaObjectDelta
-{
-    private readonly Trigger _trigger;
-
-    public TriggerDelta(Trigger trigger, SchemaPatchDifference difference)
-    {
-        _trigger = trigger;
-        Difference = difference;
-    }
-
-    public ISchemaObject SchemaObject => _trigger;
-
-    public SchemaPatchDifference Difference { get; }
-
-    public void WriteUpdate(Migrator rules, TextWriter writer) => _trigger.WriteCreateStatement(rules, writer);
-
-    public void WriteRollback(Migrator rules, TextWriter writer)
-    {
-    }
-
-    public void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
-        => throw new NotSupportedException();
 }

@@ -101,7 +101,7 @@ END;");
 
         if (existingSpec == null)
         {
-            return new PackageDelta(this, SchemaPatchDifference.Create);
+            return new OracleReplaceDelta(this, SchemaPatchDifference.Create);
         }
 
         var specMatches = Matches(existingSpec, Specification);
@@ -110,8 +110,8 @@ END;");
             : existingBody != null && Matches(existingBody, Body!);
 
         return specMatches && bodyMatches
-            ? new PackageDelta(this, SchemaPatchDifference.None)
-            : new PackageDelta(this, SchemaPatchDifference.Update);
+            ? new OracleReplaceDelta(this, SchemaPatchDifference.None)
+            : new OracleReplaceDelta(this, SchemaPatchDifference.Update);
     }
 
     /// <summary>
@@ -168,33 +168,4 @@ END;");
         var source = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
         return source.IsEmpty() ? null : source;
     }
-}
-
-/// <summary>
-///     A package applies as <c>CREATE OR REPLACE PACKAGE</c> and, when there is one,
-///     <c>CREATE OR REPLACE PACKAGE BODY</c> — two statements, separated by the <c>/</c> Oracle's
-///     migrator splits on.
-/// </summary>
-internal class PackageDelta: ISchemaObjectDelta
-{
-    private readonly Package _package;
-
-    public PackageDelta(Package package, SchemaPatchDifference difference)
-    {
-        _package = package;
-        Difference = difference;
-    }
-
-    public ISchemaObject SchemaObject => _package;
-
-    public SchemaPatchDifference Difference { get; }
-
-    public void WriteUpdate(Migrator rules, TextWriter writer) => _package.WriteCreateStatement(rules, writer);
-
-    public void WriteRollback(Migrator rules, TextWriter writer)
-    {
-    }
-
-    public void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
-        => throw new NotSupportedException();
 }

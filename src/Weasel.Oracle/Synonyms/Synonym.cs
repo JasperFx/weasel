@@ -78,12 +78,12 @@ END;");
 
         if (existing == null)
         {
-            return new SynonymDelta(this, SchemaPatchDifference.Create);
+            return new OracleReplaceDelta(this, SchemaPatchDifference.Create);
         }
 
         return Normalize(existing) == Normalize(Target)
-            ? new SynonymDelta(this, SchemaPatchDifference.None)
-            : new SynonymDelta(this, SchemaPatchDifference.Update);
+            ? new OracleReplaceDelta(this, SchemaPatchDifference.None)
+            : new OracleReplaceDelta(this, SchemaPatchDifference.Update);
     }
 
     /// <summary>
@@ -123,32 +123,4 @@ END;");
         var target = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
         return string.IsNullOrWhiteSpace(target) ? null : target;
     }
-}
-
-/// <summary>
-///     <c>CREATE OR REPLACE SYNONYM</c> does the whole job, so an update is that statement alone —
-///     Oracle's migrator executes one statement per delta, and its drop is a PL/SQL block.
-/// </summary>
-internal class SynonymDelta: ISchemaObjectDelta
-{
-    private readonly Synonym _synonym;
-
-    public SynonymDelta(Synonym synonym, SchemaPatchDifference difference)
-    {
-        _synonym = synonym;
-        Difference = difference;
-    }
-
-    public ISchemaObject SchemaObject => _synonym;
-
-    public SchemaPatchDifference Difference { get; }
-
-    public void WriteUpdate(Migrator rules, TextWriter writer) => _synonym.WriteCreateStatement(rules, writer);
-
-    public void WriteRollback(Migrator rules, TextWriter writer)
-    {
-    }
-
-    public void WriteRestorationOfPreviousState(Migrator rules, TextWriter writer)
-        => throw new NotSupportedException();
 }
