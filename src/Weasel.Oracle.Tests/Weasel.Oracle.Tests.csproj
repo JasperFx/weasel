@@ -11,6 +11,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
+        <ProjectReference Include="..\Weasel.Testing\Weasel.Testing.csproj" />
     </ItemGroup>
 
     <Import Project="../../Tests.Build.props" />

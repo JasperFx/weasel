@@ -13,6 +13,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
+        <ProjectReference Include="..\Weasel.Testing\Weasel.Testing.csproj" />
     </ItemGroup>
 
     <Import Project="../../Tests.Build.props" />

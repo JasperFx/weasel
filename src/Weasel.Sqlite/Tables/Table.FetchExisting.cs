@@ -338,6 +338,46 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
     /// Parse simple (non-expression) column definitions from the index column list.
     /// Handles per-column sort orders (ASC/DESC) and COLLATE clauses.
     /// </summary>
+    /// <summary>
+    ///     Split one entry of an index column list into the column name and whatever follows it
+    ///     (ASC / DESC / COLLATE). A delimited name is read to its closing delimiter, doubling
+    ///     included, so a space inside it does not end the name.
+    /// </summary>
+    private static (string Name, string Remainder) takeColumnName(string entry)
+    {
+        var open = entry[0];
+        if (open is not ('"' or '[' or '`'))
+        {
+            var space = entry.IndexOf(' ');
+            return space < 0 ? (entry, string.Empty) : (entry[..space], entry[(space + 1)..]);
+        }
+
+        var close = open == '[' ? ']' : open;
+        var name = new System.Text.StringBuilder();
+
+        for (var i = 1; i < entry.Length; i++)
+        {
+            if (entry[i] != close)
+            {
+                name.Append(entry[i]);
+                continue;
+            }
+
+            // A doubled close delimiter is an escaped literal one, not the end of the name.
+            if (i + 1 < entry.Length && entry[i + 1] == close)
+            {
+                name.Append(close);
+                i++;
+                continue;
+            }
+
+            return (name.ToString(), entry[(i + 1)..].Trim());
+        }
+
+        // Unterminated: treat the whole thing as the name rather than losing it.
+        return (name.ToString(), string.Empty);
+    }
+
     private static void parseSimpleColumns(IndexDefinition index, string columnsPart)
     {
         var columnNames = new List<string>();
@@ -347,17 +387,23 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
 
         foreach (var raw in columnsPart.Split(','))
         {
-            var parts = raw.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0)
+            var entry = raw.Trim();
+            if (entry.Length == 0)
             {
                 continue;
             }
 
-            // First token is the column name (strip quotes)
-            columnNames.Add(parts[0].Trim('"', '[', ']'));
+            // The name has to come off before the rest is tokenized on spaces: a delimited name
+            // may contain one. Splitting first turned an index over "order date" into an index
+            // over "order" -- and, since weasel#458, a column name with a space is something a
+            // caller can legitimately have (weasel#449).
+            var (columnName, remainder) = takeColumnName(entry);
+            columnNames.Add(columnName);
+
+            var parts = remainder.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
             // Scan remaining tokens for sort order and collation
-            for (var i = 1; i < parts.Length; i++)
+            for (var i = 0; i < parts.Length; i++)
             {
                 if (parts[i].Equals("DESC", StringComparison.OrdinalIgnoreCase))
                 {

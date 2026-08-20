@@ -31,6 +31,9 @@
     <!-- Pomelo EF Core is framework-conditional - see below -->
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <!-- The assertion/attribute surface without the runner, for Weasel.Testing: a library of
+         shared test bases is not itself a test project and must not build as an Exe. -->
+    <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
   <!-- EF Core 9.x for net9.0 -->

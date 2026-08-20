@@ -62,5 +62,6 @@
   </Folder>
   <Project Path="src/Weasel.Core.AotSmoke/Weasel.Core.AotSmoke.csproj" />
   <Project Path="src/Weasel.Core.Tests/Weasel.Core.Tests.csproj" />
+  <Project Path="src/Weasel.Testing/Weasel.Testing.csproj" />
   <Project Path="src/Weasel.Core/Weasel.Core.csproj" />
 </Solution>

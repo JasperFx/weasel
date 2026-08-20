@@ -11,6 +11,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
+      <ProjectReference Include="..\Weasel.Testing\Weasel.Testing.csproj" />
     </ItemGroup>
 
     <ItemGroup>

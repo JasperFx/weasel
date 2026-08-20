@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- A library, not a test project: it holds the shared scenario base that each
+             provider's test project derives from. It never runs on its own, so it has no
+             runner and is not an Exe. -->
+        <PackageReference Include="xunit.v3.extensibility.core" ExcludeAssets="analyzers" />
+        <PackageReference Include="Shouldly" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+    </ItemGroup>
+
+</Project>
