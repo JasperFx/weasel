@@ -47,6 +47,7 @@ public class object_type_support_matrix
         ("Postgresql", "MaterializedView", "Weasel.Postgresql.Views.MaterializedView"),
         ("Postgresql", "Function", "Weasel.Postgresql.Functions.Function"),
         ("Postgresql", "Extension", "Weasel.Postgresql.Extension"),
+        ("Postgresql", "Trigger", "Weasel.Postgresql.Triggers.Trigger"),
 
         ("SqlServer", "Table", "Weasel.SqlServer.Tables.Table"),
         ("SqlServer", "Sequence", "Weasel.SqlServer.Sequence"),
@@ -54,17 +55,21 @@ public class object_type_support_matrix
         ("SqlServer", "Function", "Weasel.SqlServer.Functions.Function"),
         ("SqlServer", "StoredProcedure", "Weasel.SqlServer.Procedures.StoredProcedure"),
         ("SqlServer", "TableType", "Weasel.SqlServer.Tables.TableType"),
+        ("SqlServer", "Trigger", "Weasel.SqlServer.Triggers.Trigger"),
 
         ("Oracle", "Table", "Weasel.Oracle.Tables.Table"),
         ("Oracle", "Sequence", "Weasel.Oracle.Sequence"),
         ("Oracle", "View", "Weasel.Oracle.Views.View"),
+        ("Oracle", "Trigger", "Weasel.Oracle.Triggers.Trigger"),
 
         ("MySql", "Table", "Weasel.MySql.Tables.Table"),
         ("MySql", "Sequence", "Weasel.MySql.Sequence"),
         ("MySql", "View", "Weasel.MySql.Views.View"),
+        ("MySql", "Trigger", "Weasel.MySql.Triggers.Trigger"),
 
         ("Sqlite", "Table", "Weasel.Sqlite.Tables.Table"),
-        ("Sqlite", "View", "Weasel.Sqlite.Views.View")
+        ("Sqlite", "View", "Weasel.Sqlite.Views.View"),
+        ("Sqlite", "Trigger", "Weasel.Sqlite.Triggers.Trigger")
     ];
 
     public static TheoryData<string, string, string> Supported
@@ -87,14 +92,9 @@ public class object_type_support_matrix
             { "Postgresql", "Weasel.Postgresql.Procedures.StoredProcedure", "#451" },
             { "MySql", "Weasel.MySql.Procedures.StoredProcedure", "#451" },
             { "Oracle", "Weasel.Oracle.Procedures.StoredProcedure", "#451" },
-                { "Oracle", "Weasel.Oracle.Functions.Function", "#450" },
+            { "Oracle", "Weasel.Oracle.Functions.Function", "#450" },
             { "Oracle", "Weasel.Oracle.Views.MaterializedView", "#453" },
-            { "MySql", "Weasel.MySql.Functions.Function", "#450" },
-            { "Postgresql", "Weasel.Postgresql.Triggers.Trigger", "#452" },
-            { "SqlServer", "Weasel.SqlServer.Triggers.Trigger", "#452" },
-            { "Oracle", "Weasel.Oracle.Triggers.Trigger", "#452" },
-            { "MySql", "Weasel.MySql.Triggers.Trigger", "#452" },
-            { "Sqlite", "Weasel.Sqlite.Triggers.Trigger", "#452" }
+            { "MySql", "Weasel.MySql.Functions.Function", "#450" }
         };
 
     [Theory]

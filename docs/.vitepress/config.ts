@@ -60,7 +60,8 @@ export default withMermaid(
             { text: 'Multi-Tenancy', link: '/core/multi-tenancy' },
             { text: 'Provider Trait Matrix', link: '/core/provider-trait-matrix' },
             { text: 'Object Type Support', link: '/core/object-types' },
-            { text: 'Identifiers & Quoting', link: '/core/identifiers' }
+            { text: 'Identifiers & Quoting', link: '/core/identifiers' },
+            { text: 'Triggers', link: '/core/triggers' }
           ]
         },
         {

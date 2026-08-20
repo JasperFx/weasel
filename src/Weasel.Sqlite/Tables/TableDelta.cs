@@ -379,6 +379,40 @@ public class TableDelta: SchemaObjectDelta<Table>
         {
             writer.WriteLine(index.ToDDL(Expected));
         }
+
+        writeTriggerRestoration(writer);
+    }
+
+    /// <summary>
+    ///     Put back the triggers the DROP TABLE just destroyed.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         SQLite drops a table's triggers along with the table and says nothing about it. Every
+    ///         rebuild — a column type change, a foreign key change, a primary key change — therefore
+    ///         silently destroyed the table's data-integrity logic and left the schema looking
+    ///         correct (weasel#452).
+    ///     </para>
+    ///     <para>
+    ///         The statements come from <see cref="Table.ExistingTriggers" />, captured verbatim from
+    ///         <c>sqlite_master</c> during introspection, so a trigger Weasel never declared is
+    ///         preserved too. They are re-emitted after the rename, when the table exists again under
+    ///         its own name.
+    ///     </para>
+    /// </remarks>
+    private void writeTriggerRestoration(TextWriter writer)
+    {
+        if (Actual == null || !Actual.ExistingTriggers.Any())
+        {
+            return;
+        }
+
+        writer.WriteLine();
+
+        foreach (var trigger in Actual.ExistingTriggers)
+        {
+            writer.WriteLine($"{trigger.TrimEnd(';')};");
+        }
     }
 
     public bool HasChanges()

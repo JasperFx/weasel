@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.Data.SqlClient;
 using Weasel.Core;
 using Xunit;
@@ -15,9 +16,17 @@ public abstract class IntegrationContext: IAsyncLifetime
         _schemaName = schemaName;
     }
 
+    /// <summary>
+    ///     Reset the schema under test. Safe to call more than once in a test: SqlClient throws
+    ///     "The connection was not closed" on a second OpenAsync, which made a second reset look
+    ///     like a product failure rather than a fixture one.
+    /// </summary>
     protected async Task ResetSchema()
     {
-        await theConnection.OpenAsync();
+        if (theConnection.State == ConnectionState.Closed)
+        {
+            await theConnection.OpenAsync();
+        }
 
         await theConnection.ResetSchemaAsync(_schemaName);
     }

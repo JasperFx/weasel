@@ -27,6 +27,12 @@ WHERE type = 'index' AND tbl_name = '{sanitizedName}' AND sql IS NOT NULL;
 
 -- Get foreign key information (PRAGMA doesn't support parameter binding)
 SELECT * FROM pragma_foreign_key_list('{sanitizedName}');
+
+-- Get the triggers on this table. Not because the table owns them -- it does not, see
+-- TriggerBase -- but because DROP TABLE takes them with it, and this table may have to be
+-- rebuilt to change a column (weasel#452).
+SELECT sql FROM sqlite_master
+WHERE type = 'trigger' AND tbl_name = '{sanitizedName}' AND sql IS NOT NULL;
 ");
     }
 
@@ -69,6 +75,10 @@ WHERE type = 'index' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 
 -- Get foreign key information
 SELECT * FROM pragma_foreign_key_list('{tableName}');
+
+-- Get the triggers on this table (see ConfigureQueryCommand)
+SELECT sql FROM sqlite_master
+WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 ";
 
         var cmd = conn.CreateCommand();
@@ -102,6 +112,7 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
             // This keeps the reader in sync when SchemaMigration.DetermineAsync batches multiple tables.
             await reader.NextResultAsync(ct).ConfigureAwait(false); // Skip columns → indexes
             await reader.NextResultAsync(ct).ConfigureAwait(false); // Skip indexes → foreign keys
+            await reader.NextResultAsync(ct).ConfigureAwait(false); // Skip foreign keys → triggers
             return null;
         }
 
@@ -114,7 +125,33 @@ SELECT * FROM pragma_foreign_key_list('{tableName}');
         // Read foreign keys (fourth result set)
         await readForeignKeysAsync(reader, existing, ct).ConfigureAwait(false);
 
+        // Read the triggers on this table (fifth result set)
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+        await readTriggersAsync(reader, existing, ct).ConfigureAwait(false);
+
         return !existing.Columns.Any() ? null : existing;
+    }
+
+    /// <summary>
+    ///     Capture the <c>CREATE TRIGGER</c> statements for this table exactly as SQLite stores
+    ///     them, so <c>TableDelta</c> can put them back after rebuilding the table.
+    /// </summary>
+    /// <remarks>
+    ///     Verbatim, and from the catalog rather than from the model, on purpose: a trigger Weasel
+    ///     never declared is still the user's, and dropping the table would take it with no warning.
+    /// </remarks>
+    private static async Task readTriggersAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
+    {
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            if (await reader.IsDBNullAsync(0, ct).ConfigureAwait(false)) continue;
+
+            var sql = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(sql))
+            {
+                existing.ExistingTriggers.Add(sql.Trim());
+            }
+        }
     }
 
     private static async Task<string?> readTableSqlAsync(DbDataReader reader, CancellationToken ct = default)
