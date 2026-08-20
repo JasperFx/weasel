@@ -1,3 +1,4 @@
+using System.Data;
 using JasperFx;
 using JasperFx.Core.Reflection;
 using Npgsql;
@@ -29,9 +30,17 @@ public abstract class IntegrationContext: IAsyncLifetime
 
     public string SchemaName { get; }
 
+    /// <summary>
+    ///     Reset the schema under test. Safe to call more than once in a test: Npgsql throws
+    ///     "Connection already open" on a second OpenAsync, which made a second reset look like a
+    ///     product failure rather than a fixture one.
+    /// </summary>
     protected async Task ResetSchema()
     {
-        await theConnection.OpenAsync();
+        if (theConnection.State == ConnectionState.Closed)
+        {
+            await theConnection.OpenAsync();
+        }
 
         await theConnection.ResetSchemaAsync(SchemaName);
     }

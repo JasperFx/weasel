@@ -163,18 +163,21 @@ public class MySqlMigrator: Migrator
 
     private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
-        var sql = writer.ToString();
+        var sql = writer.ToString().Trim();
 
-        // Split on semicolons and execute each statement
-        var statements = sql.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var statement in statements)
+        if (sql.IsEmpty())
         {
-            var trimmed = statement.Trim();
-            if (trimmed.IsEmpty()) continue;
+            return;
+        }
 
+        // One command for the whole delta. This used to split on semicolons and execute the pieces,
+        // which shreds any body that contains one -- a trigger's BEGIN ... END block, a stored
+        // procedure, a string literal with a semicolon in it. MySqlConnector executes several
+        // semicolon-separated statements from a single command, so the split bought nothing and
+        // cost correctness (weasel#452).
+        {
             var cmd = conn.CreateCommand();
-            cmd.CommandText = trimmed;
+            cmd.CommandText = sql;
             logger.SchemaChange(cmd.CommandText);
 
             try

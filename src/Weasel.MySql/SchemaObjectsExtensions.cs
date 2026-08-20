@@ -25,18 +25,18 @@ public static class SchemaObjectsExtensions
         var writer = new StringWriter();
         schemaObject.WriteCreateStatement(new MySqlMigrator(), writer);
 
-        var sql = writer.ToString();
+        // One command for the whole statement. The comment that used to be here said MySQL does not
+        // support multiple statements by default -- MySqlConnector does, and splitting on semicolons
+        // shreds any body that contains one, such as a trigger's BEGIN ... END block (weasel#452).
+        var sql = writer.ToString().Trim();
 
-        // MySQL doesn't support multiple statements by default, split them
-        var statements = sql.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var statement in statements)
+        if (sql.Length == 0)
         {
-            var trimmed = statement.Trim();
-            if (string.IsNullOrEmpty(trimmed)) continue;
-
-            await using var cmd = connection.CreateCommand(trimmed);
-            await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            return;
         }
+
+        await using var cmd = connection.CreateCommand(sql);
+        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 
     public static async Task DropAsync(

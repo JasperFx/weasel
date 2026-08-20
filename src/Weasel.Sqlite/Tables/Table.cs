@@ -180,6 +180,20 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     /// </remarks>
     protected override StringComparison NameComparison => StringComparison.OrdinalIgnoreCase;
 
+    /// <summary>
+    ///     The <c>CREATE TRIGGER</c> statements found on this table in the database, captured during
+    ///     introspection. Empty on a table you built yourself; populated on one read back from the
+    ///     catalog.
+    /// </summary>
+    /// <remarks>
+    ///     SQLite rebuilds a table to change most things about it, and <c>DROP TABLE</c> takes the
+    ///     table's triggers with it silently. So the rebuild has to put them back, and it reads them
+    ///     from here. This is a lookup, not ownership — a trigger is an independent schema object
+    ///     that declares its target (weasel#452) — and it is deliberately populated from the catalog
+    ///     rather than from the model, because a trigger Weasel never declared is still the user's.
+    /// </remarks>
+    public IList<string> ExistingTriggers { get; } = new List<string>();
+
     public override IEnumerable<DbObjectName> AllNames()
     {
         yield return Identifier;
