@@ -120,8 +120,14 @@ WHERE
                 return $"ALTER TABLE {SchemaUtils.QuoteName(fkSchema)}.{SchemaUtils.QuoteName(tableName)} DROP CONSTRAINT {SchemaUtils.QuoteName(constraintName)};";
             }, cancellation: ct).ConfigureAwait(false);
 
+        // BASE TABLE only: information_schema.tables lists views too, and "drop table" does not
+        // drop a view -- it silently does nothing under IF EXISTS, leaving the schema undroppable.
         var tables = await conn
-            .CreateCommand($"select table_name from information_schema.tables where table_schema = '{SchemaUtils.EscapeLiteral(schemaName)}'")
+            .CreateCommand($"select table_name from information_schema.tables where table_schema = '{SchemaUtils.EscapeLiteral(schemaName)}' and table_type = 'BASE TABLE'")
+            .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
+
+        var views = await conn
+            .CreateCommand($"select table_name from information_schema.views where table_schema = '{SchemaUtils.EscapeLiteral(schemaName)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var sequences = await conn
@@ -138,6 +144,9 @@ WHERE
         drops.AddRange(procedures.Select(name => $"drop procedure if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(functions.Select(name => $"drop function if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(fkConstraints);
+        // Views before tables: a view outlives the table it selects from, and either one left
+        // behind blocks the DROP SCHEMA.
+        drops.AddRange(views.Select(name => $"drop view if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(tables.Select(name => $"drop table if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(sequences.Select(name => $"drop sequence if exists {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(name)};"));
         drops.AddRange(tableTypes.Select(x => $"DROP TYPE IF EXISTS {SchemaUtils.QuoteName(schemaName)}.{SchemaUtils.QuoteName(x)};"));
