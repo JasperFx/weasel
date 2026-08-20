@@ -584,7 +584,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
 
         public ColumnExpression DefaultValueFromSequence(DbObjectName sequenceName)
         {
-            return DefaultValueByExpression($"nextval('{sequenceName}')");
+            return DefaultValueByExpression($"nextval('{IdentifierRules.EscapeLiteral(sequenceName.QualifiedName)}')");
         }
 
         public ColumnExpression DefaultValueByExpression(string expression)

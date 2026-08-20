@@ -59,11 +59,15 @@ public class OracleMigratorTests
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
-    [InlineData("US ERS")]
     [InlineData("US\tERS")]
     [InlineData("US\nERS")]
     [InlineData("US\rERS")]
     [InlineData("USERS\n-- the rest of this statement is now a comment")]
+    /// <remarks>
+    ///     An interior space is deliberately absent from this list as of weasel#448: every provider
+    ///     quotes for shape now (weasel#447), so "UNIT PRICE" is safe and is somebody's real legacy
+    ///     column. A line break or tab still is not — it can smuggle a '--' comment into the statement.
+    /// </remarks>
     public void assert_identifier_rejects_null_empty_and_whitespace(string? name)
     {
         var migrator = new OracleMigrator();
