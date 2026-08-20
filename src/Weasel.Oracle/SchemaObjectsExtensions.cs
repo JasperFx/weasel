@@ -102,21 +102,21 @@ public static class SchemaObjectsExtensions
 
         var procedures = await conn
             .CreateCommand(
-                $"SELECT object_name FROM all_objects WHERE owner = '{upperSchema}' AND object_type = 'PROCEDURE'")
+                $"SELECT object_name FROM all_objects WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}' AND object_type = 'PROCEDURE'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var functions = await conn
             .CreateCommand(
-                $"SELECT object_name FROM all_objects WHERE owner = '{upperSchema}' AND object_type = 'FUNCTION'")
+                $"SELECT object_name FROM all_objects WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}' AND object_type = 'FUNCTION'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var tables = await conn
-            .CreateCommand($"SELECT table_name FROM all_tables WHERE owner = '{upperSchema}'")
+            .CreateCommand($"SELECT table_name FROM all_tables WHERE owner = '{SchemaUtils.EscapeLiteral(upperSchema)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var sequences = await conn
             .CreateCommand(
-                $"SELECT sequence_name FROM all_sequences WHERE sequence_owner = '{upperSchema}'")
+                $"SELECT sequence_name FROM all_sequences WHERE sequence_owner = '{SchemaUtils.EscapeLiteral(upperSchema)}'")
             .FetchListAsync<string>(cancellation: ct).ConfigureAwait(false);
 
         var drops = new List<string>();

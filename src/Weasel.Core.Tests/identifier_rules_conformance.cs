@@ -1,6 +1,7 @@
 using Shouldly;
 using Weasel.Core;
 using Weasel.MySql;
+using Weasel.Oracle;
 using Weasel.Postgresql;
 using Weasel.SqlServer;
 using Weasel.Sqlite;
@@ -20,9 +21,10 @@ namespace Weasel.Core.Tests;
 ///     <para>
 ///         Providers join the suite as their fixes land (weasel#447). SQL Server is here because
 ///         it is the reference implementation the contract was lifted from, and MySQL joined with
-///         its own fix, as did SQLite and PostgreSQL — the last in both its general and its
-///         function-name usage. Oracle joins in the PR that fixes it; adding a provider is one
-///         entry in <see cref="Providers" />.
+///         its own fix, as did SQLite, PostgreSQL — the last in both its general and its
+///         function-name usage — and Oracle. All five are in, which is what makes this a floor
+///         rather than an aspiration: a new provider joins with one entry in
+///         <see cref="Providers" />.
 ///     </para>
 ///     <para>
 ///         Deliberately pure string logic: no connection, no container, so it runs everywhere and
@@ -38,7 +40,8 @@ public class identifier_rules_conformance
             { "MySql", MySqlIdentifierRules.Instance },
             { "Sqlite", SqliteIdentifierRules.Instance },
             { "Postgresql", PostgresqlIdentifierRules.General },
-            { "Postgresql/function", PostgresqlIdentifierRules.Function }
+            { "Postgresql/function", PostgresqlIdentifierRules.Function },
+            { "Oracle", OracleIdentifierRules.Instance }
         };
 
     /// <summary>
@@ -118,7 +121,8 @@ public class identifier_rules_conformance
             // Either it was delimited on its own terms, or it was already delimited end to end
             // with everything interior escaped. Never passed through with a loose close character.
             rules.IsDelimited(quoted).ShouldBeTrue($"{provider} left '{injection}' able to escape");
-            rules.Undelimit(quoted).ShouldBe(injection, $"{provider} altered '{injection}'");
+            rules.SameObject(rules.Undelimit(quoted), injection)
+                .ShouldBeTrue($"{provider} altered '{injection}': got '{rules.Undelimit(quoted)}'");
         }
     }
 
@@ -131,7 +135,8 @@ public class identifier_rules_conformance
             var quoted = rules.Quote(name);
             var resolved = rules.IsDelimited(quoted) ? rules.Undelimit(quoted) : quoted;
 
-            resolved.ShouldBe(name, $"{provider} renamed '{name}' by quoting it");
+            rules.SameObject(resolved, name)
+                .ShouldBeTrue($"{provider} renamed '{name}' by quoting it: got '{resolved}'");
         }
     }
 

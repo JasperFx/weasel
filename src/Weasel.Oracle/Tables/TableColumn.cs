@@ -33,9 +33,14 @@ public class TableColumn: ITableColumn
         }
 
         _preserveCase = preserveCase;
+        // Undelimited first: a caller who wrote "ORDER DATE" means that column, and Oracle
+        // reports it back bare. The casing and space handling that follow are long-standing
+        // behaviour, untouched here (see weasel#458).
+        var unquoted = SchemaUtils.Unquote(name.Trim());
+
         Name = preserveCase
-            ? name.Trim()
-            : name.ToLowerInvariant().Trim().Replace(' ', '_');
+            ? unquoted.Trim()
+            : unquoted.ToLowerInvariant().Trim().Replace(' ', '_');
         Type = type.ToUpperInvariant();
     }
 

@@ -222,7 +222,7 @@ END;");
 DECLARE
     v_count NUMBER;
 BEGIN
-    SELECT COUNT(*) INTO v_count FROM all_users WHERE username = '{schemaName.ToUpperInvariant()}';
+    SELECT COUNT(*) INTO v_count FROM all_users WHERE username = '{SchemaUtils.EscapeLiteral(schemaName.ToUpperInvariant())}';
     IF v_count = 0 THEN
         EXECUTE IMMEDIATE 'CREATE USER {schemaName} IDENTIFIED BY ""temp_password"" QUOTA UNLIMITED ON USERS';
         EXECUTE IMMEDIATE 'GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE VIEW TO {schemaName}';
