@@ -7,7 +7,7 @@ namespace Weasel.Sqlite.Tables;
 /// Represents the differences between an expected table schema and the actual table in the database.
 /// SQLite has limited ALTER TABLE support, so many changes require table recreation.
 /// </summary>
-public class TableDelta: SchemaObjectDelta<Table>
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
 {
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
@@ -24,6 +24,24 @@ public class TableDelta: SchemaObjectDelta<Table>
     public IReadOnlyList<Change<TableColumn>> RenamedColumns => _renamedColumns;
 
     private readonly List<Change<TableColumn>> _renamedColumns = new();
+
+    /// <summary>
+    ///     SQLite cannot change a column's type, add or drop a foreign key, or change a primary key
+    ///     with <c>ALTER TABLE</c>, so every such change reports
+    ///     <see cref="SchemaPatchDifference.Invalid" /> — but <see cref="writeTableRecreation" />
+    ///     has always known how to make it properly: new table, copy the surviving columns across,
+    ///     drop the old one, rename, put the indexes and triggers back.
+    /// </summary>
+    /// <remarks>
+    ///     Nothing called it. <c>Migrator</c> answered <c>Invalid</c> by dropping and recreating the
+    ///     table, so a column type change emptied it and left a schema that looked correct — one row
+    ///     before, none after (weasel#477). This is what tells the migrator to use the rebuild.
+    ///     <para>
+    ///     False when there is no existing table to copy from, because then there is nothing to
+    ///     preserve and the ordinary create path is right.
+    ///     </para>
+    /// </remarks>
+    public bool CanRebuildInPlace => Actual != null;
 
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
     public bool RequiresTableRecreation { get; private set; }

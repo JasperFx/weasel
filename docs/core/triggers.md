@@ -33,9 +33,7 @@ forces you to register them together. Views and functions already behave this wa
 ::: warning SQLite rebuilds a table by dropping it
 `DROP TABLE` takes the table's triggers with it and says nothing. Weasel's SQLite table rebuild
 captures the triggers from `sqlite_master` first and re-emits them afterwards — including triggers
-Weasel never declared, because a hand-written trigger is still yours. Note that the rebuild path
-itself is currently unreachable through the migrator; see
-[#477](https://github.com/JasperFx/weasel/issues/477).
+Weasel never declared, because a hand-written trigger is still yours.
 :::
 
 ## What each engine accepts
