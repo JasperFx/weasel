@@ -14,7 +14,7 @@ public class IndexDefinition: ITableIndex
 
     public IndexDefinition(string indexName)
     {
-        _indexName = indexName;
+        _indexName = SchemaUtils.Unquote(indexName);
     }
 
     protected IndexDefinition()
@@ -81,7 +81,7 @@ public class IndexDefinition: ITableIndex
 
             return deriveIndexName();
         }
-        set => _indexName = value;
+        set => _indexName = SchemaUtils.Unquote(value);
     }
 
     /// <summary>

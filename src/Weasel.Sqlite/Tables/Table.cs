@@ -9,6 +9,9 @@ namespace Weasel.Sqlite.Tables;
 /// </summary>
 public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 {
+    /// <inheritdoc />
+    protected override string NormalizeIdentifier(string name) => SchemaUtils.Unquote(name);
+
     internal readonly List<string> _primaryKeyColumns = new();
 
     public Table(DbObjectName name)

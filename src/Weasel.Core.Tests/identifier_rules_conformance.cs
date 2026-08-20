@@ -2,6 +2,7 @@ using Shouldly;
 using Weasel.Core;
 using Weasel.MySql;
 using Weasel.SqlServer;
+using Weasel.Sqlite;
 using Xunit;
 
 namespace Weasel.Core.Tests;
@@ -18,8 +19,8 @@ namespace Weasel.Core.Tests;
 ///     <para>
 ///         Providers join the suite as their fixes land (weasel#447). SQL Server is here because
 ///         it is the reference implementation the contract was lifted from, and MySQL joined with
-///         its own fix. SQLite, PostgreSQL and Oracle each join in the PR that fixes them — adding
-///         a provider is one entry in <see cref="Providers" />.
+///         its own fix, as did SQLite. PostgreSQL and Oracle each join in the PR that fixes them —
+///         adding a provider is one entry in <see cref="Providers" />.
 ///     </para>
 ///     <para>
 ///         Deliberately pure string logic: no connection, no container, so it runs everywhere and
@@ -32,7 +33,8 @@ public class identifier_rules_conformance
         new()
         {
             { "SqlServer", SqlServerIdentifierRules.Instance },
-            { "MySql", MySqlIdentifierRules.Instance }
+            { "MySql", MySqlIdentifierRules.Instance },
+            { "Sqlite", SqliteIdentifierRules.Instance }
         };
 
     /// <summary>

@@ -16,6 +16,7 @@
            no database, no containers. -->
       <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" />
       <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
+      <ProjectReference Include="..\Weasel.Sqlite\Weasel.Sqlite.csproj" />
     </ItemGroup>
 
     <Import Project="../../Tests.Build.props" />
