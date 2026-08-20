@@ -227,4 +227,44 @@ public class PostgresqlMigratorTests
         await using var connection = new NpgsqlConnection(ConnectionSource.ConnectionString);
         await migrator.EnsureDatabaseExistsAsync(connection);
     }
+
+    [Fact]
+    public void an_over_length_local_identifier_is_allowed_where_an_object_name_is_not()
+    {
+        // weasel#485. An object name the database truncates becomes unaddressable and drifts on every
+        // check, so it stays a hard failure. A column, primary key or check constraint name is only ever
+        // emitted inside its own table's DDL, and TableDelta already compares both sides through
+        // TruncatedNameIdentifier precisely so a truncated one matches -- refusing to create it would
+        // reject a schema the rest of Weasel is built to handle.
+        var migrator = new PostgresqlMigrator();
+        var tooLong = new string('a', migrator.NameDataLength + 10);
+
+        Should.Throw<PostgresqlIdentifierTooLongException>(() => migrator.AssertValidIdentifier(tooLong));
+        Should.NotThrow(() => migrator.AssertValidLocalIdentifier(tooLong));
+    }
+
+    [Theory]
+    [InlineData("has\"quote")]
+    [InlineData("has;semicolon")]
+    [InlineData("has'apostrophe")]
+    [InlineData(" leading")]
+    [InlineData("trailing ")]
+    [InlineData("with\nbreak")]
+    public void the_safety_rules_still_apply_in_full_to_a_local_identifier(string name)
+    {
+        // The length limit is the only thing that is relaxed. Anything that could escape the statement
+        // it is written into is rejected wherever it appears.
+        var migrator = new PostgresqlMigrator();
+
+        Should.Throw<PostgresqlIdentifierInvalidException>(() => migrator.AssertValidLocalIdentifier(name));
+    }
+
+    [Fact]
+    public void an_ordinary_local_identifier_passes()
+    {
+        var migrator = new PostgresqlMigrator();
+
+        Should.NotThrow(() => migrator.AssertValidLocalIdentifier("unit price"));
+        Should.NotThrow(() => migrator.AssertValidLocalIdentifier("pkey_mt_doc_thing_id"));
+    }
 }

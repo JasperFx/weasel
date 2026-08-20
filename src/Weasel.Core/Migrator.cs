@@ -299,6 +299,24 @@ public abstract class
     public abstract void AssertValidIdentifier(string name);
 
     /// <summary>
+    ///     Assert that a name this dialect will write into DDL but which is not a database object in
+    ///     its own right — a column, a primary key constraint, a check constraint — is safe to emit.
+    /// </summary>
+    /// <remarks>
+    ///     Same safety rules as <see cref="AssertValidIdentifier" />, without the length limit. A
+    ///     local identifier is only ever emitted inside its own table's DDL and never addressed by
+    ///     name afterwards, and <see cref="TableBase{TColumn,TIndex,TForeignKey}.TruncatedNameIdentifier" />
+    ///     already reconciles a truncated one against the catalog — so refusing to create it would
+    ///     reject schemas the delta comparison is built to handle (weasel#485).
+    ///     <para>
+    ///     The default defers to <see cref="AssertValidIdentifier" /> so an out-of-tree provider that
+    ///     has not considered the distinction keeps the stricter behaviour. Every in-tree provider
+    ///     overrides it.
+    ///     </para>
+    /// </remarks>
+    public virtual void AssertValidLocalIdentifier(string name) => AssertValidIdentifier(name);
+
+    /// <summary>
     ///     True when <paramref name="columnName" /> refers to an engine-managed
     ///     system / pseudo column that must never be emitted as a real column in
     ///     generated DDL (the engine rejects <c>CREATE TABLE</c> with such a name).
