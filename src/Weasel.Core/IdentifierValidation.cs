@@ -21,9 +21,24 @@ namespace Weasel.Core;
 ///         the existence checks and introspection queries interpolate them (SQL Server's
 ///         <c>IF OBJECT_ID('...')</c>, Oracle's <c>WHERE table_name = '...'</c> inside an anonymous PL/SQL
 ///         block, SQLite's <c>pragma_table_info('...')</c>), and PostgreSQL writes a sequence's name into
-///         one when a column defaults from it (<c>DEFAULT nextval('...')</c>). Whitespace is rejected in
-///         full rather than just the literal space character, so that a newline cannot introduce a
-///         <c>--</c> comment into an unquoted name.
+///         one when a column defaults from it (<c>DEFAULT nextval('...')</c>). Whitespace is rejected
+///         selectively: a line break or a tab can introduce a <c>--</c> comment into an unquoted
+///         name and stays rejected, and leading or trailing whitespace is a typo every time, but a
+///         plain interior space is somebody's real legacy column and is allowed through
+///         (weasel#448).
+///     </para>
+///     <para>
+///         <strong>This runs on the migration path only.</strong>
+///         <c>DatabaseBase.ApplyAllConfiguredChangesToDatabaseAsync</c> and
+///         <c>DatabaseBase.generateOrUpdateFeature</c> check every name a schema object will write
+///         -- the objects it creates (<c>ISchemaObject.AllNames</c>) and the names that are not
+///         objects of their own, columns, primary key and check constraints
+///         (<c>ISchemaObjectWithLocalIdentifiers.LocalIdentifiers</c>). Calling a schema object's
+///         <c>WriteCreateStatement</c> or <c>ApplyChangesAsync</c> directly does not go through
+///         here at all. That split is deliberate: the direct API is how you drive a schema Weasel
+///         did not author, and there the provider's quoting is what keeps a hostile name safe
+///         (weasel#447). The migration path is where Weasel is choosing the names, and it is strict
+///         about what it will bring into existence.
 ///     </para>
 ///     <para>
 ///         The rest is per-provider, because the character that closes an identifier is not: SQL Server

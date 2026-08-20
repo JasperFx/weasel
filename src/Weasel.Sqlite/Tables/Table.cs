@@ -188,6 +188,14 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         {
             yield return new SqliteObjectName(index.Name);
         }
+
+        // SQLite writes its foreign keys inline in CREATE TABLE rather than as ALTER statements,
+        // which is why they were missing here -- but the constraint is still named, the name is
+        // still written into DDL, and every other provider yields it (weasel#448).
+        foreach (var fk in ForeignKeys)
+        {
+            yield return new SqliteObjectName(fk.Name);
+        }
     }
 
     private string PrimaryKeyDeclaration()
