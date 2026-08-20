@@ -36,7 +36,7 @@ Three symbols, and the distinction between the last two matters:
 ### Reading the gaps
 
 - **Triggers** are modelled as independent schema objects that declare a target rather than as something a table owns, which is why they are a row here and not part of the table row. A trigger does not always have a table — SQL Server's `INSTEAD OF` triggers attach to views — and PostgreSQL's call a function, so they compose with `Function` rather than carrying their own body. See [Triggers](/core/triggers).
-- **Functions on Oracle and MySQL** are [#450](https://github.com/JasperFx/weasel/issues/450). Stored procedures are on all four engines that have them; SQLite has no such concept.
+- **Functions on Oracle and MySQL** are the one remaining gap — [#482](https://github.com/JasperFx/weasel/issues/482). Stored procedures are on all four engines that have them; SQLite has no such concept.
 - **Oracle packages** model the specification and the body as one object with two parts, because that is what they are: `all_source` lists them separately, they compile separately, and a body can be invalid while its spec is fine. A spec-only package — shared constants and types — is legal and supported.
 - **PostgreSQL user-defined types** cover enums, domains and composites through one class, because the catalog makes no distinction between them and neither does anything Weasel does with them.
 - **PostgreSQL materialized views already work**, through `Weasel.Postgresql.Views.MaterializedView`, which is `View` with a different `ViewType` and an optional access method. That row was ✗ in the first draft of this page and the check below caught it on its first run, which is the argument for the check.

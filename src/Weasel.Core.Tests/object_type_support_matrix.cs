@@ -97,8 +97,8 @@ public class object_type_support_matrix
     public static TheoryData<string, string, string> NotSupported =>
         new()
         {
-            { "Oracle", "Weasel.Oracle.Functions.Function", "#450" },
-            { "MySql", "Weasel.MySql.Functions.Function", "#450" }
+            { "Oracle", "Weasel.Oracle.Functions.Function", "#482" },
+            { "MySql", "Weasel.MySql.Functions.Function", "#482" }
         };
 
     [Theory]
