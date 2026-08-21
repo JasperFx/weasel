@@ -94,20 +94,36 @@ $$;
 
     private static void WriteSql(string databaseSchemaName, TextWriter writer)
     {
-        // Neither the "IF NOT EXISTS(information_schema.schemata) THEN EXECUTE 'CREATE SCHEMA'"
-        // pattern nor PostgreSQL's own "CREATE SCHEMA IF NOT EXISTS" is concurrent-safe — both
-        // can have two sessions pass the existence check then race on the insert into pg_namespace,
-        // surfacing as "23505 duplicate key value violates unique constraint pg_namespace_nspname_index"
-        // / "42P06 schema X already exists". Wrap the create in a sub-block that swallows those two
-        // race exceptions specifically; any other error still propagates.
+        // Two independent hazards, and each guard here covers exactly one of them. Neither replaces the
+        // other, so removing either reintroduces a real failure.
+        //
+        // The outer IF NOT EXISTS is about PERMISSIONS, not existence. PostgreSQL checks CREATE on the
+        // *database* before it evaluates CREATE SCHEMA's own IF NOT EXISTS, so a role holding CREATE on the
+        // schema but not on the database - the documented way to let an application own its own tables while
+        // a migration role owns the schema - is refused with "42501 permission denied for database" even
+        // when the schema is already there. Since every delta that touches a schema re-emits this statement,
+        // that aborts the whole migration script, every table in it included, with nothing to do. Reading
+        // pg_catalog.pg_namespace first costs one catalog lookup and asks for no privilege the caller has no
+        // reason to hold. Weasel.SqlServer has always guarded this way - see
+        // SqlServerMigrator.CreateSchemaStatementFor - and this brings PostgreSQL into line with it.
+        // pg_namespace rather than information_schema.schemata deliberately: the latter is filtered by the
+        // caller's privileges on the schema, and a schema it cannot see is exactly one it must not try to
+        // create.
+        //
+        // The inner EXCEPTION block is about CONCURRENCY (#282) and is still required. No existence check,
+        // this one or PostgreSQL's own, is concurrent-safe: two sessions can both pass it and then race on
+        // the insert into pg_namespace, surfacing as "23505 duplicate key value violates unique constraint
+        // pg_namespace_nspname_index" / "42P06 schema X already exists". Any other error still propagates.
         writer.WriteLine(
             $"""
-                   BEGIN
-                     EXECUTE 'CREATE SCHEMA IF NOT EXISTS {PostgresqlProvider.Instance.ToQualifiedName(databaseSchemaName)}';
-                   EXCEPTION
-                     WHEN duplicate_schema THEN NULL;
-                     WHEN unique_violation THEN NULL;
-                   END;
+                   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = '{SchemaUtils.EscapeLiteral(databaseSchemaName)}') THEN
+                     BEGIN
+                       EXECUTE 'CREATE SCHEMA IF NOT EXISTS {PostgresqlProvider.Instance.ToQualifiedName(databaseSchemaName)}';
+                     EXCEPTION
+                       WHEN duplicate_schema THEN NULL;
+                       WHEN unique_violation THEN NULL;
+                     END;
+                   END IF;
 
              """);
     }
