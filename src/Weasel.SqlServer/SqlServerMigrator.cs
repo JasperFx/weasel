@@ -152,6 +152,13 @@ $$;
     public int MaxIdentifierLength { get; set; } = 128;
 
     /// <summary>
+    ///     SQL Server refuses any request carrying more than 2100 parameters. The budget sits under
+    ///     that rather than on it: undershooting only costs a round trip, while reaching it costs the
+    ///     whole migration.
+    /// </summary>
+    public override int MaxParametersPerCommand => 2000;
+
+    /// <summary>
     ///     Validates a database object name before it is written into DDL. See
     ///     <see cref="IdentifierValidation" /> for why each rule is here; this method had no body at all
     ///     before weasel#416.

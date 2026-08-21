@@ -43,6 +43,13 @@ public class SchemaMigration
     public SchemaPatchDifference Difference { get; } = SchemaPatchDifference.None;
 
     /// <summary>
+    ///     The budget assumed for a <see cref="Migrator" /> that reports no limit of its own. SQL
+    ///     Server's hard limit of 2100 is the tightest of the five, so it is what an unknown provider
+    ///     is assumed to have.
+    /// </summary>
+    public const int DefaultParameterBudget = 2000;
+
+    /// <summary>
     ///     Create a SchemaMigration for the supplied connection and array of schema
     ///     objects
     /// </summary>
@@ -62,6 +69,11 @@ public class SchemaMigration
     /// <param name="conn"></param>
     /// <param name="schemaObjects"></param>
     /// <returns></returns>
+    /// <remarks>
+    ///     One command, as it has always been. Without a <see cref="Migrator" /> there is no way to
+    ///     know the provider's parameter limit, and guessing at one would change how many round trips
+    ///     every existing caller makes. Pass the migrator, or an explicit budget, to batch.
+    /// </remarks>
     public static Task<SchemaMigration> DetermineAsync(
         DbConnection conn,
         CancellationToken ct,
@@ -69,15 +81,55 @@ public class SchemaMigration
     ) => DetermineAsync(conn, new DbCommandBuilder(conn), ct, schemaObjects);
 
     /// <summary>
+    ///     Create a SchemaMigration, batching the introspection queries so that no single command
+    ///     binds more than <paramref name="parameterBudget" /> parameters.
+    /// </summary>
+    /// <param name="parameterBudget">
+    ///     The most parameters one introspection command may carry. Use
+    ///     <see cref="Migrator.MaxParametersPerCommand" /> when a migrator is available.
+    /// </param>
+    public static Task<SchemaMigration> DetermineAsync(
+        DbConnection conn,
+        CancellationToken ct,
+        int parameterBudget,
+        params ISchemaObject[] schemaObjects
+    ) => determineBatchedAsync(conn, () => new DbCommandBuilder(conn), parameterBudget, ct, schemaObjects);
+
+    /// <summary>
+    ///     Create a SchemaMigration using the dialect's own command builder and parameter limit.
+    /// </summary>
+    /// <remarks>
+    ///     This is what the migration path uses. It is the only overload that gets both halves
+    ///     right at once: the builder from <see cref="Migrator.CreateCommandBuilder" />, which is
+    ///     what lets Oracle chain a reader across split statements, and the batching limit from
+    ///     <see cref="Migrator.MaxParametersPerCommand" />, so a database with more objects than one
+    ///     command can bind is inspected over several round trips instead of failing.
+    /// </remarks>
+    public static Task<SchemaMigration> DetermineAsync(
+        DbConnection conn,
+        Migrator migrator,
+        CancellationToken ct,
+        params ISchemaObject[] schemaObjects
+    ) => determineBatchedAsync(conn, () => migrator.CreateCommandBuilder(conn),
+        migrator.MaxParametersPerCommand, ct, schemaObjects);
+
+    /// <summary>
     ///     Create a SchemaMigration using a command builder the caller supplies.
     /// </summary>
     /// <remarks>
-    ///     Only Oracle needs this: ODP.NET will not execute several statements from a single
-    ///     command, so <c>OracleDbCommandBuilder</c> splits the batch and the reader chains across
-    ///     the pieces. Without it every Oracle schema object was limited to one introspection query,
-    ///     which is why index, foreign key and primary key drift was invisible to the whole
-    ///     migration path (weasel#474). Callers reach it through
-    ///     <see cref="Migrator.CreateCommandBuilder" />.
+    ///     <para>
+    ///         Only Oracle needs this: ODP.NET will not execute several statements from a single
+    ///         command, so <c>OracleDbCommandBuilder</c> splits the batch and the reader chains across
+    ///         the pieces. Without it every Oracle schema object was limited to one introspection query,
+    ///         which is why index, foreign key and primary key drift was invisible to the whole
+    ///         migration path (weasel#474). Callers reach it through
+    ///         <see cref="Migrator.CreateCommandBuilder" />.
+    ///     </para>
+    ///     <para>
+    ///         One builder is one command, so this overload cannot batch — every object's parameters
+    ///         land in the builder that was handed in. Pass the <see cref="Migrator" /> instead when
+    ///         the object count is unbounded.
+    ///     </para>
     /// </remarks>
     public static async Task<SchemaMigration> DetermineAsync(
         DbConnection conn,
@@ -93,6 +145,108 @@ public class SchemaMigration
             return new SchemaMigration(deltas);
         }
 
+        await determineBatchAsync(conn, builder, schemaObjects, deltas, ct).ConfigureAwait(false);
+
+        postProcess(deltas);
+
+        return new SchemaMigration(deltas);
+    }
+
+    private static async Task<SchemaMigration> determineBatchedAsync(
+        DbConnection conn,
+        Func<DbCommandBuilder> newBuilder,
+        int parameterBudget,
+        CancellationToken ct,
+        ISchemaObject[] schemaObjects
+    )
+    {
+        var deltas = new List<ISchemaObjectDelta>();
+
+        if (!schemaObjects.Any())
+        {
+            return new SchemaMigration(deltas);
+        }
+
+        // Priced against a throwaway builder, which costs no round trip: the parameter count an
+        // object binds is a property of its query, not of the builder it is handed.
+        int cost(ISchemaObject schemaObject)
+        {
+            var probe = new DbCommandBuilder(conn);
+            schemaObject.ConfigureQueryCommand(probe);
+            using var command = probe.Command;
+            return command.Parameters.Count;
+        }
+
+        foreach (var batch in BatchByParameterBudget(schemaObjects, cost, parameterBudget))
+        {
+            await determineBatchAsync(conn, newBuilder(), batch, deltas, ct).ConfigureAwait(false);
+        }
+
+        // Once over the complete delta set rather than per batch, so a delta can still look across
+        // objects that landed in different batches.
+        postProcess(deltas);
+
+        return new SchemaMigration(deltas);
+    }
+
+    /// <summary>
+    ///     Group the objects into batches whose combined parameter count stays within the budget.
+    /// </summary>
+    /// <remarks>
+    ///     Every provider but Oracle concatenates a whole batch into one command, so a large enough
+    ///     database binds more parameters than the driver will accept. SQL Server refuses a request
+    ///     carrying more than 2100, and a table's query binds two, so past about a thousand tables
+    ///     migration failed outright with "The incoming request has too many parameters" before any
+    ///     comparison happened.
+    /// </remarks>
+    /// <param name="parameterCost">
+    ///     What one object binds. Separate from the batching itself so the arithmetic can be
+    ///     exercised without a database.
+    /// </param>
+    internal static IEnumerable<ISchemaObject[]> BatchByParameterBudget(
+        ISchemaObject[] schemaObjects,
+        Func<ISchemaObject, int> parameterCost,
+        int parameterBudget
+    )
+    {
+        // A Migrator subclass that does not answer -- a test double, most often -- would otherwise
+        // put every object in a batch of its own and turn one round trip into hundreds.
+        var budget = parameterBudget > 0 ? parameterBudget : DefaultParameterBudget;
+
+        var current = new List<ISchemaObject>();
+        var used = 0;
+
+        foreach (var schemaObject in schemaObjects)
+        {
+            var cost = parameterCost(schemaObject);
+
+            // current.Count is what keeps an object costing more than the entire budget from
+            // yielding an empty batch forever; it goes into a batch of its own instead.
+            if (current.Count > 0 && used + cost > budget)
+            {
+                yield return current.ToArray();
+                current.Clear();
+                used = 0;
+            }
+
+            current.Add(schemaObject);
+            used += cost;
+        }
+
+        if (current.Count > 0)
+        {
+            yield return current.ToArray();
+        }
+    }
+
+    private static async Task determineBatchAsync(
+        DbConnection conn,
+        DbCommandBuilder builder,
+        ISchemaObject[] schemaObjects,
+        List<ISchemaObjectDelta> deltas,
+        CancellationToken ct
+    )
+    {
         for (var i = 0; i < schemaObjects.Length; i++)
         {
             // Between objects, not before the first: a builder that splits on this boundary would
@@ -121,13 +275,14 @@ public class SchemaMigration
         {
             // It's aggravating, but there's an issue w/ postgresql's metadata query on partitions that can throw here
         }
+    }
 
+    private static void postProcess(List<ISchemaObjectDelta> deltas)
+    {
         foreach (var postProcessing in deltas.OfType<ISchemaObjectDeltaWithPostProcessing>().ToArray())
         {
             postProcessing.PostProcess(deltas);
         }
-
-        return new SchemaMigration(deltas);
     }
 
 
