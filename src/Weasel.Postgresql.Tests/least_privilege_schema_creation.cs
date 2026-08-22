@@ -77,11 +77,17 @@ public class least_privilege_schema_creation: IntegrationContext
     [Fact]
     public void a_quoted_schema_name_is_checked_by_the_name_the_catalog_holds()
     {
-        var schema = DbObjectName.Parse(PostgresqlProvider.Instance, "\"MixedCase\".things").Schema;
-        schema.ShouldBe("\"MixedCase\"", "the parser hands the schema back with its quotes");
-
+        // This used to assert that DbObjectName.Parse hands the schema back with its quotes, as the
+        // precondition that made the guard's own unquoting necessary. weasel#499 moved that
+        // normalization upstream into the provider ObjectName constructors, so a name reaching the
+        // migrator through Parse now arrives bare and the precondition no longer holds -- see
+        // object_name_normalization_conformance for the contract that replaced it.
+        //
+        // The guard keeps its own unquoting and this test keeps testing it, because
+        // WriteSchemaCreationSql is public and takes bare strings: a caller can still hand it a
+        // delimited name without going through Parse at all.
         var writer = new StringWriter();
-        new PostgresqlMigrator().WriteSchemaCreationSql([schema], writer);
+        new PostgresqlMigrator().WriteSchemaCreationSql(["\"MixedCase\""], writer);
         var sql = writer.ToString();
 
         sql.ShouldContain("nspname = 'MixedCase'");

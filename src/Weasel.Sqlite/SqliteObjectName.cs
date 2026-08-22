@@ -10,8 +10,16 @@ public class SqliteObjectName: DbObjectName
             ? SchemaUtils.QuoteName(Name)
             : $"{SchemaUtils.QuoteName(Schema)}.{SchemaUtils.QuoteName(Name)}";
 
+    /// <summary>
+    ///     A name can arrive already delimited -- <c>QualifiedNameParser</c> keeps the parts of a
+    ///     qualified name exactly as written, and Weasel emitted most identifiers bare until 9.25, so
+    ///     delimiting one by hand was the only way to use it. The model has to hold the spelling the
+    ///     catalog reports, because that is what introspection binds; holding the delimited spelling
+    ///     matched nothing, so the object read as absent and was recreated on every run (weasel#499).
+    /// </summary>
     public SqliteObjectName(string schema, string name)
-        : base(schema, name, BuildQualifiedName(schema, name))
+        : base(SchemaUtils.Unquote(schema), SchemaUtils.Unquote(name),
+            BuildQualifiedName(SchemaUtils.Unquote(schema), SchemaUtils.Unquote(name)))
     {
     }
 
