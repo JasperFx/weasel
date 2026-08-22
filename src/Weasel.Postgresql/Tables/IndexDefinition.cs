@@ -119,6 +119,18 @@ public class IndexDefinition: ITableIndex
     /// </remarks>
     public bool IsConcurrent { get; set; }
 
+    /// <summary>
+    ///     False when the database holds this index but has marked it invalid. Only ever set while
+    ///     reading an existing table; an index in a Weasel model is valid by construction.
+    /// </summary>
+    /// <remarks>
+    ///     PostgreSQL leaves an index invalid when <c>CREATE INDEX CONCURRENTLY</c> fails partway, and
+    ///     weasel#494 creates one deliberately -- a partitioned parent index is invalid until the last
+    ///     partition's index is attached. Either way the planner ignores it, so an invalid index is a
+    ///     schema that does not do what it says.
+    /// </remarks>
+    internal bool IsValidInDatabase { get; set; } = true;
+
     // Define the columns part of the index definition
     public virtual string[]? Columns { get; set; }
 
@@ -834,6 +846,16 @@ public class IndexDefinition: ITableIndex
     /// <returns></returns>
     public bool Matches(IndexDefinition actual, Table parent)
     {
+        if (!actual.IsValidInDatabase)
+        {
+            // The index exists but PostgreSQL will not use it -- the planner ignores an invalid
+            // index entirely. Reporting a match would leave it unusable forever while every check
+            // said the schema was correct, so this is drift even though the definitions agree. It
+            // routes to ItemDelta.Different, which drops before it creates; a bare CREATE INDEX
+            // would fail with 42P07 against the index still sitting there (weasel#503).
+            return false;
+        }
+
         var expectedExpression = correctedExpression(parent);
 
         if (actual.Mask == expectedExpression)
