@@ -296,6 +296,18 @@ public abstract class
     /// </remarks>
     public virtual DbCommandBuilder CreateCommandBuilder(DbConnection conn) => new(conn);
 
+    /// <summary>
+    ///     The most parameters this dialect will accept in one command. Schema introspection batches
+    ///     every object's query together, so this caps how many objects can be inspected per round
+    ///     trip.
+    /// </summary>
+    /// <remarks>
+    ///     The default suits the providers whose ceiling is PostgreSQL's 65535, set below it to leave
+    ///     headroom rather than to work around a lower limit. SQL Server's ceiling is 2100 and is
+    ///     overridden there.
+    /// </remarks>
+    public virtual int MaxParametersPerCommand => 60000;
+
     public abstract void AssertValidIdentifier(string name);
 
     /// <summary>

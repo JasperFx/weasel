@@ -20,8 +20,10 @@ public class FunctionDelta: SchemaObjectDelta<Function>
             return SchemaPatchDifference.Create;
         }
 
-        var expectedSql = expected.Body().Replace(" OR ALTER", "").CanonicizeSql();
-        var actualSql = actual.Body().Replace(" OR ALTER", "").CanonicizeSql();
+        // CanonicizeSql handles the OR ALTER preamble. Stripping it here as well was a blind
+        // replace over the whole body, so it also hit the words in a literal or a comment.
+        var expectedSql = expected.Body().CanonicizeSql();
+        var actualSql = actual.Body().CanonicizeSql();
         if (!expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase))
         {
             return SchemaPatchDifference.Update;
