@@ -223,6 +223,29 @@ public class IndexDefinition: ITableIndex
             builder.AppendLine(IndexCreationBeginComment);
         }
 
+        builder.Append(createStatement(parent, QuotedName, parent.Identifier.ToString(), IsConcurrent, onlyParent: false));
+
+        if (IsConcurrent)
+        {
+            builder.AppendLine();
+            builder.Append(IndexCreationEndComment);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    ///     One <c>CREATE INDEX</c> statement, with the name, the target table, the concurrency and the
+    ///     <c>ONLY</c> qualifier supplied rather than taken from this definition.
+    /// </summary>
+    /// <remarks>
+    ///     The last three vary only for a concurrent index on a partitioned table, which is built as
+    ///     three statements per partition rather than one — see <see cref="ToCreateSql" />.
+    /// </remarks>
+    private string createStatement(Table parent, string indexName, string table, bool concurrently, bool onlyParent)
+    {
+        var builder = new StringBuilder();
+
         builder.Append("CREATE ");
 
         if (IsUnique)
@@ -232,15 +255,21 @@ public class IndexDefinition: ITableIndex
 
         builder.Append("INDEX ");
 
-        if (IsConcurrent)
+        if (concurrently)
         {
             builder.Append("CONCURRENTLY ");
         }
 
-        builder.Append(QuotedName);
+        builder.Append(indexName);
 
         builder.Append(" ON ");
-        builder.Append(parent.Identifier);
+
+        if (onlyParent)
+        {
+            builder.Append("ONLY ");
+        }
+
+        builder.Append(table);
         builder.Append(" USING ");
         builder.Append(Method == IndexMethod.custom ? CustomMethod : Method);
         builder.Append(" ");
@@ -295,14 +324,90 @@ public class IndexDefinition: ITableIndex
 
 
         builder.Append(";");
-        if (IsConcurrent)
-        {
-            builder.AppendLine();
-            builder.Append(IndexCreationEndComment);
-        }
-
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    ///     The DDL the migration path should execute to build this index. Usually one statement, and
+    ///     identical to <see cref="ToDDL" />.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A concurrent index on a partitioned table is the exception. PostgreSQL refuses
+    ///         <c>CREATE INDEX CONCURRENTLY</c> on a partitioned parent outright — "cannot create index
+    ///         on partitioned table ... concurrently" — so <see cref="IsConcurrent" /> could not be
+    ///         honoured there at all, and adding an index to a partitioned table meant an
+    ///         <c>ACCESS EXCLUSIVE</c> lock for the whole build: a write outage rather than a
+    ///         migration (weasel#494).
+    ///     </para>
+    ///     <para>
+    ///         The supported sequence is three steps. <c>CREATE INDEX ON ONLY parent</c> registers the
+    ///         parent index as metadata and leaves it <em>invalid</em>; each partition then gets its own
+    ///         index built concurrently; and each is attached with
+    ///         <c>ALTER INDEX ... ATTACH PARTITION</c>. The parent flips to valid by itself once the
+    ///         last child is attached, which is why a half-finished run is visible rather than silent.
+    ///     </para>
+    ///     <para>
+    ///         Kept separate from <see cref="ToDDL" /> deliberately: that is also the canonical form the
+    ///         delta compares against <c>pg_get_indexdef</c>, which returns a single statement. Folding
+    ///         this sequence into it would make every such index report drift on every run.
+    ///     </para>
+    /// </remarks>
+    public string ToCreateSql(Table parent)
+        => IsConcurrent && parent.Partitioning != null
+            ? toPartitionedConcurrentDDL(parent)
+            : ToDDL(parent);
+
+    private string toPartitionedConcurrentDDL(Table parent)
+    {
+        var builder = new StringBuilder();
+        var schema = parent.Identifier.Schema;
+
+        // Metadata only, and deliberately not concurrent: nothing is scanned, so nothing is blocked.
+        builder.AppendLine(createStatement(parent, QuotedName, parent.Identifier.ToString(),
+            concurrently: false, onlyParent: true));
+
+        foreach (var partition in parent.Partitioning!.PartitionTableNames(parent))
+        {
+            var childName = ChildIndexName(parent, partition);
+            var quotedChild = SchemaUtils.QuoteName(childName);
+
+            // The markers put this statement in a command of its own. CREATE INDEX CONCURRENTLY
+            // cannot run inside a transaction block, and PostgresqlMigrator.executeDelta splits the
+            // script on exactly this boundary.
+            builder.AppendLine(IndexCreationBeginComment);
+            builder.AppendLine(createStatement(parent, quotedChild,
+                $"{schema}.{SchemaUtils.QuoteName(partition)}", concurrently: true, onlyParent: false));
+            builder.AppendLine(IndexCreationEndComment);
+
+            builder.AppendLine($"ALTER INDEX {schema}.{QuotedName} ATTACH PARTITION {schema}.{quotedChild};");
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    ///     The name of the index built on one partition, before it is attached to this one.
+    /// </summary>
+    /// <remarks>
+    ///     Deterministic, so a run that died partway through names the same child index on the next
+    ///     attempt rather than building a second one beside it. Deliberately not truncated when it runs
+    ///     long: <c>AssertValidIdentifier</c> refuses an over-length identifier rather than silently
+    ///     renaming the object, which is the rule weasel#468 settled.
+    /// </remarks>
+    internal string ChildIndexName(Table parent, string partitionTableName)
+    {
+        // Partition tables are named "{parent}_{suffix}", so trimming the parent off keeps the child
+        // index at "{index}_{suffix}" rather than repeating the table name inside it. The fallback
+        // covers a partition name that does not follow the convention.
+        var prefix = parent.Identifier.Name.ToLowerInvariant() + "_";
+
+        var suffix = partitionTableName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? partitionTableName.Substring(prefix.Length)
+            : partitionTableName;
+
+        return $"{Name}_{suffix}";
     }
 
     /// <summary>

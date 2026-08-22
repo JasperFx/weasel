@@ -158,10 +158,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         writeCheckConstraintUpdates(writer);
 
         // Missing indexes
-        foreach (var indexDefinition in Indexes.Missing) writer.WriteLine(indexDefinition.ToDDL(Expected));
+        foreach (var indexDefinition in Indexes.Missing) writer.WriteLine(indexDefinition.ToCreateSql(Expected));
 
         // Different indexes
-        foreach (var change in Indexes.Different) writer.WriteLine(change.Expected.ToDDL(Expected));
+        foreach (var change in Indexes.Different) writer.WriteLine(change.Expected.ToCreateSql(Expected));
 
         // Need to make Primary key changes before dropping extra columns
         writePrimaryKeyChanges(writer);
@@ -368,13 +368,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         foreach (var indexDefinition in Indexes.Missing) writer.WriteDropIndex(Expected, indexDefinition);
 
         // Extra indexes
-        foreach (var extra in Indexes.Extras) writer.WriteLine(extra.ToDDL(Actual!));
+        foreach (var extra in Indexes.Extras) writer.WriteLine(extra.ToCreateSql(Actual!));
 
         // Different indexes
         foreach (var change in Indexes.Different)
         {
             writer.WriteDropIndex(Actual!, change.Expected);
-            writer.WriteLine(change.Actual.ToDDL(Actual!));
+            writer.WriteLine(change.Actual.ToCreateSql(Actual!));
         }
     }
 
