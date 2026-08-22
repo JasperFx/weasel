@@ -67,6 +67,67 @@ public class least_privilege_schema_creation: IntegrationContext
     }
 
     /// <summary>
+    ///     A schema name can reach the migrator already delimited: <see cref="DbObjectName.Parse" /> splits a
+    ///     qualified name on <c>.</c> and keeps the parts exactly as written, and
+    ///     <c>PostgresqlProvider.ToQualifiedName</c> passes a name the caller delimited straight through. The
+    ///     check has to be made against the name <c>pg_namespace</c> holds, which is the bare one - otherwise
+    ///     it asks for <c>nspname = '"MixedCase"'</c>, nothing ever matches, and the guard is permanently
+    ///     false for exactly the names that had to be quoted.
+    /// </summary>
+    [Fact]
+    public void a_quoted_schema_name_is_checked_by_the_name_the_catalog_holds()
+    {
+        var schema = DbObjectName.Parse(PostgresqlProvider.Instance, "\"MixedCase\".things").Schema;
+        schema.ShouldBe("\"MixedCase\"", "the parser hands the schema back with its quotes");
+
+        var writer = new StringWriter();
+        new PostgresqlMigrator().WriteSchemaCreationSql([schema], writer);
+        var sql = writer.ToString();
+
+        sql.ShouldContain("nspname = 'MixedCase'");
+        sql.ShouldNotContain("nspname = '\"MixedCase\"'");
+
+        // The create still emits the delimited form, because that is the name PostgreSQL has to be told
+        // to make. Only the catalog lookup changes.
+        sql.ShouldContain("CREATE SCHEMA IF NOT EXISTS \"MixedCase\"");
+    }
+
+    /// <summary>
+    ///     An interior quote survives the round trip: <c>"it""s"</c> is the delimited spelling of the schema
+    ///     literally named <c>it"s</c>, so the doubling is undone for the lookup and the single quote
+    ///     escaping still applies on top of it.
+    /// </summary>
+    [Fact]
+    public void undoubling_and_literal_escaping_compose()
+    {
+        var writer = new StringWriter();
+
+        new PostgresqlMigrator().WriteSchemaCreationSql(["\"it\"\"s\""], writer);
+
+        writer.ToString().ShouldContain("nspname = 'it\"s'");
+    }
+
+    /// <summary>
+    ///     And the same thing against a real role. A schema whose name had to be quoted is the case the
+    ///     unquoted check got wrong, so it is the case that has to be shown working end to end.
+    /// </summary>
+    [Fact]
+    public async Task a_quoted_schema_name_does_not_reintroduce_the_permission_failure()
+    {
+        await GrantQuotedSchemaToLeastPrivilegeRoleAsync();
+
+        var writer = new StringWriter();
+        new PostgresqlMigrator().WriteSchemaCreationSql(["\"MixedCase\""], writer);
+
+        await using var conn = new NpgsqlConnection(LeastPrivilegeConnectionString());
+        await conn.OpenAsync();
+
+        // Pre-fix the guard never matched, so this reached CREATE SCHEMA and threw
+        // "42501 permission denied for database" on a schema that has been there all along.
+        await conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync();
+    }
+
+    /// <summary>
     ///     The regression itself, against a real role. Applying a table into a schema that already exists has
     ///     to succeed for a role that was granted the schema and nothing else.
     /// </summary>
@@ -143,6 +204,29 @@ public class least_privilege_schema_creation: IntegrationContext
                  END $$;
                  DROP SCHEMA IF EXISTS least_privilege_absent CASCADE;
                  GRANT USAGE, CREATE ON SCHEMA {SchemaName} TO {RoleName};
+                 """)
+            .ExecuteNonQueryAsync();
+    }
+
+    /// <remarks>
+    ///     Quoted, so PostgreSQL keeps the casing rather than folding it. This is deliberately not the
+    ///     fixture's own schema: the point is a name that cannot be written bare.
+    /// </remarks>
+    private static async Task GrantQuotedSchemaToLeastPrivilegeRoleAsync()
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+
+        await conn.CreateCommand(
+                $"""
+                 DO $$
+                 BEGIN
+                     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{RoleName}') THEN
+                         CREATE ROLE {RoleName} LOGIN PASSWORD '{RoleName}';
+                     END IF;
+                 END $$;
+                 CREATE SCHEMA IF NOT EXISTS "MixedCase";
+                 GRANT USAGE, CREATE ON SCHEMA "MixedCase" TO {RoleName};
                  """)
             .ExecuteNonQueryAsync();
     }
