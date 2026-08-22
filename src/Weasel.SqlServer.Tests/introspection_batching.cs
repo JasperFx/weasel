@@ -117,6 +117,40 @@ public class introspection_batching: IntegrationContext
         split.Deltas.Select(x => x.Difference).ShouldBe(single.Deltas.Select(x => x.Difference));
     }
 
+    /// <summary>
+    ///     The public <c>MigrateAsync</c> extension takes an unbounded array and reached the same
+    ///     one-command-for-everything path, so batching the migration path alone left the bug live on
+    ///     the entry point a caller outside Weasel is most likely to hold.
+    /// </summary>
+    [Fact]
+    public async Task the_public_migrate_extension_batches_too()
+    {
+        await ResetSchema();
+
+        // 2400 parameters. Pre-fix this threw SqlException 8003 out of the introspection query,
+        // before any comparison happened. Nothing has drifted, so nothing is migrated.
+        var migrated = await wideObjects().MigrateAsync(theConnection);
+
+        migrated.ShouldBeFalse();
+    }
+
+    /// <summary>
+    ///     And it still applies what it finds. The batching sits in front of the comparison, so a real
+    ///     delta has to survive the split and reach the database.
+    /// </summary>
+    [Fact]
+    public async Task the_public_migrate_extension_still_applies_the_delta_it_finds()
+    {
+        await ResetSchema();
+
+        var expected = tables(3);
+
+        (await expected.MigrateAsync(theConnection)).ShouldBeTrue();
+
+        // Second pass over the same objects: everything is there now, so there is nothing to do.
+        (await expected.MigrateAsync(theConnection)).ShouldBeFalse();
+    }
+
     [Fact]
     public void each_dialect_supplies_its_own_limit()
     {
