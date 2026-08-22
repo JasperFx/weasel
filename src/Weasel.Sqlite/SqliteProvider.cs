@@ -212,6 +212,9 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
         parameter.SqliteType = dbType;
     }
 
+    /// <inheritdoc />
+    public override IdentifierRules Rules => SqliteIdentifierRules.Instance;
+
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new SqliteObjectName(schemaName, objectName);
 

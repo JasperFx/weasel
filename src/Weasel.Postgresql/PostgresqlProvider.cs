@@ -383,6 +383,9 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         return SchemaUtils.QuoteName(objectName);
     }
 
+    /// <inheritdoc />
+    public override IdentifierRules Rules => PostgresqlIdentifierRules.General;
+
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new PostgresqlObjectName(schemaName, objectName, ToQualifiedName(schemaName, objectName));
 

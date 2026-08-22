@@ -54,6 +54,9 @@ public class MySqlProvider: DatabaseProvider<MySqlCommand, MySqlParameter, MySql
     public override string ToQualifiedName(string objectName) =>
         string.IsNullOrEmpty(objectName) ? objectName : $"{SchemaUtils.QuoteName(objectName)}";
 
+    /// <inheritdoc />
+    public override IdentifierRules Rules => MySqlIdentifierRules.Instance;
+
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new MySqlObjectName(schemaName, objectName);
 

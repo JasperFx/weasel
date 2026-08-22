@@ -53,6 +53,9 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
         return Type.EmptyTypes;
     }
 
+    /// <inheritdoc />
+    public override IdentifierRules Rules => SqlServerIdentifierRules.Instance;
+
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new SqlServerObjectName(schemaName, objectName);
 

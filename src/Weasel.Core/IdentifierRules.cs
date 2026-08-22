@@ -1,3 +1,4 @@
+using System.Text;
 using JasperFx.Core;
 
 namespace Weasel.Core;
@@ -149,6 +150,80 @@ public abstract class IdentifierRules
         => IsDelimited(name)
             ? name.Substring(1, name.Length - 2).Replace($"{Close}{Close}", Close.ToString())
             : name;
+
+    /// <summary>
+    ///     Split a qualified name into its parts, on the dots that actually separate identifiers.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A dot inside a delimited identifier is an ordinary character on every dialect Weasel
+    ///         supports, so <c>"my.schema".things</c> is two parts and not three. Splitting on every dot
+    ///         made such a name unparseable -- and it is not exotic:
+    ///         <c>PK_dbo.__MigrationHistory</c> is the key EF6 gives its own history table
+    ///         (weasel#501).
+    ///     </para>
+    ///     <para>
+    ///         Delimiters are returned as they were written. Undelimiting is the caller's job, and the
+    ///         provider ObjectName constructors already do it (weasel#499).
+    ///     </para>
+    /// </remarks>
+    public string[] SplitQualifiedName(string qualifiedName)
+    {
+        if (qualifiedName.IsEmpty())
+        {
+            return [qualifiedName];
+        }
+
+        var parts = new List<string>();
+        var current = new StringBuilder();
+        var delimited = false;
+
+        for (var i = 0; i < qualifiedName.Length; i++)
+        {
+            var c = qualifiedName[i];
+
+            if (delimited)
+            {
+                if (c == Close)
+                {
+                    // A doubled close character is an escaped one, not the end of the identifier.
+                    if (i + 1 < qualifiedName.Length && qualifiedName[i + 1] == Close)
+                    {
+                        current.Append(c).Append(c);
+                        i++;
+                        continue;
+                    }
+
+                    delimited = false;
+                }
+
+                current.Append(c);
+                continue;
+            }
+
+            // Open is checked before Close, which matters for the dialects where they are the same
+            // character: the delimited flag above is what decides which one it is.
+            if (c == Open)
+            {
+                delimited = true;
+                current.Append(c);
+                continue;
+            }
+
+            if (c == '.')
+            {
+                parts.Add(current.ToString());
+                current.Clear();
+                continue;
+            }
+
+            current.Append(c);
+        }
+
+        parts.Add(current.ToString());
+
+        return parts.ToArray();
+    }
 
     /// <summary>
     ///     Escape a value being written into a SQL string literal, by doubling its single quotes.

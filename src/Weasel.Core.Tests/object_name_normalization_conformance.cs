@@ -149,6 +149,62 @@ public class object_name_normalization_conformance
     }
 
     /// <summary>
+    ///     A dot inside a delimited identifier is an ordinary character on every provider here, so a
+    ///     qualified name has to be split on the delimiters rather than on every dot.
+    /// </summary>
+    /// <remarks>
+    ///     <c>QualifiedNameParser</c> used to call <c>qualifiedName.Split('.')</c> and throw when that
+    ///     produced anything other than two parts, so a legal name simply could not be modelled:
+    ///     <c>"my.schema".things</c>, <c>[my.table]</c>, and the <c>PK_dbo.__MigrationHistory</c> that
+    ///     EF6 gives its own history table — already in this suite's sibling as a hostile name
+    ///     (weasel#501).
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void a_dot_inside_a_delimited_identifier_is_not_a_separator(
+        string provider, IDatabaseProvider databaseProvider, IdentifierRules rules)
+    {
+        var schema = rules.Delimit("my.schema");
+        var name = rules.Delimit("my.table");
+
+        var parsed = databaseProvider.Parse($"{schema}.{name}");
+
+        rules.SameObject(parsed.Schema, "my.schema").ShouldBeTrue(
+            $"{provider} mis-split the schema: got '{parsed.Schema}'");
+        rules.SameObject(parsed.Name, "my.table").ShouldBeTrue(
+            $"{provider} mis-split the name: got '{parsed.Name}'");
+    }
+
+    /// <summary>
+    ///     And an undelimited qualified name still splits the way it always has.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void an_ordinary_qualified_name_still_splits_on_the_dot(
+        string provider, IDatabaseProvider databaseProvider, IdentifierRules rules)
+    {
+        var parsed = databaseProvider.Parse("things.orders");
+
+        parsed.Schema.ShouldBe("things", $"{provider} mis-split an ordinary schema");
+        parsed.Name.ShouldBe("orders", $"{provider} mis-split an ordinary name");
+    }
+
+    /// <summary>
+    ///     A bare name still takes the provider's default schema rather than being treated as qualified.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void a_bare_name_takes_the_default_schema(
+        string provider, IDatabaseProvider databaseProvider, IdentifierRules rules)
+    {
+        var parsed = databaseProvider.Parse("orders");
+
+        parsed.Name.ShouldBe("orders", $"{provider} altered a bare name");
+        parsed.Schema.ShouldBe(databaseProvider.DefaultDatabaseSchemaName,
+            $"{provider} did not default the schema");
+    }
+
+    /// <summary>
     ///     The pass-through in <see cref="IdentifierRules.Quote" /> is deliberately narrow: a name
     ///     that merely starts and ends with the delimiters, but carries a loose close character, is
     ///     not delimited and must not be stripped. Stripping it would hand DDL back out of an
