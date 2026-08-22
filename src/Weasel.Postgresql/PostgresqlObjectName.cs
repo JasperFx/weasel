@@ -21,8 +21,16 @@ public class PostgresqlObjectName: DbObjectName
     {
     }
 
+    /// <summary>
+    ///     A name can arrive already delimited -- <c>QualifiedNameParser</c> keeps the parts of a
+    ///     qualified name exactly as written, and Weasel emitted most identifiers bare until 9.25, so
+    ///     delimiting one by hand was the only way to use it. The model has to hold the spelling the
+    ///     catalog reports, because that is what introspection binds; holding the delimited spelling
+    ///     matched nothing, so the object read as absent and was recreated on every run (weasel#499).
+    /// </summary>
     public PostgresqlObjectName(string schema, string name, SchemaUtils.IdentifierUsage usage)
-        : base(schema, name, PostgresqlProvider.Instance.ToQualifiedName(schema, name))
+        : base(SchemaUtils.Unquote(schema), SchemaUtils.Unquote(name),
+            PostgresqlProvider.Instance.ToQualifiedName(SchemaUtils.Unquote(schema), SchemaUtils.Unquote(name)))
     {
         _usage = usage;
     }
@@ -33,9 +41,13 @@ public class PostgresqlObjectName: DbObjectName
     {
     }
 
+    /// <remarks>
+    ///     The schema and name are normalized for the same reason as the constructor above; the
+    ///     qualified name is taken as the caller gave it, since it is already the rendered form.
+    /// </remarks>
     public PostgresqlObjectName(string schema, string name, string qualifiedName,
         SchemaUtils.IdentifierUsage usage)
-        : base(schema, name, qualifiedName)
+        : base(SchemaUtils.Unquote(schema), SchemaUtils.Unquote(name), qualifiedName)
     {
         _usage = usage;
     }
