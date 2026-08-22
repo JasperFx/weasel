@@ -22,6 +22,16 @@ public interface IDatabaseProvider
     string ToQualifiedName(string schemaName, string objectName) =>
         $"{ToQualifiedName(schemaName)}.{ToQualifiedName(objectName)}";
 
+    /// <summary>
+    ///     This dialect's identifier rules, when it has them. Used to split a qualified name on the
+    ///     dots that separate identifiers rather than on every dot (weasel#501).
+    /// </summary>
+    /// <remarks>
+    ///     Defaulted rather than required so that an implementation outside Weasel keeps compiling and
+    ///     keeps its current splitting. Every provider in the box supplies its own.
+    /// </remarks>
+    IdentifierRules? Rules => null;
+
     public DbObjectName Parse(string qualifiedName)
     {
         var parts = QualifiedNameParser.Parse(this, qualifiedName);
@@ -355,6 +365,18 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
     {
         return AddNamedParameter(command, name, value, BoolParameterType);
     }
+
+    /// <summary>
+    ///     This dialect's identifier rules. Declared here as well as on <see cref="IDatabaseProvider" />
+    ///     so that a derived provider can supply it.
+    /// </summary>
+    /// <remarks>
+    ///     A default interface member alone would not do. The interface mapping is fixed at the class
+    ///     that implements the interface -- this one -- so a <c>Rules</c> declared on a derived provider
+    ///     would never be reached and every provider would silently keep the default. Virtual, and
+    ///     null by default, so an implementation outside Weasel keeps compiling.
+    /// </remarks>
+    public virtual IdentifierRules? Rules => null;
 
     public DbObjectName Parse(string qualifiedName)
     {

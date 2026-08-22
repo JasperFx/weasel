@@ -51,6 +51,9 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
         return Type.EmptyTypes;
     }
 
+    /// <inheritdoc />
+    public override IdentifierRules Rules => OracleIdentifierRules.Instance;
+
     public override DbObjectName Parse(string schemaName, string objectName) =>
         new OracleObjectName(schemaName, objectName);
 
