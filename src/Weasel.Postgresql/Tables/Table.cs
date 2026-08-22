@@ -139,16 +139,20 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
             writer.WriteLine(foreignKey.ToDDL(this));
         }
 
-        foreach (var index in Indexes)
-        {
-            writer.WriteLine();
-            writer.WriteLine(index.ToDDL(this));
-        }
-
         if (Partitioning != null)
         {
             writer.WriteLine();
             Partitioning.WriteCreateStatement(writer, this);
+        }
+
+        // After the partitions, not before them. A concurrent index on a partitioned table is built
+        // per partition and then attached, so the partitions have to exist first (weasel#494). For
+        // every other index the order is immaterial -- an index created on a partitioned parent
+        // propagates to partitions added later either way.
+        foreach (var index in Indexes)
+        {
+            writer.WriteLine();
+            writer.WriteLine(index.ToCreateSql(this));
         }
     }
 

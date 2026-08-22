@@ -287,7 +287,11 @@ public class managed_range_partitions: IntegrationContext
                 from pg_inherits i
                 join pg_class c on c.oid = i.inhrelid
                 join pg_class p on p.oid = i.inhparent
-                where p.relname = 'events'
+                join pg_namespace n on n.oid = p.relnamespace
+                -- Schema-qualified deliberately: 'events' is a name another fixture can easily take,
+                -- and without this the partitions of an unrelated table in another schema show up here
+                -- as extra rows and fail an assertion that has nothing to do with them.
+                where n.nspname = 'managed_ranges' and p.relname = 'events'
                 order by c.relname
                 """)
             .ExecuteReaderAsync();
