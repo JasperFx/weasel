@@ -110,13 +110,21 @@ $$;
         // caller's privileges on the schema, and a schema it cannot see is exactly one it must not try to
         // create.
         //
+        // Unquote before escaping, because the check and the create have to agree on what the name
+        // is. ToQualifiedName below passes a name the caller already delimited straight through, and
+        // DbObjectName.Parse hands one back whole -- it splits on '.' and keeps the parts as written --
+        // so a table declared as "MySchema".things arrives here spelled with its quotes. pg_namespace
+        // holds the bare name, so escaping the delimited spelling into the literal asks for
+        // nspname = '"MySchema"', which nothing ever matches: the guard is then permanently false and
+        // the 42501 above comes straight back for exactly the names that had to be quoted.
+        //
         // The inner EXCEPTION block is about CONCURRENCY (#282) and is still required. No existence check,
         // this one or PostgreSQL's own, is concurrent-safe: two sessions can both pass it and then race on
         // the insert into pg_namespace, surfacing as "23505 duplicate key value violates unique constraint
         // pg_namespace_nspname_index" / "42P06 schema X already exists". Any other error still propagates.
         writer.WriteLine(
             $"""
-                   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = '{SchemaUtils.EscapeLiteral(databaseSchemaName)}') THEN
+                   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = '{SchemaUtils.EscapeLiteral(SchemaUtils.Unquote(databaseSchemaName))}') THEN
                      BEGIN
                        EXECUTE 'CREATE SCHEMA IF NOT EXISTS {PostgresqlProvider.Instance.ToQualifiedName(databaseSchemaName)}';
                      EXCEPTION
