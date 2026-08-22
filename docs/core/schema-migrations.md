@@ -147,6 +147,18 @@ Each database provider has a `Migrator` subclass that knows how to format SQL fo
 - `OracleMigrator` -- Oracle-specific DDL formatting
 - `SqliteMigrator` -- simplified DDL without schema creation SQL (SQLite schemas are fixed)
 
+### Privileges needed to apply a migration
+
+A migration only needs the privilege to create what is actually missing. Both the PostgreSQL and SQL Server
+migrators check whether a schema exists before attempting to create it, so applying a delta into a schema
+that is already there does not require a database-level create privilege -- only the privileges the objects
+in the delta need.
+
+This matters because a schema-level grant is the usual way to let an application manage its own tables while
+a separate migration role owns everything else. On PostgreSQL, `GRANT USAGE, CREATE ON SCHEMA my_schema TO
+my_app` is enough for that application to apply its own migrations, and it needs no `CREATE` on the database.
+Creating the schema in the first place does, so a role without it has to be given the schema up front.
+
 The `Migrator` is used internally by `WriteCreateStatement()`, `WriteDropStatement()`, and `WriteUpdate()` on every schema object and delta.
 
 ## Putting It Together
