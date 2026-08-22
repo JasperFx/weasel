@@ -63,8 +63,14 @@ FROM (
       JOIN pg_namespace AS NS ON i.relnamespace = NS.OID
       JOIN pg_roles AS R ON i.relowner = r.oid
     WHERE
-      nspname = :{schemaParam} AND
-      NOT nspname LIKE 'pg%'
+      -- Only the schema that was asked for. There used to be a NOT nspname LIKE 'pg%' beside this,
+      -- meant to skip pg_catalog and pg_toast, but the line above already pins the query to one
+      -- schema so it could never have excluded anything else -- except a user schema that happens
+      -- to start with those two letters, which it excluded completely. pgcontrol, pgqueues, pgdata:
+      -- every index in them read back as absent, every declared index was then reported Missing
+      -- rather than Different, and the resulting bare CREATE INDEX failed with 42P07 on the second
+      -- run and took the rest of the migration with it (weasel#504).
+      nspname = :{schemaParam}
 ) ind
 WHERE
       ind.table_name = :{nameParam} OR
