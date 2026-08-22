@@ -54,7 +54,11 @@ FROM (
                ORDER BY k
            ) AS index_keys,
       (idx.indexprs IS NOT NULL) OR (idx.indkey::int[] @> array[0]) AS is_functional,
-      idx.indpred IS NOT NULL AS is_partial
+      idx.indpred IS NOT NULL AS is_partial,
+      -- Appended rather than inserted: readIndexesAsync reads positionally, so a column added
+      -- anywhere above would shift every existing read. pg_get_indexdef renders an invalid index
+      -- exactly like a valid one, so without this nothing distinguished the two (weasel#503).
+      idx.indisvalid           AS is_valid
     FROM pg_index AS idx
       JOIN pg_class AS i
         ON i.oid = idx.indexrelid
@@ -386,12 +390,14 @@ order by column_index;
             var schemaName = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
             var tableName = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
             var ddl = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
+            var isValid = await reader.GetFieldValueAsync<bool>(12, ct).ConfigureAwait(false);
 
 
             if ((Identifier.Schema == schemaName && Identifier.Name == tableName) ||
                 Equals(Identifier, DbObjectName.Parse(PostgresqlProvider.Instance, tableName)))
             {
                 var index = IndexDefinition.Parse(ddl);
+                index.IsValidInDatabase = isValid;
 
                 existing.Indexes.Add(index);
             }
