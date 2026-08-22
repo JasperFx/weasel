@@ -342,12 +342,16 @@ WHERE
             await conn.OpenAsync(cancellationToken.Value).ConfigureAwait(false);
         }
 
-        var migration = await SchemaMigration.DetermineAsync(conn, cancellationToken.Value, schemaObjects).ConfigureAwait(false);
+        // Through the migrator, not the bare connection: this overload takes an unbounded array, and
+        // the one-command-for-everything path binds two parameters per table against a server that
+        // refuses more than 2100 of them. The migrator carries the limit that splits the batch.
+        var migrator = new SqlServerMigrator();
+
+        var migration = await SchemaMigration.DetermineAsync(conn, migrator, cancellationToken.Value, schemaObjects).ConfigureAwait(false);
         if (migration.Difference == SchemaPatchDifference.None) return false;
 
         migration.AssertPatchingIsValid(autoCreate);
 
-        var migrator = new SqlServerMigrator();
         await migrator.ApplyAllAsync(conn, migration, autoCreate, ct: cancellationToken.Value).ConfigureAwait(false);
 
         return true;

@@ -321,7 +321,13 @@ public static class SchemaObjectsExtensions
             await conn.OpenAsync(cancellationToken.Value).ConfigureAwait(false);
         }
 
-        var migration = await SchemaMigration.DetermineAsync(conn, cancellationToken.Value, schemaObjects)
+        // Through the migrator, for the same reason as the other providers. SQLite interpolates its
+        // introspection queries rather than binding them -- only a trigger binds anything at all -- so
+        // there is nothing here to split today. Routing through the migrator keeps it that way by
+        // construction rather than by the accident of what the current queries happen to bind.
+        var migrator = new SqliteMigrator();
+
+        var migration = await SchemaMigration.DetermineAsync(conn, migrator, cancellationToken.Value, schemaObjects)
             .ConfigureAwait(false);
         if (migration.Difference == SchemaPatchDifference.None)
         {
@@ -330,7 +336,6 @@ public static class SchemaObjectsExtensions
 
         migration.AssertPatchingIsValid(autoCreate);
 
-        var migrator = new SqliteMigrator();
         await migrator.ApplyAllAsync(conn, migration, autoCreate, ct: cancellationToken.Value).ConfigureAwait(false);
 
         return true;

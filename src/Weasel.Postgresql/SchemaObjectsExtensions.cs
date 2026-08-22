@@ -271,12 +271,16 @@ public static class SchemaObjectsExtensions
             await conn.OpenAsync(cancellationToken.Value).ConfigureAwait(false);
         }
 
-        var migration = await SchemaMigration.DetermineAsync(conn, cancellationToken.Value, schemaObjects).ConfigureAwait(false);
+        // Through the migrator, so an unbounded array is split into commands the driver will accept.
+        // PostgreSQL's ceiling is 65535 and a table binds five, so this is a great deal harder to reach
+        // than SQL Server's 2100 -- but it is the same path, and it is the same one-line fix.
+        var migrator = new PostgresqlMigrator();
+
+        var migration = await SchemaMigration.DetermineAsync(conn, migrator, cancellationToken.Value, schemaObjects).ConfigureAwait(false);
         if (migration.Difference == SchemaPatchDifference.None) return false;
 
         migration.AssertPatchingIsValid(autoCreate);
 
-        var migrator = new PostgresqlMigrator();
         await migrator.ApplyAllAsync(conn, migration, autoCreate, ct: cancellationToken.Value).ConfigureAwait(false);
 
         return true;
