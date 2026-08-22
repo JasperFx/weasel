@@ -225,9 +225,52 @@ public class TableColumn: ITableColumn
         return $"alter table {table.Identifier} alter column {ToDeclaration()};";
     }
 
+    /// <summary>
+    ///     Drop the column, and the default constraint that would otherwise block it.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         SQL Server refuses <c>DROP COLUMN</c> while a default constraint references the column —
+    ///         "The object 'DF__orders__stamp__2FEFE172' is dependent on column 'stamp'." So a column
+    ///         declared with a default could be added by a migration but never removed by one: the patch
+    ///         was generated, it just always failed (weasel#505). PostgreSQL drops the two together,
+    ///         which is why this is SQL-Server-only.
+    ///     </para>
+    ///     <para>
+    ///         The constraint cannot be named statically. SQL Server invents one when the DDL does not
+    ///         supply it — <c>DF__table__column__hash</c>, where the hash is per-object — so the name has
+    ///         to be read out of <c>sys.default_constraints</c> at run time.
+    ///     </para>
+    ///     <para>
+    ///         The lookup is wrapped in its own <c>EXEC</c> so that <c>@constraint</c> is scoped to a
+    ///         nested batch. <c>DECLARE</c> in T-SQL is scoped to the batch and not to a <c>BEGIN/END</c>
+    ///         block, and <c>SqlServerMigrator.executeDelta</c> sends one command per table — so a table
+    ///         dropping two defaulted columns would otherwise fail with "The variable name '@constraint'
+    ///         has already been declared."
+    ///     </para>
+    ///     <para>
+    ///         Only the default is handled. A check constraint or an index over the column blocks the
+    ///         drop the same way, but Weasel emits a default for any column that declares one, which
+    ///         makes it the case that arises on its own.
+    ///     </para>
+    /// </remarks>
     public string DropColumnSql(Table table)
     {
-        return $"alter table {table.Identifier} drop column {QuotedName};";
+        // Written as the SQL it should be when it runs, then escaped once to embed in the EXEC.
+        var inner = $"""
+                     declare @constraint sysname;
+                     select @constraint = dc.name
+                     from sys.default_constraints dc
+                     inner join sys.columns c
+                         on c.object_id = dc.parent_object_id and c.column_id = dc.parent_column_id
+                     where dc.parent_object_id = object_id('{SchemaUtils.EscapeLiteral(table.Identifier.QualifiedName)}')
+                       and c.name = '{SchemaUtils.EscapeLiteral(Name)}';
+                     if @constraint is not null
+                         exec('alter table {table.Identifier} drop constraint [' + @constraint + ']');
+                     alter table {table.Identifier} drop column {QuotedName};
+                     """;
+
+        return $"EXEC(N'{inner.Replace("'", "''")}');";
     }
 
 
