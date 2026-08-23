@@ -78,6 +78,46 @@ public class ForeignKey: ForeignKeyBase
     ///     SQL Server has no ON DELETE RESTRICT — it is written and reported as
     ///     NO ACTION, so the two must compare as equal during delta detection.
     /// </summary>
+    /// <summary>
+    ///     A foreign key pairs its columns positionally, but the pairing -- not the order the pairs
+    ///     are written in -- is what defines the constraint. Now that both sides keep declaration
+    ///     order, comparing the two lists positionally would report drift on a key the caller merely
+    ///     wrote in another order, and "fix" it by dropping and recreating an identical constraint.
+    /// </summary>
+    private bool SamePairs(ForeignKey other)
+    {
+        if (ColumnNames.Length != other.ColumnNames.Length ||
+            LinkedNames.Length != other.LinkedNames.Length ||
+            ColumnNames.Length != LinkedNames.Length)
+        {
+            return false;
+        }
+
+        // ColumnComparer is virtual; hardcoding a comparer would silently change case sensitivity
+        // and ignore a subclass that overrides it.
+        IEnumerable<string> pairs(ForeignKey fk)
+            => fk.ColumnNames.Zip(fk.LinkedNames, (c, l) => $"{c}\u0000{l}")
+                .OrderBy(x => x, ColumnComparer);
+
+        return pairs(this).SequenceEqual(pairs(other), ColumnComparer);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is not ForeignKey other)
+        {
+            return base.Equals(obj);
+        }
+
+        return base.Equals(obj) || (NameComparer.Equals(Name, other.Name)
+                                    && Equals(LinkedTable, other.LinkedTable)
+                                    && NormalizeCascadeAction(DeleteAction) ==
+                                    NormalizeCascadeAction(other.DeleteAction)
+                                    && NormalizeCascadeAction(UpdateAction) ==
+                                    NormalizeCascadeAction(other.UpdateAction)
+                                    && SamePairs(other));
+    }
+
     protected override Core.CascadeAction NormalizeCascadeAction(Core.CascadeAction action)
         => action == Core.CascadeAction.Restrict ? Core.CascadeAction.NoAction : action;
 
