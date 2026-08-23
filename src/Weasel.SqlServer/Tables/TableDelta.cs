@@ -35,7 +35,11 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns,
             (e, a) => e.MatchesForDelta(a, expected.DetectColumnDrift));
-        Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, actual.Indexes,
+        // IgnoreIndex is Weasel.Core API and is honoured by the PostgreSQL and SQLite twins; without
+        // this SQL Server put an ignored index in Extras and WriteUpdate dropped it.
+        Indexes = new ItemDelta<IndexDefinition>(
+            expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
+            actual.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
             (e, a) => e.Matches(a, Expected));
 
         ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
