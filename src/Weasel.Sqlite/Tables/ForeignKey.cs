@@ -12,17 +12,63 @@ public class ForeignKey: ForeignKeyBase
     {
     }
 
+    /// <summary>
+    ///     Declaration order, not sorted order. A foreign key pairs its columns positionally, so
+    ///     sorting the two lists independently -- which is what these did -- repaired the ordering
+    ///     by destroying the pairing: a key declared <c>(x, y) REFERENCES parent (b, a)</c> became
+    ///     <c>(x, y) REFERENCES parent (a, b)</c>, a constraint over different columns entirely.
+    ///     The sort was standing in for order-insensitive comparison, which <see cref="Equals" />
+    ///     now does properly by comparing the pairs.
+    /// </summary>
     public override string[] ColumnNames
     {
         get => _columnNames;
-        set => _columnNames = value.OrderBy(x => x).ToArray();
+        set => _columnNames = value.ToArray();
     }
 
+    /// <inheritdoc cref="ColumnNames" />
     public override string[] LinkedNames
     {
         get => _linkedNames;
-        set => _linkedNames = value.OrderBy(x => x).ToArray();
+        set => _linkedNames = value.ToArray();
     }
+
+    /// <summary>
+    ///     The pairing, not the order the pairs are written in, is what defines the constraint.
+    ///     Comparing the two lists positionally would report drift on a key the caller merely wrote
+    ///     in another order and "fix" it by rebuilding the table.
+    /// </summary>
+    private bool SamePairs(ForeignKey other)
+    {
+        if (ColumnNames.Length != other.ColumnNames.Length ||
+            LinkedNames.Length != other.LinkedNames.Length ||
+            ColumnNames.Length != LinkedNames.Length)
+        {
+            return false;
+        }
+
+        IEnumerable<string> pairs(ForeignKey fk)
+            => fk.ColumnNames.Zip(fk.LinkedNames, (column, linked) => $"{column}\u0000{linked}")
+                .OrderBy(x => x, ColumnComparer);
+
+        return pairs(this).SequenceEqual(pairs(other), ColumnComparer);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (obj is not ForeignKey other)
+        {
+            return base.Equals(obj);
+        }
+
+        return base.Equals(obj) || (NameComparer.Equals(Name, other.Name)
+                                    && Equals(LinkedTable, other.LinkedTable)
+                                    && DeleteAction == other.DeleteAction
+                                    && UpdateAction == other.UpdateAction
+                                    && SamePairs(other));
+    }
+
+    public override int GetHashCode() => base.GetHashCode();
 
     /// <inheritdoc />
     protected override StringComparer NameComparer => StringComparer.OrdinalIgnoreCase;
