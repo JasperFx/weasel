@@ -26,7 +26,7 @@ SELECT name, sql FROM sqlite_master
 WHERE type = 'index' AND tbl_name = '{sanitizedName}' AND sql IS NOT NULL;
 
 -- Get foreign key information (PRAGMA doesn't support parameter binding)
-SELECT * FROM pragma_foreign_key_list('{sanitizedName}');
+{ForeignKeyQuery(sanitizedName)}
 
 -- Get the triggers on this table. Not because the table owns them -- it does not, see
 -- TriggerBase -- but because DROP TABLE takes them with it, and this table may have to be
@@ -52,6 +52,31 @@ WHERE type = 'trigger' AND tbl_name = '{sanitizedName}' AND sql IS NOT NULL;
     /// <c>table_info</c> never showed us and which we have no business reporting as a real column.
     /// </para>
     /// </summary>
+    /// <summary>
+    /// The foreign key introspection query, shared by <see cref="ConfigureQueryCommand" /> and
+    /// <see cref="FetchExistingAsync" /> so the two can never drift apart.
+    /// <para>
+    /// <c>pragma_foreign_key_list</c> reports <c>to</c> as NULL when the constraint omits the
+    /// referenced column list -- <c>REFERENCES parent</c> rather than <c>REFERENCES parent (id)</c>.
+    /// That is not "no target": the target is the referenced table's primary key, positionally, and
+    /// <c>pragma_table_info.pk</c> is where that order lives. Reading the NULL straight out of the
+    /// reader threw and took the whole table read down with it.
+    /// </para>
+    /// <para>
+    /// The columns are projected explicitly, in <c>foreign_key_list</c>'s own order, because
+    /// <see cref="readForeignKeysAsync" /> reads them positionally. The ORDER BY is what makes a
+    /// composite key's column pairing reproducible; the pragma promises no row order of its own.
+    /// </para>
+    /// </summary>
+    private static string ForeignKeyQuery(string sanitizedName) =>
+        $"""
+         SELECT fk.id, fk.seq, fk."table", fk."from",
+                COALESCE(fk."to", (SELECT pk.name FROM pragma_table_info(fk."table") pk WHERE pk.pk = fk.seq + 1)),
+                fk.on_update, fk.on_delete
+         FROM pragma_foreign_key_list('{sanitizedName}') fk
+         ORDER BY fk.id, fk.seq;
+         """;
+
     private static string ColumnQuery(string sanitizedName) =>
         $"""SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_xinfo('{sanitizedName}') WHERE hidden <> 1;""";
 
@@ -74,7 +99,7 @@ SELECT name, sql FROM sqlite_master
 WHERE type = 'index' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 
 -- Get foreign key information
-SELECT * FROM pragma_foreign_key_list('{tableName}');
+{ForeignKeyQuery(tableName)}
 
 -- Get the triggers on this table (see ConfigureQueryCommand)
 SELECT sql FROM sqlite_master
@@ -240,18 +265,27 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 
     private async Task readForeignKeysAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
     {
-        // PRAGMA foreign_key_list returns: id, seq, table, from, to, on_update, on_delete, match
+        // ForeignKeyQuery projects: id, seq, table, from, to, on_update, on_delete
         var foreignKeyGroups = new Dictionary<long, ForeignKey>();
 
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var id = await reader.GetFieldValueAsync<long>(0, ct).ConfigureAwait(false);
-            var seq = await reader.GetFieldValueAsync<long>(1, ct).ConfigureAwait(false);
             var table = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
             var from = await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
-            var to = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
             var onUpdate = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false);
             var onDelete = await reader.GetFieldValueAsync<string>(6, ct).ConfigureAwait(false);
+
+            // Still NULL after ForeignKeyQuery's COALESCE means the referenced table declares no
+            // primary key at all, which SQLite accepts at CREATE time and then rejects on every
+            // write as "foreign key mismatch". There is no column to report, and inventing one
+            // would put a constraint into the read model that the database does not have.
+            if (await reader.IsDBNullAsync(4, ct).ConfigureAwait(false))
+            {
+                continue;
+            }
+
+            var to = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
 
             if (!foreignKeyGroups.TryGetValue(id, out var fk))
             {
