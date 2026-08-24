@@ -56,7 +56,7 @@ public class StoredProcedure: StoredProcedureBase
 SELECT p.prosrc
 FROM pg_proc p
 JOIN pg_namespace n ON n.oid = p.pronamespace
-WHERE p.prokind = 'p' AND p.proname = :{nameParam} AND n.nspname = :{schemaParam}");
+WHERE p.prokind = 'p' AND p.proname = :{nameParam} AND n.nspname = :{schemaParam};");
     }
 
     /// <inheritdoc />

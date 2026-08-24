@@ -107,7 +107,7 @@ SELECT
 FROM pg_type t
 JOIN pg_namespace n ON n.oid = t.typnamespace
 WHERE t.typname = :{nameParam} AND n.nspname = :{schemaParam}
-  AND t.typtype IN ('e', 'd', 'c')");
+  AND t.typtype IN ('e', 'd', 'c');");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
