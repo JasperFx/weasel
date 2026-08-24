@@ -172,7 +172,10 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 
     private async Task readColumnsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
     {
-        var primaryKeys = new List<string>();
+        // pragma_table_xinfo's pk is the column's 1-based position within the primary key, not a
+        // flag, and the rows arrive in declaration order. Reading it as a flag reported
+        // PRIMARY KEY (b, a) on a table declared (a, b) as the key (a, b).
+        var primaryKeys = new List<(long Position, string Name)>();
 
         // ColumnQuery projects: cid, name, type, notnull, dflt_value, pk
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
@@ -195,7 +198,7 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 
             if (pk > 0)
             {
-                primaryKeys.Add(name);
+                primaryKeys.Add((pk, name));
             }
 
             existing._columns.Add(column);
@@ -203,7 +206,7 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 
         if (primaryKeys.Any())
         {
-            existing.ReadPrimaryKeyColumns(primaryKeys);
+            existing.ReadPrimaryKeyColumns(primaryKeys.OrderBy(x => x.Position).Select(x => x.Name).ToList());
         }
 
         await reader.NextResultAsync(ct).ConfigureAwait(false);
