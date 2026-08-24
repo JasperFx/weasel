@@ -1,4 +1,6 @@
 using System.Data.Common;
+using System.Text.RegularExpressions;
+using JasperFx.Core;
 using Microsoft.Data.Sqlite;
 using Weasel.Core;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
@@ -148,7 +150,7 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
         await readIndexesAsync(reader, existing, ct).ConfigureAwait(false);
 
         // Read foreign keys (fourth result set)
-        await readForeignKeysAsync(reader, existing, ct).ConfigureAwait(false);
+        await readForeignKeysAsync(reader, existing, tableSql, ct).ConfigureAwait(false);
 
         // Read the triggers on this table (fifth result set)
         await reader.NextResultAsync(ct).ConfigureAwait(false);
@@ -263,19 +265,14 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
         await reader.NextResultAsync(ct).ConfigureAwait(false);
     }
 
-    private async Task readForeignKeysAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
+    private async Task readForeignKeysAsync(DbDataReader reader, Table existing, string? tableSql,
+        CancellationToken ct = default)
     {
         // ForeignKeyQuery projects: id, seq, table, from, to, on_update, on_delete
-        var foreignKeyGroups = new Dictionary<long, ForeignKey>();
+        var rows = new List<(long Id, string Table, string From, string To, string OnUpdate, string OnDelete)>();
 
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            var id = await reader.GetFieldValueAsync<long>(0, ct).ConfigureAwait(false);
-            var table = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
-            var from = await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
-            var onUpdate = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false);
-            var onDelete = await reader.GetFieldValueAsync<string>(6, ct).ConfigureAwait(false);
-
             // Still NULL after ForeignKeyQuery's COALESCE means the referenced table declares no
             // primary key at all, which SQLite accepts at CREATE time and then rejects on every
             // write as "foreign key mismatch". There is no column to report, and inventing one
@@ -285,22 +282,93 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
                 continue;
             }
 
-            var to = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
+            rows.Add((
+                await reader.GetFieldValueAsync<long>(0, ct).ConfigureAwait(false),
+                await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false),
+                await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false),
+                await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false),
+                await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false),
+                await reader.GetFieldValueAsync<string>(6, ct).ConfigureAwait(false)));
+        }
 
-            if (!foreignKeyGroups.TryGetValue(id, out var fk))
+        var declaredNames = declaredForeignKeyNames(tableSql);
+
+        foreach (var group in rows.GroupBy(x => x.Id))
+        {
+            var first = group.First();
+            var columns = group.Select(x => x.From).ToArray();
+
+            var fk = new ForeignKey(
+                takeDeclaredName(declaredNames, first.Table, columns)
+                ?? $"fk_{existing.Identifier.Name}_{first.Table}_{first.Id}")
             {
-                fk = new ForeignKey($"fk_{existing.Identifier.Name}_{table}_{id}")
-                {
-                    LinkedTable = new SqliteObjectName(table)
-                };
-                fk.ReadReferentialActions(onDelete, onUpdate);
-                foreignKeyGroups[id] = fk;
-                existing.ForeignKeys.Add(fk);
+                LinkedTable = new SqliteObjectName(first.Table)
+            };
+
+            fk.ReadReferentialActions(first.OnDelete, first.OnUpdate);
+
+            foreach (var row in group)
+            {
+                fk.LinkColumns(row.From, row.To);
             }
 
-            fk.LinkColumns(from, to);
+            existing.ForeignKeys.Add(fk);
         }
     }
+
+    private static readonly Regex _declaredForeignKey = new(
+        """CONSTRAINT\s+(?<name>"(?:[^"]|"")*"|\[[^\]]*\]|`(?:[^`]|``)*`|[A-Za-z_][A-Za-z0-9_$]*)\s+FOREIGN\s+KEY\s*\(\s*(?<columns>[^)]*)\)\s*REFERENCES\s+(?<table>"(?:[^"]|"")*"|\[[^\]]*\]|`(?:[^`]|``)*`|[A-Za-z_][A-Za-z0-9_$]*)""",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    ///     The names the table declares for its foreign keys, keyed by what identifies a constraint
+    ///     in <c>pragma_foreign_key_list</c>: the referenced table and the dependent columns.
+    /// </summary>
+    /// <remarks>
+    ///     <c>pragma_foreign_key_list</c> has no name column at all, so the name has to come from the
+    ///     stored <c>CREATE TABLE</c> text or not at all. Synthesising one instead meant every
+    ///     foreign key Weasel itself had written read back under a name the model did not have: the
+    ///     delta saw one constraint missing and one extra, and on SQLite that is repaired by
+    ///     rebuilding the table -- on every run, forever, because the read could never converge.
+    ///     <para>
+    ///     Keyed rather than positional because the pragma promises no correspondence between its
+    ///     row order and declaration order, and because a constraint can also be written inline on
+    ///     the column, where it has no name to find.
+    ///     </para>
+    /// </remarks>
+    private static Dictionary<string, Queue<string>> declaredForeignKeyNames(string? tableSql)
+    {
+        var names = new Dictionary<string, Queue<string>>(StringComparer.OrdinalIgnoreCase);
+        if (string.IsNullOrWhiteSpace(tableSql))
+        {
+            return names;
+        }
+
+        foreach (Match match in _declaredForeignKey.Matches(tableSql))
+        {
+            var columns = match.Groups["columns"].Value.ToDelimitedArray(',');
+            var key = foreignKeyKey(SchemaUtils.Unquote(match.Groups["table"].Value), columns);
+
+            if (!names.TryGetValue(key, out var queue))
+            {
+                queue = new Queue<string>();
+                names[key] = queue;
+            }
+
+            queue.Enqueue(SchemaUtils.Unquote(match.Groups["name"].Value));
+        }
+
+        return names;
+    }
+
+    private static string foreignKeyKey(string linkedTable, IEnumerable<string> columns)
+        => $"{SchemaUtils.Unquote(linkedTable)}\u0000{columns.Select(x => SchemaUtils.Unquote(x.Trim())).Join("\u0000")}";
+
+    private static string? takeDeclaredName(Dictionary<string, Queue<string>> declaredNames, string linkedTable,
+        IEnumerable<string> columns)
+        => declaredNames.TryGetValue(foreignKeyKey(linkedTable, columns), out var queue) && queue.Count > 0
+            ? queue.Dequeue()
+            : null;
 
     private IndexDefinition ParseIndexFromSql(string indexName, string sql)
     {
