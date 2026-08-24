@@ -63,8 +63,11 @@ public class HashPartitioning : IPartitionStrategy
                 return PartitionDelta.Rebuild;
             }
 
-            var match = _partitions.OrderBy(x => x.Modulus).ToArray()
-                .SequenceEqual(other.Partitions.OrderBy(x => x.Modulus).ToArray());
+            // Sorted because the actual side comes from pg_inherits, which is read with no
+            // ORDER BY. Modulus alone was no sort at all on a table this class created, where
+            // Suffixes gives every partition the same one.
+            var match = _partitions.OrderBy(x => x.Modulus).ThenBy(x => x.Remainder).ToArray()
+                .SequenceEqual(other.Partitions.OrderBy(x => x.Modulus).ThenBy(x => x.Remainder).ToArray());
 
             if (match) return PartitionDelta.None;
 

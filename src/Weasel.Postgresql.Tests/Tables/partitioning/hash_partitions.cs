@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Postgresql.Tables;
 using Weasel.Postgresql.Tables.Partitioning;
 using Xunit;
@@ -32,6 +33,25 @@ public class hash_partitions: IntegrationContext
     private Task<Table> tryToFetchExisting()
     {
         return theTable.FetchExistingAsync(theConnection);
+    }
+
+    [Fact]
+    public async Task reattaching_a_partition_is_not_drift()
+    {
+        await tryToCreateTable();
+
+        // DETACH/ATTACH deletes and re-inserts the pg_inherits row, which moves it to the end of
+        // the heap -- the same reordering a parallel pg_restore or a recreated partition produces.
+        await theConnection.CreateCommand(
+                "alter table partitions.people detach partition partitions.people_two")
+            .ExecuteNonQueryAsync();
+        await theConnection.CreateCommand(
+                "alter table partitions.people attach partition partitions.people_two for values with (modulus 3, remainder 1)")
+            .ExecuteNonQueryAsync();
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
     [Fact]
