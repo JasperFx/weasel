@@ -146,6 +146,8 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
         // Read columns (second result set)
         await readColumnsAsync(reader, existing, ct).ConfigureAwait(false);
 
+        readTableShape(existing, tableSql);
+
         // Read indexes (third result set)
         await readIndexesAsync(reader, existing, ct).ConfigureAwait(false);
 
@@ -264,6 +266,55 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
 
         await reader.NextResultAsync(ct).ConfigureAwait(false);
     }
+
+    /// <summary>
+    ///     Read the parts of a table that no pragma reports: <c>STRICT</c>, <c>WITHOUT ROWID</c> and
+    ///     <c>AUTOINCREMENT</c>. They live only in the stored <c>CREATE TABLE</c> text.
+    /// </summary>
+    /// <remarks>
+    ///     <c>AUTOINCREMENT</c> is matched against the whole statement rather than per column
+    ///     because SQLite allows it on exactly one column -- the sole <c>INTEGER PRIMARY KEY</c> --
+    ///     so there is never a second candidate to confuse it with, and no column declaration has to
+    ///     be parsed to find it.
+    /// </remarks>
+    private static void readTableShape(Table existing, string? tableSql)
+    {
+        if (string.IsNullOrWhiteSpace(tableSql))
+        {
+            return;
+        }
+
+        var open = tableSql.IndexOf('(');
+        if (open >= 0)
+        {
+            var close = findMatchingParen(tableSql, open);
+            if (close >= 0)
+            {
+                var options = tableSql[(close + 1)..];
+                existing.WithoutRowId = _withoutRowId.IsMatch(options);
+                existing.StrictTypes = _strict.IsMatch(options);
+            }
+        }
+
+        if (!_autoIncrement.IsMatch(tableSql) || existing.PrimaryKeyColumns.Count != 1)
+        {
+            return;
+        }
+
+        var key = existing.Columns.FirstOrDefault(x => x.IsPrimaryKey && x.Type.EqualsIgnoreCase("INTEGER"));
+        if (key != null)
+        {
+            key.IsAutoNumber = true;
+        }
+    }
+
+    private static readonly Regex _withoutRowId =
+        new(@"\bWITHOUT\s+ROWID\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static readonly Regex _strict = new(@"\bSTRICT\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static readonly Regex _autoIncrement =
+        new(@"\bAUTOINCREMENT\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
     private async Task readForeignKeysAsync(DbDataReader reader, Table existing, string? tableSql,
         CancellationToken ct = default)

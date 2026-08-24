@@ -335,8 +335,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         writer.WriteLine("-- Table recreation required due to SQLite ALTER TABLE limitations");
         writer.WriteLine();
 
-        // Create new table with temp name
-        var tempTable = new Table(tempName);
+        // Create new table with temp name. STRICT and WITHOUT ROWID are part of what the table
+        // IS, not decoration -- a rebuild that leaves them off silently returns the table to type
+        // affinity and to a rowid it was defined without.
+        var tempTable = new Table(tempName) { StrictTypes = Expected.StrictTypes, WithoutRowId = Expected.WithoutRowId };
         foreach (var column in Expected.Columns)
         {
             tempTable.AddColumn(column);
@@ -532,7 +534,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         writer.WriteLine();
 
         // Create temp table with actual (old) schema
-        var tempTable = new Table(tempName);
+        var tempTable = new Table(tempName) { StrictTypes = Actual.StrictTypes, WithoutRowId = Actual.WithoutRowId };
         foreach (var column in Actual.Columns)
         {
             tempTable.AddColumn(column);
