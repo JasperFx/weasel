@@ -134,6 +134,33 @@ Oracle's `DropSchemaAsync` empties the schema rather than dropping it — a sess
 own user — and that a materialized view's container table appears in `all_tables` under the same
 name.
 
+#### The introspection query has to terminate itself
+
+The same shape of trap, one layer down. `SchemaMigration` concatenates every object of a migration
+into a single command, separated by `StartNewCommand()` — which is a **no-op on every provider
+except Oracle**. So each object's `ConfigureQueryCommand` output must end in `;`, or it runs
+straight into the next object's query:
+
+```
+Npgsql.PostgresException : 42601: syntax error at or near "select"
+```
+
+It only fails in combination. The object is fine alone, and fine when it happens to be last, which
+is exactly why per-object tests never caught it: PostgreSQL's stored procedure, user-defined type
+and trigger all shipped unterminated (weasel#515), SQLite's trigger with them, and MySQL's four
+(weasel#518). SQL Server's five survived only because T-SQL treats the separator as optional.
+
+**Oracle is the exception, and must stay unterminated.** ODP.NET will not execute several
+statements from one command, so `OracleDbCommandBuilder` overrides `StartNewCommand` to split the
+batch and hand back one command per statement. A `;` there is a syntax error, not a fix — so do not
+"tidy up" Oracle to match the others.
+
+`Weasel.Core.Tests/introspection_queries_terminate_themselves.cs` enforces all of this, including
+Oracle's exemption. It also asserts that every `ISchemaObject` type in every provider assembly has
+an instance registered in it, so **a new schema object type fails the build until it is added
+there**. That is deliberate: adding the instance is what gets the query checked. Do not satisfy the
+failure by narrowing the reflection scan.
+
 ### CreationStyle Enum
 - `CreateIfNotExists` - Safe creation (default)
 - `DropThenCreate` - Drop existing first

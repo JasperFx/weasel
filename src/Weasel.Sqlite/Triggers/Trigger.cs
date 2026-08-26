@@ -73,7 +73,7 @@ public class Trigger: TriggerBase
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
 
         builder.Append(
-            $"SELECT sql FROM {SchemaUtils.QuoteName(Identifier.Schema)}.sqlite_master WHERE type = 'trigger' AND name = @{nameParam}");
+            $"SELECT sql FROM {SchemaUtils.QuoteName(Identifier.Schema)}.sqlite_master WHERE type = 'trigger' AND name = @{nameParam};");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)

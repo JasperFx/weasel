@@ -58,7 +58,7 @@ public class View: ViewBase
     {
         var nameParam = builder.AddParameter(Identifier.ToString()).ParameterName;
         builder.Append(
-            $"SELECT sm.definition FROM sys.sql_modules AS sm INNER JOIN sys.views AS v ON v.object_id = sm.object_id WHERE sm.object_id = OBJECT_ID(@{nameParam})");
+            $"SELECT sm.definition FROM sys.sql_modules AS sm INNER JOIN sys.views AS v ON v.object_id = sm.object_id WHERE sm.object_id = OBJECT_ID(@{nameParam});");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)

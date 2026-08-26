@@ -84,7 +84,7 @@ public class Trigger: TriggerBase
 
         builder.Append(
             "SELECT action_statement FROM information_schema.TRIGGERS "
-            + $"WHERE trigger_schema = @{schemaParam} AND trigger_name = @{nameParam}");
+            + $"WHERE trigger_schema = @{schemaParam} AND trigger_name = @{nameParam};");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)

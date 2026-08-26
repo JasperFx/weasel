@@ -30,7 +30,7 @@ public class Function: FunctionBase
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
         var nameParam = builder.AddParameter(Identifier.ToString()).ParameterName;
-        builder.Append($"SELECT sm.definition FROM sys.sql_modules AS sm WHERE sm.object_id = OBJECT_ID(@{nameParam})");
+        builder.Append($"SELECT sm.definition FROM sys.sql_modules AS sm WHERE sm.object_id = OBJECT_ID(@{nameParam});");
     }
 
     protected override Migrator GetDefaultMigrator() => new SqlServerMigrator();

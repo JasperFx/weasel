@@ -57,7 +57,7 @@ public class StoredProcedure: StoredProcedureBase
 
         builder.Append(
             "SELECT routine_definition FROM information_schema.ROUTINES "
-            + $"WHERE routine_type = 'PROCEDURE' AND routine_schema = @{schemaParam} AND routine_name = @{nameParam}");
+            + $"WHERE routine_type = 'PROCEDURE' AND routine_schema = @{schemaParam} AND routine_name = @{nameParam};");
     }
 
     /// <inheritdoc />
