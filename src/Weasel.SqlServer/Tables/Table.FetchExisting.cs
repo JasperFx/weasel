@@ -104,7 +104,14 @@ from
     inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
 where
         t.name = @{nameParam} and
-        s.name = @{schemaParam}
+        s.name = @{schemaParam} and
+        -- An index aligned with the table's partition scheme carries an implicit row for the
+        -- partitioning column: key_ordinal 0, is_included_column 0, partition_ordinal >= 1. It is
+        -- not a column the index declares, and reading it as one makes every aligned index compare
+        -- unequal to itself. Discriminating on partition_ordinal instead would be wrong the other
+        -- way: an aligned UNIQUE index is required to carry the partitioning column IN its key,
+        -- where it has both a key_ordinal and a partition_ordinal.
+        (ic.key_ordinal >= 1 or ic.is_included_column = 1)
 -- key_ordinal is the index's key order; index_column_id is just the column's position in the
 -- table. Ordering by the latter silently reorders a composite index -- (ProductId, Id) came back
 -- as (Id, ProductId), which is a different index. Included columns carry key_ordinal 0, so they
