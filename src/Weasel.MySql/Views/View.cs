@@ -100,7 +100,7 @@ public class View: ViewBase
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
 
         builder.Append(
-            $"SELECT view_definition FROM information_schema.VIEWS WHERE table_schema = @{schemaParam} AND table_name = @{nameParam}");
+            $"SELECT view_definition FROM information_schema.VIEWS WHERE table_schema = @{schemaParam} AND table_name = @{nameParam};");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)

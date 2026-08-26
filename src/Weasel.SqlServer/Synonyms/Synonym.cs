@@ -55,7 +55,7 @@ public class Synonym: SchemaObjectBase
         builder.Append(
             "SELECT s.base_object_name FROM sys.synonyms s "
             + "INNER JOIN sys.schemas sch ON sch.schema_id = s.schema_id "
-            + $"WHERE s.name = @{nameParam} AND sch.name = @{schemaParam}");
+            + $"WHERE s.name = @{nameParam} AND sch.name = @{schemaParam};");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)

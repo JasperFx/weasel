@@ -74,7 +74,7 @@ public class Function: FunctionBase
 
         builder.Append(
             "SELECT routine_definition FROM information_schema.ROUTINES "
-            + $"WHERE routine_type = 'FUNCTION' AND routine_schema = @{schemaParam} AND routine_name = @{nameParam}");
+            + $"WHERE routine_type = 'FUNCTION' AND routine_schema = @{schemaParam} AND routine_name = @{nameParam};");
     }
 
     protected override async Task<FunctionBase?> ReadExistingFromReaderAsync(DbDataReader reader, CancellationToken ct)

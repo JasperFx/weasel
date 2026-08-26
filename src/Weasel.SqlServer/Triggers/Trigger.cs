@@ -78,7 +78,7 @@ public class Trigger: TriggerBase
         builder.Append(
             "SELECT sm.definition FROM sys.sql_modules AS sm "
             + "INNER JOIN sys.triggers AS t ON t.object_id = sm.object_id "
-            + $"WHERE t.object_id = OBJECT_ID(@{nameParam})");
+            + $"WHERE t.object_id = OBJECT_ID(@{nameParam});");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)

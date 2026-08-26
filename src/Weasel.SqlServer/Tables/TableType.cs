@@ -43,7 +43,7 @@ from
 where
     sys.table_types.name = '{SchemaUtils.EscapeLiteral(Identifier.Name)}' and sys.schemas.name = '{SchemaUtils.EscapeLiteral(Identifier.Schema)}'
 order by
-    sys.columns.column_id
+    sys.columns.column_id;
 ");
     }
 
