@@ -14,8 +14,6 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
     internal readonly List<string> _primaryKeyColumns = new();
 
-    private string[]? _primaryKeyOrder;
-
     public Table(DbObjectName name)
         : base(name ?? throw new ArgumentNullException(nameof(name)))
     {
@@ -26,85 +24,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     }
 
     /// <inheritdoc />
-    public override IReadOnlyList<string> PrimaryKeyColumns => orderedPrimaryKeyColumns();
-
-    /// <summary>
-    ///     Whether the key's column order was pinned with <see cref="SetPrimaryKeyOrder" />, rather
-    ///     than taken from the order the columns were flagged in.
-    /// </summary>
-    public bool HasExplicitPrimaryKeyOrder => _primaryKeyOrder != null;
-
-    private IReadOnlyList<string> orderedPrimaryKeyColumns()
-    {
-        var pinned = _primaryKeyOrder;
-        if (pinned == null)
-        {
-            return _primaryKeyColumns;
-        }
-
-        // The pin ORDERS the flagged set rather than replacing it, so flagging or removing a column
-        // afterwards still takes effect and a pin naming a since-dropped column cannot resurrect it.
-        return _primaryKeyColumns
-            .OrderBy(name =>
-            {
-                for (var i = 0; i < pinned.Length; i++)
-                {
-                    if (string.Equals(pinned[i], name, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return i;
-                    }
-                }
-
-                return int.MaxValue;
-            })
-            .ToList();
-    }
-
-    /// <summary>
-    ///     Pin the primary key's column order explicitly, rather than taking the order the columns
-    ///     were flagged in. Passing an empty list clears the pin.
-    /// </summary>
-    /// <exception cref="ArgumentException">
-    ///     The list repeats a column, names one that is not part of the primary key, or covers only
-    ///     part of it.
-    /// </exception>
-    public void SetPrimaryKeyOrder(IEnumerable<string> columnNames)
-    {
-        var ordered = columnNames.ToArray();
-        if (ordered.Length == 0)
-        {
-            _primaryKeyOrder = null;
-            return;
-        }
-
-        var duplicates = ordered.GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
-        if (duplicates.Any())
-        {
-            throw new ArgumentException(
-                $"Primary key order for {Identifier} repeats {duplicates.Join(", ")}.", nameof(columnNames));
-        }
-
-        var keyColumns = _primaryKeyColumns.ToArray();
-        var unknown = ordered.Where(x => !keyColumns.Contains(x, StringComparer.OrdinalIgnoreCase)).ToArray();
-        if (unknown.Any())
-        {
-            throw new ArgumentException(
-                $"Primary key order for {Identifier} names {unknown.Join(", ")}, which is not part of the key. The key is: {(keyColumns.Any() ? keyColumns.Join(", ") : "(no columns flagged as primary key)")}.",
-                nameof(columnNames));
-        }
-
-        // A partial pin would still opt the table into strict order comparison, silently reordering
-        // the columns it does not name. An order is only meaningful for the whole key.
-        if (ordered.Length != keyColumns.Length)
-        {
-            throw new ArgumentException(
-                $"Primary key order for {Identifier} lists {ordered.Length} of {keyColumns.Length} key columns. Name every column of the key, in order. The key is: {keyColumns.Join(", ")}.",
-                nameof(columnNames));
-        }
-
-        _primaryKeyOrder = ordered;
-    }
+    public override IReadOnlyList<string> PrimaryKeyColumns => ApplyPrimaryKeyOrder(_primaryKeyColumns);
 
     /// <inheritdoc />
     /// <remarks>SQLite spells the auto-PK constraint name as <c>pk_{tableName}</c>.</remarks>

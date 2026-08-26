@@ -42,10 +42,10 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         // Ahead of the index comparison, which needs to know whether the primary key is
         // staying put: MySQL is happy to back a foreign key with the primary key index.
-        var expectedPks = expected.PrimaryKeyColumns.OrderBy(x => x).ToList();
-        var actualPks = actual.PrimaryKeyColumns.OrderBy(x => x).ToList();
-
-        if (!expectedPks.SequenceEqual(actualPks, StringComparer.OrdinalIgnoreCase))
+        // Order is compared only when pinned with SetPrimaryKeyOrder. MySQL already sorted both
+        // sides here, so the unpinned default is the behaviour it has always had; the pin is what
+        // is new, and it lets a caller who does care about key order say so.
+        if (!expected.PrimaryKeyOrderMatches(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }

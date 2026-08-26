@@ -27,7 +27,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
     public bool IgnorePartitionsInMigration { get; set; }
 
     /// <inheritdoc />
-    public override IReadOnlyList<string> PrimaryKeyColumns => _primaryKeyColumns;
+    public override IReadOnlyList<string> PrimaryKeyColumns => ApplyPrimaryKeyOrder(_primaryKeyColumns);
 
     /// <inheritdoc />
     protected override string DefaultPrimaryKeyName()

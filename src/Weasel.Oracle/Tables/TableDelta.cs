@@ -55,7 +55,9 @@ public class TableDelta: SchemaObjectDelta<Table>
         else if (expectedHasPk && actualHasPk)
         {
             // Both have PKs - compare the columns
-            if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
+            // Order is compared only when pinned: the actual key now carries the order the catalog
+            // declares, and a model that only flags columns cannot express any other one.
+            if (!expected.PrimaryKeyOrderMatches(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
             {
                 PrimaryKeyDifference = SchemaPatchDifference.Update;
             }

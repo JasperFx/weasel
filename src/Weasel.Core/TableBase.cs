@@ -123,6 +123,128 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     /// <inheritdoc cref="ITable.PrimaryKeyColumns" />
     public abstract IReadOnlyList<string> PrimaryKeyColumns { get; }
 
+    private string[]? _primaryKeyOrder;
+
+    /// <summary>
+    ///     Whether the key's column order was pinned with <see cref="SetPrimaryKeyOrder" />, rather
+    ///     than taken from the order the columns were flagged or added in.
+    /// </summary>
+    public bool HasExplicitPrimaryKeyOrder => _primaryKeyOrder != null;
+
+    /// <summary>
+    ///     Apply <see cref="SetPrimaryKeyOrder" /> to the key columns a provider derived for itself.
+    /// </summary>
+    /// <remarks>
+    ///     Every provider's <see cref="PrimaryKeyColumns" /> has to route through this, or a pin set
+    ///     on that provider's table is silently ignored. <c>primary_key_order_is_honoured_by_every_provider</c>
+    ///     in Weasel.Core.Tests is what stops that being possible to forget.
+    ///     <para>
+    ///     The pin ORDERS the supplied set rather than replacing it, so flagging or removing a column
+    ///     afterwards still takes effect and a pin naming a since-dropped column cannot resurrect it.
+    ///     </para>
+    /// </remarks>
+    protected IReadOnlyList<string> ApplyPrimaryKeyOrder(IReadOnlyList<string> declared)
+    {
+        var pinned = _primaryKeyOrder;
+        if (pinned == null)
+        {
+            return declared;
+        }
+
+        return declared
+            .OrderBy(name =>
+            {
+                for (var i = 0; i < pinned.Length; i++)
+                {
+                    if (PrimaryKeyColumnComparer.Equals(pinned[i], name))
+                    {
+                        return i;
+                    }
+                }
+
+                return int.MaxValue;
+            })
+            .ToList();
+    }
+
+    /// <summary>
+    ///     How this provider compares primary key column names. Case-insensitive by default; SQL
+    ///     Server overrides it to stay byte-for-byte compatible with the comparison it shipped.
+    /// </summary>
+    protected virtual StringComparer PrimaryKeyColumnComparer => StringComparer.OrdinalIgnoreCase;
+
+    /// <summary>
+    ///     Pin the primary key's column order explicitly, rather than taking the order the columns
+    ///     were flagged or added in. Passing an empty list clears the pin.
+    /// </summary>
+    /// <remarks>
+    ///     A table read out of the database carries the order the catalog declares, which for a
+    ///     composite key need not match the order the columns appear in the table. A model that only
+    ///     flags columns cannot express any other order, so a provider that compares order must
+    ///     compare it only when it was pinned here — otherwise every such table reports drift the
+    ///     user cannot resolve, and "fixing" it rewrites their key.
+    /// </remarks>
+    /// <exception cref="ArgumentException">
+    ///     The list repeats a column, names one that is not part of the primary key, or covers only
+    ///     part of the key. Each produces a migration that drops the existing key and then fails to
+    ///     add the replacement, so they are rejected here rather than at the database.
+    /// </exception>
+    public void SetPrimaryKeyOrder(IEnumerable<string> columnNames)
+    {
+        var ordered = columnNames.ToArray();
+        if (ordered.Length == 0)
+        {
+            _primaryKeyOrder = null;
+            return;
+        }
+
+        var duplicates = ordered.GroupBy(x => x, PrimaryKeyColumnComparer)
+            .Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
+        if (duplicates.Any())
+        {
+            throw new ArgumentException(
+                $"Primary key order for {Identifier} repeats {duplicates.Join(", ")}.", nameof(columnNames));
+        }
+
+        // Deliberately the CURRENT key columns, not the pinned ones: the pin is being replaced, and
+        // ordering never changes membership, so this is the same set either way.
+        var keyColumns = PrimaryKeyColumns.ToArray();
+
+        var unknown = ordered.Where(x => !keyColumns.Contains(x, PrimaryKeyColumnComparer)).ToArray();
+        if (unknown.Any())
+        {
+            throw new ArgumentException(
+                $"Primary key order for {Identifier} names {unknown.Join(", ")}, which is not part of the key. The key is: {(keyColumns.Any() ? keyColumns.Join(", ") : "(no columns flagged as primary key)")}.",
+                nameof(columnNames));
+        }
+
+        // A partial pin would still opt the table into strict order comparison, silently reordering
+        // the columns it does not name. An order is only meaningful for the whole key.
+        if (ordered.Length != keyColumns.Length)
+        {
+            throw new ArgumentException(
+                $"Primary key order for {Identifier} lists {ordered.Length} of {keyColumns.Length} key columns. Name every column of the key, in order. The key is: {keyColumns.Join(", ")}.",
+                nameof(columnNames));
+        }
+
+        _primaryKeyOrder = ordered;
+    }
+
+    /// <summary>
+    ///     Does <paramref name="actualColumns" /> satisfy this table's key, comparing column order
+    ///     only when it was pinned with <see cref="SetPrimaryKeyOrder" />?
+    /// </summary>
+    /// <remarks>
+    ///     For the providers that derive the key from flagged columns. PostgreSQL stores its key as
+    ///     an explicit list and so can express order natively — it compares positionally and does not
+    ///     use this.
+    /// </remarks>
+    public bool PrimaryKeyOrderMatches(IReadOnlyList<string> actualColumns, StringComparer comparer)
+        => HasExplicitPrimaryKeyOrder
+            ? PrimaryKeyColumns.SequenceEqual(actualColumns, comparer)
+            : PrimaryKeyColumns.OrderBy(x => x, comparer)
+                .SequenceEqual(actualColumns.OrderBy(x => x, comparer), comparer);
+
     /// <summary>
     ///     Max identifier length supported by the underlying engine. PostgreSQL
     ///     defaults to 63, SQL Server to 128, Oracle 12c+ to 128, MySQL to 64,

@@ -41,7 +41,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
     /// <inheritdoc />
     public override IReadOnlyList<string> PrimaryKeyColumns =>
-        _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
+        ApplyPrimaryKeyOrder(_columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList());
 
     /// <inheritdoc />
     protected override string DefaultPrimaryKeyName()
