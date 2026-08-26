@@ -103,6 +103,11 @@ ORDER BY s.INDEX_NAME, s.SEQ_IN_INDEX;
             }
         }
 
+        // The catalog query orders by key position, so this is the DECLARED key order, which for a
+        // composite key need not match the order the columns appear in the table. Flagging alone
+        // would discard it. Comparison stays order-insensitive unless the model pins an order.
+        existing.SetPrimaryKeyOrder(pks);
+
         if (primaryKeyName != null)
         {
             existing.PrimaryKeyName = primaryKeyName;

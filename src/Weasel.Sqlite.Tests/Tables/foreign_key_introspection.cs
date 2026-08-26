@@ -77,9 +77,11 @@ public class foreign_key_introspection
 
         existing.ShouldNotBeNull();
         var fk = existing.ForeignKeys.ShouldHaveSingleItem();
-        // The key is declared (b, a), so x pairs with b and y with a.
-        fk.ColumnNames.ShouldBe(["x", "y"]);
-        fk.LinkedNames.ShouldBe(["b", "a"], ignoreOrder: true);
+        // The key is declared (b, a), so x pairs with b and y with a. Zipped before the order is
+        // ignored: ignoreOrder on LinkedNames alone passes for the (x->a, y->b) mispairing too,
+        // which is the one thing this test exists to catch.
+        fk.ColumnNames.Zip(fk.LinkedNames, (column, linked) => $"{column}->{linked}")
+            .ShouldBe(["x->b", "y->a"], ignoreOrder: true);
     }
 
     [Fact]

@@ -46,16 +46,6 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
     public bool RequiresTableRecreation { get; private set; }
 
-    // The actual key now carries the order the catalog declares, which for a composite key need not
-    // match the order the columns were flagged in. Comparing positionally would report drift on
-    // tables that are not drifted, and on SQLite "fixing" it means rebuilding the table and copying
-    // every row. Order is only compared when it was pinned deliberately.
-    private static bool primaryKeyColumnsMatch(Table expected, Table actual)
-        => expected.HasExplicitPrimaryKeyOrder
-            ? expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase)
-            : expected.PrimaryKeyColumns.OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
-                .SequenceEqual(actual.PrimaryKeyColumns.OrderBy(x => x, StringComparer.OrdinalIgnoreCase),
-                    StringComparer.OrdinalIgnoreCase);
 
     protected override SchemaPatchDifference compare(Table expected, Table? actual)
     {
@@ -86,7 +76,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
-        else if (expected.PrimaryKeyColumns.Any() && !primaryKeyColumnsMatch(expected, actual))
+        else if (expected.PrimaryKeyColumns.Any() && !expected.PrimaryKeyOrderMatches(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }

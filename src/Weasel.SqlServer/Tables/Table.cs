@@ -33,8 +33,6 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     {
     }
 
-    private IReadOnlyList<string>? _primaryKeyOrder;
-
     /// <inheritdoc />
     /// <remarks>
     ///     For a table declared in code, SQL Server derives the primary key column list from
@@ -42,86 +40,18 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     ///     than storing it separately, so the list refreshes automatically as
     ///     columns are flagged with <c>IsPrimaryKey</c>. A table read back out of the database
     ///     instead carries its declared key order, which for a composite key need not match the
-    ///     order the columns appear in the table.
+    ///     order the columns appear in the table -- see
+    ///     <see cref="TableBase{TColumn,TIndex,TForeignKey}.SetPrimaryKeyOrder" />.
     /// </remarks>
     public override IReadOnlyList<string> PrimaryKeyColumns =>
-        orderedPrimaryKeyColumns();
-
-    public bool HasExplicitPrimaryKeyOrder => _primaryKeyOrder != null;
-
-    private IReadOnlyList<string> orderedPrimaryKeyColumns()
-    {
-        var flagged = _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList();
-        if (_primaryKeyOrder == null)
-        {
-            return flagged;
-        }
-
-        // The pin ORDERS the flagged set rather than replacing it, so flagging or removing a column
-        // afterwards still takes effect and a pin naming a since-dropped column cannot resurrect it.
-        var pinned = _primaryKeyOrder;
-        return flagged
-            .OrderBy(name =>
-            {
-                for (var i = 0; i < pinned.Count; i++)
-                {
-                    if (pinned[i].EqualsIgnoreCase(name))
-                    {
-                        return i;
-                    }
-                }
-
-                return int.MaxValue;
-            })
-            .ToList();
-    }
+        ApplyPrimaryKeyOrder(_columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList());
 
     /// <summary>
-    ///     Pin the primary key's column order explicitly, rather than deriving it from column order.
-    ///     Passing an empty list clears the override.
+    ///     SQL Server compared key columns with <see cref="StringComparer.Ordinal" /> before the
+    ///     ordering API moved to <see cref="TableBase{TColumn,TIndex,TForeignKey}" />, whose default
+    ///     is case-insensitive. Kept so this is a refactoring and not a behaviour change.
     /// </summary>
-    /// <exception cref="ArgumentException">
-    ///     The list repeats a column, names one that is not part of the primary key, or covers only
-    ///     part of the key. Each produces a migration that drops the existing key and then fails to
-    ///     add the replacement, so they are rejected here rather than at the database.
-    /// </exception>
-    public void SetPrimaryKeyOrder(IEnumerable<string> columnNames)
-    {
-        var ordered = columnNames.ToArray();
-        if (ordered.Length == 0)
-        {
-            _primaryKeyOrder = null;
-            return;
-        }
-
-        var duplicates = ordered.GroupBy(x => x, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1).Select(g => g.Key).ToArray();
-        if (duplicates.Any())
-        {
-            throw new ArgumentException(
-                $"Primary key order for {Identifier} repeats {duplicates.Join(", ")}.", nameof(columnNames));
-        }
-
-        var keyColumns = _columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToArray();
-        var unknown = ordered.Where(x => !keyColumns.Contains(x, StringComparer.OrdinalIgnoreCase)).ToArray();
-        if (unknown.Any())
-        {
-            throw new ArgumentException(
-                $"Primary key order for {Identifier} names {unknown.Join(", ")}, which is not part of the key. The key is: {(keyColumns.Any() ? keyColumns.Join(", ") : "(no columns flagged as primary key)")}.",
-                nameof(columnNames));
-        }
-
-        // A partial pin would still opt the table into strict order comparison, silently reordering
-        // the columns it does not name. An order is only meaningful for the whole key.
-        if (ordered.Length != keyColumns.Length)
-        {
-            throw new ArgumentException(
-                $"Primary key order for {Identifier} lists {ordered.Length} of {keyColumns.Length} key columns. Name every column of the key, in order. The key is: {keyColumns.Join(", ")}.",
-                nameof(columnNames));
-        }
-
-        _primaryKeyOrder = ordered;
-    }
+    protected override StringComparer PrimaryKeyColumnComparer => StringComparer.Ordinal;
 
     /// <inheritdoc />
     /// <inheritdoc />
