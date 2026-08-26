@@ -80,7 +80,7 @@ JOIN pg_namespace n ON n.oid = c.relnamespace
 WHERE NOT t.tgisinternal
   AND t.tgname = :{nameParam}
   AND c.relname = :{tableParam}
-  AND n.nspname = :{schemaParam}");
+  AND n.nspname = :{schemaParam};");
     }
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
