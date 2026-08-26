@@ -13,19 +13,40 @@ public partial class Table
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
 
         builder.Append($@"
-select column_name, data_type, character_maximum_length, null as udt_name, column_default, is_nullable
-from information_schema.columns where table_schema = @{schemaParam} and table_name = @{nameParam}
-order by ordinal_position;
-
+-- Columns come from sys.columns rather than information_schema.columns because the latter exposes
+-- no is_identity, and reports length only in characters -- it cannot express decimal(18,2) or
+-- datetime2(3) at all, so both read back as a bare type name.
 select
-    COLUMN_NAME,
-    CONSTRAINT_NAME
-from
-    INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE
-where
-    TABLE_SCHEMA = @{schemaParam} and
-    TABLE_NAME = @{nameParam} and
-    CONSTRAINT_NAME in (select constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where TABLE_CONSTRAINTS.TABLE_NAME = @{nameParam} and TABLE_CONSTRAINTS.TABLE_SCHEMA = @{schemaParam} and CONSTRAINT_TYPE = 'PRIMARY KEY')
+    c.name,
+    tp.name as type_name,
+    c.max_length,
+    c.precision,
+    c.scale,
+    c.is_nullable,
+    c.is_identity,
+    dc.definition as default_definition
+from sys.columns c
+    inner join sys.tables t on t.object_id = c.object_id
+    inner join sys.schemas s on s.schema_id = t.schema_id
+    inner join sys.types tp on tp.user_type_id = c.user_type_id
+    left join sys.default_constraints dc on dc.parent_object_id = c.object_id and dc.parent_column_id = c.column_id
+where s.name = @{schemaParam} and t.name = @{nameParam}
+order by c.column_id;
+
+-- CONSTRAINT_COLUMN_USAGE cannot express key order, so the primary key comes from sys.index_columns
+-- via the backing index: key_ordinal is the declared order, which for a composite key is not
+-- necessarily the table's column order.
+select
+    c.name as COLUMN_NAME,
+    kc.name as CONSTRAINT_NAME
+from sys.key_constraints kc
+    inner join sys.tables t on t.object_id = kc.parent_object_id
+    inner join sys.schemas s on s.schema_id = t.schema_id
+    inner join sys.indexes i on i.object_id = kc.parent_object_id and i.index_id = kc.unique_index_id
+    inner join sys.index_columns ic on ic.object_id = i.object_id and ic.index_id = i.index_id
+    inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
+where s.name = @{schemaParam} and t.name = @{nameParam} and kc.type = 'PK'
+order by ic.key_ordinal;
 
    select
           parent.name as constraint_name,
@@ -46,7 +67,8 @@ where
        inner join sys.columns cfk on fk.referenced_object_id = cfk.object_id and fk.referenced_column_id = cfk.column_id
    where
         s.name = @{schemaParam} and
-        t.name = @{nameParam};
+        t.name = @{nameParam}
+   order by parent.name, fk.constraint_column_id;
 
 
 
@@ -90,8 +112,14 @@ where
         -- way: an aligned UNIQUE index is required to carry the partitioning column IN its key,
         -- where it has both a key_ordinal and a partition_ordinal.
         (ic.key_ordinal >= 1 or ic.is_included_column = 1)
+-- key_ordinal is the index's key order; index_column_id is just the column's position in the
+-- table. Ordering by the latter silently reorders a composite index -- (ProductId, Id) came back
+-- as (Id, ProductId), which is a different index. Included columns carry key_ordinal 0, so they
+-- are separated out first.
 order by
     ic.index_id,
+    ic.is_included_column,
+    ic.key_ordinal,
     ic.index_column_id;
 
 
@@ -151,6 +179,8 @@ where s.name = @{schemaParam} and t.name = @{nameParam};
         var (pks, primaryKeyName) = await readPrimaryKeysAsync(reader, ct).ConfigureAwait(false);
         foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
         existing.PrimaryKeyName = primaryKeyName;
+        // Declared key order, which for a composite key need not match the table's column order.
+        existing.SetPrimaryKeyOrder(pks);
 
 
         await readForeignKeysAsync(reader, existing, ct).ConfigureAwait(false);
@@ -269,31 +299,53 @@ where s.name = @{schemaParam} and t.name = @{nameParam};
 
     private static async Task<TableColumn> readColumnAsync(DbDataReader reader, CancellationToken ct = default)
     {
-        var column = new TableColumn(
-            await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
-            await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false)
-        );
+        var name = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+        var typeName = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+        var maxLength = await reader.GetFieldValueAsync<short>(2, ct).ConfigureAwait(false);
+        var precision = await reader.GetFieldValueAsync<byte>(3, ct).ConfigureAwait(false);
+        var scale = await reader.GetFieldValueAsync<byte>(4, ct).ConfigureAwait(false);
 
-        if (column.Type.Equals("user-defined"))
+        var column = new TableColumn(name, FormatStoreType(typeName, maxLength, precision, scale))
         {
-            column.Type = await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
-        }
+            AllowNulls = await reader.GetFieldValueAsync<bool>(5, ct).ConfigureAwait(false),
+            IsAutoNumber = await reader.GetFieldValueAsync<bool>(6, ct).ConfigureAwait(false)
+        };
 
-        if (!await reader.IsDBNullAsync(2, ct).ConfigureAwait(false))
+        if (!await reader.IsDBNullAsync(7, ct).ConfigureAwait(false))
         {
-            var length = await reader.GetFieldValueAsync<int>(2, ct).ConfigureAwait(false);
-            // SQL Server returns -1 for MAX length columns (nvarchar(max), varbinary(max), etc.)
-            column.Type = length == -1 ? $"{column.Type}(max)" : $"{column.Type}({length})";
+            column.DefaultExpression = await reader.GetFieldValueAsync<string>(7, ct).ConfigureAwait(false);
         }
-
-        if (!await reader.IsDBNullAsync(4, ct).ConfigureAwait(false))
-        {
-            column.DefaultExpression = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
-        }
-
-        column.AllowNulls = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false) == "YES";
 
         return column;
+    }
+
+    internal static string FormatStoreType(string typeName, short maxLength, byte precision, byte scale)
+    {
+        switch (typeName.ToLowerInvariant())
+        {
+            case "nchar":
+            case "nvarchar":
+                // Unicode lengths are stored doubled; -1 is the MAX sentinel and must not be halved.
+                return maxLength == -1 ? $"{typeName}(max)" : $"{typeName}({maxLength / 2})";
+
+            case "char":
+            case "varchar":
+            case "binary":
+            case "varbinary":
+                return maxLength == -1 ? $"{typeName}(max)" : $"{typeName}({maxLength})";
+
+            case "decimal":
+            case "numeric":
+                return $"{typeName}({precision},{scale})";
+
+            case "time":
+            case "datetime2":
+            case "datetimeoffset":
+                return $"{typeName}({scale})";
+
+            default:
+                return typeName;
+        }
     }
 
 

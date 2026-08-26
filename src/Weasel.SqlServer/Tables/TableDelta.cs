@@ -16,6 +16,17 @@ public class TableDelta: SchemaObjectDelta<Table>
 
     internal ItemDelta<TableCheckConstraint> CheckConstraints { get; private set; } = null!;
 
+    // The actual key now carries the order the catalog declares, which for a composite key need not
+    // match the order the columns appear in the table -- and a model that flags columns cannot
+    // express any other order. Comparing positionally would report drift on every such table and
+    // "fix" it by reordering the user's key. Order is only compared when it was pinned deliberately.
+    private static bool primaryKeyColumnsMatch(Table expected, Table actual)
+        => expected.HasExplicitPrimaryKeyOrder
+            ? expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns, StringComparer.Ordinal)
+            : expected.PrimaryKeyColumns.OrderBy(x => x, StringComparer.Ordinal)
+                .SequenceEqual(actual.PrimaryKeyColumns.OrderBy(x => x, StringComparer.Ordinal),
+                    StringComparer.Ordinal);
+
     public SchemaPatchDifference PrimaryKeyDifference { get; private set; }
 
     /// <summary>
@@ -35,7 +46,11 @@ public class TableDelta: SchemaObjectDelta<Table>
 
         Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns,
             (e, a) => e.MatchesForDelta(a, expected.DetectColumnDrift));
-        Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, actual.Indexes,
+        // IgnoreIndex is Weasel.Core API and is honoured by the PostgreSQL and SQLite twins; without
+        // this SQL Server put an ignored index in Extras and WriteUpdate dropped it.
+        Indexes = new ItemDelta<IndexDefinition>(
+            expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
+            actual.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
             (e, a) => e.Matches(a, Expected));
 
         ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
@@ -61,7 +76,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         {
             PrimaryKeyDifference = SchemaPatchDifference.Create;
         }
-        else if (!expected.PrimaryKeyColumns.SequenceEqual(actual.PrimaryKeyColumns))
+        else if (!primaryKeyColumnsMatch(expected, actual))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
