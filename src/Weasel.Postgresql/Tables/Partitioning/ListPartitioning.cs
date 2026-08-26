@@ -32,6 +32,27 @@ public class ListPartitioning: IPartitionStrategy
     }
 
     /// <summary>
+    /// The partitions this strategy currently expects: the manager's set when one is attached,
+    /// otherwise the statically declared ones.
+    /// </summary>
+    /// <remarks>
+    /// Every call site resolves through here, the way <c>RangePartitioning.expectedRanges</c> does.
+    /// PartitionTableNames used to read <c>_partitions</c> directly, so for a manager-owned
+    /// partitioning -- where <see cref="UsePartitionManager"/> also clears
+    /// <see cref="EnableDefaultPartition"/> -- it returned the EMPTY sequence rather than a short
+    /// one, and a concurrent index over the table rendered only its first step and stayed invalid
+    /// forever (weasel#520).
+    /// <para>
+    /// A manager reads its partitions from a lookup table, so this is a point-in-time answer. That
+    /// is correct for a migration -- a partition created afterwards inherits the parent's indexes
+    /// automatically -- but any DDL built from it is only as complete as the manager's state at the
+    /// moment it was rendered.
+    /// </para>
+    /// </remarks>
+    private IReadOnlyList<ListPartition> expectedPartitions()
+        => PartitionManager == null ? _partitions : PartitionManager.Partitions().ToList();
+
+    /// <summary>
     /// Add another list partition table based on the supplied table suffix and values
     /// </summary>
     /// <param name="suffix"></param>
@@ -68,7 +89,7 @@ public class ListPartitioning: IPartitionStrategy
 
     void IPartitionStrategy.WriteCreateStatement(TextWriter writer, Table parent)
     {
-        var partitions = PartitionManager?.Partitions() ?? _partitions;
+        var partitions = expectedPartitions();
 
         foreach (IPartition partition in partitions)
         {
@@ -92,7 +113,7 @@ public class ListPartitioning: IPartitionStrategy
         missing = default;
         if (actual is ListPartitioning other)
         {
-            var partitions = PartitionManager?.Partitions().ToList() ?? _partitions;
+            var partitions = expectedPartitions();
 
             if (!Columns.SequenceEqual(other.Columns))
             {
@@ -124,7 +145,7 @@ public class ListPartitioning: IPartitionStrategy
 
     public IEnumerable<string> PartitionTableNames(Table parent)
     {
-        foreach (var partition in _partitions)
+        foreach (var partition in expectedPartitions())
         {
             yield return $"{parent.Identifier.Name.ToLowerInvariant()}_{partition.Suffix.ToLowerInvariant()}";
         }
