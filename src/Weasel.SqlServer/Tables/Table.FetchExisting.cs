@@ -416,6 +416,11 @@ where s.name = @{schemaParam} and t.name = @{nameParam};
 
                 if (isDesc)
                 {
+                    // Both: the set records which column is actually descending, and SortOrder is
+                    // kept so a model that can only say "descending" still compares clean against
+                    // this one. SortOrder alone marks the LAST key column, so an index on
+                    // (a DESC, b) read into it re-emits (a, b DESC) -- a different index.
+                    index.DescendingColumns.Add(name);
                     index.SortOrder = SortOrder.Desc;
                 }
             }
