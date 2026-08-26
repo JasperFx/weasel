@@ -31,7 +31,17 @@ public class RangePartitioning: IPartitionStrategy
     /// </summary>
     public RangePartitioning UsePartitionManager(IRangePartitionManager manager)
     {
-        PartitionManager = manager ?? throw new ArgumentNullException(nameof(manager));
+        if (manager == null) throw new ArgumentNullException(nameof(manager));
+
+        // The mirror of the guard in AddRange, so the refusal does not depend on the order the
+        // fluent calls happen to be written in.
+        if (_ranges.Any())
+        {
+            throw new InvalidOperationException(
+                $"This table already declares the ranges {_ranges.Select(x => x.Suffix).Join(", ")}, which a partition manager would silently ignore. Remove the AddRange() calls or the UsePartitionManager() call.");
+        }
+
+        PartitionManager = manager;
         return this;
     }
 
