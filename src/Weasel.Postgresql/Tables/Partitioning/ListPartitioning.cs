@@ -25,6 +25,20 @@ public class ListPartitioning: IPartitionStrategy
     /// <returns></returns>
     public ListPartitioning UsePartitionManager(IListPartitionManager strategy)
     {
+        if (strategy == null) throw new ArgumentNullException(nameof(strategy));
+
+        // Guarded in both directions, so the refusal does not depend on the order the fluent calls
+        // happen to be written in. AddPartition refuses a manager that is already attached; this
+        // refuses partitions that were already declared.
+        if (_partitions.Any())
+        {
+            throw new InvalidOperationException(
+                $"This table already declares the partitions {_partitions.Select(x => x.Suffix).Join(", ")}, which a partition manager would silently ignore. Remove the AddPartition() calls or the UsePartitionManager() call.");
+        }
+
+        // A manager owns the whole partition set, so there is no residue for a default partition to
+        // catch. Clearing this is also what makes PartitionTableNames total rather than merely short
+        // -- see weasel#520.
         EnableDefaultPartition = false;
         PartitionManager = strategy;
 
@@ -61,6 +75,12 @@ public class ListPartitioning: IPartitionStrategy
     /// <returns></returns>
     public ListPartitioning AddPartition<T>(string suffix, params T[] values)
     {
+        if (PartitionManager != null)
+        {
+            throw new InvalidOperationException(
+                "This table's partitions are owned by a partition manager, so statically declared partitions would be silently ignored. Remove the UsePartitionManager() call or the AddPartition() call.");
+        }
+
         var partition = new ListPartition(suffix, values.Select(x => x.FormatSqlValue()).ToArray());
         _partitions.Add(partition);
 
