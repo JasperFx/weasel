@@ -11,6 +11,45 @@ generated patch ran, the next run produced the same patch, and it repeated forev
 describes your schema, the repetition stops when you upgrade.
 :::
 
+## What 9.27.2 changes
+
+One fix, and like 9.27.1 it is a case of the guard existing but not everywhere it needed to.
+
+### A static partition alongside a partition manager is now refused in every order
+
+[#525](https://github.com/JasperFx/weasel/pull/525). A partition manager owns the whole partition
+set, so a statically declared partition sitting next to one is silently ignored — the caller wrote
+something that cannot do what they meant.
+
+`RangePartitioning.AddRange` already refused this. `ListPartitioning.AddPartition` did not, and
+neither class guarded `UsePartitionManager`, so even where the refusal existed it depended on the
+order the fluent calls happened to be written in:
+
+| Order | Range | List |
+| --- | --- | --- |
+| manager, then static partition | threw | **accepted** |
+| static partition, then manager | **accepted** | **accepted** |
+
+All four combinations now throw. A fluent builder gives the caller no reason to prefer one order,
+so the guard should not depend on one either.
+
+Two smaller things fall out of the same change:
+
+- `ListPartitioning.UsePartitionManager` never null-checked its argument, unlike the range version.
+  A null manager was accepted and then silently fell back to the static partitions. It now throws
+  `ArgumentNullException` like its twin.
+- `UsePartitionManager` clearing `EnableDefaultPartition` is load-bearing rather than incidental —
+  it is what made the empty enumeration in [#520](https://github.com/JasperFx/weasel/pull/520)
+  total rather than merely short — so there is now a test pinning it.
+
+`AddPartitionWithSqlLiterals` is deliberately left unguarded, and pinned as such: introspection
+populates a read table's partitions, and a table read back out of the catalog never carries a
+manager. Guarding it for symmetry would break the read path.
+
+**Upgrading.** If a configuration of yours declared a static partition alongside a manager, it was
+already being ignored — you now get an exception at configuration time instead of silence. Remove
+the static partition, or the manager, depending on which you meant.
+
 ## What 9.27.1 changes
 
 One fix, and it is the same shape as the nine in 9.27.0: the code did the right thing everywhere
