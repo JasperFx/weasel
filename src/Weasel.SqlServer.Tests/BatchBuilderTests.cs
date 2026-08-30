@@ -82,3 +82,22 @@ public class BatchBuilderTests : IntegrationContext
         (await reader.GetFieldValueAsync<int>(2)).ShouldBe(14);
     }
 }
+
+public class BatchBuilderParameterlessStatementTests
+{
+    [Fact]
+    public void parameterless_sql_is_not_discarded_by_the_next_command()
+    {
+        var batcher = new BatchBuilder();
+
+        batcher.AppendWithParameters("delete from batching.thing where tag = 'blue'");
+        batcher.StartNewCommand();
+        batcher.AppendWithParameters("insert into batching.thing (id) values (?)");
+
+        var batch = batcher.Compile();
+
+        batch.BatchCommands.Count.ShouldBe(2);
+        batch.BatchCommands[0].CommandText.ShouldBe("delete from batching.thing where tag = 'blue'");
+        batch.BatchCommands[1].CommandText.ShouldBe("insert into batching.thing (id) values (@p0)");
+    }
+}
