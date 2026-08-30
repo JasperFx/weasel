@@ -146,6 +146,11 @@ public class BatchBuilder: ICommandBuilder
 #if NET6_0 || NET7_0
     public NpgsqlParameter[] AppendWithParameters(string text, char placeholder)
     {
+        // Pin the batch command down *before* any text is written. With zero placeholders
+        // AppendParameter never runs, and the SQL would be silently discarded by the next
+        // StartNewCommand(). See weasel#526.
+        _current ??= appendCommand();
+
         var split = text.Split(placeholder);
         var parameters = new NpgsqlParameter[split.Length - 1];
 
@@ -163,6 +168,11 @@ public class BatchBuilder: ICommandBuilder
 #else
     public NpgsqlParameter[] AppendWithParameters(string text, char separator)
     {
+        // Pin the batch command down *before* any text is written. With zero placeholders
+        // AppendParameter never runs, and the SQL would be silently discarded by the next
+        // StartNewCommand(). See weasel#526.
+        _current ??= appendCommand();
+
         var span = text.AsSpan();
 
         var parameters = new NpgsqlParameter[span.Count(separator)];
