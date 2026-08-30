@@ -11,6 +11,39 @@ generated patch ran, the next run produced the same patch, and it repeated forev
 describes your schema, the repetition stops when you upgrade.
 :::
 
+## What 9.27.1 changes
+
+One fix, and it is the same shape as the nine in 9.27.0: the code did the right thing everywhere
+except one path, and the one path failed without saying so.
+
+### A parameterless statement in a batch could be silently discarded
+
+[#526](https://github.com/JasperFx/weasel/issues/526). `BatchBuilder.AppendWithParameters` — both
+the PostgreSQL and the SQL Server one — wrote its SQL into the shared `StringBuilder` but only
+created the underlying batch command as a side effect of appending a **parameter**. A statement
+with no placeholders never reached that code, so the command was never created, and the next
+`StartNewCommand()` cleared the builder. The SQL was gone. No exception, no log; the batch simply
+executed without it.
+
+Whether it bit you depended on the caller's loop, not on the SQL:
+
+| Caller pattern | Outcome |
+| --- | --- |
+| `StartNewCommand()` before **every** operation | safe |
+| `StartNewCommand()` only *between* operations | **the first parameterless statement was discarded** |
+| a single operation, no `StartNewCommand()` at all | safe |
+
+Marten is in the first row and was never affected. Polecat was in the second and lost user SQL:
+[polecat#517](https://github.com/JasperFx/polecat/issues/517), where a statement queued through
+`IDocumentSession.QueueSqlCommand` disappeared whenever the same session also carried a document
+operation — and `SaveChangesAsync` reported success, so callers believed both had landed.
+
+The tell that isolated it: the identical statement written **with** a parameter placeholder always
+worked, because the first parameter materialized the command.
+
+`AppendWithParameters` now pins the command down before writing anything, the same guard `Append`,
+`AppendParameter` and `AddParameters` have always carried. There is nothing to change on upgrade.
+
 ## The ones that never converged
 
 A delta that cannot converge is worse than a wrong one. The patch is applied, the read-back is
