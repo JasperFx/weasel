@@ -91,25 +91,23 @@ public class TableColumn: ITableColumn
     /// Generate the column declaration. Pass <paramref name="emitInlinePrimaryKey"/> = false when
     /// the table is responsible for emitting a table-level <c>PRIMARY KEY (...)</c> constraint
     /// (e.g. composite primary keys on SQLite, where two inline <c>PRIMARY KEY</c> columns are
-    /// rejected with <c>'table ... has more than one primary key'</c>). When suppressed, the
-    /// column still emits <c>NOT NULL</c> on its own to match SQLite's implicit NOT NULL semantics
-    /// for primary-key columns.
+    /// rejected with <c>'table ... has more than one primary key'</c>).
     /// </summary>
     public string Declaration(bool emitInlinePrimaryKey)
     {
         var parts = new List<string>();
 
-        // NULL/NOT NULL constraint. When we're suppressing the inline PRIMARY KEY (composite-PK
-        // case), explicitly emit NOT NULL so the column doesn't silently become nullable —
-        // SQLite only auto-applies NOT NULL to columns whose PRIMARY KEY is declared inline.
-        var inlinePk = IsPrimaryKey && emitInlinePrimaryKey;
-        if (!inlinePk && !AllowNulls)
+        // SQLite does not imply NOT NULL for a primary key: outside a WITHOUT ROWID table, only
+        // INTEGER PRIMARY KEY is safe, and only because it is a rowid alias and a NULL is replaced
+        // by the next rowid rather than stored. A REAL or TEXT primary key stores the NULL, so
+        // suppressing NOT NULL here let a rebuilt table accept keys the original rejected.
+        if (!AllowNulls)
         {
             parts.Add("NOT NULL");
         }
 
         // PRIMARY KEY with optional AUTOINCREMENT
-        if (inlinePk)
+        if (IsPrimaryKey && emitInlinePrimaryKey)
         {
             if (IsAutoNumber)
             {
