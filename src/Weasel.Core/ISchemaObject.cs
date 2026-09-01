@@ -61,10 +61,25 @@ public interface ISchemaObjectWithPostProcessing : ISchemaObject
 ///         (weasel#477).
 ///     </para>
 ///     <para>
-///         Implementing this does not make the change safe enough to apply under
-///         <c>AutoCreate.CreateOrUpdate</c>. It is still destructive in the sense that matters for
-///         permission — a column being removed takes its data with it — so it still requires
-///         <c>AutoCreate.All</c>. What changes is only what <c>All</c> then does.
+///         <c>AutoCreate.CreateOrUpdate</c> permits this, and <c>AutoCreate.CreateOnly</c> does not.
+///         weasel#477 first landed with the opposite rule — a rebuild still required
+///         <c>AutoCreate.All</c>, on the reasoning that a rebuild which also drops a column takes
+///         that column's data with it. But <c>SchemaMigration.AssertPatchingIsValid</c> could only
+///         express that by refusing every rebuildable delta, including the great majority that drop
+///         nothing: a column type change, a foreign key, a primary key. SQLite's ordinary
+///         <c>Update</c> path already emits <c>ALTER TABLE … DROP COLUMN</c> under
+///         <c>CreateOrUpdate</c>, so the strict rule was not buying the protection it claimed —
+///         it only refused the same loss when the column happened to sit in a key (weasel#538).
+///     </para>
+///     <para>
+///         A rebuild is an update, not a create, so <c>CreateOnly</c> still refuses it. That falls
+///         out of the <c>CreateOnly</c> branch on its own: the delta is still <c>Invalid</c>, so the
+///         migration's <c>Difference</c> is still not <c>Create</c>.
+///     </para>
+///     <para>
+///         Worth knowing before implementing this on another provider: a rebuild copies every row.
+///         On a large table that is a very different proposition from an <c>ALTER</c>, even though
+///         both are "an update".
 ///     </para>
 /// </remarks>
 public interface ISchemaObjectDeltaWithRebuild : ISchemaObjectDelta
