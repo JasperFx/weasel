@@ -24,6 +24,55 @@ public class SchemaMigration
         {
             Difference = _deltas.Min(x => x.Difference);
         }
+
+        deferForeignKeysToTablesCreatedLater();
+    }
+
+    private void deferForeignKeysToTablesCreatedLater()
+    {
+        if (!_deltas.Any(x => x is ISchemaObjectDeltaWithDeferrableForeignKeys))
+        {
+            return;
+        }
+
+        // Keyed on QualifiedName with an OrdinalIgnoreCase comparer rather than on DbObjectName itself:
+        // DbObjectName.Equals compares QualifiedName ignoring case, but GetHashCode hashes it ordinally,
+        // so two names differing only in case are equal yet land in different buckets.
+        var creations = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        for (var i = 0; i < _deltas.Count; i++)
+        {
+            if (_deltas[i].Difference != SchemaPatchDifference.Create)
+            {
+                continue;
+            }
+
+            var identifier = _deltas[i].SchemaObject?.Identifier?.QualifiedName;
+            if (identifier != null)
+            {
+                creations.TryAdd(identifier, i);
+            }
+        }
+
+        if (creations.Count == 0)
+        {
+            return;
+        }
+
+        for (var i = 0; i < _deltas.Count; i++)
+        {
+            if (_deltas[i] is not ISchemaObjectDeltaWithDeferrableForeignKeys delta)
+            {
+                continue;
+            }
+
+            foreach (var (name, linkedTable) in delta.ForeignKeysToCreate)
+            {
+                if (creations.TryGetValue(linkedTable.QualifiedName, out var created) && created > i)
+                {
+                    delta.DeferForeignKey(name);
+                }
+            }
+        }
     }
 
     public SchemaMigration(ISchemaObjectDelta delta): this(new[] { delta })
@@ -297,33 +346,22 @@ public class SchemaMigration
         AssertPatchingIsValid(autoCreate);
         foreach (var delta in _deltas)
         {
-            switch (delta.Difference)
+            rules.WriteUpdate(writer, delta);
+        }
+
+        WriteDeferredForeignKeys(writer, rules);
+    }
+
+    public void WriteDeferredForeignKeys(TextWriter writer, Migrator rules)
+    {
+        foreach (var delta in _deltas.OfType<ISchemaObjectDeltaWithDeferrableForeignKeys>())
+        {
+            if (!delta.HasDeferredForeignKeys)
             {
-                case SchemaPatchDifference.None:
-                    break;
-
-                case SchemaPatchDifference.Create:
-                    delta.SchemaObject.WriteCreateStatement(rules, writer);
-                    break;
-
-                case SchemaPatchDifference.Update:
-                    delta.WriteUpdate(rules, writer);
-                    break;
-
-                case SchemaPatchDifference.Invalid:
-                    if (delta is ISchemaObjectDeltaWithRebuild { CanRebuildInPlace: true })
-                    {
-                        // The delta cannot express the change as an ALTER, but it can make it
-                        // without discarding the data. Dropping and recreating would be a silent
-                        // data loss (weasel#477).
-                        delta.WriteUpdate(rules, writer);
-                        break;
-                    }
-
-                    delta.SchemaObject.WriteDropStatement(rules, writer);
-                    delta.SchemaObject.WriteCreateStatement(rules, writer);
-                    break;
+                continue;
             }
+
+            delta.WriteDeferredForeignKeys(rules, writer);
         }
     }
 
