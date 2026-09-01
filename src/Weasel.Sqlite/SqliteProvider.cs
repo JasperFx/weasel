@@ -106,9 +106,15 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
             case "double precision":
             case "float":
             case "real":
+                return "REAL";
+
+            // NUMERIC and DECIMAL are not REAL. SQLite gives a declared type REAL affinity only
+            // when it contains REAL, FLOA or DOUB; NUMERIC and DECIMAL get NUMERIC affinity, which
+            // stores a whole number as an integer. Mapping them to REAL changed stored values --
+            // an id declared numeric came back as 1.0 rather than 1.
             case "numeric":
             case "decimal":
-                return "REAL";
+                return "NUMERIC";
 
             case "blob":
             case "binary":
@@ -118,6 +124,35 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
 
         // Return as-is if no synonym found (could be custom type)
         return type;
+    }
+
+    /// <summary>
+    ///     The type as a STRICT table has to declare it. STRICT accepts only INT, INTEGER, REAL,
+    ///     TEXT, BLOB and ANY, so anything else must be mapped before it reaches the DDL or SQLite
+    ///     rejects the CREATE outright with <c>unknown datatype</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Two kinds of type reach here that <see cref="ConvertSynonyms" /> does not resolve to a
+    ///     legal one on its own. A parameterized type never matches its switch and came back
+    ///     unchanged, so <c>VARCHAR(255)</c> was emitted verbatim and rejected; the length is
+    ///     stripped first. And NUMERIC -- which <c>numeric</c> and <c>decimal</c> map to since
+    ///     weasel#533 -- has no STRICT equivalent at all.
+    ///
+    ///     NUMERIC becomes ANY rather than REAL because ANY is the one STRICT type that stores a
+    ///     whole number as an integer instead of converting it to a float, and that conversion is
+    ///     exactly what #533 exists to prevent. The cost is that ANY enforces nothing for that
+    ///     column, which is a real trade against the point of a STRICT table; REAL is the
+    ///     alternative if enforcement matters more than the stored value.
+    /// </remarks>
+    public string ToStrictType(string declaredType)
+    {
+        var converted = ConvertSynonyms(declaredType.Split('(')[0].Trim()).ToUpperInvariant();
+
+        return converted switch
+        {
+            "INT" or "INTEGER" or "REAL" or "TEXT" or "BLOB" or "ANY" => converted,
+            _ => "ANY"
+        };
     }
 
     protected override bool determineParameterType(Type type, out SqliteType dbType)

@@ -11,6 +11,12 @@ namespace Weasel.Sqlite.Views;
 public class View : ViewBase
 {
     /// <summary>
+    ///     SQLite accepts all three delimiters, not just its own <c>"..."</c>: <c>[...]</c> and
+    ///     backticks are recognised for compatibility with SQL Server and MySQL syntax.
+    /// </summary>
+    private const string SqliteIdentifierDelimiters = "\"[`";
+
+    /// <summary>
     /// Create a view with the specified name and SQL definition
     /// </summary>
     /// <param name="viewName">Name of the view (can include schema prefix)</param>
@@ -79,7 +85,7 @@ public class View : ViewBase
             if (!string.IsNullOrEmpty(existingSql))
             {
                 // Extract just the view body (the SELECT part) from the existing SQL
-                var existingBody = ExtractViewBody(existingSql);
+                var existingBody = ViewDefinition.ExtractBody(existingSql, SqliteIdentifierDelimiters);
 
                 // Normalize both SQL statements for comparison (just compare the SELECT portion)
                 var normalizedExisting = NormalizeSql(existingBody);
@@ -130,7 +136,7 @@ public class View : ViewBase
             if (!string.IsNullOrEmpty(sql))
             {
                 // Extract the view body from the CREATE VIEW statement
-                var viewBody = ExtractViewBody(sql);
+                var viewBody = ViewDefinition.ExtractBody(sql, SqliteIdentifierDelimiters);
                 return new View(Identifier, viewBody);
             }
         }
@@ -153,15 +159,4 @@ public class View : ViewBase
         return normalized;
     }
 
-    private static string ExtractViewBody(string createViewSql)
-    {
-        // Extract the SELECT portion from "CREATE VIEW name AS SELECT ..."
-        var asIndex = createViewSql.IndexOf(" AS ", StringComparison.OrdinalIgnoreCase);
-        if (asIndex >= 0)
-        {
-            return createViewSql.Substring(asIndex + 4).Trim();
-        }
-
-        return createViewSql;
-    }
 }

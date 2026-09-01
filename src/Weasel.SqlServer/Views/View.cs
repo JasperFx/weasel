@@ -103,8 +103,14 @@ public class View: ViewBase
 
         var definition = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
 
-        return string.IsNullOrEmpty(definition) ? null : ExtractViewBody(definition);
+        return string.IsNullOrEmpty(definition) ? null : ViewDefinition.ExtractBody(definition, SqlServerIdentifierDelimiters);
     }
+
+    /// <summary>
+    ///     SQL Server delimits an identifier with <c>[...]</c>, and with <c>"..."</c> under
+    ///     <c>QUOTED_IDENTIFIER ON</c>.
+    /// </summary>
+    private const string SqlServerIdentifierDelimiters = "[\"";
 
     /// <summary>
     ///     Whitespace-insensitive and case-insensitive, because <c>sys.sql_modules</c> hands back
@@ -120,20 +126,4 @@ public class View: ViewBase
             .TrimEnd(';')
             .ToUpperInvariant();
 
-    /// <summary>
-    ///     <c>sys.sql_modules</c> stores the whole <c>CREATE VIEW … AS …</c> text, so the body is
-    ///     what follows the first <c>AS</c> that stands on its own.
-    /// </summary>
-    private static string ExtractViewBody(string definition)
-    {
-        var asIndex = definition.IndexOf(" AS ", StringComparison.OrdinalIgnoreCase);
-        if (asIndex < 0)
-        {
-            // The create may have been written with a newline instead of a space before AS.
-            asIndex = definition.IndexOf("\nAS", StringComparison.OrdinalIgnoreCase);
-            return asIndex < 0 ? definition : definition.Substring(asIndex + 3).Trim();
-        }
-
-        return definition.Substring(asIndex + 4).Trim();
-    }
 }

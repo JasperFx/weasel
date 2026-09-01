@@ -50,6 +50,38 @@ public class ViewIntegrationTests
         await cmd.ExecuteNonQueryAsync();
     }
 
+    /// <summary>
+    ///     The shape that broke: a view whose own <c>AS</c> stands on a line of its own, so the
+    ///     first literal <c>" AS "</c> in the stored text is a column alias instead.
+    /// </summary>
+    /// <remarks>
+    ///     Created with raw SQL on purpose -- a view Weasel wrote has its AS inline, so the defect
+    ///     cannot reproduce from Weasel's own formatting. The read-back body is then used to create
+    ///     a second view, because a truncated body still compared equal to itself.
+    /// </remarks>
+    [Fact]
+    public async Task a_view_whose_own_as_is_on_its_own_line_reads_back_a_usable_body()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await CreateUsersTable(connection);
+
+        var create = connection.CreateCommand();
+        create.CommandText = "CREATE VIEW aliased\nAS\nSELECT id, name AS display_name FROM users";
+        await create.ExecuteNonQueryAsync();
+
+        var existing = await new View("aliased", "select 1").FetchExistingAsync(connection);
+
+        existing.ShouldNotBeNull();
+        existing!.ViewSql.ShouldContain("name AS display_name");
+
+        var writer = new StringWriter();
+        new View("aliased_rebuilt", existing.ViewSql).WriteCreateStatement(new SqliteMigrator(), writer);
+
+        var rebuild = connection.CreateCommand();
+        rebuild.CommandText = writer.ToString();
+        await rebuild.ExecuteNonQueryAsync();
+    }
+
     [Fact]
     public async Task create_simple_view()
     {

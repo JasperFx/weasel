@@ -64,6 +64,35 @@ public class ViewTests: IntegrationContext
             .ShouldBe(View.NormalizeSql("select id, name from views.source where quantity > 0"));
     }
 
+    /// <summary>
+    ///     The shape that broke: SQL Server stores a view's text as submitted and puts <c>AS</c> on
+    ///     a line of its own, so the first literal <c>" AS "</c> in the stored text is a column
+    ///     alias in the SELECT list rather than the view's own separator.
+    /// </summary>
+    /// <remarks>
+    ///     This has to create the view with raw SQL rather than through Weasel: a view Weasel wrote
+    ///     has its AS inline, so the defect cannot reproduce from Weasel's own formatting. Reading
+    ///     the body back is not enough on its own either -- the truncated body still compared equal
+    ///     to itself -- so the body is used to create a second view, which is what actually failed.
+    /// </remarks>
+    [Fact]
+    public async Task a_view_whose_own_as_is_on_its_own_line_reads_back_a_usable_body()
+    {
+        await ResetSchema();
+        await createSourceTableAsync("source");
+
+        await theConnection
+            .CreateCommand("CREATE VIEW views.aliased\nAS\nSELECT id, name AS display_name FROM views.source")
+            .ExecuteNonQueryAsync();
+
+        var existing = await new View("views.aliased", "select 1").FetchExistingAsync(theConnection);
+
+        existing.ShouldNotBeNull();
+        existing!.ViewSql.ShouldContain("SELECT id, name AS display_name");
+
+        await CreateSchemaObjectInDatabase(new View("views.aliased_rebuilt", existing.ViewSql));
+    }
+
     [Fact]
     public async Task a_view_that_matches_reports_no_delta()
     {
