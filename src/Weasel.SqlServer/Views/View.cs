@@ -113,17 +113,11 @@ public class View: ViewBase
     private const string SqlServerIdentifierDelimiters = "[\"";
 
     /// <summary>
-    ///     Whitespace-insensitive and case-insensitive, because <c>sys.sql_modules</c> hands back
-    ///     the text as it was submitted and callers reformat freely.
+    ///     Whitespace-insensitive and case-insensitive outside string literals, because
+    ///     <c>sys.sql_modules</c> hands back the text as it was submitted and callers reformat
+    ///     freely. Literal contents are compared exactly.
     /// </summary>
     internal static string NormalizeSql(string sql)
-        => sql.Replace("\r\n", "")
-            .Replace("\n", "")
-            .Replace("\r", "")
-            .Replace("\t", "")
-            .Replace(" ", "")
-            .Trim()
-            .TrimEnd(';')
-            .ToUpperInvariant();
+        => ViewSqlNormalizer.Normalize(sql);
 
 }

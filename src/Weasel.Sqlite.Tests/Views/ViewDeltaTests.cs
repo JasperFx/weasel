@@ -161,6 +161,63 @@ FROM users");
     }
 
     [Fact]
+    public void a_case_change_inside_a_string_literal_is_drift()
+    {
+        var expected = new View("test_view", "SELECT id FROM users WHERE name = 'active'");
+        var actual = new View("test_view", "SELECT id FROM users WHERE name = 'ACTIVE'");
+
+        var delta = new ViewDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
+    public void a_whitespace_change_inside_a_string_literal_is_drift()
+    {
+        var expected = new View("test_view", "SELECT id FROM users WHERE name = 'a b'");
+        var actual = new View("test_view", "SELECT id FROM users WHERE name = 'ab'");
+
+        var delta = new ViewDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
+    public void reformatting_around_an_unchanged_literal_is_not_drift()
+    {
+        var expected = new View("test_view", "SELECT id, name FROM users WHERE name = 'a b'");
+        var actual = new View("test_view", @"select id,name
+  from users
+  where NAME = 'a b'");
+
+        var delta = new ViewDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public void reformatting_around_an_apostrophe_in_a_quoted_identifier_is_not_drift()
+    {
+        var expected = new View("test_view", "SELECT amount AS \"customer's total\" , id FROM orders");
+        var actual = new View("test_view", "SELECT amount AS \"customer's total\", id FROM orders");
+
+        var delta = new ViewDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public void an_apostrophe_in_a_quoted_identifier_does_not_hide_literal_drift()
+    {
+        var expected = new View("test_view", "SELECT \"o'brien\" FROM users WHERE name = 'active'");
+        var actual = new View("test_view", "SELECT \"o'brien\" FROM users WHERE name = 'ACTIVE'");
+
+        var delta = new ViewDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
     public void difference_is_case_insensitive()
     {
         var expected = new View("test_view", "SELECT id FROM users");

@@ -82,6 +82,28 @@ public class ViewIntegrationTests
         await rebuild.ExecuteNonQueryAsync();
     }
 
+    private static async Task ExecuteCreateAsync(SqliteConnection connection, View view)
+    {
+        var writer = new StringWriter();
+        view.WriteCreateStatement(new SqliteMigrator(), writer);
+
+        var cmd = connection.CreateCommand();
+        cmd.CommandText = writer.ToString();
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static async Task<SchemaPatchDifference> DifferenceAsync(SqliteConnection connection, View view)
+    {
+        var queryCmd = connection.CreateCommand();
+        var builder = new Core.DbCommandBuilder(queryCmd);
+        view.ConfigureQueryCommand(builder);
+        builder.Compile();
+
+        await using var reader = await queryCmd.ExecuteReaderAsync();
+        var delta = await view.CreateDeltaAsync(reader, CancellationToken.None);
+        return delta.Difference;
+    }
+
     [Fact]
     public async Task create_simple_view()
     {
@@ -374,5 +396,79 @@ public class ViewIntegrationTests
 
         category.ShouldBe("gadgets");
         price.ShouldBe(19.99);
+    }
+
+    [Fact]
+    public async Task a_case_change_inside_a_string_literal_is_drift()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await CreateUsersTable(connection);
+
+        await ExecuteCreateAsync(connection, new View("by_name", "SELECT id FROM users WHERE name = 'active'"));
+
+        var changed = new View("by_name", "SELECT id FROM users WHERE name = 'ACTIVE'");
+
+        (await DifferenceAsync(connection, changed)).ShouldBe(SchemaPatchDifference.Update);
+
+        await ExecuteCreateAsync(connection, changed);
+
+        (await DifferenceAsync(connection, changed)).ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task a_whitespace_change_inside_a_string_literal_is_drift()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await CreateUsersTable(connection);
+
+        await ExecuteCreateAsync(connection, new View("by_name", "SELECT id FROM users WHERE name = 'a b'"));
+
+        var changed = new View("by_name", "SELECT id FROM users WHERE name = 'ab'");
+
+        (await DifferenceAsync(connection, changed)).ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
+    public async Task reformatting_around_an_apostrophe_in_a_backtick_identifier_is_not_drift()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await CreateUsersTable(connection);
+
+        await ExecuteCreateAsync(connection,
+            new View("by_name", "SELECT name AS `customer's name` , id FROM users"));
+
+        var reformatted = new View("by_name", "SELECT name AS `customer's name`, id FROM users");
+
+        (await DifferenceAsync(connection, reformatted)).ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task an_apostrophe_in_a_backtick_identifier_does_not_hide_literal_drift()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await CreateUsersTable(connection);
+
+        await ExecuteCreateAsync(connection,
+            new View("by_name", "SELECT name AS `o'brien` FROM users WHERE name = 'active'"));
+
+        var changed = new View("by_name", "SELECT name AS `o'brien` FROM users WHERE name = 'ACTIVE'");
+
+        (await DifferenceAsync(connection, changed)).ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
+    public async Task reformatting_around_an_unchanged_literal_is_not_drift()
+    {
+        await using var connection = await OpenConnectionAsync();
+        await CreateUsersTable(connection);
+
+        await ExecuteCreateAsync(connection,
+            new View("by_name", "SELECT id, name FROM users WHERE name = 'a b'"));
+
+        var reformatted = new View("by_name", @"select id,name
+  FROM users
+  where NAME = 'a b'");
+
+        (await DifferenceAsync(connection, reformatted)).ShouldBe(SchemaPatchDifference.None);
     }
 }
