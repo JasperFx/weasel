@@ -386,6 +386,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
             writer.WriteLine();
         }
 
+        writeAutoIncrementCarryOver(writer, tempName);
+
         // Drop old table
         writer.WriteLine($"DROP TABLE {Expected.Identifier.QualifiedName};");
         writer.WriteLine();
@@ -401,6 +403,25 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         }
 
         writeTriggerRestoration(writer);
+    }
+
+    private void writeAutoIncrementCarryOver(TextWriter writer, SqliteObjectName tempName)
+    {
+        if (!Expected.Columns.Any(x => x.IsAutoNumber) || Actual?.Columns.Any(x => x.IsAutoNumber) != true)
+        {
+            return;
+        }
+
+        var previous = SchemaUtils.EscapeLiteral(Expected.Identifier.Name);
+        var replacement = SchemaUtils.EscapeLiteral(tempName.Name);
+
+        writer.WriteLine(
+            $"UPDATE sqlite_sequence SET seq = (SELECT seq FROM sqlite_sequence WHERE name = '{previous}') " +
+            $"WHERE name = '{replacement}' AND seq < (SELECT seq FROM sqlite_sequence WHERE name = '{previous}');");
+        writer.WriteLine(
+            $"INSERT INTO sqlite_sequence (name, seq) SELECT '{replacement}', seq FROM sqlite_sequence " +
+            $"WHERE name = '{previous}' AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = '{replacement}');");
+        writer.WriteLine();
     }
 
     /// <summary>
