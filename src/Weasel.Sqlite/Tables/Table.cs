@@ -107,10 +107,10 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
             var columnLength = Columns.Any() ? Columns.Max(x => x.QuotedName.Length) + 4 : 20;
-            var typeLength = Columns.Any() ? Columns.Max(x => x.Type.Length) + 4 : 10;
+            var typeLength = Columns.Any() ? Columns.Max(x => x.DdlType.Length) + 4 : 10;
 
             lines.AddRange(Columns.Select(column =>
-                $"    {column.QuotedName.PadRight(columnLength)}{column.Type.PadRight(typeLength)}{column.Declaration(emitInlinePrimaryKey)}"));
+                $"    {column.QuotedName.PadRight(columnLength)}{column.DdlType.PadRight(typeLength)}{column.Declaration(emitInlinePrimaryKey)}"));
         }
         else
         {

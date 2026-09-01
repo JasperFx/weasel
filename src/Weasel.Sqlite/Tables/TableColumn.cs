@@ -30,8 +30,7 @@ public class TableColumn: ITableColumn
         var unquoted = SchemaUtils.Unquote(name.Trim());
 
         Name = preserveCase ? unquoted : unquoted.ToLowerInvariant();
-        // Normalize type using provider
-        Type = SqliteProvider.Instance.ConvertSynonyms(type);
+        Type = type.Trim();
     }
 
     public IList<ColumnCheck> ColumnChecks { get; } = new List<ColumnCheck>();
@@ -79,6 +78,10 @@ public class TableColumn: ITableColumn
 
     public string Name { get; }
     public string QuotedName => SchemaUtils.QuoteName(Name);
+
+    public string DdlType => Parent is { StrictTypes: true }
+        ? SqliteProvider.Instance.ConvertSynonyms(Type)
+        : Type;
 
     public string RawType()
     {
@@ -174,8 +177,8 @@ public class TableColumn: ITableColumn
     {
         unchecked
         {
-            // SQLite is case-insensitive
-            return (Name.ToLowerInvariant().GetHashCode() * 397) ^ Type.ToUpperInvariant().GetHashCode();
+            return (Name.ToLowerInvariant().GetHashCode() * 397) ^
+                   SqliteProvider.Instance.ConvertSynonyms(RawType()).ToUpperInvariant().GetHashCode();
         }
     }
 
@@ -186,8 +189,8 @@ public class TableColumn: ITableColumn
         var declaration = Declaration(emitInlinePrimaryKey);
 
         return declaration.IsEmpty()
-            ? $"{QuotedName} {Type}"
-            : $"{QuotedName} {Type} {declaration}";
+            ? $"{QuotedName} {DdlType}"
+            : $"{QuotedName} {DdlType} {declaration}";
     }
 
     public override string ToString()
