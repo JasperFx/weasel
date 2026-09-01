@@ -106,9 +106,15 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
             case "double precision":
             case "float":
             case "real":
+                return "REAL";
+
+            // NUMERIC and DECIMAL are not REAL. SQLite gives a declared type REAL affinity only
+            // when it contains REAL, FLOA or DOUB; NUMERIC and DECIMAL get NUMERIC affinity, which
+            // stores a whole number as an integer. Mapping them to REAL changed stored values --
+            // an id declared numeric came back as 1.0 rather than 1.
             case "numeric":
             case "decimal":
-                return "REAL";
+                return "NUMERIC";
 
             case "blob":
             case "binary":
