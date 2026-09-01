@@ -10,7 +10,7 @@ namespace Weasel.Sqlite.Tests.Tables;
 ///     SQLite stores a column's declared type verbatim and derives its affinity from that text by
 ///     substring rules, so <c>TIMESTAMP</c> (NUMERIC affinity) and <c>TEXT</c> are different
 ///     columns. Normalizing the type in the constructor rewrote both the model's intent and what
-///     was read back out of an existing database (weasel#466).
+///     was read back out of an existing database (weasel#532).
 /// </summary>
 public class declared_column_types
 {
