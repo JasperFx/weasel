@@ -94,6 +94,15 @@ public class TableColumn: ITableColumn
             return false;
         }
 
+        // RawType() throws the parenthesised part away, which is right for an INT display width the
+        // catalog invented and wrong for a character length the model declared. See
+        // CharacterColumnLength: a widened varchar used to be invisible here, so an existing table kept
+        // the narrow column forever.
+        if (CharacterColumnLength.Differ(Type, other.Type))
+        {
+            return false;
+        }
+
         // Compare nullability only for non-primary key columns
         if (!IsPrimaryKey && !other.IsPrimaryKey)
         {

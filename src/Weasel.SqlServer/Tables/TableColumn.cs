@@ -167,6 +167,14 @@ public class TableColumn: ITableColumn
 
     protected bool Equals(TableColumn other)
     {
+        // RawType() throws the parenthesised part away, which is right for a decimal precision or a
+        // datetime2 scale and wrong for a character length the model declared. See CharacterColumnLength:
+        // a widened varchar used to be invisible here, so an existing table kept the narrow column forever.
+        if (CharacterColumnLength.Differ(Type, other.Type))
+        {
+            return false;
+        }
+
         return string.Equals(QuotedName, other.QuotedName, StringComparison.OrdinalIgnoreCase) &&
                string.Equals(SqlServerProvider.Instance.ConvertSynonyms(RawType()),
                    SqlServerProvider.Instance.ConvertSynonyms(other.RawType()));
