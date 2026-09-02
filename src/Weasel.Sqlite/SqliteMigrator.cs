@@ -180,12 +180,16 @@ public class SqliteMigrator: Migrator
             }
         }
 
+        // Inside writeDeltasAsync rather than after it, so a rebuild's deferred keys are added
+        // within the same transaction as the rebuild and roll back with it. failureIsFatal has to
+        // carry through for the same reason: swallowing a failure here would let a rebuild reach
+        // COMMIT with a key missing.
         var deferred = new StringWriter();
         migration.WriteDeferredForeignKeys(deferred, this);
 
         if (deferred.ToString().Trim().IsNotEmpty())
         {
-            await executeCommand(conn, logger, deferred, ct).ConfigureAwait(false);
+            await executeCommand(conn, logger, deferred, failureIsFatal, ct).ConfigureAwait(false);
         }
     }
 
