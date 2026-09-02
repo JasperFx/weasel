@@ -211,7 +211,7 @@ public abstract class
                 return false;
 
             case SchemaPatchDifference.Create:
-                delta.SchemaObject.WriteCreateStatement(this, writer);
+                writeCreation(delta, writer);
                 return true;
 
             case SchemaPatchDifference.Update:
@@ -229,11 +229,22 @@ public abstract class
                 }
 
                 delta.SchemaObject.WriteDropStatement(this, writer);
-                delta.SchemaObject.WriteCreateStatement(this, writer);
+                writeCreation(delta, writer);
                 return true;
         }
 
         return false;
+    }
+
+    private void writeCreation(ISchemaObjectDelta delta, TextWriter writer)
+    {
+        if (delta is ISchemaObjectDeltaWithDeferrableForeignKeys { HasDeferredForeignKeys: true } deferrable)
+        {
+            deferrable.WriteCreateWithoutDeferredForeignKeys(this, writer);
+            return;
+        }
+
+        delta.SchemaObject.WriteCreateStatement(this, writer);
     }
 
     /// <summary>

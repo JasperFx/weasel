@@ -130,6 +130,14 @@ $$;
                 await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
             }
         }
+
+        var deferred = new StringWriter();
+        migration.WriteDeferredForeignKeys(deferred, this);
+
+        if (deferred.ToString().Trim().IsNotEmpty())
+        {
+            await executeCommand(conn, logger, deferred, ct).ConfigureAwait(false);
+        }
     }
 
     public override string ToExecuteScriptLine(string scriptName)

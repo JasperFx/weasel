@@ -4,11 +4,12 @@
 a schema back wrong — four of these change the DDL Weasel **emits**. A SQLite database created by
 9.28 does not have the same column types as one created by 9.27.
 
-::: danger The first migration after upgrading can throw
-If any table declares a column as `numeric` or `decimal`, the first migration after upgrading fails
-with a `SchemaMigrationException` on every `AutoCreate` setting except `AutoCreate.All`. The change
-is safe and the rebuild that applies it preserves your data — it is the guard in front of it that
-refuses. [Read this before upgrading](#the-first-migration-can-throw).
+::: danger The first migration on 9.28.0 can throw — fixed in 9.28.1
+If any table declares a column as `numeric` or `decimal`, the first migration after upgrading to
+**9.28.0** fails with a `SchemaMigrationException` on every `AutoCreate` setting except
+`AutoCreate.All`. The change is safe and the rebuild that applies it preserves your data — it was
+the guard in front of it that refused. **9.28.1 fixes the guard**; go straight to it and there is
+nothing to do. [Read this if you are on 9.28.0](#the-first-migration-can-throw).
 :::
 
 ::: warning SQLite column types are what you declared them to be now
@@ -25,22 +26,29 @@ a table Weasel created before 9.28 has a `REAL` column where the model now asks 
 SQLite cannot express a column type change as an `ALTER`, so the delta comes back as
 `SchemaPatchDifference.Invalid`.
 
-That difference is applied by rebuilding the table and copying every row, and that path works — but
-`SchemaMigration.AssertPatchingIsValid` rejects `Invalid` on anything except `AutoCreate.All`,
-regardless of whether a rebuild could apply it. So the migration that would have succeeded never
-runs, and you get a `Weasel.Core.SchemaMigrationException` reading
-`Cannot derive schema migrations for … AutoCreate.CreateOrUpdate`.
+That difference is applied by rebuilding the table and copying every row, and that path works. On
+9.28.0 the guard above it did not agree: `SchemaMigration.AssertPatchingIsValid` rejected `Invalid`
+on anything except `AutoCreate.All`, regardless of whether a rebuild could apply it. So the
+migration that would have succeeded never ran, and you got a `Weasel.Core.SchemaMigrationException`
+reading `Cannot derive schema migrations for … AutoCreate.CreateOrUpdate`.
 
-**Upgrading.** One of:
+**[#538](https://github.com/JasperFx/weasel/issues/538) fixes this in 9.28.1.** The guard now asks
+the delta whether it can rebuild in place — the same question both apply paths below it already
+ask — and lets it through under `AutoCreate.CreateOrUpdate` when it can. `AutoCreate.CreateOnly`
+still refuses, because a rebuild recreates a table that is already there and that is an update.
 
-- Run the first migration with `AutoCreate.All`. The rebuild applies, data is copied, and every
-  subsequent run is clean — there is nothing left to do on the second migration.
-- Declare the column as `real` in your model if `REAL` is genuinely what you want. Nothing changes
-  and no migration is needed.
-- Stay on 9.27 until the guard is fixed.
+**Upgrading.**
 
-This is a gap in the guard rather than in the change, and it affects any SQLite column-type change,
-not only this one. It is tracked as a follow-up.
+- **From 9.27 or earlier:** upgrade to 9.28.1 rather than 9.28.0 and there is nothing to do. The
+  first migration rebuilds the table, copies every row, and converges.
+- **Already on 9.28.0:** upgrade to 9.28.1, or run the first migration once with `AutoCreate.All`.
+  Either applies the same rebuild.
+- Declaring the column as `real` in your model also works if `REAL` is genuinely what you want —
+  nothing changes and no migration is needed.
+
+Note that the gap was never specific to `numeric`: it affected **any** SQLite column type change, as
+well as adding or dropping a foreign key and changing a primary key. The `numeric` change is only
+what made it reachable for people who had not changed their model at all.
 
 ## What changed
 

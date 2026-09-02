@@ -320,7 +320,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         // 3. Drop old table
         // 4. Rename new table
 
-        var tempName = new SqliteObjectName(Expected.Identifier.Name + "_new");
+        // Same schema as the table being rebuilt. The single-argument constructor defaults to
+        // "main", which is right for the overwhelmingly common case and wrong for every other one:
+        // a temp-schema rebuild built main."x_new", copied out of temp."x", dropped it, and left the
+        // replacement in main. Identical DDL for a main-schema table, so nothing else moves.
+        var tempName = new SqliteObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_new");
 
         writer.WriteLine("-- Table recreation required due to SQLite ALTER TABLE limitations");
         writer.WriteLine();
@@ -386,6 +390,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
             writer.WriteLine();
         }
 
+        writeAutoIncrementCarryOver(writer, tempName);
+
         // Drop old table
         writer.WriteLine($"DROP TABLE {Expected.Identifier.QualifiedName};");
         writer.WriteLine();
@@ -401,6 +407,32 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         }
 
         writeTriggerRestoration(writer);
+    }
+
+    private void writeAutoIncrementCarryOver(TextWriter writer, SqliteObjectName tempName)
+    {
+        if (!Expected.Columns.Any(x => x.IsAutoNumber) || Actual?.Columns.Any(x => x.IsAutoNumber) != true)
+        {
+            return;
+        }
+
+        var previous = SchemaUtils.EscapeLiteral(Expected.Identifier.Name);
+        var replacement = SchemaUtils.EscapeLiteral(tempName.Name);
+
+        // Name the schema, even for "main". sqlite_sequence is per-database, and an unqualified name
+        // resolves against temp first -- so on a connection holding any temp AUTOINCREMENT table these
+        // statements read and write temp.sqlite_sequence, match nothing, and silently carry nothing
+        // over. The rebuilt table then reissues an id it had already handed out, which is the exact
+        // failure this method exists to prevent.
+        var seq = $"{SchemaUtils.QuoteName(Expected.Identifier.Schema)}.sqlite_sequence";
+
+        writer.WriteLine(
+            $"UPDATE {seq} SET seq = (SELECT seq FROM {seq} WHERE name = '{previous}') " +
+            $"WHERE name = '{replacement}' AND seq < (SELECT seq FROM {seq} WHERE name = '{previous}');");
+        writer.WriteLine(
+            $"INSERT INTO {seq} (name, seq) SELECT '{replacement}', seq FROM {seq} " +
+            $"WHERE name = '{previous}' AND NOT EXISTS (SELECT 1 FROM {seq} WHERE name = '{replacement}');");
+        writer.WriteLine();
     }
 
     /// <summary>
