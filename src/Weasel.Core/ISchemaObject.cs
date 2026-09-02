@@ -30,19 +30,6 @@ public interface ISchemaObjectWithPostProcessing : ISchemaObject
 }
 
 /// <summary>
-///     Schema objects that write identifiers into their DDL which are not themselves named
-///     database objects — a table's column names, its primary key constraint name, its check
-///     constraint names. <see cref="ISchemaObject.AllNames" /> cannot carry these: it yields
-///     <see cref="DbObjectName" />, and callers read the schema off every name it returns
-///     (<c>SchemaMigration.Schemas</c>, <c>DatabaseBase.ApplyAllConfiguredChangesToDatabaseAsync</c>),
-///     so a column name would arrive there claiming to be an object in a schema.
-/// </summary>
-/// <remarks>
-///     The migration path validates these alongside <see cref="ISchemaObject.AllNames" />
-///     (weasel#448). Before that, a table's identifier, index names and foreign key names were
-///     checked and everything else went straight into the DDL unexamined.
-/// </remarks>
-/// <summary>
 ///     A delta that reports <see cref="SchemaPatchDifference.Invalid" /> because the change cannot
 ///     be made in place, but which knows how to make it anyway without losing the data.
 /// </summary>
@@ -91,6 +78,19 @@ public interface ISchemaObjectDeltaWithRebuild : ISchemaObjectDelta
     bool CanRebuildInPlace { get; }
 }
 
+/// <summary>
+///     Schema objects that write identifiers into their DDL which are not themselves named
+///     database objects — a table's column names, its primary key constraint name, its check
+///     constraint names. <see cref="ISchemaObject.AllNames" /> cannot carry these: it yields
+///     <see cref="DbObjectName" />, and callers read the schema off every name it returns
+///     (<c>SchemaMigration.Schemas</c>, <c>DatabaseBase.ApplyAllConfiguredChangesToDatabaseAsync</c>),
+///     so a column name would arrive there claiming to be an object in a schema.
+/// </summary>
+/// <remarks>
+///     The migration path validates these alongside <see cref="ISchemaObject.AllNames" />
+///     (weasel#448). Before that, a table's identifier, index names and foreign key names were
+///     checked and everything else went straight into the DDL unexamined.
+/// </remarks>
 public interface ISchemaObjectWithLocalIdentifiers : ISchemaObject
 {
     /// <summary>
