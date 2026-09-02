@@ -165,6 +165,84 @@ FROM views.source");
     }
 
     [Fact]
+    public async Task a_case_change_inside_a_string_literal_is_drift()
+    {
+        await ResetSchema();
+        await createSourceTableAsync("source");
+
+        await CreateSchemaObjectInDatabase(
+            new View("views.literal_case", "select id from views.source where name = 'active'"));
+
+        var changed = new View("views.literal_case", "select id from views.source where name = 'ACTIVE'");
+
+        (await changed.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await changed.ApplyChangesAsync(theConnection);
+
+        (await changed.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task a_whitespace_change_inside_a_string_literal_is_drift()
+    {
+        await ResetSchema();
+        await createSourceTableAsync("source");
+
+        await CreateSchemaObjectInDatabase(
+            new View("views.literal_space", "select id from views.source where name = 'a b'"));
+
+        var changed = new View("views.literal_space", "select id from views.source where name = 'ab'");
+
+        (await changed.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
+    public async Task reformatting_around_an_unchanged_literal_is_not_drift()
+    {
+        await ResetSchema();
+        await createSourceTableAsync("source");
+
+        await CreateSchemaObjectInDatabase(
+            new View("views.literal_stable", "select id, name from views.source where name = 'a b'"));
+
+        var reformatted = new View("views.literal_stable", @"SELECT id,name
+FROM   views.source
+WHERE  name = 'a b'");
+
+        (await reformatted.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task reformatting_around_an_apostrophe_in_a_bracketed_identifier_is_not_drift()
+    {
+        await ResetSchema();
+        await createSourceTableAsync("source");
+
+        await CreateSchemaObjectInDatabase(
+            new View("views.bracket_stable", "select quantity as [Customer's Total] , id from views.source"));
+
+        var reformatted = new View("views.bracket_stable",
+            "select quantity as [Customer's Total], id from views.source");
+
+        (await reformatted.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task an_apostrophe_in_a_bracketed_identifier_does_not_hide_literal_drift()
+    {
+        await ResetSchema();
+        await createSourceTableAsync("source");
+
+        await CreateSchemaObjectInDatabase(new View("views.bracket_drift",
+            "select name as [Customer's Name] from views.source where name = 'active'"));
+
+        var changed = new View("views.bracket_drift",
+            "select name as [Customer's Name] from views.source where name = 'ACTIVE'");
+
+        (await changed.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
     public async Task a_view_over_a_join_round_trips()
     {
         await ResetSchema();

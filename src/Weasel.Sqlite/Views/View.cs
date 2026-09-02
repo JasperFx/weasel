@@ -91,7 +91,7 @@ public class View : ViewBase
                 var normalizedExisting = NormalizeSql(existingBody);
                 var normalizedExpected = NormalizeSql(ViewSql);
 
-                if (string.Equals(normalizedExisting, normalizedExpected, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(normalizedExisting, normalizedExpected, StringComparison.Ordinal))
                 {
                     return new SchemaObjectDelta(this, SchemaPatchDifference.None);
                 }
@@ -144,19 +144,12 @@ public class View : ViewBase
         return null;
     }
 
+    /// <summary>
+    ///     Whitespace-insensitive and case-insensitive outside string literals; literal contents
+    ///     are compared exactly, so callers must compare the results with
+    ///     <see cref="StringComparison.Ordinal" />.
+    /// </summary>
     internal static string NormalizeSql(string sql)
-    {
-        // Remove all whitespace for comparison purposes
-        var normalized = sql
-            .Replace("\r\n", "")
-            .Replace("\n", "")
-            .Replace("\r", "")
-            .Replace("\t", "")
-            .Replace(" ", "")
-            .Trim()
-            .TrimEnd(';');
-
-        return normalized;
-    }
+        => ViewSqlNormalizer.Normalize(sql);
 
 }

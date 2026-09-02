@@ -37,7 +37,7 @@ public class ViewDelta : SchemaObjectDelta<View>
         var expectedSql = View.NormalizeSql(expected.ViewSql);
         var actualSql = View.NormalizeSql(actual.ViewSql);
 
-        if (string.Equals(expectedSql, actualSql, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(expectedSql, actualSql, StringComparison.Ordinal))
         {
             return SchemaPatchDifference.None;
         }
