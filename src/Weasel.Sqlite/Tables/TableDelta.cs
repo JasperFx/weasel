@@ -335,7 +335,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         var tempTable = new Table(tempName) { StrictTypes = Expected.StrictTypes, WithoutRowId = Expected.WithoutRowId };
         foreach (var column in Expected.Columns)
         {
-            tempTable.AddColumn(column);
+            tempTable.AddColumn(column.Clone());
         }
         foreach (var pk in Expected.PrimaryKeyColumns)
         {
@@ -559,7 +559,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         var tempTable = new Table(tempName) { StrictTypes = Actual.StrictTypes, WithoutRowId = Actual.WithoutRowId };
         foreach (var column in Actual.Columns)
         {
-            tempTable.AddColumn(column);
+            tempTable.AddColumn(column.Clone());
         }
         foreach (var pk in Actual.PrimaryKeyColumns)
         {

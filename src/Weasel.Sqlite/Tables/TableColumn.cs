@@ -104,6 +104,11 @@ public class TableColumn: ITableColumn
         return Type.Split('(')[0].Trim();
     }
 
+    internal TableColumn Clone()
+    {
+        return (TableColumn)MemberwiseClone();
+    }
+
     public string Declaration() => Declaration(emitInlinePrimaryKey: true);
 
     /// <summary>
