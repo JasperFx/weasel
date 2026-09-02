@@ -105,6 +105,14 @@ public class TableColumn: ITableColumn
 
     protected bool Equals(TableColumn other)
     {
+        // RawType() throws the parenthesised part away, which is right for a NUMBER precision and wrong
+        // for a VARCHAR2 length the model declared. See CharacterColumnLength: a widened VARCHAR2 used to
+        // be invisible here, so an existing table kept the narrow column forever.
+        if (CharacterColumnLength.Differ(Type, other.Type))
+        {
+            return false;
+        }
+
         return string.Equals(QuotedName, other.QuotedName, StringComparison.OrdinalIgnoreCase) &&
                string.Equals(OracleProvider.Instance.ConvertSynonyms(RawType()),
                    OracleProvider.Instance.ConvertSynonyms(other.RawType()), StringComparison.OrdinalIgnoreCase);
@@ -154,7 +162,32 @@ public class TableColumn: ITableColumn
 
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
-        return $"ALTER TABLE {table.Identifier} MODIFY {changeActual.ToDeclaration()}";
+        // Two things were wrong here, and neither showed until character lengths started being compared
+        // (see CharacterColumnLength) -- before that a column type delta was almost never detected at all.
+        //
+        // First, the side: the SQL Server and PostgreSQL twins both emit the receiver, which is the shape
+        // the column is moving TO. This emitted changeActual, the shape it is moving FROM, so the
+        // statement altered the column to what it already was. Both call sites in TableDelta pass the
+        // target as the receiver, so reading the receiver is what they always meant.
+        //
+        // Second, the nullability: Oracle rejects a MODIFY that restates the nullability a column already
+        // has -- ORA-01451 "column to be modified to NULL cannot be modified to NULL", and ORA-01442 for
+        // the NOT NULL direction. So the clause is emitted only when it is actually changing, which is
+        // what changeActual is for.
+        var parts = new List<string> { QuotedName, Type };
+
+        if (DefaultExpression.IsNotEmpty())
+        {
+            parts.Add("DEFAULT " + DefaultExpression);
+        }
+
+        var allowsNulls = !IsPrimaryKey && AllowNulls;
+        if (allowsNulls != (!changeActual.IsPrimaryKey && changeActual.AllowNulls))
+        {
+            parts.Add(allowsNulls ? "NULL" : "NOT NULL");
+        }
+
+        return $"ALTER TABLE {table.Identifier} MODIFY {parts.Join(" ")}";
     }
 
     public string DropColumnSql(Table table)

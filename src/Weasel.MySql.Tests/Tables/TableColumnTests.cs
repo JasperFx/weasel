@@ -113,13 +113,29 @@ public class TableColumnTests
     }
 
     [Fact]
-    public void is_equivalent_ignores_size_differences()
+    public void is_equivalent_catches_a_character_length_difference()
     {
         var column1 = new TableColumn("email", "VARCHAR(100)");
         var column2 = new TableColumn("email", "VARCHAR(255)");
 
-        // RawType() comparison means they are equivalent
-        column1.IsEquivalentTo(column2).ShouldBeTrue();
+        // This asserted the opposite until JasperFx/wolverine#4246. RawType() still throws the
+        // parenthesised part away, but a character length is declared by the model, reported faithfully
+        // by the catalog, and load-bearing -- a column narrower than the value fails the insert. Widening
+        // a varchar used to be invisible here, so the differ never emitted the MODIFY COLUMN and an
+        // existing table kept the narrow column forever.
+        column1.IsEquivalentTo(column2).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void is_equivalent_still_ignores_sizes_that_are_not_character_lengths()
+    {
+        // The reason sizes are stripped in the first place: MySQL 8 reports a bare INT for a column
+        // declared int(11), and a DECIMAL carries a precision and a scale rather than a length.
+        new TableColumn("count", "INT(11)")
+            .IsEquivalentTo(new TableColumn("count", "INT")).ShouldBeTrue();
+
+        new TableColumn("amount", "DECIMAL(18,2)")
+            .IsEquivalentTo(new TableColumn("amount", "DECIMAL(10,4)")).ShouldBeTrue();
     }
 
     [Fact]
