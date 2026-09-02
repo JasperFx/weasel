@@ -5,13 +5,44 @@ using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql.Tables;
 
-public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostProcessing
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostProcessing,
+    ISchemaObjectDeltaWithDeferrableForeignKeys
 {
 
 
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
 
+    }
+
+    private readonly HashSet<string> _deferredForeignKeys = new(StringComparer.OrdinalIgnoreCase);
+
+    public bool HasDeferredForeignKeys => _deferredForeignKeys.Count > 0;
+
+    public void DeferForeignKey(string name) => _deferredForeignKeys.Add(name);
+
+    public IEnumerable<(string Name, DbObjectName LinkedTable)> ForeignKeysToCreate =>
+        foreignKeysThisDeltaCreates()
+            .Where(x => x.LinkedTable != null)
+            .Select(x => (x.Name, x.LinkedTable!));
+
+    private IEnumerable<ForeignKey> foreignKeysThisDeltaCreates()
+        => Difference switch
+        {
+            SchemaPatchDifference.Create or SchemaPatchDifference.Invalid => Expected.ForeignKeys,
+            SchemaPatchDifference.Update => ForeignKeys.Missing,
+            _ => []
+        };
+
+    public void WriteCreateWithoutDeferredForeignKeys(Migrator rules, TextWriter writer)
+        => Expected.WriteCreateStatement(rules, writer, _deferredForeignKeys);
+
+    public void WriteDeferredForeignKeys(Migrator rules, TextWriter writer)
+    {
+        foreach (var foreignKey in Expected.ForeignKeys.Where(x => _deferredForeignKeys.Contains(x.Name)))
+        {
+            foreignKey.WriteAddStatement(Expected, writer);
+        }
     }
 
     public IPartition[] MissingPartitions { get; private set; } = Array.Empty<IPartition>();
@@ -186,7 +217,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             writer.WriteLine($"create table {tempName} as select * from {Expected.Identifier};");
             writer.WriteLine($"drop table {Expected.Identifier} cascade;");
 
-            Expected.WriteCreateStatement(rules, writer);
+            Expected.WriteCreateStatement(rules, writer, _deferredForeignKeys);
 
             writer.WriteLine();
 
@@ -231,7 +262,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
 
     private void writeForeignKeyUpdates(TextWriter writer)
     {
-        foreach (var foreignKey in ForeignKeys.Missing) foreignKey.WriteAddStatement(Expected, writer);
+        foreach (var foreignKey in ForeignKeys.Missing.Where(x => !_deferredForeignKeys.Contains(x.Name)))
+            foreignKey.WriteAddStatement(Expected, writer);
 
         foreach (var foreignKey in ForeignKeys.Extras) foreignKey.WriteDropStatement(Expected, writer);
 
