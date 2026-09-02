@@ -255,6 +255,56 @@ public class rebuild_is_atomic
     }
 
     /// <summary>
+    ///     <c>sqlite_sequence</c> is per-database and an unqualified name resolves against <c>temp</c>
+    ///     first, so a temp AUTOINCREMENT table anywhere on the connection used to send the whole
+    ///     carry-over to the wrong table -- silently, matching nothing, carrying nothing over.
+    /// </summary>
+    [Fact]
+    public async Task the_autoincrement_mark_survives_a_temp_table_shadowing_sqlite_sequence()
+    {
+        await using var conn = await openAsync();
+        await applyAsync(conn, TicketsTable());
+
+        await executeAsync(conn,
+            "CREATE TABLE temp.ra_scratch (id INTEGER PRIMARY KEY AUTOINCREMENT, note TEXT)");
+        await executeAsync(conn, "INSERT INTO temp.ra_scratch (note) VALUES ('x')");
+
+        await executeAsync(conn, "INSERT INTO ra_tickets (note) VALUES ('a'), ('b'), ('c')");
+        await executeAsync(conn, "DELETE FROM ra_tickets WHERE id = 3");
+
+        await applyAsync(conn, TicketsTable("INTEGER"));
+        await executeAsync(conn, "INSERT INTO ra_tickets (note) VALUES ('d')");
+
+        (await countAsync(conn, "SELECT id FROM ra_tickets WHERE note = 'd'")).ShouldBe(4);
+        (await countAsync(conn, "SELECT seq FROM temp.sqlite_sequence WHERE name = 'ra_scratch'")).ShouldBe(1);
+    }
+
+    /// <summary>
+    ///     A database running with enforcement off is allowed to hold dangling rows, and
+    ///     <c>foreign_key_check</c> reports every one of them rather than only the ones a rebuild
+    ///     could have caused. Checking regardless of the original setting refused the migration and
+    ///     blamed the rebuild for rows it never touched.
+    /// </summary>
+    [Fact]
+    public async Task a_rebuild_is_allowed_when_enforcement_was_off_and_rows_already_dangled()
+    {
+        await using var conn = await openAsync();
+        await applyAsync(conn, ParentTable(), ChildTable());
+
+        await executeAsync(conn, "PRAGMA foreign_keys = OFF");
+        await executeAsync(conn, "INSERT INTO ra_parent (id, note) VALUES (1, 'kept')");
+        await executeAsync(conn, "INSERT INTO ra_child (id, parent_id) VALUES (1, 1), (2, 999)");
+
+        await applyAsync(conn, ParentTable("INTEGER"), ChildTable());
+
+        (await countAsync(conn, "SELECT COUNT(*) FROM ra_parent")).ShouldBe(1);
+        (await scalarAsync(conn, "SELECT note FROM ra_parent WHERE id = 1")).ShouldBe("kept");
+        (await countAsync(conn, "SELECT COUNT(*) FROM ra_child")).ShouldBe(2);
+
+        Convert.ToInt64(await scalarAsync(conn, "PRAGMA foreign_keys")).ShouldBe(0L);
+    }
+
+    /// <summary>
     ///     An emptied table has no row of its own in <c>sqlite_sequence</c> after the copy, so the mark
     ///     has to be inserted rather than raised.
     /// </summary>

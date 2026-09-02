@@ -320,7 +320,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         // 3. Drop old table
         // 4. Rename new table
 
-        var tempName = new SqliteObjectName(Expected.Identifier.Name + "_new");
+        // Same schema as the table being rebuilt. The single-argument constructor defaults to
+        // "main", which is right for the overwhelmingly common case and wrong for every other one:
+        // a temp-schema rebuild built main."x_new", copied out of temp."x", dropped it, and left the
+        // replacement in main. Identical DDL for a main-schema table, so nothing else moves.
+        var tempName = new SqliteObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_new");
 
         writer.WriteLine("-- Table recreation required due to SQLite ALTER TABLE limitations");
         writer.WriteLine();
@@ -415,12 +419,19 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         var previous = SchemaUtils.EscapeLiteral(Expected.Identifier.Name);
         var replacement = SchemaUtils.EscapeLiteral(tempName.Name);
 
+        // Name the schema, even for "main". sqlite_sequence is per-database, and an unqualified name
+        // resolves against temp first -- so on a connection holding any temp AUTOINCREMENT table these
+        // statements read and write temp.sqlite_sequence, match nothing, and silently carry nothing
+        // over. The rebuilt table then reissues an id it had already handed out, which is the exact
+        // failure this method exists to prevent.
+        var seq = $"{SchemaUtils.QuoteName(Expected.Identifier.Schema)}.sqlite_sequence";
+
         writer.WriteLine(
-            $"UPDATE sqlite_sequence SET seq = (SELECT seq FROM sqlite_sequence WHERE name = '{previous}') " +
-            $"WHERE name = '{replacement}' AND seq < (SELECT seq FROM sqlite_sequence WHERE name = '{previous}');");
+            $"UPDATE {seq} SET seq = (SELECT seq FROM {seq} WHERE name = '{previous}') " +
+            $"WHERE name = '{replacement}' AND seq < (SELECT seq FROM {seq} WHERE name = '{previous}');");
         writer.WriteLine(
-            $"INSERT INTO sqlite_sequence (name, seq) SELECT '{replacement}', seq FROM sqlite_sequence " +
-            $"WHERE name = '{previous}' AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = '{replacement}');");
+            $"INSERT INTO {seq} (name, seq) SELECT '{replacement}', seq FROM {seq} " +
+            $"WHERE name = '{previous}' AND NOT EXISTS (SELECT 1 FROM {seq} WHERE name = '{replacement}');");
         writer.WriteLine();
     }
 

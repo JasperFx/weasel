@@ -94,7 +94,17 @@ public class SqliteMigrator: Migrator
             try
             {
                 await writeDeltasAsync(migration, conn, logger, true, ct).ConfigureAwait(false);
-                await assertForeignKeysStillResolveAsync(conn, rebuilt, ct).ConfigureAwait(false);
+
+                // Only when enforcement was on to begin with, which is step 10 of SQLite's own
+                // rebuild procedure. foreign_key_check reports every violation in the table, not
+                // just the ones this rebuild could have caused, and a database that has been running
+                // with foreign_keys OFF is allowed to hold dangling rows. Checking unconditionally
+                // refuses those migrations and blames the rebuild for rows it never touched.
+                if (foreignKeysWereOn)
+                {
+                    await assertForeignKeysStillResolveAsync(conn, rebuilt, ct).ConfigureAwait(false);
+                }
+
                 await executeSqlAsync(conn, "COMMIT;", ct).ConfigureAwait(false);
             }
             catch
