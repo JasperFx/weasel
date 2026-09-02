@@ -79,9 +79,25 @@ public class TableColumn: ITableColumn
     public string Name { get; }
     public string QuotedName => SchemaUtils.QuoteName(Name);
 
+    /// <summary>
+    ///     The type as it is written into DDL. A STRICT table accepts only INT, INTEGER, REAL,
+    ///     TEXT, BLOB and ANY, so the declared type is mapped onto one of those there; everywhere
+    ///     else SQLite stores the declared text verbatim and it is emitted as written.
+    /// </summary>
     public string DdlType => Parent is { StrictTypes: true }
-        ? SqliteProvider.Instance.ConvertSynonyms(Type)
+        ? SqliteProvider.Instance.ToStrictType(Type)
         : Type;
+
+    /// <summary>
+    ///     What a comparison reduces this column's type to. This has to agree with
+    ///     <see cref="DdlType" /> on a STRICT table: the database holds the type that was emitted,
+    ///     so comparing the model's declared type against it through a different normalization
+    ///     reports drift on a column that already matches, and the resulting migration never
+    ///     converges.
+    /// </summary>
+    private string ComparisonType => Parent is { StrictTypes: true }
+        ? DdlType
+        : SqliteProvider.Instance.ConvertSynonyms(RawType());
 
     public string RawType()
     {
@@ -147,8 +163,7 @@ public class TableColumn: ITableColumn
     protected bool Equals(TableColumn other)
     {
         return string.Equals(Name, other.Name, StringComparison.OrdinalIgnoreCase) &&
-               string.Equals(SqliteProvider.Instance.ConvertSynonyms(RawType()),
-                   SqliteProvider.Instance.ConvertSynonyms(other.RawType()), StringComparison.OrdinalIgnoreCase);
+               string.Equals(ComparisonType, other.ComparisonType, StringComparison.OrdinalIgnoreCase);
     }
 
     public override bool Equals(object? obj)
@@ -176,7 +191,7 @@ public class TableColumn: ITableColumn
         unchecked
         {
             return (Name.ToLowerInvariant().GetHashCode() * 397) ^
-                   SqliteProvider.Instance.ConvertSynonyms(RawType()).ToUpperInvariant().GetHashCode();
+                   ComparisonType.ToUpperInvariant().GetHashCode();
         }
     }
 

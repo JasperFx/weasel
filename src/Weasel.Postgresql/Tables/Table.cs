@@ -73,6 +73,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
     public IDdlSyntaxStrategy Syntax => PostgresqlDdlSyntax.Instance;
 
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
+        => WriteCreateStatement(migrator, writer, null);
+
+    public void WriteCreateStatement(Migrator migrator, TextWriter writer, IReadOnlySet<string>? deferredForeignKeys)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
@@ -135,6 +138,11 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
 
         foreach (var foreignKey in ForeignKeys)
         {
+            if (deferredForeignKeys?.Contains(foreignKey.Name) == true)
+            {
+                continue;
+            }
+
             writer.WriteLine();
             writer.WriteLine(foreignKey.ToDDL(this));
         }

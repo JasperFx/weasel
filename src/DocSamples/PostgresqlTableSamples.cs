@@ -1,6 +1,7 @@
 using Npgsql;
 using Weasel.Postgresql;
 using Weasel.Postgresql.Tables;
+using Weasel.Postgresql.Tables.Indexes;
 
 namespace DocSamples;
 
@@ -86,6 +87,42 @@ public class PostgresqlTableSamples
         index.Columns = new[] { "email" };
         table.Indexes.Add(index);
         #endregion
+    }
+
+    public void full_text_indexes()
+    {
+        #region sample_pg_full_text_index
+        var table = new Table("articles");
+
+        // Weasel converts the text for you: to_tsvector('english', data)
+        table.ModifyColumn("data").AddFullTextIndex();
+        #endregion
+    }
+
+    public void weighted_full_text_indexes()
+    {
+        #region sample_pg_weighted_full_text_index
+        var table = new Table("articles");
+
+        // setweight() labels a tsvector, so weighting concatenates the vectors -- not the text.
+        // The expression is therefore already a tsvector, and must not be wrapped in another
+        // to_tsvector call.
+        var weighted =
+            "setweight(to_tsvector('english', coalesce(data ->> 'Title', '')), 'A') || " +
+            "setweight(to_tsvector('english', coalesce(data ->> 'Body', '')), 'B')";
+
+        var index = FullTextIndexDefinition.ForTsVector(
+            PostgresqlObjectName.From(table.Identifier), weighted);
+
+        table.Indexes.Add(index);
+
+        // Read the indexed vector back off the definition when you build the query-side filter,
+        // so the vector you search cannot drift from the vector you indexed. A ts_rank computed
+        // over a different vector than the one @@ filtered on is silently wrong, not just slow.
+        var where = $"{index.IndexedTsVector} @@ plainto_tsquery('english', :term)";
+        #endregion
+
+        Console.WriteLine(where);
     }
 
     public void default_values()

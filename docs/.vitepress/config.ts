@@ -46,6 +46,8 @@ export default withMermaid(
             { text: 'Installation', link: '/guide/installation' },
             { text: 'Quick Start', link: '/guide/quickstart' },
             { text: 'Migrating from 8.x to 9.0', link: '/migration-guide' },
+            { text: 'Upgrading to 9.29', link: '/release-9-29' },
+            { text: 'Upgrading to 9.28', link: '/release-9-28' },
             { text: 'Upgrading to 9.27', link: '/release-9-27' },
             { text: 'Upgrading to 9.26', link: '/release-9-26' },
             { text: 'Upgrading to 9.25', link: '/release-9-25' }

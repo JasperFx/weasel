@@ -935,6 +935,12 @@ public class IndexDefinition: ITableIndex
             .Replace("INDEX CONCURRENTLY", "INDEX")
             .Replace("::text", "")
             .Replace("::regconfig", "")
+            // setweight's second argument is of type "char", and PostgreSQL renders the cast
+            // explicitly when it gives an index expression back. Same class of automatic cast as
+            // ::text and ::regconfig above: it is in the actual and never in the expected, so
+            // without this a weighted full text index reads as changed on every migration and is
+            // dropped and recreated every time (weasel#541).
+            .Replace("::\"char\"", "")
             .Replace(" ->> ", "->>")
             .Replace(" -> ", "->")
             .Replace(IndexCreationBeginComment, "")

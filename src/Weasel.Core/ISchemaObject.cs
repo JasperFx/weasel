@@ -30,19 +30,6 @@ public interface ISchemaObjectWithPostProcessing : ISchemaObject
 }
 
 /// <summary>
-///     Schema objects that write identifiers into their DDL which are not themselves named
-///     database objects — a table's column names, its primary key constraint name, its check
-///     constraint names. <see cref="ISchemaObject.AllNames" /> cannot carry these: it yields
-///     <see cref="DbObjectName" />, and callers read the schema off every name it returns
-///     (<c>SchemaMigration.Schemas</c>, <c>DatabaseBase.ApplyAllConfiguredChangesToDatabaseAsync</c>),
-///     so a column name would arrive there claiming to be an object in a schema.
-/// </summary>
-/// <remarks>
-///     The migration path validates these alongside <see cref="ISchemaObject.AllNames" />
-///     (weasel#448). Before that, a table's identifier, index names and foreign key names were
-///     checked and everything else went straight into the DDL unexamined.
-/// </remarks>
-/// <summary>
 ///     A delta that reports <see cref="SchemaPatchDifference.Invalid" /> because the change cannot
 ///     be made in place, but which knows how to make it anyway without losing the data.
 /// </summary>
@@ -61,10 +48,25 @@ public interface ISchemaObjectWithPostProcessing : ISchemaObject
 ///         (weasel#477).
 ///     </para>
 ///     <para>
-///         Implementing this does not make the change safe enough to apply under
-///         <c>AutoCreate.CreateOrUpdate</c>. It is still destructive in the sense that matters for
-///         permission — a column being removed takes its data with it — so it still requires
-///         <c>AutoCreate.All</c>. What changes is only what <c>All</c> then does.
+///         <c>AutoCreate.CreateOrUpdate</c> permits this, and <c>AutoCreate.CreateOnly</c> does not.
+///         weasel#477 first landed with the opposite rule — a rebuild still required
+///         <c>AutoCreate.All</c>, on the reasoning that a rebuild which also drops a column takes
+///         that column's data with it. But <c>SchemaMigration.AssertPatchingIsValid</c> could only
+///         express that by refusing every rebuildable delta, including the great majority that drop
+///         nothing: a column type change, a foreign key, a primary key. SQLite's ordinary
+///         <c>Update</c> path already emits <c>ALTER TABLE … DROP COLUMN</c> under
+///         <c>CreateOrUpdate</c>, so the strict rule was not buying the protection it claimed —
+///         it only refused the same loss when the column happened to sit in a key (weasel#538).
+///     </para>
+///     <para>
+///         A rebuild is an update, not a create, so <c>CreateOnly</c> still refuses it. That falls
+///         out of the <c>CreateOnly</c> branch on its own: the delta is still <c>Invalid</c>, so the
+///         migration's <c>Difference</c> is still not <c>Create</c>.
+///     </para>
+///     <para>
+///         Worth knowing before implementing this on another provider: a rebuild copies every row.
+///         On a large table that is a very different proposition from an <c>ALTER</c>, even though
+///         both are "an update".
 ///     </para>
 /// </remarks>
 public interface ISchemaObjectDeltaWithRebuild : ISchemaObjectDelta
@@ -76,6 +78,19 @@ public interface ISchemaObjectDeltaWithRebuild : ISchemaObjectDelta
     bool CanRebuildInPlace { get; }
 }
 
+/// <summary>
+///     Schema objects that write identifiers into their DDL which are not themselves named
+///     database objects — a table's column names, its primary key constraint name, its check
+///     constraint names. <see cref="ISchemaObject.AllNames" /> cannot carry these: it yields
+///     <see cref="DbObjectName" />, and callers read the schema off every name it returns
+///     (<c>SchemaMigration.Schemas</c>, <c>DatabaseBase.ApplyAllConfiguredChangesToDatabaseAsync</c>),
+///     so a column name would arrive there claiming to be an object in a schema.
+/// </summary>
+/// <remarks>
+///     The migration path validates these alongside <see cref="ISchemaObject.AllNames" />
+///     (weasel#448). Before that, a table's identifier, index names and foreign key names were
+///     checked and everything else went straight into the DDL unexamined.
+/// </remarks>
 public interface ISchemaObjectWithLocalIdentifiers : ISchemaObject
 {
     /// <summary>
