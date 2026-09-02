@@ -427,8 +427,23 @@ public class SchemaMigration
 
         if (Difference == SchemaPatchDifference.Invalid)
         {
-            var invalids = _deltas.Where(x => x.Difference == SchemaPatchDifference.Invalid);
-            throw new SchemaMigrationException(autoCreate, invalids);
+            // Only the deltas that are genuinely stuck. A delta that can rebuild in place is not:
+            // both apply paths below -- WriteAllUpdates and Migrator.WriteUpdate -- answer such a
+            // delta by calling its WriteUpdate rather than dropping and recreating (weasel#477), so
+            // refusing it here rejects a migration the machinery would have carried out correctly
+            // and with the data intact (weasel#538).
+            //
+            // It is still Invalid, so it still fails the CreateOnly check below. A rebuild recreates
+            // an object that is already there, which is an update whichever way you look at it.
+            var invalids = _deltas
+                .Where(x => x.Difference == SchemaPatchDifference.Invalid)
+                .Where(x => x is not ISchemaObjectDeltaWithRebuild { CanRebuildInPlace: true })
+                .ToArray();
+
+            if (invalids.Any())
+            {
+                throw new SchemaMigrationException(autoCreate, invalids);
+            }
         }
 
         switch (autoCreate)
