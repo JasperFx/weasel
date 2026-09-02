@@ -174,19 +174,35 @@ public class SqliteMigrator: Migrator
         }
 
         var sb = new StringBuilder();
+        var names = tables.Select(SqliteObjectName.From).ToList();
 
-        foreach (var table in tables)
+        foreach (var table in names)
         {
-            sb.AppendLine($"DELETE FROM {SchemaUtils.QuoteName(table.Name)};");
+            sb.AppendLine($"DELETE FROM {qualify(table.Schema, table.Name)};");
         }
 
         if (resetIdentity)
         {
-            var names = string.Join(", ", tables.Select(t => $"'{SchemaUtils.EscapeLiteral(t.Name)}'"));
-            sb.AppendLine($"DELETE FROM sqlite_sequence WHERE name IN ({names});");
+            foreach (var group in names.GroupBy(x => x.Schema, StringComparer.OrdinalIgnoreCase))
+            {
+                var literals = string.Join(", ", group.Select(t => $"'{SchemaUtils.EscapeLiteral(t.Name)}'"));
+                sb.AppendLine($"DELETE FROM {qualify(group.Key, "sqlite_sequence")} WHERE name IN ({literals});");
+            }
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    ///     Names the schema even for <c>main</c>, which the rest of Weasel.Sqlite leaves bare. DML
+    ///     resolves an unqualified name against <c>temp</c> first, so a temp table silently takes the
+    ///     delete meant for the main one; <c>sqlite_sequence</c> is per-database for the same reason.
+    ///     See <c>delete_all_data_empties_main_even_when_a_temp_table_shadows_it</c>.
+    /// </summary>
+    private static string qualify(string schema, string name)
+    {
+        var owner = schema.IsEmpty() ? SqliteProvider.Instance.DefaultDatabaseSchemaName : schema;
+        return $"{SchemaUtils.QuoteName(owner)}.{SchemaUtils.QuoteName(name)}";
     }
 
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)

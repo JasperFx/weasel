@@ -217,4 +217,141 @@ public class SqliteMigratorTests
             }
         }
     }
+
+    [Fact]
+    public void delete_all_sql_qualifies_a_table_outside_main()
+    {
+        var sql = new SqliteMigrator()
+            .GenerateDeleteAllSql([new SqliteObjectName("temp", "records")], resetIdentity: false);
+
+        sql.Trim().ShouldBe("""DELETE FROM "temp".records;""");
+    }
+
+    [Fact]
+    public void delete_all_sql_qualifies_main_explicitly()
+    {
+        var sql = new SqliteMigrator()
+            .GenerateDeleteAllSql([new SqliteObjectName("main", "records")], resetIdentity: false);
+
+        sql.Trim().ShouldBe("DELETE FROM main.records;");
+    }
+
+    [Fact]
+    public void delete_all_sql_resets_identity_in_each_owning_schema()
+    {
+        var sql = new SqliteMigrator().GenerateDeleteAllSql([
+            new SqliteObjectName("main", "records"),
+            new SqliteObjectName("aux", "records"),
+            new SqliteObjectName("aux", "events")
+        ]);
+
+        sql.ShouldContain("DELETE FROM main.sqlite_sequence WHERE name IN ('records');");
+        sql.ShouldContain("DELETE FROM aux.sqlite_sequence WHERE name IN ('records', 'events');");
+    }
+
+    [Fact]
+    public async Task delete_all_data_empties_main_even_when_a_temp_table_shadows_it()
+    {
+        await using var conn = await openMemoryConnection();
+        await execute(conn, "CREATE TABLE main.records (id INTEGER PRIMARY KEY, name TEXT);");
+        await execute(conn, "CREATE TABLE temp.records (id INTEGER PRIMARY KEY, name TEXT);");
+        await execute(conn, "INSERT INTO main.records (name) VALUES ('m');");
+        await execute(conn, "INSERT INTO temp.records (name) VALUES ('t');");
+
+        var sql = new SqliteMigrator()
+            .GenerateDeleteAllSql([new SqliteObjectName("main", "records")], resetIdentity: false);
+        await execute(conn, sql);
+
+        (await count(conn, "main.records")).ShouldBe(0);
+        (await count(conn, "temp.records")).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task delete_all_data_resets_mains_autoincrement_mark_even_when_temp_shadows_it()
+    {
+        await using var conn = await openMemoryConnection();
+        await execute(conn, "CREATE TABLE main.records (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);");
+        await execute(conn, "CREATE TABLE temp.records (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);");
+        await execute(conn, "INSERT INTO main.records (name) VALUES ('m');");
+        await execute(conn, "INSERT INTO temp.records (name) VALUES ('t');");
+
+        var sql = new SqliteMigrator().GenerateDeleteAllSql([new SqliteObjectName("main", "records")]);
+        await execute(conn, sql);
+
+        (await count(conn, "main.sqlite_sequence")).ShouldBe(0);
+        (await count(conn, "temp.sqlite_sequence")).ShouldBe(1);
+
+        await execute(conn, "INSERT INTO main.records (name) VALUES ('m2');");
+        await execute(conn, "INSERT INTO temp.records (name) VALUES ('t2');");
+
+        (await scalar(conn, "SELECT MAX(id) FROM main.records")).ShouldBe(1L);
+        (await scalar(conn, "SELECT MAX(id) FROM temp.records")).ShouldBe(2L);
+    }
+
+    [Fact]
+    public async Task delete_all_data_empties_an_attached_database_and_leaves_main_alone()
+    {
+        await using var conn = await openMemoryConnection();
+        await execute(conn, "ATTACH DATABASE ':memory:' AS aux;");
+        await execute(conn, "CREATE TABLE main.records (id INTEGER PRIMARY KEY, name TEXT);");
+        await execute(conn, "CREATE TABLE aux.records (id INTEGER PRIMARY KEY, name TEXT);");
+        await execute(conn, "INSERT INTO main.records (name) VALUES ('m');");
+        await execute(conn, "INSERT INTO aux.records (name) VALUES ('a');");
+
+        var sql = new SqliteMigrator()
+            .GenerateDeleteAllSql([new SqliteObjectName("aux", "records")], resetIdentity: false);
+        await execute(conn, sql);
+
+        (await count(conn, "aux.records")).ShouldBe(0);
+        (await count(conn, "main.records")).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task delete_all_data_resets_the_autoincrement_mark_of_the_named_schema_only()
+    {
+        await using var conn = await openMemoryConnection();
+        await execute(conn, "ATTACH DATABASE ':memory:' AS aux;");
+        await execute(conn, "CREATE TABLE main.records (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);");
+        await execute(conn, "CREATE TABLE aux.records (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT);");
+        await execute(conn, "INSERT INTO main.records (name) VALUES ('m');");
+        await execute(conn, "INSERT INTO aux.records (name) VALUES ('a');");
+
+        var sql = new SqliteMigrator().GenerateDeleteAllSql([new SqliteObjectName("aux", "records")]);
+        await execute(conn, sql);
+
+        (await count(conn, "aux.sqlite_sequence")).ShouldBe(0);
+        (await count(conn, "main.sqlite_sequence")).ShouldBe(1);
+
+        await execute(conn, "INSERT INTO aux.records (name) VALUES ('a2');");
+        await execute(conn, "INSERT INTO main.records (name) VALUES ('m2');");
+
+        (await scalar(conn, "SELECT MAX(id) FROM aux.records")).ShouldBe(1L);
+        (await scalar(conn, "SELECT MAX(id) FROM main.records")).ShouldBe(2L);
+    }
+
+    private static async Task<Microsoft.Data.Sqlite.SqliteConnection> openMemoryConnection()
+    {
+        var conn = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=:memory:");
+        await conn.OpenAsync();
+        return conn;
+    }
+
+    private static async Task execute(Microsoft.Data.Sqlite.SqliteConnection conn, string sql)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        await cmd.ExecuteNonQueryAsync();
+    }
+
+    private static Task<object?> scalar(Microsoft.Data.Sqlite.SqliteConnection conn, string sql)
+    {
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        return cmd.ExecuteScalarAsync();
+    }
+
+    private static async Task<long> count(Microsoft.Data.Sqlite.SqliteConnection conn, string table)
+    {
+        return (long)(await scalar(conn, $"SELECT COUNT(*) FROM {table}"))!;
+    }
 }
