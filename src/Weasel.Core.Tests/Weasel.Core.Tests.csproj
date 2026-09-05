@@ -22,6 +22,10 @@
       <ProjectReference Include="..\Weasel.Sqlite\Weasel.Sqlite.csproj" />
       <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
       <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
+      <!-- Referenced for the transaction-participant contract tests (weasel#561). The concrete
+           connection/transaction pair those tests close the generic over is Microsoft.Data.Sqlite's,
+           which arrives transitively through Weasel.Sqlite — in-memory, no containers. -->
+      <ProjectReference Include="..\Weasel.Storage\Weasel.Storage.csproj" />
     </ItemGroup>
 
     <Import Project="../../Tests.Build.props" />
