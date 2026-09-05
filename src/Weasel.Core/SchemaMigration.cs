@@ -216,19 +216,33 @@ public class SchemaMigration
             return new SchemaMigration(deltas);
         }
 
-        // Priced against a throwaway builder, which costs no round trip: the parameter count an
-        // object binds is a property of its query, not of the builder it is handed.
-        int cost(ISchemaObject schemaObject)
-        {
-            var probe = new DbCommandBuilder(conn);
-            schemaObject.ConfigureQueryCommand(probe);
-            using var command = probe.Command;
-            return command.Parameters.Count;
-        }
+        // A Migrator subclass that does not answer -- a test double, most often -- would otherwise
+        // put every object in a batch of its own and turn one round trip into hundreds.
+        var budget = parameterBudget > 0 ? parameterBudget : DefaultParameterBudget;
 
-        foreach (var batch in BatchByParameterBudget(schemaObjects, cost, parameterBudget))
+        // Render everything once into the real builder, recording what each object binds as it
+        // lands. Pricing used to be a separate pass -- a throwaway builder per object, running the
+        // object's whole ConfigureQueryCommand just to read Parameters.Count off it -- which
+        // rendered every introspection query twice on every determination (weasel#557).
+        var builder = newBuilder();
+        var costs = configureBatch(builder, schemaObjects);
+
+        if (costs.Sum() <= budget)
         {
-            await determineBatchAsync(conn, newBuilder(), batch, deltas, ct).ConfigureAwait(false);
+            // The whole set fits in one command, so the builder just configured is the one that
+            // executes: one render, no probes. This is the overwhelmingly common case.
+            await executeBatchAsync(conn, builder, schemaObjects, deltas, ct).ConfigureAwait(false);
+        }
+        else
+        {
+            // Only a set too large for one command pays for a second render, and it is the case
+            // that used to fail outright before batching existed.
+            builder.Command.Dispose();
+
+            foreach (var batch in BatchByParameterBudget(schemaObjects, costs, budget))
+            {
+                await determineBatchAsync(conn, newBuilder(), batch, deltas, ct).ConfigureAwait(false);
+            }
         }
 
         // Once over the complete delta set rather than per batch, so a delta can still look across
@@ -256,6 +270,18 @@ public class SchemaMigration
         ISchemaObject[] schemaObjects,
         Func<ISchemaObject, int> parameterCost,
         int parameterBudget
+    ) => BatchByParameterBudget(schemaObjects, schemaObjects.Select(parameterCost).ToArray(), parameterBudget);
+
+    /// <summary>
+    ///     Group the objects into batches whose combined parameter count stays within the budget,
+    ///     with each object's cost supplied by position. This is what the migration path calls:
+    ///     the costs were recorded while the objects rendered, so pricing by position rather than
+    ///     by a lookup keeps duplicate instances in the set unambiguous.
+    /// </summary>
+    internal static IEnumerable<ISchemaObject[]> BatchByParameterBudget(
+        ISchemaObject[] schemaObjects,
+        int[] parameterCosts,
+        int parameterBudget
     )
     {
         // A Migrator subclass that does not answer -- a test double, most often -- would otherwise
@@ -265,9 +291,9 @@ public class SchemaMigration
         var current = new List<ISchemaObject>();
         var used = 0;
 
-        foreach (var schemaObject in schemaObjects)
+        for (var i = 0; i < schemaObjects.Length; i++)
         {
-            var cost = parameterCost(schemaObject);
+            var cost = parameterCosts[i];
 
             // current.Count is what keeps an object costing more than the entire budget from
             // yielding an empty batch forever; it goes into a batch of its own instead.
@@ -278,7 +304,7 @@ public class SchemaMigration
                 used = 0;
             }
 
-            current.Add(schemaObject);
+            current.Add(schemaObjects[i]);
             used += cost;
         }
 
@@ -296,6 +322,26 @@ public class SchemaMigration
         CancellationToken ct
     )
     {
+        configureBatch(builder, schemaObjects);
+
+        await executeBatchAsync(conn, builder, schemaObjects, deltas, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Render every object's introspection query into the builder, and record what each one
+    ///     bound as it landed.
+    /// </summary>
+    /// <returns>
+    ///     Per-object parameter counts, by position. Reading them off the builder's live command —
+    ///     whose parameter collection accumulates across <see cref="DbCommandBuilder.StartNewCommand" />
+    ///     boundaries on every provider, Oracle's splitting builder included — is what lets the
+    ///     budget be priced from the render that has to happen anyway (weasel#557).
+    /// </returns>
+    private static int[] configureBatch(DbCommandBuilder builder, ISchemaObject[] schemaObjects)
+    {
+        var costs = new int[schemaObjects.Length];
+        var bound = 0;
+
         for (var i = 0; i < schemaObjects.Length; i++)
         {
             // Between objects, not before the first: a builder that splits on this boundary would
@@ -303,8 +349,23 @@ public class SchemaMigration
             if (i > 0) builder.StartNewCommand();
 
             schemaObjects[i].ConfigureQueryCommand(builder);
+
+            var total = builder.Command.Parameters.Count;
+            costs[i] = total - bound;
+            bound = total;
         }
 
+        return costs;
+    }
+
+    private static async Task executeBatchAsync(
+        DbConnection conn,
+        DbCommandBuilder builder,
+        ISchemaObject[] schemaObjects,
+        List<ISchemaObjectDelta> deltas,
+        CancellationToken ct
+    )
+    {
         await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
 
         deltas.Add(await schemaObjects[0].CreateDeltaAsync(reader, ct).ConfigureAwait(false));
