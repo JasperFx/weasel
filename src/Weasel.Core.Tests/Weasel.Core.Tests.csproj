@@ -12,6 +12,9 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+      <!-- Referenced for the StorageSerializerAdapter / IStorageSerializer seam tests
+           (weasel#555). Pure in-memory serialization; no database, no containers. -->
+      <ProjectReference Include="..\Weasel.Storage\Weasel.Storage.csproj" />
       <!-- Referenced for the cross-provider identifier conformance suite. Pure string logic;
            no database, no containers. -->
       <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" />
