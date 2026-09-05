@@ -281,7 +281,7 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
 
     public TParameter AddParameter(TCommand command, object? value, TParameterType? dbType = null)
     {
-        var name = "p" + command.Parameters.Count;
+        var name = ParameterNames.ForPosition(command.Parameters.Count);
 
         var parameter = (TParameter)command.CreateParameter();
         parameter.ParameterName = name;
