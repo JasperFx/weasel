@@ -187,7 +187,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
     /// <returns></returns>
     public virtual TParameter AddParameter(object? value, TParameterType? dbType = null)
     {
-        var name = "p" + _command.Parameters.Count;
+        var name = ParameterNames.ForPosition(_command.Parameters.Count);
 
         var parameter = (TParameter)_command.CreateParameter();
         parameter.ParameterName = name;

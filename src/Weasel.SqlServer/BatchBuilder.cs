@@ -53,7 +53,7 @@ public class BatchBuilder: ICommandBuilder
     public SqlParameter AppendParameter<T>(T value)
     {
         _current ??= appendCommand();
-        var name = "p" + _current.Parameters.Count;
+        var name = Weasel.Core.ParameterNames.ForPosition(_current.Parameters.Count);
         var param = new SqlParameter
         {
             ParameterName = name,
@@ -71,7 +71,7 @@ public class BatchBuilder: ICommandBuilder
     public SqlParameter AppendParameter<T>(T value, SqlDbType dbType)
     {
         _current ??= appendCommand();
-        var name = "p" + _current.Parameters.Count;
+        var name = Weasel.Core.ParameterNames.ForPosition(_current.Parameters.Count);
         var param = new SqlParameter
         {
             ParameterName = name,
@@ -90,7 +90,7 @@ public class BatchBuilder: ICommandBuilder
     public SqlParameter AppendParameter(object value)
     {
         _current ??= appendCommand();
-        var name = "p" + _current.Parameters.Count;
+        var name = Weasel.Core.ParameterNames.ForPosition(_current.Parameters.Count);
         var param = new SqlParameter
         {
             ParameterName = name,
@@ -108,7 +108,7 @@ public class BatchBuilder: ICommandBuilder
     public SqlParameter AppendParameter(object? value, SqlDbType? dbType)
     {
         _current ??= appendCommand();
-        var name = "p" + _current.Parameters.Count;
+        var name = Weasel.Core.ParameterNames.ForPosition(_current.Parameters.Count);
         var param = new SqlParameter
         {
             ParameterName = name,
