@@ -220,13 +220,18 @@ public class flat_table_statement_composition
     }
 
     [Fact]
-    public void the_insert_branch_follows_polecat_and_fisher_where_the_three_stores_disagree()
+    public void the_insert_branch_is_pinned_where_the_stores_disagreed()
     {
-        // Pinned as a decision rather than left to be discovered at adoption. Marten's equivalents
-        // insert 0 for Increment(column) and negate the parameter for Decrement(member); Polecat's
-        // and Fisher's, which are byte-for-byte the same as each other, do neither. The lifted maps
-        // take the two-store majority, so Marten's adoption is a behaviour change to make
-        // deliberately.
+        // Pinned as a decision rather than left to be discovered at adoption, and the two halves
+        // were settled separately.
+        //
+        // Increment(column) inserts 1 — marten#5341's ruling, which Marten then adopted in #5342, so
+        // all four stores agree.
+        //
+        // Decrement(member) inserts the *negated* parameter — jasperfx#773's ruling. That was
+        // Marten's shape alone; Polecat, Fisher and the first cut of these maps inserted the
+        // parameter as given, which made a decrement onto a missing row leave the column positive.
+        // Adopting these maps is therefore a behaviour change for Polecat and Fisher, deliberately.
         var table = Sqlite();
 
         IReadOnlyList<IColumnMap> columns =
@@ -238,7 +243,7 @@ public class flat_table_statement_composition
         Resolve(table, columns);
 
         FlatTableStatementBuilder.Upsert(ReferenceFlatTableDialects.Sqlite, table, typeof(Deposit), columns)
-            .Sql.ShouldContain("values (@p0, 1, @p1)");
+            .Sql.ShouldContain("values (@p0, 1, -@p1)");
     }
 
     private static string WriteCreateStatement(ISchemaObject schemaObject)

@@ -89,6 +89,36 @@ public class flat_table_column_map_rendering
     }
 
     [Fact]
+    public void decrementing_by_a_member_inserts_the_negated_value()
+    {
+        // jasperfx#773: a row that does not exist yet is decremented from zero, so a first sighting
+        // of 5 lands at -5. Inserting the parameter as given — which Polecat, Fisher and the first
+        // cut of these maps all did — makes a *decrement* event raise the column, which is the one
+        // reading of the insert branch nobody could defend.
+        var map = new DecrementMemberMap("amount", typeof(int));
+
+        map.InsertExpression(SqlServer, "@p1").ShouldBe("-@p1");
+        map.InsertExpression(Sqlite, "@p1").ShouldBe("-@p1");
+        map.InsertExpression(Postgresql, "p_amount").ShouldBe("-p_amount");
+    }
+
+    [Fact]
+    public void the_member_valued_insert_branch_is_deliberately_asymmetric()
+    {
+        // The two halves of the ruling, side by side so neither can be "tidied up" into the other.
+        // Increment inserts the bare parameter and Decrement inserts its negation: both are "apply
+        // this event to an implicit zero row", which is the only reading under which they agree.
+        var increment = new IncrementMemberMap("amount", typeof(int));
+        var decrement = new DecrementMemberMap("amount", typeof(int));
+
+        increment.InsertExpression(Sqlite, "@p1").ShouldBe("@p1");
+        decrement.InsertExpression(Sqlite, "@p1").ShouldBe("-@p1");
+
+        decrement.InsertExpression(Sqlite, "@p1")
+            .ShouldNotBe(increment.InsertExpression(Sqlite, "@p1"));
+    }
+
+    [Fact]
     public void increment_by_one_needs_no_parameter()
     {
         var map = new IncrementMap("count");
