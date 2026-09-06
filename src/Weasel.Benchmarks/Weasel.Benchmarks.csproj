@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+
+        <!-- BenchmarkDotNet reads these off the assembly and prints them in the run header;
+             suppressing them keeps the report clean. Same as MartenBenchmarks. -->
+        <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
+        <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
+        <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
+
+        <!-- Benchmarks measure the reflection-based serializer and the reflection-based
+             storage runtime on purpose, so the AOT analyzers have nothing useful to say here. -->
+        <IsAotCompatible>false</IsAotCompatible>
+
+        <!-- A benchmark body that "does nothing" with its result is the point, and BDN wants
+             the value returned rather than discarded. -->
+        <NoWarn>$(NoWarn);CA1822</NoWarn>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+        <ProjectReference Include="..\Weasel.Storage\Weasel.Storage.csproj" />
+        <ProjectReference Include="..\Weasel.Sqlite\Weasel.Sqlite.csproj" />
+        <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
+        <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Results.md" CopyToOutputDirectory="Never" />
+    </ItemGroup>
+
+</Project>
