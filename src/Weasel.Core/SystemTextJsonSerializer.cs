@@ -118,12 +118,57 @@ public class SystemTextJsonSerializer : ISerializer
         return ToJson(document);
     }
 
+    /// <summary>
+    ///     One <see cref="Utf8JsonWriter" /> per thread, reset onto each call's buffer writer
+    ///     instead of allocated fresh — the type is built to be reused that way, and this is the
+    ///     allocation-free append/write hot path of the storage runtime.
+    /// </summary>
+    /// <remarks>
+    ///     Thread-static rather than a plain field because a store's serializer is a singleton
+    ///     shared across sessions, and <see cref="Utf8JsonWriter" /> is not thread-safe.
+    ///     <see cref="_writerInUse" /> covers the remaining case: a custom converter that calls
+    ///     back into <see cref="WriteTo" /> on the same thread would otherwise scribble over the
+    ///     writer mid-document, so a re-entrant call gets its own.
+    /// </remarks>
+    [ThreadStatic] private static Utf8JsonWriter? _cachedWriter;
+
+    [ThreadStatic] private static bool _writerInUse;
+
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = SharedSerializerSuppression)]
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = SharedSerializerSuppression)]
     public void WriteTo(IBufferWriter<byte> writer, object? value)
     {
-        using var jsonWriter = new Utf8JsonWriter(writer);
-        JsonSerializer.Serialize(jsonWriter, value, value?.GetType() ?? typeof(object), _options);
+        var type = value?.GetType() ?? typeof(object);
+
+        if (_writerInUse)
+        {
+            using var reentrant = new Utf8JsonWriter(writer);
+            JsonSerializer.Serialize(reentrant, value, type, _options);
+            return;
+        }
+
+        var jsonWriter = _cachedWriter;
+        if (jsonWriter is null)
+        {
+            _cachedWriter = jsonWriter = new Utf8JsonWriter(writer);
+        }
+        else
+        {
+            jsonWriter.Reset(writer);
+        }
+
+        _writerInUse = true;
+        try
+        {
+            JsonSerializer.Serialize(jsonWriter, value, type, _options);
+        }
+        finally
+        {
+            _writerInUse = false;
+            // Drop the reference to the caller's buffer writer; the pooled writer must not keep
+            // it alive between calls.
+            jsonWriter.Reset();
+        }
     }
 
     /// <summary>
@@ -139,22 +184,51 @@ public class SystemTextJsonSerializer : ISerializer
         parameter.Value = value is null ? DBNull.Value : ToJson(value);
     }
 
+    /// <summary>
+    ///     Deserialize the reader's JSON column, streaming the bytes straight into the parser where
+    ///     the provider allows it and falling back to the string path where it does not. See
+    ///     <see cref="JsonColumnStreaming" /> for which providers are which, and why the capability
+    ///     is discovered rather than declared.
+    /// </summary>
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = SharedSerializerSuppression)]
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = SharedSerializerSuppression)]
     public async ValueTask<T> FromJsonAsync<T>(DbDataReader reader, int index,
         CancellationToken cancellationToken = default)
     {
-        var json = await reader.GetFieldValueAsync<string>(index, cancellationToken).ConfigureAwait(false);
-        return FromJson<T>(json);
+        var stream = await JsonColumnStreaming.TryGetStreamAsync(reader, index, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (stream is null)
+        {
+            var json = await reader.GetFieldValueAsync<string>(index, cancellationToken).ConfigureAwait(false);
+            return FromJson<T>(json);
+        }
+
+        await using (stream.ConfigureAwait(false))
+        {
+            return await FromJsonAsync<T>(stream, cancellationToken).ConfigureAwait(false);
+        }
     }
 
+    /// <inheritdoc cref="FromJsonAsync{T}(DbDataReader,int,CancellationToken)" />
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = SharedSerializerSuppression)]
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = SharedSerializerSuppression)]
     public async ValueTask<object> FromJsonAsync(Type type, DbDataReader reader, int index,
         CancellationToken cancellationToken = default)
     {
-        var json = await reader.GetFieldValueAsync<string>(index, cancellationToken).ConfigureAwait(false);
-        return FromJson(type, json);
+        var stream = await JsonColumnStreaming.TryGetStreamAsync(reader, index, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (stream is null)
+        {
+            var json = await reader.GetFieldValueAsync<string>(index, cancellationToken).ConfigureAwait(false);
+            return FromJson(type, json);
+        }
+
+        await using (stream.ConfigureAwait(false))
+        {
+            return await FromJsonAsync(type, stream, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     [RequiresUnreferencedCode("STJ JsonSerializer.Deserialize<T> uses reflection over T.")]
@@ -189,16 +263,35 @@ public class SystemTextJsonSerializer : ISerializer
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = SharedSerializerSuppression)]
     public T FromJson<T>(DbDataReader reader, int index)
     {
-        var json = reader.GetString(index);
-        return FromJson<T>(json);
+        // See FromJsonAsync<T>(DbDataReader, int, CancellationToken) for why this is a try-then-
+        // fall-back rather than one path or the other.
+        var stream = JsonColumnStreaming.TryGetStream(reader, index);
+        if (stream is null)
+        {
+            return FromJson<T>(reader.GetString(index));
+        }
+
+        using (stream)
+        {
+            return FromJson<T>(stream);
+        }
     }
 
+    /// <inheritdoc cref="FromJson{T}(DbDataReader,int)" />
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = SharedSerializerSuppression)]
     [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = SharedSerializerSuppression)]
     public object FromJson(Type type, DbDataReader reader, int index)
     {
-        var json = reader.GetString(index);
-        return FromJson(type, json);
+        var stream = JsonColumnStreaming.TryGetStream(reader, index);
+        if (stream is null)
+        {
+            return FromJson(type, reader.GetString(index));
+        }
+
+        using (stream)
+        {
+            return FromJson(type, stream);
+        }
     }
 
     [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = SharedSerializerSuppression)]
