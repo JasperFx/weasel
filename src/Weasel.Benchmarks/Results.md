@@ -54,6 +54,10 @@ below rests on timing, it says so, and it is stated as a range rather than a fig
 Dirty tracking calls this once per tracked document on every `SaveChanges`, so a session that loaded
 a hundred documents and changed one pays the *unchanged* cost ninety-nine times.
 
+### The original baseline (weasel#565, before #577)
+
+Every session ran the `JsonNode.DeepEquals` fallback unconditionally.
+
 | Path | Mean | Ratio | Allocated | Alloc ratio |
 |---|---:|---:|---:|---:|
 | Unchanged (ordinal string compare wins) | 4.47 us | 1.00 | 8.42 KB | 1.00 |
@@ -70,6 +74,35 @@ misses, and the fallback builds **two whole `JsonNode` trees and throws them bot
 that nothing changed: 7.7x the time and **9.8x the allocation of the unchanged path**, to produce
 the same answer. It is also more expensive than genuinely detecting a change (row 3), because a real
 change is usually visible early in the tree while equality has to walk all of it.
+
+### After weasel#577
+
+The fallback moved behind `IStorageSession.UseSemanticJsonChangeDetection`, off by default. Both
+tables below were re-recorded together on the machine described above, so they compare to each other
+rather than to the numbers up top; wall clock on this machine drifts by up to 2x between runs, and
+the allocation column reproduced exactly.
+
+| Path | Before | After | Alloc before | Alloc after |
+|---|---:|---:|---:|---:|
+| Unchanged (ordinal string compare wins) | 3.83 us | 4.09 us | 8.42 KB | 8.42 KB |
+| Reordered but equal (default: reports a change) | 31.09 us | **4.08 us** | 82.23 KB | **8.42 KB** |
+| Changed (full detection, then `Upsert`) | 15.67 us | **3.81 us** | 30.06 KB | **8.42 KB** |
+| Reordered but equal (opt-in fallback) | — | 32.55 us | — | 82.23 KB |
+
+Two things fall out of this that are worth stating separately.
+
+The reordered row does what it was meant to: 7.6x less time and **9.8x less allocation**, because
+the two `JsonNode` trees are simply never built. What it buys that with is a redundant write of
+semantically identical JSON — a cost the tracker is willing to pay, because the check being skipped
+is one that only ever turns "changed" into "unchanged" and so can never lose a write, only add one.
+A session that would rather pay the 32.55 us sets the flag and gets the old behaviour back, to the
+byte.
+
+The **Changed** row was the unadvertised win. Every genuinely dirty document used to parse both JSON
+documents and walk both trees before it was allowed to conclude what the string compare had already
+told it, so detecting a real change cost 4x an unchanged one. It now costs slightly *less* than the
+unchanged path — same one serialization, and the string compare bails at the first differing byte
+instead of running to the end.
 
 ## BatchBuilder.AppendParameter x 500
 

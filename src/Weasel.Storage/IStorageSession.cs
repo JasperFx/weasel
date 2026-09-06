@@ -32,6 +32,31 @@ public interface IStorageSession: IMetadataContext
     /// </summary>
     ConcurrencyChecks Concurrency { get; }
 
+    /// <summary>
+    ///     Opt in to <see cref="ChangeTracker{T}"/>'s semantic fallback: when a tracked document's
+    ///     JSON text differs from its load-time text, parse both and compare the trees before
+    ///     concluding that the document changed. Default <c>false</c>.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     The fallback exists for documents whose JSON text can reorder without changing meaning.
+    ///     A <c>Dictionary</c> or <c>HashSet</c> member serializes in enumeration order, and
+    ///     enumeration order follows the collection's insertion and removal history rather than
+    ///     its contents — so a dictionary that is rebuilt, or has an entry removed and re-added,
+    ///     serializes to different text for the same document under one deterministic serializer
+    ///     and no custom converter. STJ's <c>[JsonExtensionData]</c> is backed by a dictionary and
+    ///     behaves the same way.
+    ///     </para>
+    ///     <para>
+    ///     It is off by default because it costs roughly 8x the time and 10x the allocation of an
+    ///     ordinary unchanged check (weasel#577). Turning it on buys exactly one thing: not
+    ///     issuing a redundant, semantically identical update when a collection reorders. It can
+    ///     never buy a write back, because the check it performs only ever turns "changed" into
+    ///     "unchanged" — so a session that leaves it off risks a spurious write, never a lost one.
+    ///     </para>
+    /// </remarks>
+    bool UseSemanticJsonChangeDetection => false;
+
     IDocumentStorage StorageFor(Type documentType);
 
     IDocumentStorage<T> StorageFor<T>() where T : notnull;
