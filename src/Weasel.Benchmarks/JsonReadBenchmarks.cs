@@ -14,12 +14,13 @@ namespace Weasel.Benchmarks;
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <b>What this is the baseline for.</b> <c>Weasel.Core.SystemTextJsonSerializer</c>'s
-///         <c>FromJson&lt;T&gt;(DbDataReader, int)</c> calls <c>reader.GetString(index)</c> and hands
-///         the result to STJ, which transcodes the fresh UTF-16 string straight back to UTF-8 to
-///         parse it. Every document read and every event read therefore allocates a full-size string
-///         that is discarded microseconds later. The <c>Current</c> row calls the real serializer, so
-///         the same row can be re-run after the read path changes.
+///         <b>What the first row is.</b> <c>Weasel.Core.SystemTextJsonSerializer</c>'s
+///         <c>FromJson&lt;T&gt;(DbDataReader, int)</c>, whatever it currently does. Until weasel#573
+///         that was <c>reader.GetString(index)</c> handed to STJ, which transcoded the fresh UTF-16
+///         string straight back to UTF-8 to parse it — a full-size string allocated and discarded on
+///         every document and every event read. It now streams the column where the provider allows
+///         it and falls back to the string path where it does not. The row is deliberately labelled
+///         for the method rather than its implementation, so it stays comparable across that change.
 ///     </para>
 ///     <para>
 ///         <b>Where the win actually is.</b> See <see cref="JsonDeserializeBenchmarks" />: STJ parses
@@ -102,7 +103,7 @@ public class JsonReadBenchmarks
         }
     }
 
-    [Benchmark(Baseline = true, Description = "Current: serializer.FromJson<T>(reader, index) [GetString + parse]")]
+    [Benchmark(Baseline = true, Description = "serializer.FromJson<T>(reader, index) [the shipped read path]")]
     public int Current()
     {
         using var reader = _command.ExecuteReader();
@@ -110,7 +111,7 @@ public class JsonReadBenchmarks
         return _serializer.FromJson<JsonPayload>(reader, 0).Items.Count;
     }
 
-    [Benchmark(Description = "GetStream -> Deserialize(Stream) [SQLite + Npgsql only]")]
+    [Benchmark(Description = "GetStream -> Deserialize(Stream) [no capability check]")]
     public int Stream()
     {
         using var reader = _command.ExecuteReader();

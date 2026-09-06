@@ -139,18 +139,25 @@ Two things to take from this:
 
 ### The whole read, query included (SQLite, TEXT column)
 
-| Path | 5 KB | Ratio | 120 KB | Ratio | Alloc 5 KB | Alloc 120 KB |
-|---|---:|---:|---:|---:|---:|---:|
-| **Current** — `serializer.FromJson<T>(reader, index)` (`GetString` + parse) | 25.55 us | 1.00 | 322.78 us | 1.00 | 33.58 KB | 558.85 KB |
-| `GetStream` → `Deserialize(Stream)` | 20.24 us | 0.82 | 351.47 us | 1.09 | **26.74 KB** | **438.54 KB** |
-| *Rejected:* `GetTextReader` → hand transcode → `Deserialize(span)` | 20.37 us | 0.82 | 324.89 us | 1.01 | 29.99 KB | 441.79 KB |
+Measured before and after weasel#573, which routed `SystemTextJsonSerializer`'s reader overloads
+through `GetStream` on providers that support it.
 
-**The stream path is an allocation and GC-pressure win, not a throughput win.** It removes ~20% of
-allocated bytes at both sizes — the full-size string that `GetString` builds and STJ discards
-microseconds later. At 120 KB it also halves the Gen2 collections (38.1 vs 76.7 per 1000 ops),
-because a 120 K-character string is 240 KB of UTF-16 and lands on the large object heap on every
-single read. Wall-clock is a wash: better at 5 KB, slightly worse at 120 KB, and both differences
-are inside this machine's noise.
+| Path | 5 KB | 120 KB | Alloc 5 KB | Alloc 120 KB | Gen2 @ 120 KB |
+|---|---:|---:|---:|---:|---:|
+| `serializer.FromJson<T>(reader, index)` — **before** (`GetString` + parse) | 25.55 us | 322.78 us | 33.58 KB | 558.85 KB | 76.66 |
+| `serializer.FromJson<T>(reader, index)` — **after** (streams, with fallback) | 22.94 us | 349.59 us | **26.74 KB** | **438.54 KB** | **38.09** |
+| `GetStream` → `Deserialize(Stream)` directly, no capability check | 23.76 us | 342.06 us | 26.74 KB | 438.54 KB | 38.09 |
+| *Rejected:* `GetTextReader` → hand transcode → `Deserialize(span)` | 23.81 us | 316.96 us | 29.99 KB | 441.79 KB | 38.09 |
+
+**The change is an allocation and GC-pressure win, not a throughput win.** It removes **20% of
+allocated bytes** at 5 KB and **21% at 120 KB** — the full-size string `GetString` built and STJ
+discarded microseconds later — and at 120 KB it **halves the Gen2 collections**, because 120 K
+characters is 240 KB of UTF-16 and landed on the large object heap on every single read. Wall-clock
+is a wash in both directions and inside this machine's noise; do not quote it as a speedup.
+
+The third row is the same read with the capability check taken out. It allocates identically to the
+shipped path, which is the check confirming it costs nothing after the first call — and, on this
+provider, that the shipped path really is streaming rather than quietly falling back.
 
 ### Provider support for `GetStream`
 
