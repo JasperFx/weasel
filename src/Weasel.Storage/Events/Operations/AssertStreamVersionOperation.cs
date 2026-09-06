@@ -61,8 +61,16 @@ public abstract class AssertStreamVersionOperation<TId>: IStorageOperation where
     {
         if (!await reader.ReadAsync(token).ConfigureAwait(false))
         {
-            exceptions.Add(new EventStreamUnexpectedMaxEventIdException(StreamIdentity, Stream.AggregateType,
-                Stream.ExpectedVersionOnServer!.Value, 0));
+            // No row means the stream does not exist, and a stream that does not exist is at version 0.
+            // That is a conflict only when the caller expected something other than 0 -- asserting
+            // unconditionally here threw "expected 0 but was 0" for a never-created stream under
+            // AlwaysEnforceConsistency (marten#5345).
+            if (Stream.ExpectedVersionOnServer!.Value != 0)
+            {
+                exceptions.Add(new EventStreamUnexpectedMaxEventIdException(StreamIdentity, Stream.AggregateType,
+                    Stream.ExpectedVersionOnServer.Value, 0));
+            }
+
             return;
         }
 
