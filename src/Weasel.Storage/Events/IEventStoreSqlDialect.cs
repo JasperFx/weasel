@@ -38,4 +38,17 @@ public interface IEventStoreSqlDialect
     /// throwing until a dialect opts in. See <see cref="EventAuxiliaryOperations"/>.
     /// </summary>
     EventAuxiliaryOperations? BuildAuxiliaryOperations(EventRegistry graph) => null;
+
+    /// <summary>
+    /// The read side: how this dialect renders the async daemon's paging query and skip-ahead
+    /// probe, for <see cref="EventLoaderBase"/>. The default returns <see langword="null"/>, so a
+    /// dialect that still owns a bespoke loader does not have to implement it.
+    /// </summary>
+    /// <remarks>
+    /// Kept separate from the append-side descriptors above because the two are adopted
+    /// independently. The descriptors are a whole append pipeline; this is one SELECT and one
+    /// probe, and a store with an adaptive loader of its own may well want the second before the
+    /// first.
+    /// </remarks>
+    IEventPagingDialect? EventPaging => null;
 }
