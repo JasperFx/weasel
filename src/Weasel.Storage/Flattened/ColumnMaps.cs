@@ -81,12 +81,33 @@ public sealed class DecrementMemberMap: IColumnMap
         => $"{context.Quote(ColumnName)} = {context.Existing(ColumnName)} - {parameterName}";
 
     /// <summary>
-    ///     Polecat's and Fisher's shape: a first sighting inserts the value as given. Marten's
-    ///     equivalent inserts <c>-value</c> instead — see the type's remarks in the lift's PR; the
-    ///     divergence is preserved here as the two-store majority rather than reconciled silently.
+    ///     A row that does not exist yet is decremented <em>from zero</em>, so a first sighting of
+    ///     <c>5</c> lands the column at <c>-5</c> — the parameter negated, not the parameter as given.
     /// </summary>
+    /// <remarks>
+    ///     This is Marten's shape, and it was the minority one at the lift: Polecat, Fisher and the
+    ///     first cut of these maps all inserted the value unchanged, which made a <em>decrement</em>
+    ///     event raise the column on a fresh row. jasperfx#773 ruled Marten correct, so the negation
+    ///     is now the shared behaviour and the other stores are the ones that change. The asymmetry
+    ///     with <see cref="IncrementMemberMap" />, whose insert is the bare parameter, is intended:
+    ///     read both as "apply this event to an implicit zero row" and they agree.
+    ///     <para>
+    ///         The negation lives here rather than behind a dialect hook because a leading unary minus
+    ///         on a placeholder is valid in every position the insert expression is rendered into — a
+    ///         <c>MERGE</c>'s <c>WHEN NOT MATCHED … VALUES</c>, an <c>INSERT … ON CONFLICT</c>'s
+    ///         <c>VALUES</c>, and the <c>VALUES</c> of a generated upsert function's body, which is
+    ///         where Marten has been shipping it. A provider that ever needs <c>(0 - @p)</c> instead
+    ///         can supply its own <see cref="IColumnMap" /> rather than every dialect carrying a hook
+    ///         no dialect uses.
+    ///     </para>
+    ///     <para>
+    ///         Note that the parameterless <see cref="DecrementMap" /> still inserts <c>0</c> on all
+    ///         four stores. jasperfx#773 asked about both and only the member-valued form was ruled
+    ///         on; that one is unchanged and still agrees everywhere.
+    ///     </para>
+    /// </remarks>
     public string InsertExpression(in FlatTableColumnContext context, string parameterName)
-        => parameterName;
+        => "-" + parameterName;
 }
 
 /// <summary>Adds one to the column, with nothing read from the event.</summary>
@@ -111,9 +132,12 @@ public sealed class IncrementMap: IColumnMap
         => $"{context.Quote(ColumnName)} = {context.Existing(ColumnName)} + 1";
 
     /// <summary>
-    ///     A first sighting counts once, so the row starts at 1. Marten's equivalent inserts 0 — see
-    ///     the lift's PR; the divergence is preserved here as the two-store majority.
+    ///     A first sighting counts once, so the row starts at 1 rather than at 0 plus a later event.
     /// </summary>
+    /// <remarks>
+    ///     No longer a divergence: marten#5341 ruled 1 correct and marten#5342 brought Marten's
+    ///     <c>IncrementMap</c> in line with Polecat, Fisher and these maps, so all four now agree.
+    /// </remarks>
     public string InsertExpression(in FlatTableColumnContext context, string parameterName) => "1";
 }
 
