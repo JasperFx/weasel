@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 using Shouldly;
 using Weasel.Sqlite;
@@ -32,7 +33,7 @@ public class TypeMappingIntegrationTests
         var result = await selectCmd.ExecuteScalarAsync();
 
         result.ShouldNotBeNull();
-        var retrieved = DateTime.Parse(result.ToString()!, null, System.Globalization.DateTimeStyles.RoundtripKind);
+        var retrieved = DateTime.Parse(result.ToString()!, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
         // SQLite stores as ISO8601 string, verify it roundtrips correctly with UTC preserved
         retrieved.Kind.ShouldBe(DateTimeKind.Utc);
@@ -107,7 +108,8 @@ public class TypeMappingIntegrationTests
         var result = await selectCmd.ExecuteScalarAsync();
 
         result.ShouldNotBeNull();
-        var retrieved = DateTimeOffset.Parse(result.ToString()!);
+        var retrieved = DateTimeOffset.Parse(result.ToString()!,
+            CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
 
         // Verify roundtrip
         retrieved.Year.ShouldBe(expected.Year);
@@ -410,13 +412,16 @@ public class TypeMappingIntegrationTests
         Math.Abs((double)amount - await reader.GetFieldValueAsync<double>(5)).ShouldBeLessThan(0.01);
         (await reader.GetFieldValueAsync<bool>(6)).ShouldBe(isActive);
 
-        var retrievedDate = DateTime.Parse(await reader.GetFieldValueAsync<string>(7));
-        retrievedDate.Year.ShouldBe(createdAt.Year);
-        retrievedDate.Month.ShouldBe(createdAt.Month);
-        retrievedDate.Day.ShouldBe(createdAt.Day);
+        // Parse with RoundtripKind so the UTC values written above come back as UTC
+        // instead of being shifted into the machine's local time zone
+        var retrievedDate = DateTime.Parse(await reader.GetFieldValueAsync<string>(7),
+            CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        retrievedDate.Kind.ShouldBe(DateTimeKind.Utc);
+        retrievedDate.ShouldBe(createdAt);
 
-        var retrievedOffset = DateTimeOffset.Parse(await reader.GetFieldValueAsync<string>(8));
-        retrievedOffset.Day.ShouldBe(scheduledFor.Day);
+        var retrievedOffset = DateTimeOffset.Parse(await reader.GetFieldValueAsync<string>(8),
+            CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+        retrievedOffset.ShouldBe(scheduledFor);
 
         var retrievedDuration = TimeSpan.Parse(await reader.GetFieldValueAsync<string>(9));
         retrievedDuration.ShouldBe(duration);
