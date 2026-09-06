@@ -27,6 +27,12 @@ internal sealed class BenchmarkStorageSession: IStorageSession
     public IStorageDatabase Database { get; }
     public ConcurrencyChecks Concurrency { get; set; } = ConcurrencyChecks.Enabled;
 
+    /// <summary>
+    ///     Settable so the same benchmark document can be measured with the semantic fallback both
+    ///     off (the default since weasel#577) and on.
+    /// </summary>
+    public bool UseSemanticJsonChangeDetection { get; set; }
+
     public IList<IChangeTracker> ChangeTrackers { get; } = new List<IChangeTracker>();
     public Dictionary<Type, object> ItemMap { get; } = new();
 
