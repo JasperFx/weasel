@@ -531,18 +531,26 @@ ORDER BY prv.boundary_id;";
         ManagedTenantPartitions manager,
         params (string tenantId, int ordinal)[] entries)
     {
-        // The only legal way into _ordinals is through ResetValues (writes DB)
-        // or AddPartitionToAllTables (writes DB + DDL). For pure unit tests we
+        // The only legal way into the registry is through ResetValues (writes DB) or
+        // AddPartitionToAllTables (writes DB + DDL). For pure unit tests we
         // synthesize a SqlServerPartitionInfo + CreateDelta round-trip instead
         // — actually simpler: just reflect.
+        //
+        // weasel#583 turned the registry into an immutable snapshot that is swapped rather than mutated, so
+        // seeding publishes a whole new snapshot instead of editing the live maps.
         var field = typeof(ManagedTenantPartitions).GetField(
-            "_ordinals",
+            "_registryState",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var map = (Dictionary<string, int>)field!.GetValue(manager)!;
-        map.Clear();
+
+        var snapshotType = field!.GetValue(manager)!.GetType();
+
+        var ordinals = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var (tenantId, ordinal) in entries)
         {
-            map[tenantId] = ordinal;
+            ordinals[tenantId] = ordinal;
         }
+
+        field.SetValue(manager, Activator.CreateInstance(snapshotType,
+            ordinals, new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)));
     }
 }

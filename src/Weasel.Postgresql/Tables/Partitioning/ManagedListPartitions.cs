@@ -25,9 +25,22 @@ public interface IListPartitionManager
 public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<NpgsqlConnection>, IListPartitionManager
 {
     private readonly Table _table;
-    private Dictionary<string, string> _partitions = new();
+    // weasel#583: the published partition map is an immutable snapshot that is swapped copy-on-write.
+    // It is never mutated in place once assigned here, because Partitions hands callers a ReadOnlyDictionary
+    // that WRAPS this instance rather than copying it, and IListPartitionManager.Partitions() enumerates it
+    // lazily. A concurrent InitializeAsync used to Clear() it out from under those readers: that surfaced as
+    // "Collection was modified; enumeration operation may not execute" from DatabaseBase.assertValidIdentifiers
+    // during a parallel db-apply, and silently as a torn (empty or partial) partition set everywhere else —
+    // including in generated DDL and partition deltas. Hardening the read side cannot fix it; ToArray() over a
+    // dictionary growing underneath just trades the exception for "Destination array is not long enough".
+    private volatile Dictionary<string, string> _partitions = new();
     private bool _hasInitialized;
     private readonly SemaphoreSlim _semaphoreSlim = new(1);
+
+    // Serializes the read-copy-write sequences against each other. Deliberately NOT _semaphoreSlim, which is
+    // held across database round trips inside InitializeAsync — a writer blocking on that would stall a thread
+    // pool thread for the duration of a query.
+    private readonly object _partitionsLock = new();
 
     public ManagedListPartitions(string identifier, DbObjectName tableName): base(identifier, new PostgresqlMigrator())
     {
@@ -40,6 +53,20 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
     public ReadOnlyDictionary<string, string> Partitions => new(_partitions);
 
+    /// <summary>
+    /// Copy-on-write swap of the published partition map: copy, mutate the copy, publish it. Readers that
+    /// already captured the previous snapshot go on enumerating a complete, consistent map.
+    /// </summary>
+    private void swapPartitions(Action<Dictionary<string, string>> mutation)
+    {
+        lock (_partitionsLock)
+        {
+            var copy = new Dictionary<string, string>(_partitions, _partitions.Comparer);
+            mutation(copy);
+            _partitions = copy;
+        }
+    }
+
     protected override IEnumerable<ISchemaObject> schemaObjects()
     {
         yield return _table;
@@ -47,7 +74,10 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
     IEnumerable<ListPartition> IListPartitionManager.Partitions()
     {
-        var paths = _partitions.GroupBy(x => x.Value);
+        // Capture the snapshot before enumerating: this is an iterator, so the field read would otherwise
+        // happen at the caller's first MoveNext and could be re-read against a newer map mid-enumeration.
+        var partitions = _partitions;
+        var paths = partitions.GroupBy(x => x.Value);
         foreach (var path in paths)
         {
             // weasel#416: build the bound literal through FormatSqlValue rather than interpolating the
@@ -84,7 +114,12 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                 .With("suffix", pair.Value ?? pair.Key).ExecuteNonQueryAsync(token).ConfigureAwait(false);
         }
 
-        _partitions = values;
+        // Copy rather than alias: the caller keeps its dictionary and may well mutate it afterwards, which
+        // would be a mutation of the published snapshot.
+        lock (_partitionsLock)
+        {
+            _partitions = new Dictionary<string, string>(values);
+        }
 
         await tx.CommitAsync(token).ConfigureAwait(false);
         await conn.CloseAsync().ConfigureAwait(false);
@@ -99,7 +134,9 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         // This is idempotent, so just do it here
         await InitializeAsync(conn, token).ConfigureAwait(false);
 
-        if (!_partitions.TryGetValue(value, out var suffix))
+        var partitions = _partitions;
+
+        if (!partitions.TryGetValue(value, out var suffix))
         {
             await conn.CloseAsync().ConfigureAwait(false);
             throw new ArgumentOutOfRangeException(nameof(value),
@@ -111,7 +148,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         // silently destroyed unrelated co-tenants' rows. When other values still share the partition, narrow
         // the bucket instead; the partition is only released once its last member is gone.
         var sanitizedSuffix = ListPartition.SanitizeSuffix(suffix);
-        var survivors = _partitions
+        var survivors = partitions
             .Where(pair => pair.Key != value && ListPartition.SanitizeSuffix(pair.Value) == sanitizedSuffix)
             .Select(pair => pair.Key)
             .ToArray();
@@ -140,7 +177,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             .With("value", value)
             .ExecuteNonQueryAsync(token).ConfigureAwait(false);
 
-        _partitions.Remove(value);
+        swapPartitions(x => x.Remove(value));
 
         var remainingValues = survivors.Select(x => x.FormatSqlValue()).ToArray();
 
@@ -308,12 +345,20 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                 .With("value", pair.Key)
                 .With("suffix", pair.Value);
 
-            _partitions[pair.Key] = pair.Value;
-
             await cmd.ExecuteNonQueryAsync(token).ConfigureAwait(false);
         }
 
         await tx.CommitAsync(token).ConfigureAwait(false);
+
+        // Publish once, after the write actually lands. resolveBuckets below reads the map back to work out
+        // each bucket's full membership, so this has to happen before additivelyMigrateTablesForNewPartitions.
+        swapPartitions(map =>
+        {
+            foreach (var pair in values)
+            {
+                map[pair.Key] = pair.Value;
+            }
+        });
 
         var list = await additivelyMigrateTablesForNewPartitions(logger, database, token, conn, values.ToArray()).ConfigureAwait(false);
 
@@ -385,6 +430,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         IReadOnlyCollection<KeyValuePair<string, string>> newPartitions)
     {
         var buckets = new Dictionary<string, string[]>();
+        var partitions = _partitions;
 
         foreach (var group in newPartitions.GroupBy(pair => ListPartition.SanitizeSuffix(pair.Value)))
         {
@@ -392,7 +438,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             // call. Bucket members are normally registered one tenant at a time, so widening an existing
             // partition has to keep the members already in it. _partitions is authoritative here: callers
             // record the new pairs into it before reaching this method.
-            buckets[group.Key] = _partitions
+            buckets[group.Key] = partitions
                 .Where(pair => ListPartition.SanitizeSuffix(pair.Value) == group.Key)
                 .Select(pair => pair.Key)
                 .Concat(group.Select(pair => pair.Key))
@@ -505,7 +551,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             .With("value", value)
             .With("suffix", suffix);
 
-        _partitions[value] = suffix;
+        swapPartitions(x => x[value] = suffix);
 
         return cmd.ExecuteNonQueryAsync(token);
     }
@@ -533,7 +579,10 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         {
             if (_hasInitialized) return;
 
-            _partitions.Clear();
+            // Build into a detached map and publish it in one assignment. Clearing and refilling the
+            // published instance is what let a concurrent reader see it empty or half-loaded (weasel#583).
+            var values = new Dictionary<string, string>();
+
             await using var reader = await conn
                 .CreateCommand($"select partition_value, partition_suffix from {_table.Identifier.QualifiedName}")
                 .ExecuteReaderAsync(token).ConfigureAwait(false);
@@ -548,7 +597,12 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                         (await reader.GetFieldValueAsync<string>(1, token).ConfigureAwait(false)).ToLowerInvariant();
                 }
 
-                _partitions[value] = suffix;
+                values[value] = suffix;
+            }
+
+            lock (_partitionsLock)
+            {
+                _partitions = values;
             }
 
             _hasInitialized = true;
@@ -558,6 +612,12 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         {
             if (e.SqlState == PostgresErrorCodes.UndefinedTable)
             {
+                // No registry table means no partitions, same as the Clear() this used to leave behind.
+                lock (_partitionsLock)
+                {
+                    _partitions = new Dictionary<string, string>();
+                }
+
                 _hasInitialized = true;
                 return;
             }
