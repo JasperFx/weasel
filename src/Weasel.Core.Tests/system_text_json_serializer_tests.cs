@@ -269,7 +269,8 @@ public class system_text_json_serializer_tests
         await using var inner = await command.ExecuteReaderAsync();
         (await inner.ReadAsync()).ShouldBeTrue();
 
-        await using var reader = new NonStreamingReader(inner);
+        // Its OWN reader type, deliberately — see CountingNonStreamingReader below.
+        await using var reader = new CountingNonStreamingReader(inner);
 
         theSerializer.FromJson<TestDoc>(reader, 0).Name.ShouldBe("fell back");
         theSerializer.FromJson(typeof(TestDoc), reader, 0)
@@ -320,7 +321,21 @@ public class system_text_json_serializer_tests
     ///     <c>nvarchar(max)</c> or <c>json</c> column, while delegating everything else to a real
     ///     reader. Lets the fallback be tested without a SQL Server container.
     /// </summary>
-    private sealed class NonStreamingReader(DbDataReader inner): DbDataReader
+    /// <summary>
+    ///     A refusing reader that no other test has put through the read path.
+    ///
+    ///     weasel#576: <c>JsonColumnStreaming</c> learns a provider's refusal once and remembers it in a
+    ///     process-wide cache keyed by reader TYPE — deliberately, so the refusal costs one exception per
+    ///     reader type per process rather than one per read. That makes "was a stream actually attempted?"
+    ///     an assertion about the FIRST use of a type in the process, so a test making it cannot share a
+    ///     reader type with any other test. When <see cref="NonStreamingReader"/> was shared, whichever
+    ///     test ran first decided the answer: the other one then short-circuited at the cache and saw zero
+    ///     attempts. Ordering between the two is not fixed, which is why this was reliably red on CI and
+    ///     reliably green locally.
+    /// </summary>
+    private sealed class CountingNonStreamingReader(DbDataReader inner): NonStreamingReader(inner);
+
+    private class NonStreamingReader(DbDataReader inner): DbDataReader
     {
         public int StreamAttempts { get; private set; }
 
