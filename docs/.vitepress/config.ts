@@ -137,6 +137,7 @@ export default withMermaid(
             { text: 'Views', link: '/sqlite/views' },
             { text: 'JSON Support', link: '/sqlite/json' },
             { text: 'PRAGMA Settings', link: '/sqlite/pragmas' },
+            { text: 'Functions and Extensions', link: '/sqlite/functions' },
             { text: 'SqliteHelper', link: '/sqlite/helper' }
           ]
         },

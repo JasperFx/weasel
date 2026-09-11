@@ -13,7 +13,7 @@ table.AddColumn<string>("name").NotNull();
 table.AddColumn<string>("email").NotNull();
 table.AddColumn("settings", "TEXT"); // raw type
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L37-L43' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_create_table' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L38-L44' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_create_table' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Primary Keys and AUTOINCREMENT
@@ -26,7 +26,7 @@ Use `AsPrimaryKey()` and `AutoIncrement()` for `INTEGER PRIMARY KEY AUTOINCREMEN
 var table = new Table("users");
 table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L48-L51' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_autoincrement' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L49-L52' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_autoincrement' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generated Columns
@@ -40,7 +40,7 @@ var table = new Table("users");
 table.AddColumn("email_domain", "TEXT")
     .GeneratedAs("substr(email, instr(email, '@') + 1)", GeneratedColumnType.Stored);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L56-L60' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_generated_columns' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L57-L61' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_generated_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Generated columns are read back during delta detection, so a table declaring one converges on the second migration run rather than re-adding the column every time. Adding a `Virtual` generated column to an existing table is an `ALTER TABLE ADD COLUMN`; adding a `Stored` one is not — SQLite rejects that outright, so Weasel migrates it through a table recreation instead.
@@ -66,7 +66,7 @@ orders.ForeignKeys.Add(new ForeignKey("fk_orders_user")
     LinkedNames = new[] { "id" }
 });
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L65-L77' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_foreign_keys' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L66-L78' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_foreign_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ::: warning
@@ -98,7 +98,7 @@ activeIdx.AgainstColumns("name");
 activeIdx.Predicate = "active = 1";
 table.Indexes.Add(activeIdx);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L82-L100' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_indexes' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L83-L101' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_indexes' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## STRICT Mode and WITHOUT ROWID
@@ -112,7 +112,7 @@ var table = new Table("users");
 table.StrictTypes = true;   // CREATE TABLE ... (...) STRICT
 table.WithoutRowId = true;  // CREATE TABLE ... (...) WITHOUT ROWID
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L105-L109' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_strict_and_without_rowid' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L106-L110' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_strict_and_without_rowid' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Schema Support
@@ -130,7 +130,7 @@ var temp = new Table(new SqliteObjectName("temp", "session_data"));
 var table = new Table("users");
 table.MoveToSchema("temp");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L114-L122' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_schema_support' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L115-L123' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_schema_support' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Delta Detection and Table Recreation

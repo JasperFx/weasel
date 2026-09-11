@@ -1,6 +1,7 @@
 using Microsoft.Data.Sqlite;
 using Weasel.Core;
 using Weasel.Sqlite;
+using Weasel.Sqlite.Functions;
 using Weasel.Sqlite.Tables;
 using Weasel.Sqlite.Views;
 
@@ -442,6 +443,45 @@ public class SqliteSamples
         // Avoid: raw PRAGMA statements
         // var cmd = connection.CreateCommand();
         // cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;";
+        #endregion
+    }
+
+    // === functions.md samples ===
+
+    public async Task sqlite_data_source_functions()
+    {
+        #region sample_sqlite_data_source_functions
+        var functions = new SqliteFunctionRegistry();
+        functions.AddScalar<double>("cosine_distance", (object? a, object? b) =>
+        {
+            var x = (byte[])a!;
+            var y = (byte[])b!;
+            double dot = 0, nx = 0, ny = 0;
+            for (var i = 0; i + 3 < x.Length; i += 4)
+            {
+                var xi = BitConverter.ToSingle(x, i);
+                var yi = BitConverter.ToSingle(y, i);
+                dot += xi * yi;
+                nx += xi * xi;
+                ny += yi * yi;
+            }
+
+            return 1 - dot / (Math.Sqrt(nx) * Math.Sqrt(ny));
+        });
+
+        var extensions = new SqliteExtensionSettings();
+        // extensions.AddExtension("vec0"); // a native extension, if you need one
+
+        await using var dataSource = new SqliteDataSource(
+            "Data Source=myapp.db",
+            SqlitePragmaSettings.Default,
+            functions,
+            extensions);
+
+        // every connection the data source opens has cosine_distance() registered
+        await using var connection = await dataSource.OpenConnectionAsync();
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "select id from vectors order by cosine_distance(embedding, @q) limit 10";
         #endregion
     }
 }

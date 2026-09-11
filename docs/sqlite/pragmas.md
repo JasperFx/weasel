@@ -24,7 +24,7 @@ var connection = new SqliteConnection("Data Source=myapp.db");
 await connection.OpenAsync();
 await settings.ApplyToConnectionAsync(connection);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L293-L298' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_high_performance' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L294-L299' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_high_performance' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 - WAL journal mode, OFF synchronous mode
@@ -46,7 +46,7 @@ var connection = new SqliteConnection("Data Source=myapp.db");
 await connection.OpenAsync();
 await settings.ApplyToConnectionAsync(connection);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L303-L308' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_high_safety' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L304-L309' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_high_safety' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 - WAL journal mode, FULL synchronous mode
@@ -86,7 +86,7 @@ var connection = new SqliteConnection("Data Source=myapp.db");
 await connection.OpenAsync();
 await settings.ApplyToConnectionAsync(connection);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L313-L326' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_custom_configuration' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L314-L327' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_custom_configuration' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Applying to an Existing Connection
@@ -99,7 +99,7 @@ var connection = new SqliteConnection("Data Source=myapp.db");
 await connection.OpenAsync();
 await settings.ApplyToConnectionAsync(connection);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L331-L336' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_apply_existing_connection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L332-L337' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_apply_existing_connection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating a SQL Script
@@ -116,7 +116,7 @@ Console.WriteLine(settings.ToSqlScript());
 // PRAGMA cache_size = -64000;
 // ...
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L341-L350' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_sql_script' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L342-L351' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_pragma_sql_script' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Important Notes
