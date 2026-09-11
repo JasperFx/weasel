@@ -721,7 +721,7 @@ connection.CreateAggregate(
 - No ALTER FUNCTION or DROP FUNCTION SQL (functions unregister when connection closes)
 
 **Best Practices:**
-- Register commonly used functions in a connection factory or startup code
+- Register functions on `SqliteDataSource` through a `SqliteFunctionRegistry` (and extensions through `SqliteExtensionSettings`) so every connection it opens gets them; registering on a single connection is the classic "sometimes isn't there" bug. See `docs/sqlite/functions.md` (weasel#588)
 - Use extension methods to encapsulate function registration logic
 - Consider wrapping function registration in a helper class for reuse
 - Document custom functions in application code since they're not visible in the database schema

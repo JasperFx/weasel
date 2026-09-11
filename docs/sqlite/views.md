@@ -10,7 +10,7 @@ The `View` class in `Weasel.Sqlite.Views` provides CREATE/DROP support with auto
 var view = new View("active_users",
     "SELECT id, name, email FROM users WHERE active = 1");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L129-L132' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_create_view' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L130-L133' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_create_view' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating DDL
@@ -31,7 +31,7 @@ view.WriteCreateStatement(migrator, writer);
 // DROP VIEW IF EXISTS "active_users";
 // CREATE VIEW "active_users" AS SELECT id, name, email FROM users WHERE active = 1;
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L137-L148' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_view_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L138-L149' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_view_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Schema Support
@@ -49,7 +49,7 @@ var tempView = new View(
 // DDL: DROP VIEW IF EXISTS "temp"."session_summary";
 // CREATE VIEW "temp"."session_summary" AS SELECT ...
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L153-L161' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_view_schema' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L154-L162' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_view_schema' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Complex View Examples
@@ -73,7 +73,7 @@ json_extract(metadata, '$.category') as category,
 json_extract(metadata, '$.price') as price
 FROM products");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L166-L180' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_complex_views' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L167-L181' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_complex_views' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Delta Detection
@@ -113,7 +113,7 @@ switch (delta.Difference)
         break;
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L185-L215' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_view_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L186-L216' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_view_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Limitations

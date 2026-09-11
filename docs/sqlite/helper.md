@@ -15,7 +15,7 @@ await connection.OpenAsync();
 // Apply default PRAGMA settings (WAL mode, NORMAL sync, 64MB cache, foreign keys enabled)
 await SqlitePragmaSettings.Default.ApplyToConnectionAsync(connection);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L357-L363' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_basic_connection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L358-L364' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_basic_connection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 This opens the connection and applies `SqlitePragmaSettings.Default` (WAL mode, NORMAL sync, 64MB cache, foreign keys enabled).
@@ -37,7 +37,7 @@ var connection = new SqliteConnection("Data Source=myapp.db");
 await connection.OpenAsync();
 await settings.ApplyToConnectionAsync(connection);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L368-L378' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_custom_pragmas' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L369-L379' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_custom_pragmas' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ### Using Presets
@@ -55,7 +55,7 @@ var highSafetyConn = new SqliteConnection("Data Source=myapp.db");
 await highSafetyConn.OpenAsync();
 await SqlitePragmaSettings.HighSafety.ApplyToConnectionAsync(highSafetyConn);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L383-L393' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_presets' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L384-L394' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_presets' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 See [PRAGMA Settings](/sqlite/pragmas) for details on each preset.
@@ -77,7 +77,7 @@ var writer = new StringWriter();
 table.WriteCreateStatement(migrator, writer);
 Console.WriteLine(writer.ToString());
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L398-L408' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_create_migrator' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L399-L409' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_create_migrator' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Connection String Examples
@@ -97,7 +97,7 @@ var sharedCache = "Data Source=myapp;Mode=Memory;Cache=Shared";
 // Read-only access
 var readOnly = "Data Source=myapp.db;Mode=ReadOnly";
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L413-L425' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_connection_string_examples' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L414-L426' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_connection_string_examples' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Method Reference
@@ -129,5 +129,5 @@ await settings.ApplyToConnectionAsync(connection);
 // var cmd = connection.CreateCommand();
 // cmd.CommandText = "PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;";
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L430-L445' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_recommended_usage' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L431-L446' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_helper_recommended_usage' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

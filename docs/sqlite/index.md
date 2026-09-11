@@ -72,5 +72,5 @@ var cmd = connection.CreateCommand();
 cmd.CommandText = writer.ToString();
 await cmd.ExecuteNonQueryAsync();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L15-L30' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_quick_example' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L16-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_quick_example' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

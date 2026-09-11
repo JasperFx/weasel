@@ -24,7 +24,7 @@ table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
 table.AddColumn<string>("name").NotNull();
 table.AddColumn("metadata", "TEXT"); // JSON column
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L222-L227' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_columns' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L223-L228' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Querying JSON Data
@@ -67,7 +67,7 @@ var skuIdx = new IndexDefinition("idx_products_sku") { IsUnique = true };
 skuIdx.ForJsonPath("metadata", "$.sku");
 table.Indexes.Add(skuIdx);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L232-L247' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_expression_indexes' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L233-L248' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_expression_indexes' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 This generates an expression index using `json_extract()`:
@@ -90,7 +90,7 @@ json_extract(metadata, '$.price') as price,
 json_extract(metadata, '$.in_stock') as in_stock
 FROM products");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L252-L259' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_views' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L253-L260' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_views' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Full Example
@@ -120,7 +120,7 @@ var cmd = connection.CreateCommand();
 cmd.CommandText = writer.ToString();
 await cmd.ExecuteNonQueryAsync();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L264-L286' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_full_example' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L265-L287' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_json_full_example' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Notes
