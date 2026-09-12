@@ -12,6 +12,20 @@ public class EnumIsOneOfWhereFragment: ISqlFragment
     private readonly object _values;
 
     public EnumIsOneOfWhereFragment(object values, EnumStorage enumStorage, string locator)
+        : this(values, enumStorage, locator, null)
+    {
+    }
+
+    /// <param name="nameForValue">
+    ///     Renders one enum value as the string the serializer actually stored for it. Null keeps
+    ///     the historical <see cref="object.ToString" /> behaviour, which is the member's
+    ///     <em>declared</em> name. Those differ as soon as the member was renamed —
+    ///     <c>[JsonStringEnumMemberName]</c> on System.Text.Json, <c>[EnumMember]</c> on Newtonsoft —
+    ///     and a filter comparing against the declared name matches nothing and reports it as "no
+    ///     rows" rather than as an error. See weasel#591, raised from marten#5376.
+    /// </param>
+    public EnumIsOneOfWhereFragment(object values, EnumStorage enumStorage, string locator,
+        Func<object, string>? nameForValue)
     {
         var array = values.As<Array>();
         if (enumStorage == EnumStorage.AsInteger)
@@ -46,7 +60,7 @@ public class EnumIsOneOfWhereFragment: ISqlFragment
                     continue;
                 }
 
-                stringEntries[i] = stringEntry.ToString()!;
+                stringEntries[i] = nameForValue?.Invoke(stringEntry) ?? stringEntry.ToString()!;
             }
 
             _values = stringEntries.Where(n => n != null).ToArray();

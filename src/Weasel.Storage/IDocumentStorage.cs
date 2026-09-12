@@ -50,6 +50,28 @@ public interface IDocumentStorage<T>: IDocumentStorage where T : notnull
 
     Guid? VersionFor(T document, IStorageSession session);
 
+    /// <summary>
+    ///     The value of the document's mapped optimistic-concurrency member, or null when the
+    ///     mapping carries no mapped version member. Lets a session seed the expected version for a
+    ///     write's concurrency guard off the document itself, exactly as it already does for the
+    ///     store's versioned marker interfaces — without a runtime type test on the storage.
+    /// </summary>
+    /// <remarks>
+    ///     Defaults to null so this stays additive: a storage with no mapped version member, or a
+    ///     store that has not adopted the seam, keeps its current behaviour. See weasel#590, raised
+    ///     from marten#5372 — a member mapped with Marten's <c>Metadata.Version.MapTo(...)</c> was
+    ///     invisible to the session, so the upsert bound DBNull into its version guard and reported
+    ///     every cross-session write as a concurrency violation.
+    /// </remarks>
+    Guid? MappedVersionFor(T document) => null;
+
+    /// <summary>
+    ///     The value of the document's mapped numeric-revision member, or null when the mapping
+    ///     carries no mapped revision member. Returns a long whatever the member's own width is —
+    ///     an int member widens — because the revision column itself comes in both widths.
+    /// </summary>
+    long? MappedRevisionFor(T document) => null;
+
     void Store(IStorageSession session, T document);
     void Store(IStorageSession session, T document, Guid? version);
     void Store(IStorageSession session, T document, long revision);

@@ -11,6 +11,18 @@ public class EnumIsNotOneOfWhereFragment: ISqlFragment
     private readonly object _values;
 
     public EnumIsNotOneOfWhereFragment(object values, EnumStorage enumStorage, string locator)
+        : this(values, enumStorage, locator, null)
+    {
+    }
+
+    /// <param name="nameForValue">
+    ///     Renders one enum value as the string the serializer actually stored for it. Null keeps
+    ///     the historical <see cref="object.ToString" /> behaviour, which is the member's
+    ///     <em>declared</em> name. See the sibling <see cref="EnumIsOneOfWhereFragment" /> and
+    ///     weasel#591.
+    /// </param>
+    public EnumIsNotOneOfWhereFragment(object values, EnumStorage enumStorage, string locator,
+        Func<object, string>? nameForValue)
     {
         var array = values.As<Array>();
         if (enumStorage == EnumStorage.AsInteger)
@@ -31,7 +43,8 @@ public class EnumIsNotOneOfWhereFragment: ISqlFragment
 
             for (var i = 0; i < array.Length; i++)
             {
-                strings[i] = array.GetValue(i)!.ToString()!;
+                var entry = array.GetValue(i)!;
+                strings[i] = nameForValue?.Invoke(entry) ?? entry.ToString()!;
             }
 
             _values = strings;
