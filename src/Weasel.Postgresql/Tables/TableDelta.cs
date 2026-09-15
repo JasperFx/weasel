@@ -188,11 +188,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         writeForeignKeyUpdates(writer);
         writeCheckConstraintUpdates(writer);
 
-        // Missing indexes
-        foreach (var indexDefinition in Indexes.Missing) writer.WriteLine(indexDefinition.ToCreateSql(Expected));
+        // Missing and changed indexes. This table exists, so every index written here is built against
+        // rows -- which is the whole difference between a migration that blocks writes and one that does
+        // not, and it is known here rather than where the index was declared.
+        var concurrently = rules is PostgresqlMigrator { BuildIndexesConcurrentlyOnAlter: true };
 
-        // Different indexes
-        foreach (var change in Indexes.Different) writer.WriteLine(change.Expected.ToCreateSql(Expected));
+        foreach (var indexDefinition in Indexes.Missing)
+            writer.WriteLine(indexDefinition.ToCreateSql(Expected, concurrently || indexDefinition.IsConcurrent));
+
+        foreach (var change in Indexes.Different)
+            writer.WriteLine(change.Expected.ToCreateSql(Expected, concurrently || change.Expected.IsConcurrent));
 
         // Need to make Primary key changes before dropping extra columns
         writePrimaryKeyChanges(writer);

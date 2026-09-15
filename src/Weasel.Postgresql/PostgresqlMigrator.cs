@@ -31,6 +31,31 @@ $$;
     /// </summary>
     public int NameDataLength { get; set; } = 64;
 
+    /// <summary>
+    ///     Build an index that is being added to a table which already exists with
+    ///     <c>CREATE INDEX CONCURRENTLY</c>, without the caller having to mark each
+    ///     <see cref="IndexDefinition.IsConcurrent" /> by hand. Default is false.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     A plain <c>CREATE INDEX</c> holds ACCESS EXCLUSIVE on the table for the whole build, so on a
+    ///     table with rows in it a migration is a write outage. Which of the two a given index needs is
+    ///     not a property of the index — it is whether the table is being created (nothing to scan, and
+    ///     the statement belongs inline in the <c>CREATE TABLE</c> script) or altered (rows to scan, and
+    ///     a lock that matters). The delta already knows which, so this lets it decide instead of every
+    ///     caller declaring it per index.
+    ///     </para>
+    ///     <para>
+    ///     Off by default because it changes what a generated patch script is rather than only how fast
+    ///     it runs: a concurrent build cannot run inside a transaction, so the script stops being
+    ///     runnable as one block (applying it through <see cref="PostgresqlMigrator" /> is unaffected —
+    ///     it already splits on the index-creation markers and each statement auto-commits). A failed
+    ///     concurrent build also leaves an invalid index behind that has to be dropped before a retry,
+    ///     where a transactional migration rolls back clean.
+    ///     </para>
+    /// </remarks>
+    public bool BuildIndexesConcurrentlyOnAlter { get; set; }
+
     public override bool MatchesConnection(DbConnection connection)
     {
         return connection is NpgsqlConnection;
