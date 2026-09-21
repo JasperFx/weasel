@@ -89,6 +89,26 @@ public class IndexDefinitionTests
     }
 
     [Fact]
+    public void write_concurrent_index_when_the_caller_asks_for_it()
+    {
+        theIndex.IsConcurrent.ShouldBeFalse();
+
+        theIndex.ToCreateSql(parent, concurrently: true)
+            .ShouldBe($"--WEASEL_INDEX_CREATION_BEGIN{Environment.NewLine}" +
+                      $"CREATE INDEX CONCURRENTLY idx_1 ON public.people USING btree (column1);{Environment.NewLine}" +
+                      "--WEASEL_INDEX_CREATION_END");
+    }
+
+    [Fact]
+    public void the_caller_can_also_ask_for_a_blocking_build_of_a_concurrent_index()
+    {
+        theIndex.IsConcurrent = true;
+
+        theIndex.ToCreateSql(parent, concurrently: false)
+            .ShouldBe("CREATE INDEX idx_1 ON public.people USING btree (column1);");
+    }
+
+    [Fact]
     public void write_unique_and_concurrent_index()
     {
         theIndex.IsUnique = true;

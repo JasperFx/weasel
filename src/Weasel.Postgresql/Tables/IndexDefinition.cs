@@ -226,18 +226,20 @@ public class IndexDefinition: ITableIndex
     /// </remarks>
     /// <param name="parent"></param>
     /// <returns>Sql statement to create the index</returns>
-    public string ToDDL(Table parent)
+    public string ToDDL(Table parent) => writeOneStatement(parent, IsConcurrent);
+
+    private string writeOneStatement(Table parent, bool concurrently)
     {
         var builder = new StringBuilder();
 
-        if (IsConcurrent)
+        if (concurrently)
         {
             builder.AppendLine(IndexCreationBeginComment);
         }
 
-        builder.Append(createStatement(parent, QuotedName, parent.Identifier.ToString(), IsConcurrent, onlyParent: false));
+        builder.Append(createStatement(parent, QuotedName, parent.Identifier.ToString(), concurrently, onlyParent: false));
 
-        if (IsConcurrent)
+        if (concurrently)
         {
             builder.AppendLine();
             builder.Append(IndexCreationEndComment);
@@ -367,9 +369,28 @@ public class IndexDefinition: ITableIndex
     ///     </para>
     /// </remarks>
     public string ToCreateSql(Table parent)
-        => IsConcurrent && parent.Partitioning != null
+        => ToCreateSql(parent, IsConcurrent);
+
+    /// <summary>
+    ///     As <see cref="ToCreateSql(Table)" />, with the concurrency decided by the caller rather than
+    ///     taken from <see cref="IsConcurrent" />.
+    /// </summary>
+    /// <remarks>
+    ///     Whether an index has to be built without blocking writes is a property of the moment, not of
+    ///     the index: adding one to a table that already has rows needs it, creating the table does not.
+    ///     <see cref="Tables.TableDelta" /> is where that is known.
+    /// </remarks>
+    public string ToCreateSql(Table parent, bool concurrently)
+    {
+        if (!concurrently)
+        {
+            return writeOneStatement(parent, concurrently: false);
+        }
+
+        return parent.Partitioning != null
             ? toPartitionedConcurrentDDL(parent)
-            : ToDDL(parent);
+            : writeOneStatement(parent, concurrently: true);
+    }
 
     private string toPartitionedConcurrentDDL(Table parent)
     {
