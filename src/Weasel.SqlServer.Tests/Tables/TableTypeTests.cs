@@ -22,6 +22,27 @@ public class TableTypeTests: IntegrationContext
         await type.CreateAsync(theConnection);
     }
 
+    /// <summary>
+    ///     A rendered migration script is run more than once, so the create has to be guarded
+    ///     (weasel#593): CREATE TYPE has neither an OR ALTER form nor an IF NOT EXISTS clause, and
+    ///     unguarded the second run fails on "The type ... already exists".
+    /// </summary>
+    [Fact]
+    public async Task create_table_type_twice()
+    {
+        await ResetSchema();
+
+        var type = new TableType(new SqlServerObjectName("table_types", "EnvelopeIdList"));
+        type.AddColumn<Guid>("ID");
+
+        await type.CreateAsync(theConnection);
+        await type.CreateAsync(theConnection);
+
+        var existing = await type.FetchExistingAsync(theConnection);
+        existing.ShouldNotBeNull();
+        existing.Columns.Count.ShouldBe(1);
+    }
+
     [Fact]
     public async Task fetch_existing_when_it_does_not_exist()
     {
