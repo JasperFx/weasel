@@ -43,10 +43,15 @@ tableType.AddColumn("notes", "nvarchar(max)");  // explicit type
 var migrator = new SqlServerMigrator();
 var writer = new StringWriter();
 tableType.WriteCreateStatement(migrator, writer);
-// Output: CREATE TYPE dbo.OrderItemType AS TABLE (product_id int NOT NULL, ...)
+// Output: IF TYPE_ID(N'dbo.OrderItemType') IS NULL, then CREATE TYPE dbo.OrderItemType AS TABLE (...)
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L380-L385' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_table_type_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+`CREATE TYPE` has neither an `OR ALTER` form nor an `IF NOT EXISTS` clause, so the create statement
+leads with a `TYPE_ID` check. Without it a rendered migration script fails on its second run with
+"The type ... already exists", taking every statement after it down with it. See
+[batch separators and re-runnable scripts](/sqlserver/#batch-separators-and-re-runnable-scripts).
 
 ## Delta Detection
 
