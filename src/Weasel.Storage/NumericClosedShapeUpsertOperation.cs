@@ -58,7 +58,7 @@ public sealed class NumericClosedShapeUpsertOperation<TDoc, TId>: ClosedShapeUps
         {
             if (!IgnoreConcurrencyViolation)
             {
-                exceptions.Add(new ConcurrencyException(typeof(TDoc), _id));
+                exceptions.Add(NumericRevisionConcurrency.ExceptionFor(typeof(TDoc), _id));
             }
             return;
         }
