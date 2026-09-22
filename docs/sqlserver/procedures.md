@@ -60,6 +60,16 @@ folded into it, so the text compared against `sys.sql_modules` never sees them, 
 authored as `CREATE OR ALTER PROCEDURE` compares equal to what the catalog holds instead of
 reporting a permanent `Update`.
 
+The body does have to begin with its `CREATE` statement, after optional `--` or `/* */` comments.
+Leading `SET` options such as `SET ANSI_NULLS ON`, or `GO` lines inside the body, are not supported:
+the normaliser looks for the first `CREATE` token and leaves everything else exactly as authored, so
+they are emitted unnormalised and inside the procedure's own batch.
+
+If you execute the rendered text yourself rather than through `CreateAsync` or `ApplyAllAsync`, split
+it on the `GO` lines first with `SqlServerBatchSplitter.Split(sql)` and send one `SqlCommand` per
+batch. `GO` is a sqlcmd directive, not T-SQL, and `SqlClient` answers `Incorrect syntax near 'GO'` if
+the whole text reaches it.
+
 ## Delta Detection
 
 The `StoredProcedureDelta` compares the expected procedure body against what exists in the database by querying `sys.sql_modules`:

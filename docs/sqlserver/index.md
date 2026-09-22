@@ -91,8 +91,11 @@ AS
 GO
 ```
 
-`sqlcmd -i` and SQL Server Management Studio both understand `GO`, so a script written out with
-`db-patch` or `WriteAllUpdates` runs as it stands. `GO` is not T-SQL, though, so `SqlClient` would
+`sqlcmd -i` and SQL Server Management Studio both understand `GO`, so a script file written out by
+`WriteMigrationFileAsync`, `WriteTemplatedFile` or `ToDatabaseScript`, which is what `db-patch` uses,
+runs as it stands. A bare `WriteAllUpdates` render is the DDL on its own: it has the `GO` lines but
+not the `SET QUOTED_IDENTIFIER ON;` header described below, because only the script wrapper adds
+that. `GO` is not T-SQL, though, so `SqlClient` would
 answer `Incorrect syntax near 'GO'` if the text were handed to it whole. Weasel's own executors
 therefore split the script first and send one command per batch, with sqlcmd's semantics:
 
@@ -102,6 +105,8 @@ therefore split the script first and send one command per batch, with sqlcmd's s
   only thing a migration can mean, and nothing in Weasel emits a count.
 - String literals and comments are not parsed, exactly as sqlcmd does not parse them. A line
   reading only `GO` inside a literal ends the batch there. Do not author one.
+- A trailing comment on the same line, `GO -- procedure done`, is not recognised as a separator.
+  The whole line has to be the separator and nothing else.
 
 A rendered script also begins with `SET QUOTED_IDENTIFIER ON;`, so it needs no extra flags. sqlcmd
 is the one client that leaves that setting off, and SQL Server refuses to create a filtered index,
