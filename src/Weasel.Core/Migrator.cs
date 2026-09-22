@@ -58,6 +58,22 @@ public abstract class
     /// </summary>
     public bool IsTransactional { get; set; } = true;
 
+    /// <summary>
+    ///     Refuse a change that can only be applied by dropping and recreating the object, even
+    ///     under <see cref="AutoCreate.All" /> (weasel#600). Off by default, so nothing changes
+    ///     for anyone who does not ask for it.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="AutoCreate.All" /> is the only mode that reaches the migrator's
+    ///     drop-and-recreate branch -- every other one is refused by
+    ///     <see cref="SchemaMigration.AssertPatchingIsValid" /> first. That makes <c>All</c> an
+    ///     all-or-nothing choice: convenient for the additive changes a developer makes all day,
+    ///     and silently destructive on the one change that cannot be applied in place. This flag
+    ///     separates the two, so <c>All</c> can be used for its convenience while a change that
+    ///     would empty a table still stops and asks.
+    /// </remarks>
+    public bool RefuseDestructiveChanges { get; set; }
+
     public SqlFormatting Formatting { get; set; } = SqlFormatting.Pretty;
 
     /// <summary>
@@ -186,6 +202,21 @@ public abstract class
         migration.AssertPatchingIsValid(autoCreate);
 
         logger ??= new DefaultMigrationLogger();
+
+        // The migrator's only data-destroying branch, and until weasel#600 the only thing that
+        // announced it was the DROP appearing in the DDL as it executed. Warn first, once per
+        // object, before any statement runs.
+        if (!RefuseDestructiveChanges)
+        {
+            foreach (var delta in migration.Deltas)
+            {
+                if (DestructiveChange.DropsAndRecreates(delta))
+                {
+                    logger.DestructiveChange(DestructiveChange.Describe(delta));
+                }
+            }
+        }
+
         return executeDelta(migration, conn, autoCreate, logger, ct);
     }
 
@@ -226,6 +257,18 @@ public abstract class
                     // (weasel#477).
                     delta.WriteUpdate(this, writer);
                     return true;
+                }
+
+                if (RefuseDestructiveChanges)
+                {
+                    // Reached from every path that would emit the DDL, db-patch included, so a
+                    // team that has turned this on never gets a migration script with the DROP in
+                    // it either (weasel#600).
+                    throw new SchemaMigrationException(
+                        $"Refusing to drop and recreate {delta.SchemaObject.Identifier} because "
+                        + $"{DestructiveChange.DescribeReason(delta)}, and "
+                        + $"{nameof(Migrator)}.{nameof(RefuseDestructiveChanges)} is set. Any rows in it would be "
+                        + "lost. Clear the flag to allow it, or make the change by hand.");
                 }
 
                 delta.SchemaObject.WriteDropStatement(this, writer);

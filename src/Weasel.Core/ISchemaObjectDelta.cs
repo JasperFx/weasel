@@ -6,6 +6,33 @@ public interface ISchemaObjectDeltaWithPostProcessing : ISchemaObjectDelta
 }
 
 /// <summary>
+///     A delta that can say <em>why</em> it reports
+///     <see cref="SchemaPatchDifference.Invalid" /> (weasel#600).
+/// </summary>
+/// <remarks>
+///     <para>
+///     <c>Invalid</c> only says "I cannot express this as an ALTER", and the answer to it -- under
+///     <see cref="JasperFx.AutoCreate.All" /> a drop and recreate, under every other mode a
+///     refusal -- is the migrator's single destructive branch and its single refusal. Both used to
+///     name the object and nothing else, leaving the reader to diff the table by hand to find out
+///     which change was the one that could not be applied.
+///     </para>
+///     <para>
+///     Implement this on a delta that knows. Deltas that do not implement it fall back to a
+///     generic description, so this is additive.
+///     </para>
+/// </remarks>
+public interface ISchemaObjectDeltaWithReason: ISchemaObjectDelta
+{
+    /// <summary>
+    ///     A short phrase naming the change that cannot be applied incrementally -- "the type of
+    ///     column 'amount' cannot be altered in place", say. Null when the delta has no reason to
+    ///     offer.
+    /// </summary>
+    string? InvalidReason { get; }
+}
+
+/// <summary>
 ///     Models the difference between a configured ISchemaObject and the actual
 ///     database version of that object
 /// </summary>

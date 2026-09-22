@@ -159,6 +159,34 @@ a separate migration role owns everything else. On PostgreSQL, `GRANT USAGE, CRE
 my_app` is enough for that application to apply its own migrations, and it needs no `CREATE` on the database.
 Creating the schema in the first place does, so a role without it has to be given the schema up front.
 
+### Drop and recreate, the one destructive branch
+
+When a delta reports `SchemaPatchDifference.Invalid` -- the change cannot be expressed as an `ALTER`, and the
+delta cannot rebuild the object in place -- the migrator answers it by writing a `DROP` followed by a
+`CREATE`. For a table that is the table's data. Every `AutoCreate` except `All` is refused before reaching
+this branch, so it is only live in the mode a developer sets on their own machine, and then points at a
+database with rows in it.
+
+Weasel warns before it runs, once per object, through `IMigrationLogger.DestructiveChange`:
+
+> AutoCreate.All is dropping and recreating things.documents because column 'name' cannot be added to an
+> existing table; any rows in it will be lost. Use db-patch to see the migration, or
+> AutoCreate.CreateOrUpdate to be refused instead.
+
+`resources check` and the `SchemaMigrationException` that every other `AutoCreate` raises carry the same
+reason, so the object and the change that is stuck are named wherever the situation comes up.
+
+To keep `AutoCreate.All`'s convenience for additive changes while refusing this one:
+
+```cs
+database.Migrator.RefuseDestructiveChanges = true;
+```
+
+The flag is off by default. It turns the branch into a `SchemaMigrationException` even under `All`, and it
+applies to every path that would emit the DDL, `db-patch` included -- so a team that turns it on never gets a
+migration script with the `DROP` in it either. A delta that can rebuild in place loses no data and is still
+applied.
+
 The `Migrator` is used internally by `WriteCreateStatement()`, `WriteDropStatement()`, and `WriteUpdate()` on every schema object and delta.
 
 ## Putting It Together

@@ -4,6 +4,7 @@ using JasperFx.Descriptors;
 using NSubstitute;
 using Shouldly;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 using Weasel.Core;
 using Weasel.Core.CommandLine;
 using Weasel.Core.Migrations;
@@ -87,38 +88,59 @@ public class DatabaseResourceTests
 
         var markup = await theResource.DetermineStatus(CancellationToken.None);
 
-        AnsiConsole.Record();
-        try
-        {
-            AnsiConsole.Write(markup);
-            AnsiConsole.ExportText().ShouldContain("Database matches the expected configuration");
-        }
-        finally
-        {
-            AnsiConsole.Reset();
-        }
+        Render(markup).ShouldContain("Database matches the expected configuration");
     }
 
+    /// <summary>
+    ///     weasel#600. This used to assert the bare headline "Cannot apply a detected database
+    ///     configuration change!", which is only half true: under <c>AutoCreate.All</c> the change
+    ///     <em>is</em> applied, by dropping and recreating the object and taking its rows with it.
+    ///     <c>resources check</c> now names the object, the reason, and what <c>All</c> would do
+    ///     with it -- before anything runs, which is the only moment the warning is useful.
+    /// </summary>
     [Fact]
     public async Task determine_status_with_invalid_changes()
     {
+        var schemaObject = Substitute.For<ISchemaObject>();
+        schemaObject.Identifier.Returns(new DbObjectName("things", "documents"));
+
         var delta = Substitute.For<ISchemaObjectDelta>();
         delta.Difference.Returns(SchemaPatchDifference.Invalid);
+        delta.SchemaObject.Returns(schemaObject);
+
         var migration = new SchemaMigration(delta);
         theDatabase.CreateMigrationAsync().Returns(migration);
 
         var markup = await theResource.DetermineStatus(CancellationToken.None);
 
-        AnsiConsole.Record();
-        try
-        {
-            AnsiConsole.Write(markup);
-            AnsiConsole.ExportText().ShouldContain("Cannot apply a detected database configuration change!");
-        }
-        finally
-        {
-            AnsiConsole.Reset();
-        }
+        var text = Render(markup);
+
+        text.ShouldContain("Cannot apply a detected database configuration change incrementally!");
+        text.ShouldContain("things.documents would be dropped and recreated");
+        text.ShouldContain("any rows in it would be lost");
+        text.ShouldContain("Under AutoCreate.All");
+    }
+
+    /// <summary>
+    ///     A delta that reports Invalid but can rebuild in place loses no data, so it gets the
+    ///     plain headline rather than the data-loss warning.
+    /// </summary>
+    [Fact]
+    public async Task determine_status_with_an_invalid_change_that_rebuilds_in_place()
+    {
+        var delta = Substitute.For<ISchemaObjectDelta, ISchemaObjectDeltaWithRebuild>();
+        delta.Difference.Returns(SchemaPatchDifference.Invalid);
+        ((ISchemaObjectDeltaWithRebuild)delta).CanRebuildInPlace.Returns(true);
+
+        var migration = new SchemaMigration(delta);
+        theDatabase.CreateMigrationAsync().Returns(migration);
+
+        var markup = await theResource.DetermineStatus(CancellationToken.None);
+
+        var text = Render(markup);
+
+        text.ShouldContain("Cannot apply a detected database configuration change!");
+        text.ShouldNotContain("dropped and recreated");
     }
 
 
@@ -132,16 +154,7 @@ public class DatabaseResourceTests
 
         var markup = await theResource.DetermineStatus(CancellationToken.None);
 
-        AnsiConsole.Record();
-        try
-        {
-            AnsiConsole.Write(markup);
-            AnsiConsole.ExportText().ShouldContain("Missing database objects detected.");
-        }
-        finally
-        {
-            AnsiConsole.Reset();
-        }
+        Render(markup).ShouldContain("Missing database objects detected.");
     }
 
     [Fact]
@@ -154,15 +167,28 @@ public class DatabaseResourceTests
 
         var markup = await theResource.DetermineStatus(CancellationToken.None);
 
-        AnsiConsole.Record();
-        try
-        {
-            AnsiConsole.Write(markup);
-            AnsiConsole.ExportText().ShouldContain("Database schema objects need to be updated.");
-        }
-        finally
-        {
-            AnsiConsole.Reset();
-        }
+        Render(markup).ShouldContain("Database schema objects need to be updated.");
     }
+
+    /// <summary>
+    ///     Render to a console of this test's own rather than <see cref="AnsiConsole" />'s global
+    ///     recorder. The recorder is process-wide state: another test in this assembly writing to
+    ///     the console while one is recording both pollutes the captured text and can throw
+    ///     "Collection was modified" straight out of Spectre's encoder. xUnit parallelises this
+    ///     assembly, so that is a race, not a possibility.
+    /// </summary>
+    private static string Render(IRenderable renderable)
+    {
+        var buffer = new StringWriter();
+        var console = AnsiConsole.Create(new AnsiConsoleSettings
+        {
+            Ansi = AnsiSupport.No,
+            ColorSystem = ColorSystemSupport.NoColors,
+            Out = new AnsiConsoleOutput(buffer)
+        });
+
+        console.Write(renderable);
+        return buffer.ToString();
+    }
+
 }

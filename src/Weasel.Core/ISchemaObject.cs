@@ -18,6 +18,30 @@ public class SchemaMigrationException: Exception
         $"Cannot derive schema migrations for {invalids.Select(x => x.ToString()!).Join(", ")} AutoCreate.{autoCreate}")
     {
     }
+
+    /// <summary>
+    ///     The same refusal, with each object's reason attached (weasel#600). The message used to
+    ///     name the objects and nothing else, which left the reader to diff the table by hand to
+    ///     find the change that could not be applied. Overload resolution prefers this one
+    ///     wherever the caller already has deltas, which is everywhere it is thrown from.
+    /// </summary>
+    public SchemaMigrationException(AutoCreate autoCreate, IEnumerable<ISchemaObjectDelta> invalids): base(
+        $"Cannot derive schema migrations for {invalids.Select(Describe).Join(", ")} AutoCreate.{autoCreate}")
+    {
+    }
+
+    private static string Describe(ISchemaObjectDelta delta)
+    {
+        // Only Invalid deltas have a reason worth naming; this overload is also reached from the
+        // CreateOnly branch, where the deltas are ordinary updates and "cannot be expressed as an
+        // ALTER" would be a lie.
+        if (delta.Difference != SchemaPatchDifference.Invalid)
+        {
+            return delta.ToString()!;
+        }
+
+        return $"{delta} ({DestructiveChange.DescribeReason(delta)})";
+    }
 }
 
 /// <summary>

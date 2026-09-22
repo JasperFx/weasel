@@ -3,8 +3,14 @@ using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
 
-public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferrableForeignKeys
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferrableForeignKeys,
+    ISchemaObjectDeltaWithReason
 {
+    /// <summary>
+    ///     Which change made this delta <see cref="SchemaPatchDifference.Invalid" /> (weasel#600).
+    /// </summary>
+    public string? InvalidReason { get; private set; }
+
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
     }
@@ -357,13 +363,17 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
     private SchemaPatchDifference determinePatchDifference()
     {
+        InvalidReason = null;
+
         if (Actual!.PartitionStrategy != Expected.PartitionStrategy)
         {
+            InvalidReason = "the table's partition strategy cannot be changed in place";
             return SchemaPatchDifference.Invalid;
         }
 
         if (!Actual.PartitionExpressions.SequenceEqual(Expected.PartitionExpressions))
         {
+            InvalidReason = "the table's partition expressions cannot be changed in place";
             return SchemaPatchDifference.Invalid;
         }
 
@@ -376,25 +386,41 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
         // If there are any columns that are different and at least one cannot
         // automatically generate an `ALTER TABLE` statement, the patch is invalid
-        if (Columns.Different.Any(x => !x.Expected.CanAlter(x.Actual)))
+        var unalterable = Columns.Different.Where(x => !x.Expected.CanAlter(x.Actual)).ToArray();
+        if (unalterable.Any())
         {
+            InvalidReason =
+                $"{unalterable.Select(x => $"column '{x.Expected.Name}'").Join(" and ")} cannot be altered in place";
             return SchemaPatchDifference.Invalid;
         }
 
         // If there are any missing columns and at least one
         // cannot generate an `ALTER TABLE * ADD COLUMN` statement
-        if (Columns.Missing.Any(x => !x.CanAdd()))
+        var unaddable = Columns.Missing.Where(x => !x.CanAdd()).ToArray();
+        if (unaddable.Any())
         {
+            InvalidReason =
+                $"{unaddable.Select(x => $"column '{x.Name}'").Join(" and ")} cannot be added to an existing table";
             return SchemaPatchDifference.Invalid;
         }
 
-        var differences = new[]
+        var differences = new (SchemaPatchDifference Difference, string Reason)[]
         {
-            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), CheckConstraints.Difference(),
-            PrimaryKeyDifference, PartitioningDifference
+            (Columns.Difference(), "a column change cannot be applied incrementally"),
+            (ForeignKeys.Difference(), "a foreign key change cannot be applied incrementally"),
+            (Indexes.Difference(), "an index change cannot be applied incrementally"),
+            (CheckConstraints.Difference(), "a check constraint change cannot be applied incrementally"),
+            (PrimaryKeyDifference, "the primary key cannot be changed in place"),
+            (PartitioningDifference, "the table's partitioning cannot be changed in place")
         };
 
-        return differences.Min();
+        var worst = differences.MinBy(x => x.Difference);
+        if (worst.Difference == SchemaPatchDifference.Invalid)
+        {
+            InvalidReason = worst.Reason;
+        }
+
+        return worst.Difference;
     }
 
     private bool requiresPrimaryKeyDropBeforeUpdate()

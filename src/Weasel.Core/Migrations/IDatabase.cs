@@ -251,6 +251,18 @@ public interface IMigrationLogger
     void SchemaChange(string sql);
 
     void OnFailure(DbCommand command, Exception ex);
+
+    /// <summary>
+    ///     Called once per object, before any statement runs, when the migration is about to drop
+    ///     and recreate something rather than alter it -- the migrator's only data-destroying
+    ///     branch (weasel#600). A default implementation writes to the console, so every existing
+    ///     <see cref="IMigrationLogger" /> gains the warning without being changed; override it to
+    ///     route the text at Warning level into a real logger.
+    /// </summary>
+    void DestructiveChange(string description)
+    {
+        Console.Out.WriteLine(description);
+    }
 }
 
 /// <summary>
@@ -306,5 +318,15 @@ public class DefaultMigrationLogger: IMigrationLogger
     public void OnFailure(DbCommand command, Exception ex)
     {
         throw ex;
+    }
+
+    /// <summary>
+    ///     Written to the same destination as the DDL, so a caller buffering one database's output
+    ///     gets the warning attributably alongside the statements it is warning about rather than
+    ///     interleaved on the console.
+    /// </summary>
+    public void DestructiveChange(string description)
+    {
+        (_writer ?? Console.Out).WriteLine(description);
     }
 }

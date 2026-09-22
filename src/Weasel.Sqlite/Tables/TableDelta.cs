@@ -7,11 +7,18 @@ namespace Weasel.Sqlite.Tables;
 /// Represents the differences between an expected table schema and the actual table in the database.
 /// SQLite has limited ALTER TABLE support, so many changes require table recreation.
 /// </summary>
-public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild, ISchemaObjectDeltaWithReason
 {
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
     }
+
+    /// <summary>
+    ///     Which change made this delta <see cref="SchemaPatchDifference.Invalid" /> (weasel#600).
+    ///     SQLite's deltas can almost always rebuild in place, so this mostly explains a refusal
+    ///     under <c>CreateOnly</c> rather than a drop.
+    /// </summary>
+    public string? InvalidReason { get; private set; }
 
     public ItemDelta<TableColumn> Columns { get; internal set; } = null!;
     public ItemDelta<IndexDefinition> Indexes { get; internal set; } = null!;
@@ -126,12 +133,15 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
 
     private SchemaPatchDifference determinePatchDifference()
     {
+        InvalidReason = null;
+
         // Check if table recreation is required due to SQLite limitations
         RequiresTableRecreation = requiresTableRecreation();
 
         if (RequiresTableRecreation)
         {
             // Table recreation is effectively an Invalid state that requires drop+create
+            InvalidReason = "SQLite cannot make this change with ALTER TABLE, so the table has to be rebuilt";
             return SchemaPatchDifference.Invalid;
         }
 
@@ -157,11 +167,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         if (ForeignKeys.Missing.Any() || ForeignKeys.Extras.Any() || ForeignKeys.Different.Any())
         {
             // Foreign keys require table recreation in SQLite
+            InvalidReason = "SQLite cannot add or drop a foreign key with ALTER TABLE";
             return SchemaPatchDifference.Invalid;
         }
 
         if (PrimaryKeyDifference != SchemaPatchDifference.None)
         {
+            InvalidReason = "SQLite cannot change a primary key with ALTER TABLE";
             return SchemaPatchDifference.Invalid;
         }
 
