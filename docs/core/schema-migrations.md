@@ -108,9 +108,32 @@ The `AutoCreate` enum (from the `JasperFx` namespace) controls what schema chang
 | Value | Behavior | Recommended Use |
 |-------|----------|----------------|
 | `All` | Creates, updates, and recreates objects as needed. May drop and rebuild tables that cannot be incrementally updated. | Development and testing. |
-| `CreateOrUpdate` | Creates missing objects and applies incremental updates. Never drops existing objects. | Staging or early production deployments. |
+| `CreateOrUpdate` | Creates missing objects and applies incremental updates to objects in the model, **including dropping columns, indexes and foreign keys that the model no longer declares**. Never drops or recreates a whole object, and never touches objects the model does not know about. | Staging or early production deployments. |
 | `CreateOnly` | Creates missing objects only. Will not modify existing objects. | Controlled deployments. |
-| `None` | No runtime schema changes. Throws if the database does not match. | Production with CI/CD-managed migrations. |
+| `None` | Makes no schema changes at runtime: a session that touches a missing table gets the provider's own error. An *explicit* apply still migrates -- see below. Drift is only reported by `db-assert`. | Production with CI/CD-managed migrations. |
+
+::: warning `CreateOrUpdate` is not "additive only"
+`CreateOrUpdate` will not drop a table, but for a table it does know about, the `Update` delta
+drops columns that are present in the database and absent from the model, along with extra
+indexes and extra foreign keys. Removing a field from a mapped document under `CreateOrUpdate`
+drops that column and the data in it. If you need a strictly additive policy, use `CreateOnly`.
+:::
+
+::: warning `AutoCreate.None` does not throw
+Two paths read `None`, and neither one throws:
+
+- The lazy per-feature path (`IDatabase.EnsureStorageExistsAsync`) returns immediately without
+  touching the database, so a missing table surfaces later as the provider's own error --
+  `42P01` on PostgreSQL, `SqlException 208` on SQL Server.
+- The full apply path -- `ApplyAllConfiguredChangesToDatabaseAsync`, and therefore `db-apply` and
+  `resources setup` -- **coerces `None` to `CreateOrUpdate` and migrates anyway**, because an
+  explicit apply is intent to provision.
+
+The only path that reports drift is `AssertDatabaseMatchesConfigurationAsync` / `db-assert`,
+which throws a `DatabaseValidationException` regardless of the `AutoCreate` setting. So
+`AutoCreate.None` plus `db-assert` in your deployment pipeline is the combination that actually
+fails fast; `AutoCreate.None` on its own only means "do not migrate lazily".
+:::
 
 Set the policy on your database instance:
 
@@ -120,7 +143,7 @@ Set the policy on your database instance:
 // In development -- let Weasel manage everything
 database.AutoCreate = AutoCreate.All;
 
-// In production -- fail fast if the schema is wrong
+// In production -- never migrate lazily. Pair with db-assert to fail on drift
 database.AutoCreate = AutoCreate.None;
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L68-L74' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_set_autocreate_policy' title='Start of snippet'>anchor</a></sup>

@@ -70,7 +70,7 @@ public class SchemaMigrationSamples
         // In development -- let Weasel manage everything
         database.AutoCreate = AutoCreate.All;
 
-        // In production -- fail fast if the schema is wrong
+        // In production -- never migrate lazily. Pair with db-assert to fail on drift
         database.AutoCreate = AutoCreate.None;
         #endregion
     }
