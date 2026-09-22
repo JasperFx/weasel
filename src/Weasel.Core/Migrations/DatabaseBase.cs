@@ -482,7 +482,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             }
 
             throw new InvalidOperationException(
-                "Unable to attain a global lock in time order to apply database changes");
+                "Unable to attain the global lock in time to apply database changes. Another replica is usually "
+                + "applying them; set ResourceMigrationFailureMode.ContinueOnFailures to let a replica that loses "
+                + "this race start against the schema the winner is applying.");
         }
         finally
         {
@@ -634,7 +636,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             }
         }
 
-        using (await _migrateLocker.Lock(5.Seconds(), token).ConfigureAwait(false))
+        using (await _migrateLocker.Lock(5.Seconds(), $"applying the schema for {featureType.Name}", token).ConfigureAwait(false))
         {
             if (_checks.ContainsKey(featureType))
             {

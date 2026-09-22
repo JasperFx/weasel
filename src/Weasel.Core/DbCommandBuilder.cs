@@ -260,8 +260,10 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
             return databaseType;
         }
 
+        // Not "Weasel.SqlServer": this is the provider-neutral DbDatabaseProvider in Weasel.Core,
+        // so it named the wrong package on every provider but one (weasel#602).
         throw new NotSupportedException(
-            $"Weasel.SqlServer does not (yet) support database type mapping to {type.FullNameInCode()}");
+            $"Weasel does not (yet) support database type mapping to {type.FullNameInCode()}");
     }
 
     public override void AddParameter(DbCommand command, DbParameter parameter)
