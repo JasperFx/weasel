@@ -40,14 +40,55 @@ public class batch_separated_ddl_executes: IntegrationContext
         await assertBothTablesExist();
     }
 
+    [Fact]
+    public async Task drop_runs_every_batch()
+    {
+        await ResetSchema();
+
+        var theObject = new GoSeparatedSchemaObject();
+        await theObject.CreateAsync(theConnection);
+        await assertBothTablesExist();
+
+        await theObject.Drop(theConnection);
+
+        await assertNoTablesRemain();
+    }
+
+    [Fact]
+    public async Task rollback_all_runs_every_batch()
+    {
+        await ResetSchema();
+
+        await new GoSeparatedSchemaObject().CreateAsync(theConnection);
+        await assertBothTablesExist();
+
+        // A Create delta rolls back through WriteDropStatement, which is where the GO lives.
+        var migration = new SchemaMigration(
+            new SchemaObjectDelta(new GoSeparatedSchemaObject(), SchemaPatchDifference.Create));
+
+        await migration.RollbackAllAsync(theConnection, new SqlServerMigrator());
+
+        await assertNoTablesRemain();
+    }
+
     private async Task assertBothTablesExist()
+    {
+        (await batchesTables()).ShouldBe(["a", "b"]);
+    }
+
+    private async Task assertNoTablesRemain()
+    {
+        (await batchesTables()).ShouldBeEmpty();
+    }
+
+    private async Task<string[]> batchesTables()
     {
         var tables = await theConnection.ExistingTables();
 
-        tables.Where(x => x.Schema.EqualsIgnoreCase("batches"))
+        return tables.Where(x => x.Schema.EqualsIgnoreCase("batches"))
             .Select(x => x.Name.ToLowerInvariant())
             .OrderBy(x => x)
-            .ShouldBe(["a", "b"]);
+            .ToArray();
     }
 }
 
