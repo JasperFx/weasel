@@ -24,8 +24,16 @@ public static class SqlServerBatchSplitter
     ///     non-capturing on purpose: <see cref="Regex.Split(string)" /> injects captured groups into its
     ///     output, which would emit the count as if it were a batch.
     /// </summary>
+    /// <remarks>
+    ///     Every whitespace class here is horizontal, <c>[ \t]</c> rather than <c>\s</c>, so the whole
+    ///     match stays on the separator's own line. With <c>\s</c> the optional count and the trailing
+    ///     run could both cross a newline, and <c>GO</c> followed by a line reading only <c>5</c> would
+    ///     swallow that line as if the digit were a repeat count on the <c>GO</c>. The explicit
+    ///     <c>\r?</c> is what <c>\s</c> was quietly doing for CRLF input: <c>$</c> matches before the
+    ///     <c>\n</c>, not before the <c>\r\n</c> pair, so the carriage return has to be consumed here.
+    /// </remarks>
     private static readonly Regex _separator = new(
-        @"^\s*GO(?:\s+\d+)?\s*;?\s*$",
+        @"^[ \t]*GO(?:[ \t]+\d+)?[ \t]*;?[ \t]*\r?$",
         RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>

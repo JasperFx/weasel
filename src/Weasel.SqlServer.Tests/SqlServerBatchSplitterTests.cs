@@ -45,6 +45,27 @@ public class SqlServerBatchSplitterTests
         SqlServerBatchSplitter.Split(sql).ShouldBe(["select 1", "select 2"]);
     }
 
+    /// <summary>
+    ///     The repeat count is part of the separator line or it is not a count at all. Whitespace in
+    ///     the pattern stays horizontal so a lone digit on the next line is ordinary batch text, not
+    ///     something the separator swallows.
+    /// </summary>
+    [Fact]
+    public void a_count_on_the_line_after_go_is_not_part_of_the_separator()
+    {
+        var sql = "select 1\nGO\n5\nselect 2;";
+
+        SqlServerBatchSplitter.Split(sql).ShouldBe(["select 1", "5\nselect 2;"]);
+    }
+
+    [Fact]
+    public void a_trailing_comment_on_the_go_line_is_not_a_separator()
+    {
+        var sql = "select 1\nGO -- done\nselect 2";
+
+        SqlServerBatchSplitter.Split(sql).ShouldBe(["select 1\nGO -- done\nselect 2"]);
+    }
+
     [Fact]
     public void a_leading_and_trailing_go_produce_no_empty_batches()
     {
