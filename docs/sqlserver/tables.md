@@ -69,6 +69,16 @@ orders.AddColumn<decimal>("total").NotNull();
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L84-L90' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_foreign_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+`ALTER TABLE ... ADD CONSTRAINT` has no `IF NOT EXISTS` of its own, so the generated DDL is guarded
+by an `OBJECT_ID` lookup for a constraint (`N'F'`) of that name in the table's schema:
+
+```sql
+IF OBJECT_ID(N'dbo.fkey_orders_user_id', N'F') IS NULL
+ALTER TABLE dbo.orders
+ADD CONSTRAINT fkey_orders_user_id FOREIGN KEY(user_id)
+ REFERENCES dbo.users(id) ON DELETE CASCADE;
+```
+
 ## Indexes
 
 <!-- snippet: sample_ss_indexes -->
@@ -87,6 +97,19 @@ table.Indexes.Add(index);
 <!-- endSnippet -->
 
 Indexes support `IncludedColumns`, `FillFactor`, `SortOrder`, and `IsClustered` properties.
+
+`CREATE INDEX` is likewise guarded, by a `sys.indexes` lookup for an index of that name on that
+table. `sys.indexes` rather than `OBJECT_ID` because an index name is unique per table, not per
+schema:
+
+```sql
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'ix_users_email' AND object_id = OBJECT_ID(N'dbo.users'))
+    CREATE UNIQUE INDEX ix_users_email ON dbo.users (email) WHERE email IS NOT NULL;
+```
+
+The matching drop is `DROP INDEX IF EXISTS`, so both halves of a migration can be replayed. Both
+forms, and the `CREATE OR ALTER` used for procedures, need SQL Server 2016 SP1 or later. See
+[batch separators and re-runnable scripts](/sqlserver/#batch-separators-and-re-runnable-scripts).
 
 ## Delta Detection
 

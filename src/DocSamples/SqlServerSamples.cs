@@ -162,10 +162,10 @@ END;
         var migrator = new SqlServerMigrator();
         var writer = new StringWriter();
 
-        // CREATE PROCEDURE
+        // CREATE OR ALTER PROCEDURE, between GO lines
         proc.WriteCreateStatement(migrator, writer);
 
-        // CREATE OR ALTER PROCEDURE (for updates)
+        // The same text: one form is safe on both paths
         proc.WriteCreateOrAlterStatement(migrator, writer);
 
         // DROP PROCEDURE IF EXISTS

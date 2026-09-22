@@ -73,6 +73,45 @@ migrator.WriteSchemaCreationSql(new[] { "myschema" }, writer);
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L41-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_schema_management' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Batch separators and re-runnable scripts
+
+A rendered migration concatenates every object's DDL into one script, and SQL Server requires
+`CREATE OR ALTER PROCEDURE` to be the first statement of its batch. So a generated script contains
+`GO` lines around each stored procedure:
+
+```sql
+IF TYPE_ID(N'gh593.ChildIdList') IS NULL
+CREATE TYPE gh593.ChildIdList AS TABLE (ID uniqueidentifier NOT NULL)
+GO
+
+CREATE OR ALTER PROCEDURE gh593.uspDeleteChildren
+    @IDLIST gh593.ChildIdList READONLY
+AS
+    DELETE FROM gh593.child WHERE id IN (SELECT ID FROM @IDLIST);
+GO
+```
+
+`sqlcmd -i` and SQL Server Management Studio both understand `GO`, so a script written out with
+`db-patch` or `WriteAllUpdates` runs as it stands. `GO` is not T-SQL, though, so `SqlClient` would
+answer `Incorrect syntax near 'GO'` if the text were handed to it whole. Weasel's own executors
+therefore split the script first and send one command per batch, with sqlcmd's semantics:
+
+- A separator is a line whose entire content is `GO`, ignoring surrounding whitespace.
+- It is case insensitive, so `go` separates too.
+- The optional repeat count (`GO 5`) is accepted and ignored. The batch runs once, which is the
+  only thing a migration can mean, and nothing in Weasel emits a count.
+- String literals and comments are not parsed, exactly as sqlcmd does not parse them. A line
+  reading only `GO` inside a literal ends the batch there. Do not author one.
+
+The generated DDL is also re-runnable. Table creation, index creation, foreign key constraints,
+table types and sequences each carry their own existence guard (`IF OBJECT_ID(...) IS NULL`,
+`IF NOT EXISTS (SELECT 1 FROM sys.indexes ...)`, `IF TYPE_ID(...) IS NULL`), procedures are emitted
+as `CREATE OR ALTER`, and index drops use `DROP INDEX IF EXISTS`. Running the same script twice
+against the same database is a no-op the second time rather than a failure, which matters because
+one unguarded object aborts every statement after it.
+
+`DROP INDEX IF EXISTS` and `CREATE OR ALTER` require **SQL Server 2016 SP1 or later**.
+
 ## Identifiers
 
 SQL Server delimits with `[name]` and escapes an embedded `]` by doubling it. Weasel brackets any
