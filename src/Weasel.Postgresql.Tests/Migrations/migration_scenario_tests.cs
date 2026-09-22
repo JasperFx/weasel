@@ -112,7 +112,12 @@ public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
                 new ReconnectionOptions(0)
             )
         );
-        exception.Message.ShouldBe("Unable to attain a global lock in time order to apply database changes");
+        // weasel#602: the message used to read "Unable to attain a global lock in time order to
+        // apply database changes" -- "in time order" was a typo for "in time", and it named no
+        // remedy for the situation it describes, which on a rolling deploy is the expected outcome
+        // for every replica but one.
+        exception.Message.ShouldStartWith("Unable to attain the global lock in time to apply database changes.");
+        exception.Message.ShouldContain("ContinueOnFailures");
 
         connectionGlobalLock.Failed.ShouldBeTrue();
         connectionGlobalLock.Retried.ShouldBeFalse();

@@ -32,6 +32,6 @@ public class PostgresqlIdentifierInvalidException: Exception
         var because = reason is null ? "" : $" because {reason}";
 
         return
-            $"Database identifier {name} is not valid{because}. See https://www.postgresql.org/docs/current/static/sql-syntax-lexical.html for valid unquoted identifiers (Weasel does not quote identifiers).";
+            $"Database identifier {name} is not valid{because}. Weasel delimits identifiers where it has to, so a name does not have to be a bare PostgreSQL identifier -- but a name that cannot be written safely at any quoting is rejected rather than escaped. See https://www.postgresql.org/docs/current/static/sql-syntax-lexical.html for PostgreSQL's own rules.";
     }
 }

@@ -53,7 +53,7 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
             return database;
         }
 
-        using (await _lock.Lock(5.Seconds(), ct).ConfigureAwait(false))
+        using (await _lock.Lock(5.Seconds(), $"creating the database '{databaseName}'", ct).ConfigureAwait(false))
         {
             if (_databases.TryFind(databaseName, out database))
             {

@@ -154,7 +154,7 @@ public static class SchemaUtils
             await Task.Delay(reconnectionCount * 50, CancellationToken.None).ConfigureAwait(false);
         } while (!success && reconnectionCount < maxReconnectionCount);
 
-        throw new InvalidOperationException($"Unable to drop schema: ${schemaName}");
+        throw new InvalidOperationException($"Unable to drop schema: {schemaName}");
     }
 
     private static async Task<bool> dropSchema(string connectionString, string schemaName)
