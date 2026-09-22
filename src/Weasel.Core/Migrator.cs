@@ -429,6 +429,18 @@ public abstract class
     /// </remarks>
     public virtual int MaxParametersPerCommand => 60000;
 
+    /// <summary>
+    ///     Split rendered DDL into the pieces this dialect needs to receive as separate commands.
+    /// </summary>
+    /// <remarks>
+    ///     The default is a single piece, which is what every dialect but SQL Server wants. SQL Server
+    ///     overrides it because a stored procedure definition has to be the first statement of its
+    ///     batch, and the separator that starts a new batch, <c>GO</c>, is a sqlcmd directive that the
+    ///     server itself rejects (weasel#593). A provider that does not override this behaves exactly
+    ///     as it always has.
+    /// </remarks>
+    public virtual IReadOnlyList<string> SplitIntoBatches(string sql) => [sql];
+
     public abstract void AssertValidIdentifier(string name);
 
     /// <summary>

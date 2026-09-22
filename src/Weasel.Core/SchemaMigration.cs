@@ -530,13 +530,18 @@ public class SchemaMigration
     /// <param name="conn"></param>
     /// <param name="rules"></param>
     /// <returns></returns>
-    public Task RollbackAllAsync(DbConnection conn, Migrator rules, CancellationToken ct = default)
+    public async Task RollbackAllAsync(DbConnection conn, Migrator rules, CancellationToken ct = default)
     {
         var writer = new StringWriter();
         WriteAllRollbacks(writer, rules);
 
-        return conn
-            .CreateCommand(writer.ToString())
-            .ExecuteNonQueryAsync(ct);
+        // One command per batch. Most dialects report a single batch, but SQL Server's rollback text
+        // can carry GO separators, which the server will not accept inside a command (weasel#593).
+        foreach (var batch in rules.SplitIntoBatches(writer.ToString()))
+        {
+            await conn
+                .CreateCommand(batch)
+                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
     }
 }

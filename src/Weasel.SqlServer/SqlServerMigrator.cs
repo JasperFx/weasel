@@ -166,6 +166,12 @@ $$;
     /// </summary>
     public override int MaxParametersPerCommand => 2000;
 
+    /// <inheritdoc />
+    public override IReadOnlyList<string> SplitIntoBatches(string sql)
+    {
+        return SqlServerBatchSplitter.Split(sql);
+    }
+
     /// <summary>
     ///     Validates a database object name before it is written into DDL. See
     ///     <see cref="IdentifierValidation" /> for why each rule is here; this method had no body at all
@@ -221,31 +227,41 @@ $$;
         }
     }
 
+    /// <summary>
+    ///     Runs one piece of rendered DDL, a batch at a time. <c>GO</c> is a sqlcmd directive rather
+    ///     than T-SQL, so text carrying one has to be split before it reaches a command (weasel#593).
+    ///     A batch that fails stops the rest of that text: the batches after it were written on the
+    ///     assumption that the earlier ones ran.
+    /// </summary>
     private async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
-        var cmd = conn.CreateCommand(writer.ToString());
-        logger.SchemaChange(cmd.CommandText);
-
-        try
+        foreach (var batch in SqlServerBatchSplitter.Split(writer.ToString()))
         {
-            await cmd
-                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+            var cmd = conn.CreateCommand(batch);
+            logger.SchemaChange(cmd.CommandText);
 
-            if (logger is DefaultMigrationLogger)
+            try
             {
-                if (ReferenceEquals(failure, e))
+                await cmd
+                    .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+
+                if (logger is DefaultMigrationLogger)
                 {
-                    throw;
+                    if (ReferenceEquals(failure, e))
+                    {
+                        throw;
+                    }
+
+                    throw failure;
                 }
 
-                throw failure;
+                logger.OnFailure(cmd, failure);
+                return;
             }
-
-            logger.OnFailure(cmd, failure);
         }
     }
 
