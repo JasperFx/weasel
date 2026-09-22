@@ -4,7 +4,7 @@ namespace Weasel.EntityFrameworkCore.Tests.SqlServer;
 
 public class SqlServerFkDbContext : DbContext
 {
-    public const string ConnectionString = SqlServerDbContext.ConnectionString;
+    public static readonly string ConnectionString = SqlServerDbContext.ConnectionString;
     public const string TestSchema = "batch_test";
 
     public SqlServerFkDbContext(DbContextOptions<SqlServerFkDbContext> options) : base(options)
