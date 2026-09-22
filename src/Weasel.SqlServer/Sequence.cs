@@ -19,10 +19,18 @@ public class Sequence: SequenceBase
     {
     }
 
+    /// <summary>
+    ///     Guarded by an <c>OBJECT_ID</c> existence check so a rendered migration script can be run
+    ///     more than once (weasel#593). <c>CREATE SEQUENCE</c> has no <c>OR ALTER</c> and no
+    ///     <c>IF NOT EXISTS</c> of its own, and unguarded it raises "There is already an object
+    ///     named ... in the database" on the second run, which aborts the whole script, including
+    ///     the objects after it.
+    /// </summary>
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         var startsWith = StartWith ?? 1;
 
+        writer.WriteLine($"IF OBJECT_ID(N'{SchemaUtils.EscapeLiteral(Identifier.QualifiedName)}', N'SO') IS NULL");
         writer.WriteLine(
             $"CREATE SEQUENCE {Identifier} START WITH {startsWith}{(IncrementBy.HasValue ? $" INCREMENT BY {IncrementBy.Value}" : string.Empty)};");
 
