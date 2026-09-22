@@ -18,7 +18,7 @@ internal sealed class RichAppendEventOperation: AppendEventOperationBase
     private readonly RichEventStorageDescriptor _descriptor;
 
     public RichAppendEventOperation(RichEventStorageDescriptor descriptor, StreamAction stream, IEvent e)
-        : base(stream, e)
+        : base(stream, e, descriptor.TransformAppendEventException)
     {
         _descriptor = descriptor;
     }

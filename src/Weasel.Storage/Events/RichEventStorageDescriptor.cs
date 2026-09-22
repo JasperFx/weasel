@@ -159,4 +159,20 @@ public sealed class RichEventStorageDescriptor
     /// SQL Server dialect installs its own. Default: no transform.
     /// </summary>
     public System.Func<System.Exception, StreamAction, System.Exception?>? TransformInsertStreamException { get; init; }
+
+    /// <summary>
+    /// Optional dialect-installed transform that maps a provider exception raised
+    /// by a per-event append (e.g. a unique-constraint violation on the events
+    /// table's <c>(stream_id, version)</c> key, which is how a lost
+    /// optimistic-concurrency race surfaces on the rich append path) into a
+    /// store-specific "unexpected stream version" exception, given the offending
+    /// <see cref="StreamAction"/>. Returns <c>null</c> to leave the original
+    /// exception unchanged, so the store's global transform chain still runs.
+    /// Symmetric to <see cref="TransformInsertStreamException"/>, and for the
+    /// same reason: without it the global chain sees only the driver exception
+    /// and has to reconstruct the stream id and aggregate type by regex over
+    /// provider-specific error detail that the driver may well have redacted.
+    /// Default: no transform.
+    /// </summary>
+    public System.Func<System.Exception, StreamAction, System.Exception?>? TransformAppendEventException { get; init; }
 }

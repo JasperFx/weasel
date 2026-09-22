@@ -165,4 +165,15 @@ public sealed class QuickWithServerTimestampsEventStorageDescriptor
     /// Default: no transform.
     /// </summary>
     public System.Func<System.Exception, StreamAction, System.Exception?>? TransformInsertStreamException { get; init; }
+
+    /// <summary>
+    /// Optional dialect-installed transform that maps a provider exception raised
+    /// by a per-event append into a store-specific "unexpected stream version"
+    /// exception — see
+    /// <see cref="RichEventStorageDescriptor.TransformAppendEventException"/>.
+    /// The Quick paths read the current version in-session before appending and
+    /// raise their own version conflict, so a dialect normally leaves this unset
+    /// here; carried for symmetry. Default: no transform.
+    /// </summary>
+    public System.Func<System.Exception, StreamAction, System.Exception?>? TransformAppendEventException { get; init; }
 }
