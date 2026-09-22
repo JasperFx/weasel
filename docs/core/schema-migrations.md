@@ -193,6 +193,57 @@ var script = database.ToDatabaseScript();
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L101-L107' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_generate_migration_script' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Permissions
+
+A migration is refused by the database far more often for want of privilege than for anything
+wrong with the DDL. Weasel translates the providers' own permission errors into
+`InsufficientDatabasePrivilegeException`, which names the role, the database, the statement that
+was refused, and the two remedies. The provider exception -- `PostgresException` 42501,
+`SqlException` 262/229/297, `MySqlException` 1142/1044, `OracleException` ORA-01031 -- is kept as
+the `InnerException`, so nothing is hidden.
+
+<!-- snippet: sample_catch_insufficient_privilege -->
+<a id='snippet-sample_catch_insufficient_privilege'></a>
+```cs
+try
+{
+    await database.ApplyAllConfiguredChangesToDatabaseAsync();
+}
+catch (InsufficientDatabasePrivilegeException e)
+{
+    // e.Role, e.Database and e.Statement say who was refused and what for, and the
+    // provider's own exception is still there as e.InnerException
+    logger.LogError(e, "{Role} cannot migrate {Database}", e.Role, e.Database);
+    throw;
+}
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L80-L92' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_catch_insufficient_privilege' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The two remedies, both of which are deployment decisions rather than code ones:
+
+1. **Grant the role what it needs** -- `CREATE` on the schema, or ownership of the objects being
+   altered. Note that on PostgreSQL, `CREATE SCHEMA` checks `CREATE` on the *database* before it
+   evaluates its own `IF NOT EXISTS`, which is why Weasel guards schema creation with a
+   `pg_namespace` lookup: a role holding `CREATE` on one schema and nothing on the database can
+   still migrate into it.
+2. **Pre-provision the schema.** Run the output of `db-patch` as a privileged user, and run the
+   application itself with `AutoCreate.None` so it never attempts DDL. Pair that with `db-assert`
+   in your deployment pipeline, since `AutoCreate.None` on its own does not report drift.
+
+### Introspection is privilege-filtered
+
+The other half of the same problem, and the one that does not announce itself. Catalog
+introspection -- `information_schema`, `pg_*`, `sys.*`, `all_*` -- is filtered by the connection's
+privileges on every provider, so an object the role cannot see reads back exactly like one that
+does not exist. A restricted role therefore makes Weasel conclude that *every* object is missing:
+under `CreateOrUpdate` it will then try to create them and hit the permission failure above, and
+under `db-assert` it reports the entire configuration as absent.
+
+`AssertDatabaseMatchesConfigurationAsync` says so when the failure has that shape -- every object
+checked reported missing, and more than one of them -- so a validation failure against a database
+that is demonstrably not empty points at grants rather than at drift.
+
 ## Migration Logging
 
 Implement `IMigrationLogger` to capture the SQL that Weasel generates:

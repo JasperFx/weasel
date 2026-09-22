@@ -1,5 +1,6 @@
 using System.Data.Common;
 using JasperFx;
+using Microsoft.Extensions.Logging;
 using Weasel.Core;
 using Weasel.Core.Migrations;
 
@@ -71,6 +72,23 @@ public class SchemaMigrationSamples
 
         // In production -- fail fast if the schema is wrong
         database.AutoCreate = AutoCreate.None;
+        #endregion
+    }
+
+    public async Task catching_a_permission_failure(IDatabase database, ILogger logger)
+    {
+        #region sample_catch_insufficient_privilege
+        try
+        {
+            await database.ApplyAllConfiguredChangesToDatabaseAsync();
+        }
+        catch (InsufficientDatabasePrivilegeException e)
+        {
+            // e.Role, e.Database and e.Statement say who was refused and what for, and the
+            // provider's own exception is still there as e.InnerException
+            logger.LogError(e, "{Role} cannot migrate {Database}", e.Role, e.Database);
+            throw;
+        }
         #endregion
     }
 

@@ -203,7 +203,7 @@ $$;
         }
     }
 
-    private static async Task createSchemas(
+    private async Task createSchemas(
         SchemaMigration migration,
         DbConnection conn,
         IMigrationLogger logger,
@@ -213,7 +213,7 @@ $$;
 
         if (migration.Schemas.Any())
         {
-            new SqlServerMigrator().WriteSchemaCreationSql(migration.Schemas, writer);
+            WriteSchemaCreationSql(migration.Schemas, writer);
             if (writer.ToString().Trim().IsNotEmpty()) // Cheesy way of knowing if there is any delta
             {
                 await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
@@ -221,7 +221,7 @@ $$;
         }
     }
 
-    private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
+    private async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
         var cmd = conn.CreateCommand(writer.ToString());
         logger.SchemaChange(cmd.CommandText);
@@ -233,13 +233,58 @@ $$;
         }
         catch (Exception e)
         {
+            var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+
             if (logger is DefaultMigrationLogger)
             {
-                throw;
+                if (ReferenceEquals(failure, e))
+                {
+                    throw;
+                }
+
+                throw failure;
             }
 
-            logger.OnFailure(cmd, e);
+            logger.OnFailure(cmd, failure);
         }
+    }
+
+    /// <summary>
+    ///     The SQL Server errors that mean "this role may not do that" rather than "that statement
+    ///     is wrong" (weasel#598): 229 and 230 are permission denied on an object or column, 262 is
+    ///     the one <c>CREATE SCHEMA</c> raises for a role without <c>CREATE SCHEMA</c> /
+    ///     <c>ALTER ANY SCHEMA</c>, 297/15247 are the generic "user does not have permission to
+    ///     perform this action", and 300 is a denied <c>VIEW</c> permission.
+    /// </summary>
+    private static readonly int[] PermissionErrorNumbers = [229, 230, 262, 297, 300, 15247];
+
+    /// <summary>
+    ///     Is this SQL Server error number a permission refusal? Public so the set can be asserted
+    ///     without having to manufacture a <see cref="SqlException" />, which has no public
+    ///     constructor.
+    /// </summary>
+    public static bool IsPermissionErrorNumber(int errorNumber)
+    {
+        return Array.IndexOf(PermissionErrorNumbers, errorNumber) >= 0;
+    }
+
+    public override bool IsInsufficientPrivilege(Exception exception)
+    {
+        if (exception is not SqlException sqlException)
+        {
+            return false;
+        }
+
+        // A batch can report several errors; the permission refusal is not always the first one.
+        foreach (SqlError error in sqlException.Errors)
+        {
+            if (IsPermissionErrorNumber(error.Number))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static string CreateSchemaStatementFor(string schemaName)

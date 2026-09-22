@@ -89,6 +89,32 @@ END;");
         }
     }
 
+    /// <summary>
+    ///     The Oracle errors that mean the session was refused for want of privilege
+    ///     (weasel#598): <c>ORA-01031</c> is the general "insufficient privileges", and
+    ///     <c>ORA-01950</c> is "no privileges on tablespace", which is what a user with CREATE
+    ///     TABLE but no quota hits on the first table it tries to create. <c>ORA-00942</c> is
+    ///     deliberately absent: "table or view does not exist" is how Oracle reports both a
+    ///     missing object and an invisible one, and treating a genuinely missing table as a
+    ///     permission failure would be worse than the ambiguity it tries to resolve.
+    /// </summary>
+    private static readonly int[] PermissionErrorNumbers = [1031, 1950];
+
+    /// <summary>
+    ///     Is this Oracle error number a permission refusal? Public so the set can be asserted
+    ///     without having to manufacture an <see cref="OracleException" />, which has no public
+    ///     constructor.
+    /// </summary>
+    public static bool IsPermissionErrorNumber(int errorNumber)
+    {
+        return Array.IndexOf(PermissionErrorNumbers, errorNumber) >= 0;
+    }
+
+    public override bool IsInsufficientPrivilege(Exception exception)
+    {
+        return exception is OracleException oracle && IsPermissionErrorNumber(oracle.Number);
+    }
+
     protected override async Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,
@@ -190,7 +216,7 @@ END;");
         }
     }
 
-    private static async Task createSchemas(
+    private async Task createSchemas(
         SchemaMigration migration,
         DbConnection conn,
         IMigrationLogger logger,
@@ -210,17 +236,24 @@ END;");
             }
             catch (Exception e)
             {
+                var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+
                 if (logger is DefaultMigrationLogger)
                 {
-                    throw;
+                    if (ReferenceEquals(failure, e))
+                    {
+                        throw;
+                    }
+
+                    throw failure;
                 }
 
-                logger.OnFailure(cmd, e);
+                logger.OnFailure(cmd, failure);
             }
         }
     }
 
-    private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
+    private async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
         var sql = writer.ToString();
 
@@ -242,12 +275,19 @@ END;");
             }
             catch (Exception e)
             {
+                var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+
                 if (logger is DefaultMigrationLogger)
                 {
-                    throw;
+                    if (ReferenceEquals(failure, e))
+                    {
+                        throw;
+                    }
+
+                    throw failure;
                 }
 
-                logger.OnFailure(cmd, e);
+                logger.OnFailure(cmd, failure);
             }
         }
     }

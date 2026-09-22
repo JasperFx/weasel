@@ -198,6 +198,73 @@ public abstract class
     );
 
     /// <summary>
+    ///     Does this exception mean the connection's role was refused for want of privilege,
+    ///     rather than because the statement itself was wrong? Overridden by each provider with
+    ///     its own error codes; the base returns false, so a provider that has not opted in keeps
+    ///     raising the raw driver exception exactly as before (weasel#598).
+    /// </summary>
+    public virtual bool IsInsufficientPrivilege(Exception exception)
+    {
+        return false;
+    }
+
+    /// <summary>
+    ///     The login the given connection is using, for
+    ///     <see cref="InsufficientDatabasePrivilegeException" />'s message. The base reads the
+    ///     usual connection-string keys, which covers every provider that authenticates with a
+    ///     user name; a provider whose connection object reports the resolved login directly
+    ///     should override. Returns null under integrated / managed-identity authentication,
+    ///     where there is no user name to name.
+    /// </summary>
+    public virtual string? RoleFor(DbConnection conn)
+    {
+        var connectionString = conn.ConnectionString;
+        if (connectionString.IsEmpty())
+        {
+            return null;
+        }
+
+        try
+        {
+            var builder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+            foreach (var key in UserNameConnectionStringKeys)
+            {
+                if (builder.TryGetValue(key, out var value) && value?.ToString().IsNotEmpty() == true)
+                {
+                    return value.ToString();
+                }
+            }
+        }
+        catch (ArgumentException)
+        {
+            // A connection string the generic builder cannot parse tells us nothing about the
+            // role, and this is only ever running to decorate an exception that is already being
+            // thrown. Say nothing rather than replace the real failure with a parse failure.
+        }
+
+        return null;
+    }
+
+    private static readonly string[] UserNameConnectionStringKeys =
+        ["Username", "User Id", "UserId", "User ID", "User", "Uid"];
+
+    /// <summary>
+    ///     Wrap a failed migration statement in
+    ///     <see cref="InsufficientDatabasePrivilegeException" /> when the provider recognises it
+    ///     as a permission failure; otherwise hand the original exception straight back, so the
+    ///     caller can rethrow it untouched.
+    /// </summary>
+    protected Exception TranslateMigrationFailure(DbConnection conn, string? statement, Exception exception)
+    {
+        if (!IsInsufficientPrivilege(exception))
+        {
+            return exception;
+        }
+
+        return new InsufficientDatabasePrivilegeException(RoleFor(conn), conn.Database, statement, exception);
+    }
+
+    /// <summary>
     ///     Write the SQL updates for a single delta object to the TextWriter
     /// </summary>
     /// <param name="writer"></param>

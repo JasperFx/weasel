@@ -163,6 +163,14 @@ public class least_privilege_schema_creation: IntegrationContext
     ///     The other half: a genuinely missing schema still needs <c>CREATE</c> on the database, and the
     ///     failure has to stay a failure rather than being swallowed by the guard.
     /// </summary>
+    /// <remarks>
+    ///     This used to assert a raw <see cref="PostgresException" /> with
+    ///     <c>SqlState == 42501</c>, which is exactly the bare signal weasel#598 is about: the only
+    ///     thing telling a user what went wrong was a SQLSTATE in an exception nobody catches by
+    ///     type. The failure is unchanged -- it is still a failure, still on the same statement,
+    ///     and the <see cref="PostgresException" /> is still there as the inner exception -- but it
+    ///     now arrives named, so this asserts the new shape rather than the old one.
+    /// </remarks>
     [Fact]
     public async Task still_fails_when_the_schema_is_missing_and_the_role_cannot_create_one()
     {
@@ -177,10 +185,64 @@ public class least_privilege_schema_creation: IntegrationContext
 
         var migration = await SchemaMigration.DetermineAsync(conn, table);
 
-        var exception = await Should.ThrowAsync<PostgresException>(
+        var exception = await Should.ThrowAsync<InsufficientDatabasePrivilegeException>(
             () => new PostgresqlMigrator().ApplyAllAsync(conn, migration, AutoCreate.CreateOrUpdate));
 
-        exception.SqlState.ShouldBe(PostgresErrorCodes.InsufficientPrivilege);
+        exception.InnerException.ShouldBeOfType<PostgresException>()
+            .SqlState.ShouldBe(PostgresErrorCodes.InsufficientPrivilege);
+
+        // The role is named from the connection, so the message says who was refused rather than
+        // leaving the reader to go and look at the connection string.
+        exception.Role.ShouldBe(RoleName);
+        exception.Message.ShouldContain(RoleName);
+
+        // And the statement that was refused, which is the one thing a migration logger prints
+        // and a caught exception used to lose.
+        exception.Statement.ShouldContain("CREATE SCHEMA");
+
+        exception.Message.ShouldContain("AutoCreate.None");
+    }
+
+    /// <summary>
+    ///     The third permission failure from weasel#598, and the nastiest one: DDL against an
+    ///     object that exists but belongs to somebody else. Unlike the schema case this one lands
+    ///     mid-migration, after earlier statements have already auto-committed.
+    /// </summary>
+    [Fact]
+    public async Task a_refused_alter_on_someone_elses_table_is_named_too()
+    {
+        await ResetSchema();
+        await GrantSchemaToLeastPrivilegeRoleAsync();
+
+        // Created and owned by the superuser; the least-privilege role holds USAGE + CREATE on the
+        // schema, which lets it make its own tables but not alter this one.
+        await using (var owner = new NpgsqlConnection(ConnectionSource.ConnectionString))
+        {
+            await owner.OpenAsync();
+            await owner.CreateCommand(
+                    $"""
+                     create table {SchemaName}.owned_elsewhere (id int primary key);
+                     grant select on {SchemaName}.owned_elsewhere to {RoleName};
+                     """)
+                .ExecuteNonQueryAsync();
+        }
+
+        var table = new Table(new PostgresqlObjectName(SchemaName, "owned_elsewhere"));
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<string>("name");
+
+        await using var conn = new NpgsqlConnection(LeastPrivilegeConnectionString());
+        await conn.OpenAsync();
+
+        var migration = await SchemaMigration.DetermineAsync(conn, table);
+        migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var exception = await Should.ThrowAsync<InsufficientDatabasePrivilegeException>(
+            () => new PostgresqlMigrator().ApplyAllAsync(conn, migration, AutoCreate.CreateOrUpdate));
+
+        exception.InnerException.ShouldBeOfType<PostgresException>()
+            .SqlState.ShouldBe(PostgresErrorCodes.InsufficientPrivilege);
+        exception.Statement.ShouldContain("owned_elsewhere");
     }
 
     private static string LeastPrivilegeConnectionString() =>

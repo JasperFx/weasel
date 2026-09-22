@@ -290,8 +290,51 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             var writer = new StringWriter();
             patch.WriteAllUpdates(writer, Migrator, AutoCreate.CreateOrUpdate);
 
-            throw new DatabaseValidationException(Identifier, writer.ToString());
+            throw new DatabaseValidationException(Identifier, writer.ToString() + describeTotalAbsence(patch));
         }
+    }
+
+    /// <summary>
+    ///     Catalog introspection is privilege-filtered on every provider: an object the
+    ///     connection's role cannot see is indistinguishable from one that is not there, so a
+    ///     restricted role reads back an empty schema and Weasel concludes that every object is
+    ///     missing. The resulting validation failure then reads as "the database is empty" when it
+    ///     is not (weasel#598). Say so, but only in the shape that can mean it -- every single
+    ///     object missing, and more than one of them, which no partially-migrated database
+    ///     produces.
+    /// </summary>
+    private static string describeTotalAbsence(SchemaMigration patch)
+    {
+        // Deltas that report None are objects that matched, and a migration always carries a few
+        // bookkeeping ones (the schema existence check, for instance) that never report anything
+        // else. What matters is whether every object that did report something reported "missing".
+        var absent = 0;
+        foreach (var delta in patch.Deltas)
+        {
+            switch (delta.Difference)
+            {
+                case SchemaPatchDifference.None:
+                    continue;
+                case SchemaPatchDifference.Create:
+                    absent++;
+                    continue;
+                default:
+                    return string.Empty;
+            }
+        }
+
+        // One missing object is an ordinary migration. Every object missing, and more than one of
+        // them, is the shape a privilege-filtered read produces.
+        if (absent < 2)
+        {
+            return string.Empty;
+        }
+
+        return
+            $"{Environment.NewLine}{Environment.NewLine}Note: all {absent} of the configured objects are reported as missing. "
+            + "If this database is not actually empty, the connection's role may not have privileges on the objects that are "
+            + "already there -- catalog introspection is filtered by privilege, so an object the role cannot see reads back "
+            + "exactly like one that does not exist. Check the role's grants before treating this as schema drift.";
     }
 
     public virtual TConnection CreateConnection()
