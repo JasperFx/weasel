@@ -91,6 +91,17 @@ AS
 ");
     }
 
+    private static StoredProcedure procedureAuthoredAs(string preamble)
+    {
+        return new StoredProcedure(new SqlServerObjectName("procs", "uspDeleteIncomingEnvelopes"), $@"
+{preamble} procs.uspDeleteIncomingEnvelopes
+    @IDLIST procs.EnvelopeIdList READONLY
+AS
+
+    DELETE FROM procs.jasper_incoming_envelopes WHERE id IN (SELECT ID FROM @IDLIST);
+");
+    }
+
 
     [Fact]
     public async Task can_create_a_function()
@@ -166,6 +177,31 @@ AS
     [Fact]
     public async Task fetch_delta_with_no_differences()
     {
+        await theProcedure.CreateAsync(theConnection);
+
+        var delta = await theProcedure.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    // sys.sql_modules blanks OR ALTER in place rather than removing it, so the catalog renders
+    // every one of these as CREATE + 3 spaces + PROCEDURE. Unless the comparison meets it there,
+    // the delta reads Update forever: applying it writes back the very text that did not match.
+    [Fact]
+    public async Task authored_as_create_or_alter_round_trips()
+    {
+        theProcedure = procedureAuthoredAs("CREATE OR ALTER PROCEDURE");
+
+        await theProcedure.CreateAsync(theConnection);
+
+        var delta = await theProcedure.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Fact]
+    public async Task authored_as_create_proc_round_trips()
+    {
+        theProcedure = procedureAuthoredAs("CREATE PROC");
+
         await theProcedure.CreateAsync(theConnection);
 
         var delta = await theProcedure.FindDeltaAsync(theConnection);

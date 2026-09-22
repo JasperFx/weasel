@@ -20,8 +20,13 @@ public class StoredProcedureDelta: SchemaObjectDelta<StoredProcedure>
             return SchemaPatchDifference.Create;
         }
 
-        var expectedSql = expected.CanonicizeSql();
-        var actualSql = actual.CanonicizeSql();
+        // Both sides drop to the bare CREATE PROCEDURE spelling first. The body may be authored as
+        // CREATE PROC or CREATE OR ALTER PROCEDURE, and whichever it is, sys.sql_modules hands back
+        // CREATE + 3 spaces + PROCEDURE, because SQL Server blanks OR ALTER in place. Comparing
+        // those as written reads Update forever, and applying the update writes the same text again
+        // (weasel#593).
+        var expectedSql = expected.CanonicizeSql().ToBareCreateProcedure();
+        var actualSql = actual.CanonicizeSql().ToBareCreateProcedure();
         if (!expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase))
         {
             return SchemaPatchDifference.Update;
