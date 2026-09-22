@@ -285,12 +285,57 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
     public async Task AssertDatabaseMatchesConfigurationAsync(CancellationToken ct = default)
     {
         var patch = await CreateMigrationAsync(ct).ConfigureAwait(false);
-        if (patch.Difference != SchemaPatchDifference.None)
+        if (patch.Difference == SchemaPatchDifference.None)
         {
-            var writer = new StringWriter();
-            patch.WriteAllUpdates(writer, Migrator, AutoCreate.CreateOrUpdate);
+            return;
+        }
 
-            throw new DatabaseValidationException(Identifier, writer.ToString() + describeTotalAbsence(patch));
+        var writer = new StringWriter();
+
+        try
+        {
+            patch.WriteAllUpdates(writer, Migrator, AutoCreate.CreateOrUpdate);
+        }
+        catch (SchemaMigrationException e)
+        {
+            // weasel#601. WriteAllUpdates runs AssertPatchingIsValid(CreateOrUpdate) first, so a
+            // delta that is Invalid and cannot rebuild in place used to abort the assert with a
+            // SchemaMigrationException instead of a DatabaseValidationException -- meaning
+            // db-assert printed the generic "Failed to assert database" headline, and a caller
+            // doing catch (DatabaseValidationException) missed the one case where the drift is
+            // worst. The assert is a report, not an apply: drift that cannot be applied
+            // incrementally is still drift.
+            //
+            // No describeTotalAbsence here: that note only fires when every delta reported
+            // Create, and a migration of nothing but Creates is exactly what CreateOrUpdate
+            // permits -- so if this catch ran, the note would be empty anyway.
+            throw new DatabaseValidationException(Identifier, describeUnappliableDrift(patch, e), e);
+        }
+
+        throw new DatabaseValidationException(Identifier, writer.ToString() + describeTotalAbsence(patch));
+    }
+
+    /// <summary>
+    ///     The body of the validation failure for drift that no incremental migration can express.
+    ///     Shows the DDL it would take under <see cref="AutoCreate.All" /> semantics -- which is
+    ///     drop-and-recreate text, and fine to show, because nothing here is going to run it.
+    /// </summary>
+    private string describeUnappliableDrift(SchemaMigration patch, SchemaMigrationException refusal)
+    {
+        var body =
+            $"Database has changes that cannot be applied incrementally: {refusal.Message}{Environment.NewLine}";
+
+        try
+        {
+            var all = new StringWriter();
+            patch.WriteAllUpdates(all, Migrator, AutoCreate.All);
+            return body + Environment.NewLine + all;
+        }
+        catch (Exception)
+        {
+            // Best effort. Whatever stops the DDL being written -- a migrator configured to refuse
+            // destructive changes, say -- must not replace the drift report with a second failure.
+            return body;
         }
     }
 
