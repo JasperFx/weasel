@@ -90,7 +90,7 @@ time.
 ## Generated script files set `QUOTED_IDENTIFIER` on
 
 Files written by `Migrator.WriteMigrationFileAsync`, `Migrator.WriteTemplatedFile` and
-`SchemaMigration.ToDatabaseScript` now begin with:
+`IDatabase.ToDatabaseScript` now begin with:
 
 ```sql
 SET QUOTED_IDENTIFIER ON;

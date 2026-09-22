@@ -92,7 +92,7 @@ GO
 ```
 
 `sqlcmd -i` and SQL Server Management Studio both understand `GO`, so a script file written out by
-`WriteMigrationFileAsync`, `WriteTemplatedFile` or `ToDatabaseScript`, which is what `db-patch` uses,
+`WriteMigrationFileAsync` (which is what `db-patch` uses), `WriteTemplatedFile` or `ToDatabaseScript`
 runs as it stands. A bare `WriteAllUpdates` render is the DDL on its own: it has the `GO` lines but
 not the `SET QUOTED_IDENTIFIER ON;` header described below, because only the script wrapper adds
 that. `GO` is not T-SQL, though, so `SqlClient` would
