@@ -161,6 +161,28 @@ $$;
              """);
     }
 
+    /// <summary>
+    ///     PostgreSQL reports every privilege refusal as <c>42501 insufficient_privilege</c> --
+    ///     "permission denied for database", "permission denied for schema",
+    ///     "must be owner of table" all land here (weasel#598).
+    /// </summary>
+    public override bool IsInsufficientPrivilege(Exception exception)
+    {
+        return exception is PostgresException { SqlState: PostgresErrorCodes.InsufficientPrivilege };
+    }
+
+    /// <summary>
+    ///     Npgsql resolves the login itself, which covers the cases the generic connection-string
+    ///     read cannot -- a data source built in code, or a password-less connection whose user
+    ///     name came from the environment.
+    /// </summary>
+    public override string? RoleFor(DbConnection conn)
+    {
+        return conn is NpgsqlConnection npgsql && npgsql.UserName.IsNotEmpty()
+            ? npgsql.UserName
+            : base.RoleFor(conn);
+    }
+
     protected override async Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,
@@ -193,12 +215,19 @@ $$;
             }
             catch (Exception e)
             {
+                var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+
                 if (logger is DefaultMigrationLogger)
                 {
-                    throw;
+                    if (ReferenceEquals(failure, e))
+                    {
+                        throw;
+                    }
+
+                    throw failure;
                 }
 
-                logger.OnFailure(cmd, e);
+                logger.OnFailure(cmd, failure);
             }
         }
     }

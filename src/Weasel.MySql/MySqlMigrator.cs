@@ -81,6 +81,30 @@ public class MySqlMigrator: Migrator
         }
     }
 
+    /// <summary>
+    ///     The MySQL errors that mean the connection's user was refused for want of privilege
+    ///     (weasel#598): 1044 is access denied for a database, 1142 access denied for a command on
+    ///     a table, 1143 the same on a column, 1227 a denied global privilege (SUPER, CREATE USER),
+    ///     and 1370 a denied privilege on a routine. <c>1045</c> is deliberately absent -- that is
+    ///     a failed login, which never reaches a migration statement.
+    /// </summary>
+    private static readonly int[] PermissionErrorNumbers = [1044, 1142, 1143, 1227, 1370];
+
+    /// <summary>
+    ///     Is this MySQL error number a permission refusal? Public so the set can be asserted
+    ///     without having to manufacture a <see cref="MySqlException" />, which has no public
+    ///     constructor.
+    /// </summary>
+    public static bool IsPermissionErrorNumber(int errorNumber)
+    {
+        return Array.IndexOf(PermissionErrorNumbers, errorNumber) >= 0;
+    }
+
+    public override bool IsInsufficientPrivilege(Exception exception)
+    {
+        return exception is MySqlException mySql && IsPermissionErrorNumber(mySql.Number);
+    }
+
     protected override async Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,
@@ -166,7 +190,7 @@ public class MySqlMigrator: Migrator
         }
     }
 
-    private static async Task createSchemas(
+    private async Task createSchemas(
         SchemaMigration migration,
         DbConnection conn,
         IMigrationLogger logger,
@@ -176,7 +200,7 @@ public class MySqlMigrator: Migrator
 
         if (migration.Schemas.Any())
         {
-            new MySqlMigrator().WriteSchemaCreationSql(migration.Schemas, writer);
+            WriteSchemaCreationSql(migration.Schemas, writer);
             if (writer.ToString().Trim().IsNotEmpty())
             {
                 await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
@@ -184,7 +208,7 @@ public class MySqlMigrator: Migrator
         }
     }
 
-    private static async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
+    private async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
         var sql = writer.ToString().Trim();
 
@@ -209,12 +233,19 @@ public class MySqlMigrator: Migrator
             }
             catch (Exception e)
             {
+                var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+
                 if (logger is DefaultMigrationLogger)
                 {
-                    throw;
+                    if (ReferenceEquals(failure, e))
+                    {
+                        throw;
+                    }
+
+                    throw failure;
                 }
 
-                logger.OnFailure(cmd, e);
+                logger.OnFailure(cmd, failure);
             }
         }
     }
