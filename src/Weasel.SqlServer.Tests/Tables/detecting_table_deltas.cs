@@ -192,6 +192,22 @@ public class detecting_table_deltas: IntegrationContext
     }
 
     [Fact]
+    public async Task update_for_a_missing_index_guards_the_create()
+    {
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var writer = new StringWriter();
+        delta.WriteUpdate(new SqlServerMigrator(), writer);
+
+        writer.ToString().ShouldContain("IF NOT EXISTS (SELECT 1 FROM sys.indexes");
+    }
+
+    [Fact]
     public async Task detect_matched_index()
     {
         theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);

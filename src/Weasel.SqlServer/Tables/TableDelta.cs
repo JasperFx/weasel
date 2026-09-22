@@ -189,10 +189,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         writeCheckConstraintUpdates(writer);
 
         // Missing indexes
-        foreach (var indexDefinition in Indexes.Missing) writer.WriteLine(indexDefinition.ToDDL(Expected));
+        foreach (var indexDefinition in Indexes.Missing) indexDefinition.WriteCreateStatement(Expected, writer);
 
         // Different indexes
-        foreach (var change in Indexes.Different) writer.WriteLine(change.Expected.ToDDL(Expected));
+        foreach (var change in Indexes.Different) change.Expected.WriteCreateStatement(Expected, writer);
 
 
         // Extra columns
@@ -351,13 +351,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         foreach (var indexDefinition in Indexes.Missing) writer.WriteDropIndex(Expected, indexDefinition);
 
         // Extra indexes
-        foreach (var extra in Indexes.Extras) writer.WriteLine(extra.ToDDL(Actual!));
+        foreach (var extra in Indexes.Extras) extra.WriteCreateStatement(Actual!, writer);
 
         // Different indexes
         foreach (var change in Indexes.Different)
         {
             writer.WriteDropIndex(Actual!, change.Expected);
-            writer.WriteLine(change.Actual.ToDDL(Actual!));
+            change.Actual.WriteCreateStatement(Actual!, writer);
         }
     }
 
