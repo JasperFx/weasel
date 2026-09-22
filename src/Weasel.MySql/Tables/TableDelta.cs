@@ -11,11 +11,16 @@ namespace Weasel.MySql.Tables;
 ///     populates the per-item deltas as a side-effect. The override surface is just
 ///     the MySQL-specific update / rollback DDL.
 /// </summary>
-public class TableDelta: SchemaObjectDelta<Table>
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
 {
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
     }
+
+    /// <summary>
+    ///     Which change made this delta <see cref="SchemaPatchDifference.Invalid" /> (weasel#600).
+    /// </summary>
+    public string? InvalidReason { get; private set; }
 
     public ItemDelta<TableColumn>? Columns { get; private set; }
     public ItemDelta<IndexDefinition>? Indexes { get; private set; }
@@ -59,6 +64,7 @@ public class TableDelta: SchemaObjectDelta<Table>
         // Partition strategy can't be altered in place — flag as needing manual intervention
         if (expected.PartitionStrategy != actual.PartitionStrategy)
         {
+            InvalidReason = "the table's partition strategy cannot be changed in place";
             return SchemaPatchDifference.Invalid;
         }
 

@@ -72,7 +72,21 @@ public class DatabaseResource: IStatefulResource
                 return new Markup("[green]Database matches the expected configuration[/]");
 
             case SchemaPatchDifference.Invalid:
-                return new Markup("[red]Cannot apply a detected database configuration change![/]");
+                // weasel#600: say which object and why, and -- the part nothing used to say -- that
+                // under AutoCreate.All this is not a refusal at all but a drop and recreate.
+                var destructive = migration.Deltas.Where(DestructiveChange.DropsAndRecreates).ToArray();
+                if (destructive.Length == 0)
+                {
+                    return new Markup("[red]Cannot apply a detected database configuration change![/]");
+                }
+
+                var lines = destructive.Select(x => Markup.Escape(DestructiveChange.DescribePending(x)));
+                return new Markup(
+                    "[red]Cannot apply a detected database configuration change incrementally![/]"
+                    + Environment.NewLine
+                    + string.Join(Environment.NewLine, lines)
+                    + Environment.NewLine
+                    + "[red]Under AutoCreate.All these are applied by dropping and recreating the objects.[/]");
 
             case SchemaPatchDifference.Create:
                 return new Markup("[yellow]Missing database objects detected.[/]");
