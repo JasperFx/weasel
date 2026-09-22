@@ -103,6 +103,16 @@ therefore split the script first and send one command per batch, with sqlcmd's s
 - String literals and comments are not parsed, exactly as sqlcmd does not parse them. A line
   reading only `GO` inside a literal ends the batch there. Do not author one.
 
+Two sqlcmd flags are worth passing. `-I` turns `SET QUOTED_IDENTIFIER` on, which sqlcmd leaves off
+by default and which SQL Server requires in order to create a filtered index, an index on a
+computed column, or an indexed view. SSMS and `SqlClient` both default it on, so this is a sqlcmd
+command line concern rather than anything in the generated DDL. `-b` makes a failed batch set a
+non-zero exit code, which sqlcmd otherwise does not:
+
+```bash
+sqlcmd -S localhost -d mydb -I -b -i migration.sql
+```
+
 The generated DDL is also re-runnable. Table creation, index creation, foreign key constraints,
 table types and sequences each carry their own existence guard (`IF OBJECT_ID(...) IS NULL`,
 `IF NOT EXISTS (SELECT 1 FROM sys.indexes ...)`, `IF TYPE_ID(...) IS NULL`), procedures are emitted
