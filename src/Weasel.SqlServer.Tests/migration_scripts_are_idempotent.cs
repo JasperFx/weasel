@@ -40,6 +40,10 @@ public class migration_scripts_are_idempotent: IntegrationContext
 
         var script = renderScript(database, migration);
 
+        // sqlcmd is the one client that leaves QUOTED_IDENTIFIER off, and a filtered index cannot be
+        // created while it is. The header is what makes the file runnable there with no extra flags.
+        script.ShouldStartWith("SET QUOTED_IDENTIFIER ON;");
+
         await assertMigrationFileMatches(database, migration, script);
         assertProcedureIsBatchSeparated(script);
 

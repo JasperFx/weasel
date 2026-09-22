@@ -88,8 +88,27 @@ $$;
 
     public override IDatabaseProvider Provider => SqlServerProvider.Instance;
 
+    /// <summary>
+    ///     Heads every rendered script with <c>SET QUOTED_IDENTIFIER ON;</c> so the file runs under
+    ///     sqlcmd without extra flags (weasel#593). sqlcmd is the one client that leaves the setting
+    ///     off, and SQL Server refuses to create a filtered index, an index on a computed column or
+    ///     an indexed view while it is off. The failure is quiet and cascading: the batch aborts at
+    ///     the index, every statement after it in that batch is skipped, and sqlcmd still exits 0.
+    /// </summary>
+    /// <remarks>
+    ///     This is the script wrapper, so only the file paths go through it:
+    ///     <see cref="Migrator.WriteTemplatedFile" />, <c>WriteMigrationFileAsync</c> and
+    ///     <c>DatabaseBase.ToDatabaseScript</c>. The runtime executor writes deltas straight out
+    ///     through <c>WriteUpdate</c> and never sees this line, which is correct: SqlClient already
+    ///     defaults <c>QUOTED_IDENTIFIER</c> on. No <c>GO</c> is needed after it either, because
+    ///     <c>SET QUOTED_IDENTIFIER</c> takes effect at parse time for the batch containing it and
+    ///     then persists for the rest of the session.
+    /// </remarks>
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
+        writer.WriteLine("SET QUOTED_IDENTIFIER ON;");
+        writer.WriteLine();
+
         writeStep(this, writer);
     }
 

@@ -103,15 +103,22 @@ therefore split the script first and send one command per batch, with sqlcmd's s
 - String literals and comments are not parsed, exactly as sqlcmd does not parse them. A line
   reading only `GO` inside a literal ends the batch there. Do not author one.
 
-Two sqlcmd flags are worth passing. `-I` turns `SET QUOTED_IDENTIFIER` on, which sqlcmd leaves off
-by default and which SQL Server requires in order to create a filtered index, an index on a
-computed column, or an indexed view. SSMS and `SqlClient` both default it on, so this is a sqlcmd
-command line concern rather than anything in the generated DDL. `-b` makes a failed batch set a
-non-zero exit code, which sqlcmd otherwise does not:
+A rendered script also begins with `SET QUOTED_IDENTIFIER ON;`, so it needs no extra flags. sqlcmd
+is the one client that leaves that setting off, and SQL Server refuses to create a filtered index,
+an index on a computed column or an indexed view while it is off. The header saves you from a
+failure that is both quiet and cascading: the batch aborts at the index, every statement after it
+in that batch is skipped, and sqlcmd still exits 0. `-b` is still worth passing, because it is what
+makes a failed batch set a non-zero exit code:
 
 ```bash
-sqlcmd -S localhost -d mydb -I -b -i migration.sql
+sqlcmd -S localhost -d mydb -b -i migration.sql
 ```
+
+The header is written by the script wrapper, so it appears in files written by
+`WriteMigrationFileAsync`, `WriteTemplatedFile` and `ToDatabaseScript`, and not in the DDL the
+runtime executor applies. `SqlClient` already defaults `QUOTED_IDENTIFIER` on, and `SET
+QUOTED_IDENTIFIER` takes effect at parse time for the batch that contains it and then persists for
+the session, so no `GO` is needed after it.
 
 The generated DDL is also re-runnable. Table creation, index creation, foreign key constraints,
 table types and sequences each carry their own existence guard (`IF OBJECT_ID(...) IS NULL`,

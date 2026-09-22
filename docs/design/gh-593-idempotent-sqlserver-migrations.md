@@ -245,7 +245,19 @@ guards are what make the whole statement re-runnable.
 - `View`, `Function`, `Trigger`, `Synonym` emission.
 - Schema creation and drop SQL.
 - The dead PL/pgSQL `BeginScript` / `EndScript` constants (`SqlServerMigrator.cs:13-18`) and
-  `WriteScript` ignoring `IsTransactional` (`SqlServerMigrator.cs:91-94`).
+  `WriteScript` still ignoring `IsTransactional`.
+
+`WriteScript` itself did change, though only by a header. It now writes `SET QUOTED_IDENTIFIER ON;`
+and a blank line before the inner step. sqlcmd is the one client that leaves that setting off, and
+SQL Server will not create a filtered index, an index on a computed column or an indexed view while
+it is off, so the very script this issue is about failed under a plain `sqlcmd -i` even with every
+guard in place: the batch aborted at `idx_child_open_status`, the `CREATE TYPE` later in that same
+batch never ran, the procedure in the next batch could not resolve its parameter type, and sqlcmd
+exited 0 regardless. Documenting the `-I` flag was considered and rejected: a generated script
+should not need flags to run. The header goes in the script wrapper, so the runtime executor, which
+writes deltas straight out through `WriteUpdate`, never sees it, which is right because SqlClient
+already defaults the setting on. No `GO` is needed after it, since `SET QUOTED_IDENTIFIER` applies
+at parse time to the batch containing it and then persists for the session.
 
 `TableType` and `Sequence` were on that list while it was being drafted, and both had to come off
 it. Each emits a bare `CREATE` with no `OR ALTER` and no `IF NOT EXISTS` of its own, so a second

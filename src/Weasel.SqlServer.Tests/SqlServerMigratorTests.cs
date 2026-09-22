@@ -9,6 +9,18 @@ namespace Weasel.SqlServer.Tests;
 public class SqlServerMigratorTests
 {
     [Fact]
+    public void write_script_turns_quoted_identifier_on()
+    {
+        var writer = new StringWriter();
+
+        new SqlServerMigrator().WriteScript(writer, (m, w) => w.WriteLine("select 1;"));
+
+        var text = writer.ToString();
+        text.ShouldStartWith("SET QUOTED_IDENTIFIER ON;");
+        text.ShouldContain("select 1;");
+    }
+
+    [Fact]
     public void matches_sql_connection()
     {
         var migrator = new SqlServerMigrator();
