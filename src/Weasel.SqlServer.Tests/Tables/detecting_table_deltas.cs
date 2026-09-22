@@ -267,6 +267,23 @@ public class detecting_table_deltas: IntegrationContext
         await AssertNoDeltasAfterPatching();
     }
 
+    [Fact]
+    public async Task update_for_an_extra_index_drops_it_only_if_it_exists()
+    {
+        theTable.ModifyColumn("user_name").AddIndex(i => i.IsUnique = true);
+        await CreateSchemaObjectInDatabase(theTable);
+
+        theTable.Indexes.Clear();
+
+        var delta = await theTable.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var writer = new StringWriter();
+        delta.WriteUpdate(new SqlServerMigrator(), writer);
+
+        writer.ToString().ShouldContain("drop index if exists idx_people_user_name on deltas.people;");
+    }
+
 
     [Theory]
     [MemberData(nameof(IndexTestData))]

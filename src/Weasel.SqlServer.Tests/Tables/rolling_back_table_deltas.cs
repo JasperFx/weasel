@@ -146,3 +146,26 @@ public class table_delta_rollback_sql_ordering
             .ShouldBeGreaterThan(sql.IndexOf(alter, StringComparison.OrdinalIgnoreCase));
     }
 }
+
+public class table_delta_rollback_index_sql
+{
+    [Fact]
+    public void rollback_of_a_new_index_drops_it_only_if_it_exists()
+    {
+        var initial = new Table("rollbacks.people");
+        initial.AddColumn<int>("id").AsPrimaryKey();
+        initial.AddColumn<string>("user_name");
+
+        var configured = new Table("rollbacks.people");
+        configured.AddColumn<int>("id").AsPrimaryKey();
+        configured.AddColumn<string>("user_name").AddIndex();
+
+        var delta = new TableDelta(configured, initial);
+        delta.Indexes.Missing.Single().Name.ShouldBe("idx_people_user_name");
+
+        var writer = new StringWriter();
+        delta.WriteRollback(new SqlServerMigrator(), writer);
+
+        writer.ToString().ShouldContain("drop index if exists idx_people_user_name on rollbacks.people;");
+    }
+}
