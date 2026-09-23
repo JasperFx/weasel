@@ -8,20 +8,20 @@ namespace Weasel.Postgresql;
 
 public sealed class AdvisoryLockOptions
 {
+    /// <summary>
+    ///     When true, <see cref="AdvisoryLock.HasLock" /> reports false once the connection holding the lock is lost.
+    /// </summary>
     public bool LockMonitoringEnabled { get; set; }
 
+    /// <summary>
+    ///     When true, each lock is held by a transaction on its own connection. When false (the default), locks are
+    ///     session-scoped and multiplexed so that several held locks share one connection.
+    /// </summary>
     public bool TransactionalLockEnabled { get; set; }
 }
 
-
 /// <summary>
-///     PostgreSQL implementation of <see cref="IAdvisoryLock" />. The contract was
-///     originally a duplicate in <c>Weasel.Core.IAdvisoryLock</c> (byte-identical
-///     to the upstream JasperFx.Events one); it was lifted into
-///     <c>JasperFx.Events.Daemon</c> in jasperfx alpha.19 / PR #319 so the daemon
-///     contracts have a single canonical home, and Weasel's duplicate was removed
-///     in weasel#284. Existing consumers should update their <c>using</c>
-///     statement from <c>Weasel.Core</c> to <c>JasperFx.Events.Daemon</c>.
+///     PostgreSQL implementation of <see cref="IAdvisoryLock" />.
 /// </summary>
 public class AdvisoryLock : IAdvisoryLock
 {
@@ -29,10 +29,8 @@ public class AdvisoryLock : IAdvisoryLock
     private readonly AdvisoryLockOptions _options;
     private readonly ILogger _logger;
 
-    // weasel#396: every read and write of _handles — and every read and write of _disposed that has to
-    // agree with them — goes through this lock. The dictionary is touched by the caller's leadership
-    // poll, by ReleaseLockAsync, and by DisposeAsync, which can run concurrently; and disposal has to
-    // be atomic with respect to storing a freshly acquired handle (see TryAttainLockAsync).
+    // Guards _handles and _disposed. Acquire, release and disposal can run concurrently, and storing a newly
+    // acquired handle must be atomic with disposal (see TryAttainLockAsync).
     private readonly object _handlesLock = new();
     private readonly Dictionary<int, PostgresDistributedLockHandle> _handles = new();
     private readonly LightweightCache<int, PostgresDistributedLock> _distributedLockProviders;
@@ -46,7 +44,15 @@ public class AdvisoryLock : IAdvisoryLock
             (lockId => new PostgresDistributedLock(new PostgresAdvisoryLockKey(lockId),
                 EnsurePrimaryWhenMultiHost(dataSource), builder =>
                 {
-                    builder.UseTransaction(options.TransactionalLockEnabled);
+                    // Multiplexing can't be combined with transaction-scoped locks
+                    if (options.TransactionalLockEnabled)
+                    {
+                        builder.UseTransaction();
+                    }
+                    else
+                    {
+                        builder.UseMultiplexing();
+                    }
                 })));
         _databaseName = databaseName;
         _options = options;
@@ -100,9 +106,7 @@ public class AdvisoryLock : IAdvisoryLock
     /// </exception>
     public async Task<bool> TryAttainLockAsync(int lockId, CancellationToken token)
     {
-        // weasel#349: never start a new acquire once disposal has begun. On a HotCold cold/standby node the
-        // coordinator polls this on a cadence, and during host shutdown the owned NpgsqlDataSource races with
-        // disposal — an in-flight OpenAsync aborts with ObjectDisposedException: 'Npgsql.PoolingDataSource'.
+        // Never start an acquire once disposal has begun: the data source may be shutting down with the host
         if (IsDisposed) return false;
 
         try
@@ -111,15 +115,9 @@ public class AdvisoryLock : IAdvisoryLock
             var handle = await locker.TryAcquireAsync(cancellationToken: token).ConfigureAwait(false);
             if (handle is null) return false;
 
-            // weasel#396: the entry check above is not enough on its own. DisposeAsync can drain
-            // _handles while this acquire is in flight, and the handle would then be stored into a
-            // dictionary nothing will ever dispose — a granted advisory lock held for the life of the
-            // process. With transaction-scoped locks that is a permanent 'idle in transaction' backend
-            // on pg_try_advisory_xact_lock, which Marten's high-water gap detection reads as a live
-            // pre-gap reserver and never advances past (marten#5090). Storing under the same lock that
-            // DisposeAsync drains under makes the two orderings exhaustive: either the handle lands
-            // before the drain and the drain disposes it, or it observes the disposal and disposes
-            // itself here.
+            // DisposeAsync can drain _handles while this acquire is in flight. Storing under the same lock means
+            // either the drain disposes this handle, or this call sees the disposal and disposes it itself, so a
+            // granted lock is never left held for the life of the process.
             PostgresDistributedLockHandle? orphaned = null;
             var stored = false;
 
@@ -131,8 +129,7 @@ public class AdvisoryLock : IAdvisoryLock
                 }
                 else
                 {
-                    // A handle already sitting in this slot is one whose lock we lost (monitored mode)
-                    // and re-attained; it is displaced, not released, so it has to be disposed too.
+                    // An existing handle here is one whose connection was lost, so dispose it too
                     _handles.Remove(lockId, out orphaned);
                     _handles[lockId] = handle;
                     stored = true;
@@ -148,18 +145,8 @@ public class AdvisoryLock : IAdvisoryLock
         }
         catch (ObjectDisposedException)
         {
-            // weasel#353 / marten#4915. The data source was disposed out from under an in-flight acquire. That
-            // state is terminal — a disposed NpgsqlDataSource never comes back — so do two things:
-            //
-            //  1. Latch. Any later poll short-circuits above instead of re-opening against the dead pool. #349
-            //     swallowed this and returned false, which the HotCold coordinator reads as "lock held elsewhere",
-            //     so it re-polled on its LeadershipPollingTime cadence for the life of the process.
-            //  2. Rethrow. ProjectionCoordinatorBase.executeAsync (jasperfx#500) catches ObjectDisposedException
-            //     and ends its leadership loop. Swallowing here made that catch unreachable, which is precisely
-            //     the composition gap in marten#4915.
-            //
-            // Callers that would rather not see it can check HasLock, or simply poll again — the latch guarantees
-            // the second call returns false quietly.
+            // A disposed data source never comes back. Latch disposed so later polls return false without touching
+            // the dead pool, and rethrow so the projection coordinator can end its leadership loop.
             lock (_handlesLock)
             {
                 _disposed = true;
@@ -169,7 +156,7 @@ public class AdvisoryLock : IAdvisoryLock
         }
         catch (Exception e) when (IsDisposed && e is NpgsqlException or InvalidOperationException)
         {
-            // Same shutdown race, surfaced as a disposed-pool NpgsqlException / InvalidOperationException.
+            // The data source was disposed during the acquire and surfaced as a different exception type
             return false;
         }
     }
@@ -194,10 +181,7 @@ public class AdvisoryLock : IAdvisoryLock
 
         lock (_handlesLock)
         {
-            // Latch and drain atomically (weasel#349 for the latch, weasel#396 for the drain): a
-            // concurrent TryAttainLockAsync either got its handle into _handles before this snapshot —
-            // in which case it is disposed below — or it will see _disposed set when it tries to store
-            // and dispose the handle itself. Nothing can land in the dictionary after this point.
+            // Latch and drain atomically so no handle can be stored after this point (see TryAttainLockAsync)
             _disposed = true;
             handles = _handles.Values.ToArray();
             _handles.Clear();
@@ -217,8 +201,7 @@ public class AdvisoryLock : IAdvisoryLock
         }
         catch (InvalidOperationException)
         {
-            // Underlying connection is already closed and there's nothing to dispose. ObjectDisposedException
-            // derives from this, so a data source that went first lands here too — nothing worth logging.
+            // The connection or data source is already closed (ObjectDisposedException derives from this)
         }
         catch (Exception e)
         {
