@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Data;
 using Microsoft.Data.SqlClient;
 using Weasel.Core.Migrations;
@@ -183,6 +184,51 @@ public static class SharedLockExtensions
         }
 
         return AttainLockResult.Failure();
+    }
+
+    /// <summary>
+    ///     The pre-9.33.0 signatures, kept so that assemblies compiled against 9.32.0 or earlier
+    ///     keep binding (weasel#616). gh-599 added a defaulted <c>lockTimeoutMs</c> to the four
+    ///     methods below, which is source compatible but <em>binary</em> breaking: C# bakes the
+    ///     full parameter list into the call site, so an already-compiled caller --
+    ///     <c>WolverineFx.SqlServer</c> among them -- got a <see cref="MissingMethodException" />
+    ///     the moment a newer Weasel.SqlServer was resolved underneath it. Nothing caught it before
+    ///     runtime: restore was clean, compile was clean, and only a booting host hit it.
+    /// </summary>
+    /// <remarks>
+    ///     None of these declare default arguments. That is deliberate and load-bearing: it keeps
+    ///     them from colliding with the primary overloads. A call that supplies every parameter
+    ///     here binds to the forwarder (the "all parameters have a corresponding argument" rule
+    ///     beats the overload that needs a default substituted), and a call that supplies fewer --
+    ///     or that passes <c>lockTimeoutMs</c> -- can only be the primary. So no call site is
+    ///     ambiguous, and every one of them behaves exactly as it did before.
+    /// </remarks>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static Task GetGlobalTxLock(this SqlTransaction tx, string lockId, CancellationToken cancellation)
+    {
+        return GetGlobalTxLock(tx, lockId, cancellation, null);
+    }
+
+    /// <inheritdoc cref="GetGlobalTxLock(SqlTransaction,string,CancellationToken)" />
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static Task<bool> TryGetGlobalTxLock(this SqlTransaction tx, string lockId, CancellationToken cancellation)
+    {
+        return TryGetGlobalTxLock(tx, lockId, cancellation, null);
+    }
+
+    /// <inheritdoc cref="GetGlobalTxLock(SqlTransaction,string,CancellationToken)" />
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static Task GetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation,
+        SqlTransaction? transaction)
+    {
+        return GetGlobalLock(conn, lockId, cancellation, transaction, null);
+    }
+
+    /// <inheritdoc cref="GetGlobalTxLock(SqlTransaction,string,CancellationToken)" />
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public static Task<bool> TryGetGlobalLock(this SqlConnection conn, string lockId, CancellationToken cancellation)
+    {
+        return TryGetGlobalLock(conn, lockId, cancellation, null);
     }
 
     /// <summary>
