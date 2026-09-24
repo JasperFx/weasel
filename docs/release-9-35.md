@@ -1,10 +1,10 @@
-# Upgrading to 9.33
+# Upgrading to 9.35
 
-9.33.0 is a SQL Server release. A generated migration script now runs as one file under `sqlcmd` or
+9.35.0 is a SQL Server release. A generated migration script now runs as one file under `sqlcmd` or
 SSMS, and runs a second time against the same database without failing. Nothing outside
 `Weasel.SqlServer` changes behaviour, and no other provider is affected.
 
-::: tip Coming from 9.32?
+::: tip Coming from 9.34?
 One thing can break on upgrade, and only for SQL Server: rendered stored procedure DDL now carries
 `GO` lines, so a consumer that executes that text through its own `SqlCommand` has to split it
 first. Everything else is a text change inside DDL Weasel itself executes. See
