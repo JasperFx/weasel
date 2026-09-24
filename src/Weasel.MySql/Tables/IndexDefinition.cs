@@ -122,6 +122,13 @@ public class IndexDefinition: ITableIndex
         return this;
     }
 
+    bool Weasel.Core.ITableIndex.HasProviderSpecificOptions
+        => SortOrder != SortOrder.Asc
+           || FulltextParser.IsNotEmpty()
+           || PrefixLength.HasValue;
+
+    string Weasel.Core.ITableIndex.ToDDL(Weasel.Core.ITable parent) => ToDDL((Table)parent);
+
     public string ToDDL(Table parent)
     {
         var builder = new StringBuilder();

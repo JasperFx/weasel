@@ -228,6 +228,20 @@ public class IndexDefinition: ITableIndex
     /// <returns>Sql statement to create the index</returns>
     public string ToDDL(Table parent) => writeOneStatement(parent, IsConcurrent);
 
+    bool ITableIndex.HasProviderSpecificOptions
+        => Mask.IsNotEmpty()
+           || SortOrder != SortOrder.Asc
+           || NullsSortOrder != NullsSortOrder.None
+           || NullsNotDistinct
+           || Collation.IsNotEmpty()
+           || TableSpace.IsNotEmpty()
+           || StorageParameters.Count > 0;
+
+    // Deliberately the non-concurrent form: ToDDL(Table) wraps a concurrent build in Weasel's
+    // own marker comments, which are meaningless -- and, in a migration script, actively
+    // misleading -- to a neutral consumer. See the ITableIndex.ToDDL contract.
+    string ITableIndex.ToDDL(ITable parent) => ToCreateSql((Table)parent, concurrently: false);
+
     private string writeOneStatement(Table parent, bool concurrently)
     {
         var builder = new StringBuilder();

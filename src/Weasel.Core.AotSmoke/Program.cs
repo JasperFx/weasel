@@ -183,6 +183,10 @@ internal sealed class SmokeIndex(string name): ITableIndex
     public string? Predicate { get; set; }
     public string[]? IncludeColumns { get; set; }
     public string? Method { get; set; }
+    public bool HasProviderSpecificOptions => false;
+
+    public string ToDDL(ITable parent)
+        => $"CREATE INDEX {Name} ON {parent.Identifier} ({string.Join(", ", Columns)});";
 }
 
 internal sealed class SmokeForeignKey(string name): ForeignKeyBase(name)

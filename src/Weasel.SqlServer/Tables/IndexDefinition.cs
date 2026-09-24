@@ -134,6 +134,14 @@ public class IndexDefinition: ITableIndex
 
     public string ToDDL(Table parent) => ToDDL(parent, true);
 
+    bool ITableIndex.HasProviderSpecificOptions
+        => SortOrder != SortOrder.Asc
+           || DescendingColumns.Count > 0
+           || FillFactor.HasValue
+           || IsClustered;
+
+    string ITableIndex.ToDDL(ITable parent) => ToDDL((Table)parent);
+
     /// <summary>
     ///     Render the index, optionally ignoring <see cref="DescendingColumns" /> and falling back to
     ///     the coarse trailing <c>DESC</c>. The coarse form is what comparison uses unless the model
