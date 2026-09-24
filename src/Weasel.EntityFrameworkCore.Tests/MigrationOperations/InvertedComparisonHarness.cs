@@ -258,6 +258,11 @@ END";
         {
             typeof(object).Assembly,
             typeof(Enumerable).Assembly,
+            // EF's generated model builder code uses Expression<>, which lives in its own
+            // assembly. Without it here the compile only succeeds when something else in the
+            // test host happens to have loaded System.Linq.Expressions first -- so the whole
+            // inverted suite passes in a full run and fails when one test is run on its own.
+            typeof(System.Linq.Expressions.Expression).Assembly,
             typeof(DbContext).Assembly,
             typeof(Microsoft.EntityFrameworkCore.Migrations.Migration).Assembly,
             typeof(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId).Assembly,

@@ -143,6 +143,13 @@ public class IndexDefinition: ITableIndex
     /// Generate DDL statement for creating the index
     /// SQLite syntax: CREATE [UNIQUE] INDEX [IF NOT EXISTS] name ON table (columns) [WHERE predicate]
     /// </summary>
+    bool Weasel.Core.ITableIndex.HasProviderSpecificOptions
+        => SortOrder != SortOrder.Asc
+           || Collation.IsNotEmpty()
+           || Expression.IsNotEmpty();
+
+    string Weasel.Core.ITableIndex.ToDDL(Weasel.Core.ITable parent) => ToDDL((Table)parent);
+
     public string ToDDL(Table parent)
     {
         var builder = new StringBuilder();

@@ -307,6 +307,17 @@ public static class MigrationOperationTranslation
         string? schema,
         MigrationOperationTranslationOptions options)
     {
+        // An index EF cannot model carries its own DDL instead. This covers both an expression
+        // among the key columns -- which EF would quote as an identifier, so the migration fails
+        // with "column \"(data ->> 'Kind')\" does not exist" -- and any option
+        // CreateIndexOperation has no place for, such as an operator class, which applies without
+        // error as a quietly different index (weasel#615). Only the index takes this route: the
+        // table stays typed, so snapshot diffing keeps working for the rest of it.
+        if (index.RequiresRawSql && index.Ddl.IsNotEmpty())
+        {
+            return new SqlOperation { Sql = index.Ddl! };
+        }
+
         if (index.Columns.Count == 0)
         {
             throw new NotSupportedException(

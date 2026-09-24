@@ -3,6 +3,7 @@ using Shouldly;
 using Weasel.Core;
 using Weasel.EntityFrameworkCore.Tests.Postgresql;
 using Weasel.Postgresql.Functions;
+using Weasel.Postgresql.Tables;
 using Xunit;
 using PgTable = Weasel.Postgresql.Tables.Table;
 using PgSequence = Weasel.Postgresql.Sequence;
@@ -74,6 +75,49 @@ public class inverted_schema_comparison
         result.AssertParity();
         result.EfSchema.TableFor("people")!.ColumnFor("full_name")!.IsComputed.ShouldBeTrue();
         result.WeaselSchema.TableFor("people")!.ColumnFor("full_name")!.IsComputed.ShouldBeTrue();
+    }
+
+    /// <summary>
+    ///     weasel#615, as the issue reported it: the two index shapes a Marten schema produces.
+    ///     Run through the whole pipeline, this is the test that matters -- the computed index
+    ///     used to abort the migration with 42703, and the GIN index used to apply <em>silently</em>
+    ///     with the default jsonb_ops instead of the declared jsonb_path_ops. Only a real apply
+    ///     plus Weasel's own delta detection catches the second one; every string assertion over
+    ///     generated DDL looks fine either way.
+    /// </summary>
+    [Fact]
+    public async Task marten_style_computed_and_operator_class_indexes_round_trip()
+    {
+        const string schema = "invmarten";
+
+        ISchemaObject[] model()
+        {
+            var widget = new PgTable($"{schema}.mt_doc_widget");
+            widget.AddColumn<Guid>("id").AsPrimaryKey();
+            widget.AddColumn("data", "jsonb").NotNull();
+            // exactly what Marten's ComputedIndex emits: the expression as a "column"
+            widget.Indexes.Add(new PgIndex("mt_doc_widget_idx_kind")
+            {
+                Columns = new[] { "(data ->> 'Kind')" }
+            });
+
+            var gadget = new PgTable($"{schema}.mt_doc_gadget");
+            gadget.AddColumn<Guid>("id").AsPrimaryKey();
+            gadget.AddColumn("data", "jsonb").NotNull();
+            // GinIndexJsonData(): USING gin (data jsonb_path_ops)
+            gadget.Indexes.Add(new PgIndex("mt_doc_gadget_idx_data")
+            {
+                Columns = new[] { "data" },
+                Method = IndexMethod.gin,
+                Mask = "? jsonb_path_ops"
+            });
+
+            return new ISchemaObject[] { widget, gadget };
+        }
+
+        var result = await InvertedComparisonHarness.RunPostgresqlAsync(schema, model);
+
+        result.AssertParity();
     }
 
     [Fact]

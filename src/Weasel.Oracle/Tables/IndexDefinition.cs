@@ -130,6 +130,14 @@ public class IndexDefinition: ITableIndex
         return this;
     }
 
+    bool Weasel.Core.ITableIndex.HasProviderSpecificOptions
+        => SortOrder != SortOrder.Asc
+           || IndexType != OracleIndexType.BTree
+           || FunctionExpression.IsNotEmpty()
+           || Tablespace.IsNotEmpty();
+
+    string Weasel.Core.ITableIndex.ToDDL(Weasel.Core.ITable parent) => ToDDL((Table)parent);
+
     public string ToDDL(Table parent)
     {
         var builder = new StringBuilder();

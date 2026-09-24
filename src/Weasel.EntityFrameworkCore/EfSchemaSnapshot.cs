@@ -119,14 +119,30 @@ public class SnapshotTable
 
         foreach (var index in table.Indexes)
         {
+            var columns = index.Columns?.ToList() ?? new List<string>();
+
+            // An entry that is not a column on the table is an expression -- Marten's computed
+            // indexes put "(data ->> 'Kind')" straight into Columns. EF has nowhere to put that:
+            // CreateIndexOperation.Columns is a list of identifiers, and the provider quotes each
+            // one, so the expression is emitted as a column name and the migration fails with
+            // 42703 (weasel#615). Options outside the neutral surface -- an operator class, a
+            // sort order, a collation -- are worse than that, because the index applies cleanly
+            // and is simply not the index that was asked for.
+            var expressions = columns.Where(x => !table.HasColumn(x)).ToList();
+            var requiresRawSql = expressions.Count > 0 || index.HasProviderSpecificOptions;
+
             snapshot.Indexes.Add(new SnapshotIndex
             {
                 Name = index.Name,
-                Columns = index.Columns?.ToList() ?? new List<string>(),
+                Columns = columns,
                 IsUnique = index.IsUnique,
                 Predicate = index.Predicate,
                 IncludeColumns = index.IncludeColumns?.ToList(),
-                Method = index.Method
+                Method = index.Method,
+                RequiresRawSql = requiresRawSql,
+                // captured only on the raw-SQL path, so a typed index's snapshot stays comparable
+                // across Weasel versions that render DDL differently
+                Ddl = requiresRawSql ? index.ToDDL(table) : null
             });
         }
 
@@ -184,13 +200,38 @@ public class SnapshotIndex
     public List<string>? IncludeColumns { get; set; }
     public string? Method { get; set; }
 
+    /// <summary>
+    ///     True when this index cannot be reproduced by an EF <c>CreateIndexOperation</c> and is
+    ///     carried as raw DDL in <see cref="Ddl" /> instead (weasel#615).
+    /// </summary>
+    public bool RequiresRawSql { get; set; }
+
+    /// <summary>
+    ///     The index's own <c>CREATE INDEX</c> statement. Populated only when
+    ///     <see cref="RequiresRawSql" /> is set -- it is both what gets emitted and the only thing
+    ///     a diff can compare, since the properties above are by definition not the whole index.
+    /// </summary>
+    public string? Ddl { get; set; }
+
     public bool HasSameDefinition(SnapshotIndex other)
-        => Columns.SequenceEqual(other.Columns, StringComparer.OrdinalIgnoreCase)
-           && IsUnique == other.IsUnique
-           && string.Equals(Predicate, other.Predicate, StringComparison.Ordinal)
-           && (IncludeColumns ?? new List<string>()).SequenceEqual(
-               other.IncludeColumns ?? new List<string>(), StringComparer.OrdinalIgnoreCase)
-           && string.Equals(Method, other.Method, StringComparison.OrdinalIgnoreCase);
+    {
+        // The neutral properties are an incomplete description of a raw-SQL index, so comparing
+        // them would report "unchanged" for a changed operator class, sort order or collation.
+        // Compare the DDL, which is the whole definition, and treat a move on or off the raw-SQL
+        // path as a change in its own right.
+        if (RequiresRawSql || other.RequiresRawSql)
+        {
+            return RequiresRawSql == other.RequiresRawSql
+                   && string.Equals(Ddl, other.Ddl, StringComparison.Ordinal);
+        }
+
+        return Columns.SequenceEqual(other.Columns, StringComparer.OrdinalIgnoreCase)
+               && IsUnique == other.IsUnique
+               && string.Equals(Predicate, other.Predicate, StringComparison.Ordinal)
+               && (IncludeColumns ?? new List<string>()).SequenceEqual(
+                   other.IncludeColumns ?? new List<string>(), StringComparer.OrdinalIgnoreCase)
+               && string.Equals(Method, other.Method, StringComparison.OrdinalIgnoreCase);
+    }
 }
 
 public class SnapshotForeignKey

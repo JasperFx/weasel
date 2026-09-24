@@ -41,4 +41,34 @@ public interface ITableIndex : INamed
     ///     assigned.
     /// </summary>
     string? Method { get; set; }
+
+    /// <summary>
+    ///     True when this index carries options that the members above cannot express — an
+    ///     operator class or mask, a sort or nulls order, a collation, a tablespace, storage
+    ///     parameters, and so on. A consumer that can only read the neutral surface has to treat
+    ///     such an index as opaque and fall back on <see cref="ToDDL" />, because reconstructing
+    ///     it from the neutral properties alone would silently produce a <em>different</em> index
+    ///     that still applies without error (weasel#615).
+    /// </summary>
+    /// <remarks>
+    ///     How an index is <em>built</em> is not an option in this sense. PostgreSQL's
+    ///     <c>IsConcurrent</c> is deliberately excluded: it says nothing about the shape of the
+    ///     resulting index, it is a property of the moment rather than of the definition, and a
+    ///     consumer that cannot build concurrently in the first place is not losing anything by
+    ///     ignoring it.
+    /// </remarks>
+    bool HasProviderSpecificOptions { get; }
+
+    /// <summary>
+    ///     This index's own <c>CREATE INDEX</c> DDL against the given table, for a consumer that
+    ///     cannot reproduce it from the neutral properties. Provider-neutral counterpart of each
+    ///     provider's <c>ToDDL(Table)</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Always a single statement that is safe to embed in a migration script: never the
+    ///     multi-statement or concurrent form, and never carrying Weasel's own marker comments.
+    ///     <paramref name="parent" /> must be the provider's own table type -- the same table this
+    ///     index belongs to.
+    /// </remarks>
+    string ToDDL(ITable parent);
 }

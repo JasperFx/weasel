@@ -173,12 +173,16 @@ Everything EF cannot model routes through `migrationBuilder.Sql(...)` blocks car
 
 - **PostgreSQL table partitioning** (RANGE/LIST/HASH and the managed strategies) — partitioned tables are detected automatically and emitted as raw DDL (the Npgsql EF provider has no partitioning model).
 - **PL/pgSQL functions, SQL Server stored procedures and table types**.
-- **Expression indexes**, and **SQL Server unique indexes without a filter** (EF's SqlServer generator would otherwise add a spurious `WHERE ... IS NOT NULL` filter, because an attribute-only migration has no model to prove the columns non-nullable).
+- **Any index `CreateIndexOperation` cannot reproduce**, index by index — the surrounding table stays typed, so snapshot diffing keeps working for the rest of it. That covers two cases:
+  - an **expression** among the key columns (Marten's computed indexes put `(data ->> 'Kind')` there). EF quotes each entry as an identifier, so a typed operation would fail to apply with `42703: column "(data ->> 'Kind')" does not exist`.
+  - an **option the operation has nowhere to put** — a PostgreSQL operator class or mask, sort or nulls order, collation, tablespace, storage parameters; a SQL Server fill factor, clustering or per-column direction. This is the dangerous one: the index applies *without error* and is simply not the index that was declared. A Marten `GinIndexJsonData()` used to land as the default `jsonb_ops` instead of `jsonb_path_ops` (weasel#615).
+- **SQL Server unique indexes without a filter** (EF's SqlServer generator would otherwise add a spurious `WHERE ... IS NOT NULL` filter, because an attribute-only migration has no model to prove the columns non-nullable).
 
 Deliberate boundaries:
 
 - `dotnet ef migrations add` / `remove` are **not supported against the stub context** — Weasel authors the migrations; the EF scaffolder needs the model snapshot the stub deliberately doesn't have. Use `db-ef-migration add`.
 - Changed raw-SQL objects (a partition layout change, a rewritten function body) are refused by the snapshot diff with guidance — generate that migration with `--against-database` or author it by hand.
+- An index carried as raw SQL is the exception to that rule: it is diffed on its DDL rather than refused, so changing an operator class or a sort order does produce a migration.
 - Renames are not inferred from the model (Weasel carries no rename intent); today a rename diffs as drop + add.
 - v1 providers are **PostgreSQL and SQL Server**. SQLite is out: its ALTER-emulation rebuilds tables from the migration's target model, which attribute-only migrations don't carry.
 - The `PendingModelChangesWarning` suppression baked into the stub context is defensive: with no `ModelSnapshot` at all the EF 9+ pending-changes check has nothing to fire on, but the suppression protects anyone who later adds entities to the same context.
