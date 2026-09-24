@@ -18,7 +18,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DistributedLock.Postgres" />
+        <PackageReference Include="Patched.DistributedLock.Postgres" />
         <!-- JasperFx.Events provides the canonical IAdvisoryLock contract (lifted
              in jasperfx#316 / alpha.19, dedupe-aligned in weasel#284). AdvisoryLock
              implements that interface directly. -->

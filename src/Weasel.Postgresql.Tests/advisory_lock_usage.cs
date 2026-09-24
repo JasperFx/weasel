@@ -168,7 +168,7 @@ public class AdvisoryLockSpecs : IAsyncLifetime
         await conn2.OpenAsync();
         await conn3.OpenAsync();
 
-        await theLock.TryAttainLockAsync(10, CancellationToken.None);
+        (await theLock.TryAttainLockAsync(10, CancellationToken.None)).ShouldBeTrue();
 
         // Cannot get the lock here
         (await conn2.TryGetGlobalLock(10)).Succeeded.ShouldBeFalse();
@@ -286,9 +286,13 @@ public class advisory_lock_dispose_race
     // Distinct from every other lock id used in this file so parallel test classes cannot interfere.
     private const int TheLockId = 3960001;
 
-    [Fact]
-    public async Task an_acquire_that_completes_after_disposal_does_not_strand_its_lock()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task an_acquire_that_completes_after_disposal_does_not_strand_its_lock(bool transactional)
     {
+        var lockId = transactional ? TheLockId : TheLockId + 10;
+
         await using var source = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
 
         // Start the acquire and dispose while it is still in flight — the acquire needs a database
@@ -297,9 +301,9 @@ public class advisory_lock_dispose_race
         for (var i = 0; i < 20; i++)
         {
             var racedLock = new AdvisoryLock(source, NullLogger.Instance, "localhost",
-                new AdvisoryLockOptions { TransactionalLockEnabled = true });
+                new AdvisoryLockOptions { TransactionalLockEnabled = transactional });
 
-            var attain = racedLock.TryAttainLockAsync(TheLockId, CancellationToken.None);
+            var attain = racedLock.TryAttainLockAsync(lockId, CancellationToken.None);
             await racedLock.DisposeAsync();
 
             // Whatever it reports, it must not leave the lock held: either it stored the handle before
@@ -311,11 +315,11 @@ public class advisory_lock_dispose_race
         // stranded transaction-scoped handles still held it, so this came back false.
         await using var otherSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
         var successor = new AdvisoryLock(otherSource, NullLogger.Instance, "localhost",
-            new AdvisoryLockOptions { TransactionalLockEnabled = true });
+            new AdvisoryLockOptions { TransactionalLockEnabled = transactional });
 
         try
         {
-            (await successor.TryAttainLockAsync(TheLockId, CancellationToken.None))
+            (await successor.TryAttainLockAsync(lockId, CancellationToken.None))
                 .ShouldBeTrue("a disposed AdvisoryLock stranded the handle it acquired mid-disposal");
         }
         finally
@@ -324,29 +328,33 @@ public class advisory_lock_dispose_race
         }
     }
 
-    [Fact]
-    public async Task disposal_releases_a_lock_attained_before_it()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task disposal_releases_a_lock_attained_before_it(bool transactional)
     {
+        var lockId = transactional ? TheLockId + 1 : TheLockId + 11;
+
         await using var source = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
 
         var theLock = new AdvisoryLock(source, NullLogger.Instance, "localhost",
-            new AdvisoryLockOptions { TransactionalLockEnabled = true });
+            new AdvisoryLockOptions { TransactionalLockEnabled = transactional });
 
-        (await theLock.TryAttainLockAsync(TheLockId + 1, CancellationToken.None)).ShouldBeTrue();
-        theLock.HasLock(TheLockId + 1).ShouldBeTrue();
+        (await theLock.TryAttainLockAsync(lockId, CancellationToken.None)).ShouldBeTrue();
+        theLock.HasLock(lockId).ShouldBeTrue();
 
         await theLock.DisposeAsync();
 
         // The ordinary drain path still works — and a disposed lock reports no lock.
-        theLock.HasLock(TheLockId + 1).ShouldBeFalse();
+        theLock.HasLock(lockId).ShouldBeFalse();
 
         await using var otherSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
         var successor = new AdvisoryLock(otherSource, NullLogger.Instance, "localhost",
-            new AdvisoryLockOptions { TransactionalLockEnabled = true });
+            new AdvisoryLockOptions { TransactionalLockEnabled = transactional });
 
         try
         {
-            (await successor.TryAttainLockAsync(TheLockId + 1, CancellationToken.None)).ShouldBeTrue();
+            (await successor.TryAttainLockAsync(lockId, CancellationToken.None)).ShouldBeTrue();
         }
         finally
         {
