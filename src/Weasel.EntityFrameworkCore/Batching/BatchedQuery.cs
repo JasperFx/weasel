@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
-using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -14,8 +13,9 @@ namespace Weasel.EntityFrameworkCore.Batching;
 ///     <para>
 ///     EF Core runs every query and materializes its results, so a batched query returns exactly
 ///     what the same query returns on its own: tracking and identity resolution, owned, complex
-///     and JSON members, <c>Include</c>s and projections all behave as usual. Variables a query
-///     captures are read when it is queued. Queries run in the order they were queued.
+///     and JSON members, <c>Include</c>s and projections all behave as usual. EF Core prepares each
+///     query when it is queued, so the values it captures are read then, once, and EF Core reports a
+///     query it can't translate right away. Queries run in the order they were queued.
 ///     </para>
 ///     <para>
 ///     Batching into one round trip requires <see cref="BatchedQueryInterceptor" /> on the
@@ -44,8 +44,16 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// </summary>
     public Task<IReadOnlyList<T>> Query<T>(IQueryable<T> queryable)
     {
-        var query = CapturedValues.Freeze(queryable);
-        return enqueue(query, async ct => (IReadOnlyList<T>)await query.ToListAsync(ct).ConfigureAwait(false));
+        return enqueue(queryable, async (results, ct) =>
+        {
+            var list = new List<T>();
+            await foreach (var result in results.WithCancellation(ct).ConfigureAwait(false))
+            {
+                list.Add(result);
+            }
+
+            return (IReadOnlyList<T>)list;
+        });
     }
 
     /// <summary>
@@ -53,8 +61,7 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// </summary>
     public Task<T?> QuerySingle<T>(IQueryable<T> queryable)
     {
-        var query = CapturedValues.Freeze(queryable);
-        return enqueue(query, ct => firstOrDefaultAsync(query, ct));
+        return enqueue(queryable, firstOrDefaultAsync);
     }
 
     /// <summary>
@@ -62,16 +69,15 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// </summary>
     public Task<T> Scalar<T>(IQueryable<T> queryable)
     {
-        var query = CapturedValues.Freeze(queryable);
-        return enqueue(query, async ct => (await firstOrDefaultAsync(query, ct).ConfigureAwait(false))!);
+        return enqueue(queryable, async (results, ct) => (await firstOrDefaultAsync(results, ct).ConfigureAwait(false))!);
     }
 
     // The batch runs exactly the queued query's SQL, so the first result comes from reading that
     // query's results rather than from FirstOrDefaultAsync(), whose SQL would differ (LIMIT 1).
     // Stopping after the first result also leaves the rest untracked, as FirstOrDefaultAsync() would.
-    private static async Task<T?> firstOrDefaultAsync<T>(IQueryable<T> queryable, CancellationToken ct)
+    private static async Task<T?> firstOrDefaultAsync<T>(IAsyncEnumerable<T> results, CancellationToken ct)
     {
-        await foreach (var result in queryable.AsAsyncEnumerable().WithCancellation(ct).ConfigureAwait(false))
+        await foreach (var result in results.WithCancellation(ct).ConfigureAwait(false))
         {
             return result;
         }
@@ -79,12 +85,18 @@ public sealed class BatchedQuery : IAsyncDisposable
         return default;
     }
 
-    private Task<TResult> enqueue<TResult>(IQueryable queryable, Func<CancellationToken, Task<TResult>> execute)
+    private Task<TResult> enqueue<T, TResult>(IQueryable<T> queryable,
+        Func<IAsyncEnumerable<T>, CancellationToken, Task<TResult>> read)
     {
-        var query = new QueuedQuery<TResult>(_context, queryable, isSplitQuery(queryable), execute);
+        var query = new QueuedQuery<T, TResult>(_context, queryable, retriesOnFailure(), read);
         _queries.Add(query);
         return query.Result;
     }
+
+    // EF Core retries a failed query by running it again, and a retrying strategy makes EF Core buffer each
+    // query's results and close its reader, including while an outer strategy is running (EF Core's own check)
+    private bool retriesOnFailure() =>
+        ExecutionStrategy.Current?.RetriesOnFailure ?? _context.Database.CreateExecutionStrategy().RetriesOnFailure;
 
     /// <summary>
     ///     Executes all queued queries in the order they were queued, in a single database round trip
@@ -145,10 +157,18 @@ public sealed class BatchedQuery : IAsyncDisposable
             return false;
         }
 
-        // EF Core retries a failed query by running it again, which a result set read from a batch can't support
-        if (_context.Database.CreateExecutionStrategy().RetriesOnFailure)
+        // A result set read from a batch can't be retried or buffered, whether the strategy runs when the
+        // queries were queued (EF Core prepared them then) or now
+        if (retriesOnFailure() || _queries.Any(x => x.PreparedWhileRetrying))
         {
             warnOnce("uses an execution strategy that retries on failure");
+            return false;
+        }
+
+        if (_queries.Any(x => x.SourceCommand == null))
+        {
+            warnOnce("uses a version of EF Core that doesn't provide a prepared query's command " +
+                     "(IRelationalQueryingEnumerable)");
             return false;
         }
 
@@ -199,41 +219,13 @@ public sealed class BatchedQuery : IAsyncDisposable
             _context.GetType().Name, reason);
     }
 
-    private bool isSplitQuery(IQueryable queryable)
-    {
-        var visitor = new SplitQueryVisitor();
-        visitor.Visit(queryable.Expression);
-        if (visitor.Splitting.HasValue) return visitor.Splitting.Value;
-
-        return _context.GetService<IDbContextOptions>().Extensions
-            .OfType<RelationalOptionsExtension>()
-            .Any(x => x.QuerySplittingBehavior == QuerySplittingBehavior.SplitQuery);
-    }
-
     public async ValueTask DisposeAsync()
     {
         foreach (var query in _queries.Where(x => x.HasSourceCommand))
         {
-            await query.SourceCommand.DisposeAsync().ConfigureAwait(false);
+            await query.SourceCommand!.DisposeAsync().ConfigureAwait(false);
         }
 
         _queries.Clear();
-    }
-
-    private sealed class SplitQueryVisitor : ExpressionVisitor
-    {
-        public bool? Splitting { get; private set; }
-
-        protected override Expression VisitMethodCall(MethodCallExpression node)
-        {
-            // The outermost call wins, as it does in EF Core
-            if (node.Method.DeclaringType == typeof(RelationalQueryableExtensions))
-            {
-                if (node.Method.Name == nameof(RelationalQueryableExtensions.AsSplitQuery)) Splitting ??= true;
-                if (node.Method.Name == nameof(RelationalQueryableExtensions.AsSingleQuery)) Splitting ??= false;
-            }
-
-            return base.VisitMethodCall(node);
-        }
     }
 }

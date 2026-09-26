@@ -19,6 +19,9 @@ public class BatchQueryDbContext: DbContext
 
     public DbSet<BatchOrder> Orders => Set<BatchOrder>();
 
+    // Not mapped; for queries that read a value from the context
+    public string? CurrentCustomer { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(TestSchema);

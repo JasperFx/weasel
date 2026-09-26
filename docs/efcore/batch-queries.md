@@ -14,7 +14,7 @@ In benchmarks on a local SQL Server with 4 keyed lookups per handler invocation,
 
 ## API Reference
 
-`BatchedQuery` exposes three query methods. Each queues the `IQueryable<T>` and returns a `Task<T>` future that is resolved when `ExecuteAsync()` is called. Variables the query captures are read when it is queued, so changing them afterwards doesn't affect the query. Results are exactly what EF Core returns for the same query, including entities with owned, complex or JSON members, `Include`s and projections.
+`BatchedQuery` exposes three query methods. Each queues the `IQueryable<T>` and returns a `Task<T>` future that is resolved when `ExecuteAsync()` is called. EF Core prepares the query when it is queued, so the values it captures are read then, once, and a query EF Core can't translate throws right away. Results are exactly what EF Core returns for the same query, including entities with owned, complex or JSON members, `Include`s and projections.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
@@ -48,8 +48,9 @@ The same call works inside `services.AddDbContext<T>(options => ...)` or a `DbCo
 - the interceptor isn't registered,
 - the database provider doesn't support `DbBatch` (`DbConnection.CanCreateBatch` is false, as for SQLite and Oracle),
 - other command interceptors are registered (a batch can't apply their changes to commands),
-- the execution strategy retries on failure (a query read from a batch can't be retried on its own), or
-- one of the queued queries is a split query (running it separately would change the order the queries run in).
+- the execution strategy retries on failure, including when the queries are queued or the batch runs inside a retrying strategy's `ExecuteAsync()` (a query read from a batch can't be retried on its own),
+- the version of EF Core doesn't provide a prepared query's command (see [How It Works](#how-it-works)), or
+- one of the queued queries is a split query as EF Core compiles it, whether through `AsSplitQuery()`, `UseQuerySplittingBehavior()` or a query interceptor (running it separately would change the order the queries run in).
 
 It logs a warning once per `DbContext` type for the first three.
 
@@ -136,7 +137,7 @@ await batch.ExecuteAsync();
 // to ensure the underlying DbCommands are properly disposed.
 await using var batch = context.CreateBatchQuery();
 
-// 1. Queue phase — each query and the values it captures are recorded,
+// 1. Queue phase — EF Core prepares each query, reading the values it captures,
 //    but nothing is sent to the database yet.
 var customersTask = batch.Query(context.Customers);
 var ordersTask = batch.Query(context.Orders);
@@ -157,6 +158,8 @@ var orders = await ordersTask;
 <!-- endSnippet -->
 
 A `BatchedQuery` is **single-use**. Do not call `ExecuteAsync()` more than once or queue additional queries after execution. Create a new batch for each unit of work.
+
+A batch runs on the `DbContext` it was created for, so it only accepts that context's queries. Queuing a query built from another `DbContext` throws.
 
 ## Error Handling
 
@@ -194,7 +197,9 @@ var orders = await ordersTask;
 
 **Order**: Queries execute in the order they were queued. Result sets are read sequentially via `NextResultAsync()`.
 
-**Captured values**: Variables a query captures are read when the query is queued, whether or not it ends up in a batch.
+**Captured values**: EF Core reads the values a query captures once, when the query is queued, whether or not it ends up in a batch, so changing a variable afterwards doesn't change the query. EF Core applies its usual rules: expressions it translates to SQL, such as `DateTime.UtcNow`, use the database's value, and branches a condition rules out aren't evaluated.
+
+**Collections in `Contains()`**: EF Core enumerates a collection the query captures each time it builds a command for the query, not when it reads the query's other values. A batched query's command is built more than once (for the batch, to detect a split query, and when EF Core reads the query's result set), so pass a list or array rather than a deferred sequence, such as an iterator or LINQ query over objects, that is expensive or can only be enumerated once.
 
 **Independence**: Each query in the batch is independent. Results from one query cannot feed into another within the same batch. If you need dependent queries, execute the first batch, await the result, then build a second batch.
 
@@ -208,10 +213,10 @@ Batched queries follow EF Core's tracking rules, as if each query ran on its own
 
 ## How It Works
 
-1. **SQL extraction**: Each `IQueryable<T>` is compiled to SQL via EF Core's `CreateDbCommand()` — a public, stable API available since EF Core 5.0 that returns a `DbCommand` with parameterized SQL without executing the query
+1. **Preparation**: When a query is queued, EF Core prepares it once (`IAsyncQueryProvider.ExecuteAsync()`): it reads the values the query captures, compiles it, and returns the query ready to run. Weasel takes the query's SQL and parameters from that prepared query through `IRelationalQueryingEnumerable.CreateDbCommand()`. That interface is internal to EF Core, unchanged since EF Core 5.0; Weasel uses it in one place because the public `CreateDbCommand()` would prepare the query again and read its captured values a second time. If a version of EF Core doesn't provide it, `BatchedQuery` runs each query on its own round trip.
 2. **Batch assembly**: All commands are packed into a single `DbBatch` (ADO.NET's native batching abstraction, available in .NET 8+)
 3. **Single execution**: The batch executes in one database round trip, returning a `DbDataReader` with multiple result sets
-4. **Materialization**: For each result set in turn, Weasel runs the query through EF Core as usual. `BatchedQueryInterceptor`, an EF Core `DbCommandInterceptor`, recognizes the query's command and hands EF Core that result set instead of executing it, so EF Core materializes the rows itself — tracking, identity resolution, owned, complex and JSON members, `Include`s and projections behave exactly as they do outside a batch
+4. **Materialization**: For each result set in turn, Weasel runs the prepared query through EF Core as usual. `BatchedQueryInterceptor`, an EF Core `DbCommandInterceptor`, recognizes the query's command and hands EF Core the provider's reader, positioned on that result set, instead of executing it (and keeps EF Core from closing it), so EF Core materializes the rows itself — tracking, identity resolution, owned, complex and JSON members, `Include`s and projections behave exactly as they do outside a batch
 5. **Resolution**: Results are pushed through `TaskCompletionSource<T>`, resolving the futures returned to the caller
 
 ## Supported Providers
