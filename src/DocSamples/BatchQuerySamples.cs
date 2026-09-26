@@ -69,7 +69,7 @@ public class BatchQuerySamples
         // to ensure the underlying DbCommands are properly disposed.
         await using var batch = context.CreateBatchQuery();
 
-        // 1. Queue phase — SQL is compiled immediately via CreateDbCommand(),
+        // 1. Queue phase — each query and the values it captures are recorded,
         //    but nothing is sent to the database yet.
         var customersTask = batch.Query(context.Customers);
         var ordersTask = batch.Query(context.Orders);
@@ -113,5 +113,18 @@ public class BatchQuerySamples
         var customers = await customersTask;
         var orders = await ordersTask;
         #endregion
+    }
+
+    public DbContextOptions<ShopDbContext> registration_example(string connectionString)
+    {
+        #region sample_efcore_batch_query_registration
+        var options = new DbContextOptionsBuilder<ShopDbContext>()
+            .UseNpgsql(connectionString)
+            // Lets BatchedQuery send all its queries in one round trip
+            .UseWeaselBatchedQueries()
+            .Options;
+        #endregion
+
+        return options;
     }
 }
