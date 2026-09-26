@@ -20,7 +20,7 @@ public class batch_query_tests : IAsyncLifetime
             .ConfigureServices(services =>
             {
                 services.AddDbContext<FkDependencyDbContext>(options =>
-                    options.UseNpgsql(FkDependencyDbContext.ConnectionString));
+                    options.UseNpgsql(FkDependencyDbContext.ConnectionString).UseWeaselBatchedQueries());
             })
             .Build();
 
