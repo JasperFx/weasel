@@ -22,7 +22,8 @@ The guiding principle: the schema Weasel creates for a `DbContext` is the schema
 | Alternate keys (`HasAlternateKey`) | Unique indexes |
 | Check constraints (`ToTable(t => t.HasCheckConstraint(...))`) | `ITable.AddCheckConstraint()` |
 | Model sequences (`HasSequence`, `UseHiLo`, `UseSequence`) | Weasel sequences via `GetSchemaObjectsForMigration` |
-| JSON columns via `OwnsOne().ToJson()` | Column with `jsonb` type (see [JSON Columns](./json-columns)) |
+| Table-split complex properties (`ComplexProperty(...)` without `ToJson()`) | A column per member of the complex type, folded into the owner's table (`Nav_Prop` style), walked recursively for nested complex properties |
+| JSON columns via `OwnsOne().ToJson()`, `ComplexProperty(...).ToJson()`, `ComplexCollection(...).ToJson()` | A single container column, typed from EF's own `GetContainerColumnType()` and falling back to the provider's JSON store type (`jsonb`, `nvarchar(max)`, ...) -- see [JSON Columns](./json-columns) |
 
 ## Basic Usage
 
@@ -70,6 +71,7 @@ EF Core migrations emit quoted, case-sensitive identifiers (`"BlogId"`, `PK_Blog
 - **No table name** -- Entity types without a mapped table (e.g., keyless query types) are skipped.
 - **Owned types sharing the owner's table** -- Entity types configured via `OwnsOne()` without `ToTable()` (table splitting) or with `.ToJson()` do not get their own table; their columns (`Nav_Prop` style) or JSON container column are folded into the owner's table definition instead.
 - **Owned types with their own table** -- `OwnsOne(...).ToTable(...)` and `OwnsMany(...)` entity types *are* included: they map to real tables (with the PK-as-FK / composite-key shapes EF creates for them).
+- **Complex types** -- `ComplexProperty` members are not entity types at all, so nothing filters them; they are reached from the owning entity type instead. A table-split one contributes a column per member to the owner's table, and a `ToJson()` one a single container column.
 
 ## TPH (Table Per Hierarchy) Handling
 

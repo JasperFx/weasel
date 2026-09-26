@@ -88,6 +88,9 @@ $$;
 
     public override IDatabaseProvider Provider => SqlServerProvider.Instance;
 
+    /// <inheritdoc />
+    public override string DefaultJsonColumnType => "nvarchar(max)";
+
     /// <summary>
     ///     Heads every rendered script with <c>SET QUOTED_IDENTIFIER ON;</c> so the file runs under
     ///     sqlcmd without extra flags (weasel#593). sqlcmd is the one client that leaves the setting

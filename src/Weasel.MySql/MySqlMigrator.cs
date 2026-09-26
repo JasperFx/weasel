@@ -60,6 +60,9 @@ public class MySqlMigrator: Migrator
 
     public override IDatabaseProvider Provider => MySqlProvider.Instance;
 
+    /// <inheritdoc />
+    public override string DefaultJsonColumnType => "TEXT";
+
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
         writeStep(this, writer);

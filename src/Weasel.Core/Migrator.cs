@@ -477,6 +477,21 @@ public abstract class
     public virtual bool IsSystemColumn(string columnName) => false;
 
     /// <summary>
+    ///     The column type to store a JSON document in when a caller building a migration from an
+    ///     external model knows a column holds JSON but the model does not name its store type.
+    /// </summary>
+    /// <remarks>
+    ///     Used by the EF Core integration for the container column of a <c>ToJson()</c> owned type
+    ///     or complex property: EF's <c>GetContainerColumnType()</c> returns null unless the model
+    ///     spells the type out, and the fallback used to be the literal <c>"jsonb"</c> — which is
+    ///     PostgreSQL's answer emitted on every provider, so a <c>ToJson()</c> mapping produced
+    ///     invalid DDL on SQL Server and everywhere else (weasel#628). Each provider's own
+    ///     "complex type falls through to JSON storage" type is the right answer here, so the
+    ///     overrides match <c>GetDatabaseType</c>'s final fallback.
+    /// </remarks>
+    public virtual string DefaultJsonColumnType => "jsonb";
+
+    /// <summary>
     ///     Is this exception a transient failure to *connect* to the database — as opposed to a failure of
     ///     the migration itself — such that retrying the same work after a backoff is likely to succeed?
     ///     The default is <c>false</c>; provider-specific migrators override it with the error codes they

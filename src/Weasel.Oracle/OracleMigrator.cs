@@ -63,6 +63,9 @@ public class OracleMigrator: Migrator
 
     public override IDatabaseProvider Provider => OracleProvider.Instance;
 
+    /// <inheritdoc />
+    public override string DefaultJsonColumnType => "CLOB";
+
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
         writeStep(this, writer);

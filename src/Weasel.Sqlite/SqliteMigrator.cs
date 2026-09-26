@@ -16,6 +16,9 @@ public class SqliteMigrator: Migrator
 
     public override IDatabaseProvider Provider => SqliteProvider.Instance;
 
+    /// <inheritdoc />
+    public override string DefaultJsonColumnType => "TEXT";
+
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);
