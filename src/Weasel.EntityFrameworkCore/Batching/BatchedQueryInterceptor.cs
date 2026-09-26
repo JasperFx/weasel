@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -8,34 +9,48 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 namespace Weasel.EntityFrameworkCore.Batching;
 
 /// <summary>
-///     Register with <c>optionsBuilder.AddInterceptors(new BatchedQueryInterceptor())</c> to let
-///     <see cref="BatchedQuery" /> materialize results through EF Core's own query pipeline
-///     (tracking, identity resolution, owned/complex/JSON members, includes, projections). The
-///     interceptor hands the batch's result set to the query EF Core executes instead of running it.
+///     Lets <see cref="BatchedQuery" /> send its queries in one round trip while EF Core still
+///     materializes every result. When EF Core runs a batched query, the interceptor supplies that
+///     query's result set from the batch instead of executing the command.
+///     Register it with <see cref="BatchQueryExtensions.UseWeaselBatchedQueries(DbContextOptionsBuilder)" />.
 /// </summary>
 public sealed class BatchedQueryInterceptor : DbCommandInterceptor
 {
-    private static readonly ConditionalWeakTable<DbContext, DbDataReader> Pending = new();
+    public static BatchedQueryInterceptor Instance { get; } = new();
+
+    private static readonly ConditionalWeakTable<DbContext, PendingResult> Pending = new();
+
+    private sealed record PendingResult(DbDataReader Reader, string CommandText);
 
     internal static bool IsRegistered(DbContext context) =>
         context.GetService<IDbContextOptions>().FindExtension<CoreOptionsExtension>()?.Interceptors?
             .OfType<BatchedQueryInterceptor>().Any() == true;
 
-    internal static void Supply(DbContext context, DbDataReader reader) => Pending.AddOrUpdate(context, new ResultSetReader(reader));
+    internal static void Supply(DbContext context, DbDataReader reader, string commandText) =>
+        Pending.AddOrUpdate(context, new PendingResult(new ResultSetReader(reader), commandText));
+
     internal static void Clear(DbContext context) => Pending.Remove(context);
 
     public override InterceptionResult<DbDataReader> ReaderExecuting(DbCommand command, CommandEventData eventData,
-        InterceptionResult<DbDataReader> result) => Take(eventData, result);
+        InterceptionResult<DbDataReader> result) => Take(command, eventData, result);
 
     public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
         CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
-        => new(Take(eventData, result));
+        => new(Take(command, eventData, result));
 
-    private static InterceptionResult<DbDataReader> Take(CommandEventData eventData, InterceptionResult<DbDataReader> result)
+    private static InterceptionResult<DbDataReader> Take(DbCommand command, CommandEventData eventData,
+        InterceptionResult<DbDataReader> result)
     {
-        if (eventData.Context == null || !Pending.TryGetValue(eventData.Context, out var reader)) return result;
+        // Only the command the batch ran may read its result set. Any other command EF Core issues
+        // while materializing executes normally, and fails loudly on the busy connection.
+        if (eventData.Context == null || !Pending.TryGetValue(eventData.Context, out var pending) ||
+            pending.CommandText != command.CommandText)
+        {
+            return result;
+        }
+
         Pending.Remove(eventData.Context);
-        return InterceptionResult<DbDataReader>.SuppressWithResult(reader);
+        return InterceptionResult<DbDataReader>.SuppressWithResult(pending.Reader);
     }
 
     /// <summary>The current result set of the batch reader; EF Core can read it but not advance or close it.</summary>
@@ -67,6 +82,7 @@ public sealed class BatchedQueryInterceptor : DbCommandInterceptor
         public override DateTime GetDateTime(int ordinal) => inner.GetDateTime(ordinal);
         public override decimal GetDecimal(int ordinal) => inner.GetDecimal(ordinal);
         public override double GetDouble(int ordinal) => inner.GetDouble(ordinal);
+        [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
         public override Type GetFieldType(int ordinal) => inner.GetFieldType(ordinal);
         public override float GetFloat(int ordinal) => inner.GetFloat(ordinal);
         public override Guid GetGuid(int ordinal) => inner.GetGuid(ordinal);
@@ -84,51 +100,11 @@ public sealed class BatchedQueryInterceptor : DbCommandInterceptor
         public override Task<T> GetFieldValueAsync<T>(int ordinal, CancellationToken cancellationToken) => inner.GetFieldValueAsync<T>(ordinal, cancellationToken);
         public override Stream GetStream(int ordinal) => inner.GetStream(ordinal);
         public override TextReader GetTextReader(int ordinal) => inner.GetTextReader(ordinal);
+        [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
         public override Type GetProviderSpecificFieldType(int ordinal) => inner.GetProviderSpecificFieldType(ordinal);
         public override object GetProviderSpecificValue(int ordinal) => inner.GetProviderSpecificValue(ordinal);
         public override int GetProviderSpecificValues(object[] values) => inner.GetProviderSpecificValues(values);
         public override System.Data.DataTable? GetSchemaTable() => inner.GetSchemaTable();
         public override IEnumerator GetEnumerator() => ((IEnumerable)inner).GetEnumerator();
-    }
-}
-
-/// <summary>A queued query that EF Core itself materializes from its result set in the batch.</summary>
-internal sealed class EfPipelineBatchQueryItem<TResult>(DbContext context, DbCommand sourceCommand,
-    Func<CancellationToken, Task<TResult>> execute) : IBatchQueryItem
-{
-    private readonly TaskCompletionSource<TResult> _completion = new();
-    public Task<TResult> Result => _completion.Task;
-
-    public void ConfigureCommand(DbBatchCommand command)
-    {
-        command.CommandText = sourceCommand.CommandText;
-        foreach (DbParameter param in sourceCommand.Parameters)
-        {
-            var clone = command.CreateParameter();
-            clone.ParameterName = param.ParameterName;
-            clone.Value = param.Value;
-            clone.DbType = param.DbType;
-            clone.Direction = param.Direction;
-            clone.Size = param.Size;
-            command.Parameters.Add(clone);
-        }
-    }
-
-    public async Task ReadAsync(DbDataReader reader, CancellationToken ct)
-    {
-        BatchedQueryInterceptor.Supply(context, reader);
-        try
-        {
-            _completion.SetResult(await execute(ct).ConfigureAwait(false));
-        }
-        catch (Exception e)
-        {
-            _completion.SetException(e);
-            throw;
-        }
-        finally
-        {
-            BatchedQueryInterceptor.Clear(context);
-        }
     }
 }

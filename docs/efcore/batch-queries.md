@@ -14,16 +14,36 @@ In benchmarks on a local SQL Server with 4 keyed lookups per handler invocation,
 
 ## API Reference
 
-`BatchedQuery` exposes three query methods. Each compiles the `IQueryable<T>` to SQL immediately and returns a `Task<T>` future that is resolved when `ExecuteAsync()` is called.
+`BatchedQuery` exposes three query methods. Each queues the `IQueryable<T>` and returns a `Task<T>` future that is resolved when `ExecuteAsync()` is called. Results are exactly what EF Core returns for the same query, including entities with owned, complex or JSON members, `Include`s and projections.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `Query<T>(IQueryable<T>)` | `Task<IReadOnlyList<T>>` | Returns all matching rows as a list. |
-| `QuerySingle<T>(IQueryable<T>)` | `Task<T?>` | Returns the first matching row, or `null` if none. |
-| `Scalar<T>(IQueryable<T>)` | `Task<T>` | Returns a single scalar value (e.g., from a COUNT or MAX projection). |
+| `Query<T>(IQueryable<T>)` | `Task<IReadOnlyList<T>>` | Returns all results as a list. |
+| `QuerySingle<T>(IQueryable<T>)` | `Task<T?>` | Returns the first result, or the default value (`null` for an entity) if there is none. |
+| `Scalar<T>(IQueryable<T>)` | `Task<T>` | Returns a single scalar value (e.g., from a COUNT or MAX projection), or the default value if there is none. |
 | `ExecuteAsync(CancellationToken)` | `Task` | Sends all queued queries in one round trip and resolves every future. |
 
 The `DbContext.CreateBatchQuery()` extension method creates a new `BatchedQuery` bound to that context's connection and transaction.
+
+## Setup
+
+To send the queries in a single round trip, register Weasel's `BatchedQueryInterceptor` on the `DbContext` with `UseWeaselBatchedQueries()`:
+
+<!-- snippet: sample_efcore_batch_query_registration -->
+<a id='snippet-sample_efcore_batch_query_registration'></a>
+```cs
+var options = new DbContextOptionsBuilder<ShopDbContext>()
+    .UseNpgsql(connectionString)
+    // Lets BatchedQuery send all its queries in one round trip
+    .UseWeaselBatchedQueries()
+    .Options;
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/BatchQuerySamples.cs#L120-L126' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_batch_query_registration' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The same call works inside `services.AddDbContext<T>(options => ...)` or a `DbContext`'s `OnConfiguring`.
+
+Without the interceptor, `BatchedQuery` still works and returns the same results, but runs each query on its own round trip, and logs a warning once per `DbContext` type.
 
 ## Basic Usage
 
@@ -132,7 +152,7 @@ A `BatchedQuery` is **single-use**. Do not call `ExecuteAsync()` more than once 
 
 ## Error Handling
 
-If any query in the batch fails (e.g., a SQL syntax error or connection failure), the entire batch fails. None of the `Task<T>` futures will be resolved — awaiting them after a failed `ExecuteAsync()` will throw.
+If any query in the batch fails (e.g., a SQL syntax error or connection failure), `ExecuteAsync()` throws. The futures of queries that didn't complete are faulted, so awaiting them after a failed `ExecuteAsync()` throws rather than waiting forever.
 
 <!-- snippet: sample_efcore_batch_error_handling -->
 <a id='snippet-sample_efcore_batch_error_handling'></a>
@@ -174,17 +194,14 @@ var orders = await ordersTask;
 
 ## Change Tracking
 
-Entities loaded via `BatchedQuery` are **not tracked** by EF Core's `ChangeTracker`. This is a deliberate design choice — batch queries are optimized for read-only scenarios where you need data fast. If you need to modify an entity loaded from a batch, either:
-
-- Attach it to the context with `context.Attach(entity)`
-- Re-query it through EF Core's standard pipeline
+Batched queries follow EF Core's tracking rules, as if each query ran on its own. A tracking query (the default, or `AsTracking()`) attaches its results to the `ChangeTracker` and returns the instance the context already tracks for an entity it has loaded before; an `AsNoTracking()` query or a context configured with `QueryTrackingBehavior.NoTracking` returns untracked results.
 
 ## How It Works
 
 1. **SQL extraction**: Each `IQueryable<T>` is compiled to SQL via EF Core's `CreateDbCommand()` — a public, stable API available since EF Core 5.0 that returns a `DbCommand` with parameterized SQL without executing the query
 2. **Batch assembly**: All commands are packed into a single `DbBatch` (ADO.NET's native batching abstraction, available in .NET 8+)
 3. **Single execution**: The batch executes in one database round trip, returning a `DbDataReader` with multiple result sets
-4. **Materialization**: Each result set is read sequentially via `NextResultAsync()` and materialized using EF Core's `IEntityType` metadata — column names, CLR types, and value converters are all respected
+4. **Materialization**: For each result set in turn, Weasel runs the query through EF Core as usual. `BatchedQueryInterceptor`, an EF Core `DbCommandInterceptor`, recognizes the query's command and hands EF Core that result set instead of executing it, so EF Core materializes the rows itself — tracking, identity resolution, owned, complex and JSON members, `Include`s and projections behave exactly as they do outside a batch
 5. **Resolution**: Results are pushed through `TaskCompletionSource<T>`, resolving the futures returned to the caller
 
 ## Supported Providers
@@ -201,7 +218,7 @@ There are no provider-specific differences in behavior. The same `BatchedQuery` 
 
 ## Limitations
 
-- **No change tracking**: Materialized entities are not tracked by EF Core's `ChangeTracker`. Use this for read-only queries.
-- **Flat entity types**: The materializer handles entities with scalar properties, value converters, enums, and nullable columns. Complex owned types and navigation properties (includes) require loading through EF Core's standard query pipeline.
+- **Interceptor required for batching**: Without `UseWeaselBatchedQueries()`, each query runs on its own round trip (see [Setup](#setup)).
+- **Split queries run separately**: A query using `AsSplitQuery()` (or a context configured for split queries) sends one command per collection `Include`, so it runs on its own round trip after the batch. The other queries are still batched.
 - **IQueryable only**: Queries must be expressible as `IQueryable<T>`. Raw SQL string queries are not yet supported in the batch API.
 - **Single-use**: A `BatchedQuery` cannot be reused after `ExecuteAsync()` is called.

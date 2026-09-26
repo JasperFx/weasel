@@ -114,4 +114,17 @@ public class BatchQuerySamples
         var orders = await ordersTask;
         #endregion
     }
+
+    public DbContextOptions<ShopDbContext> registration_example(string connectionString)
+    {
+        #region sample_efcore_batch_query_registration
+        var options = new DbContextOptionsBuilder<ShopDbContext>()
+            .UseNpgsql(connectionString)
+            // Lets BatchedQuery send all its queries in one round trip
+            .UseWeaselBatchedQueries()
+            .Options;
+        #endregion
+
+        return options;
+    }
 }

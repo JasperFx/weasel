@@ -23,7 +23,7 @@ public class sql_server_batch_query_tests : IAsyncLifetime
             .ConfigureServices(services =>
             {
                 services.AddDbContext<SqlServerFkDbContext>(options =>
-                    options.UseSqlServer(SqlServerFkDbContext.ConnectionString));
+                    options.UseSqlServer(SqlServerFkDbContext.ConnectionString).UseWeaselBatchedQueries());
             })
             .Build();
 
