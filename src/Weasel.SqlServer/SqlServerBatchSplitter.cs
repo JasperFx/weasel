@@ -37,6 +37,14 @@ public static class SqlServerBatchSplitter
         RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     /// <summary>
+    ///     Does <paramref name="sql" /> contain a line that <see cref="Split" /> would treat as a batch
+    ///     separator? Shares the one definition of a separator with <see cref="Split" /> on purpose: a
+    ///     caller that refuses input on its own idea of what a <c>GO</c> line is could disagree with the
+    ///     splitter, which is the only way such a refusal could be worse than no refusal at all.
+    /// </summary>
+    internal static bool ContainsSeparator(string sql) => _separator.IsMatch(sql);
+
+    /// <summary>
     ///     The non-empty batches of <paramref name="sql" />, in order, each trimmed of surrounding
     ///     whitespace but otherwise verbatim.
     /// </summary>
