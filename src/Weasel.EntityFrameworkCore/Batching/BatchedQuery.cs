@@ -14,25 +14,27 @@ namespace Weasel.EntityFrameworkCore.Batching;
 ///     <para>
 ///     EF Core runs every query and materializes its results, so a batched query returns exactly
 ///     what the same query returns on its own: tracking and identity resolution, owned, complex
-///     and JSON members, <c>Include</c>s and projections all behave as usual. Batching into one
-///     round trip requires <see cref="BatchedQueryInterceptor" /> on the <see cref="DbContext" />
-///     (see <see cref="BatchQueryExtensions.UseWeaselBatchedQueries(DbContextOptionsBuilder)" />).
-///     Without it, and for split queries, each query runs on its own round trip.
+///     and JSON members, <c>Include</c>s and projections all behave as usual. Variables a query
+///     captures are read when it is queued. Queries run in the order they were queued.
+///     </para>
+///     <para>
+///     Batching into one round trip requires <see cref="BatchedQueryInterceptor" /> on the
+///     <see cref="DbContext" /> (see <see cref="BatchQueryExtensions.UseWeaselBatchedQueries(DbContextOptionsBuilder)" />).
+///     When a batch can't be used — the interceptor isn't registered, other command interceptors are
+///     registered, the execution strategy retries on failure, or a query is a split query — every
+///     query runs on its own round trip instead, with the same results.
 ///     </para>
 /// </summary>
 public sealed class BatchedQuery : IAsyncDisposable
 {
-    private static readonly ConcurrentDictionary<Type, bool> WarnedContextTypes = new();
+    private static readonly ConcurrentDictionary<(Type, string), bool> WarnedContextTypes = new();
 
     private readonly DbContext _context;
-    private readonly bool _canBatch;
-    private readonly List<QueuedQuery> _batched = new();
-    private readonly List<QueuedQuery> _separate = new();
+    private readonly List<QueuedQuery> _queries = new();
 
     public BatchedQuery(DbContext context)
     {
         _context = context;
-        _canBatch = BatchedQueryInterceptor.IsRegistered(context);
     }
 
     /// <summary>
@@ -41,7 +43,8 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// </summary>
     public Task<IReadOnlyList<T>> Query<T>(IQueryable<T> queryable)
     {
-        return Enqueue(queryable, async ct => (IReadOnlyList<T>)await queryable.ToListAsync(ct).ConfigureAwait(false));
+        var query = CapturedValues.Freeze(queryable);
+        return enqueue(query, async ct => (IReadOnlyList<T>)await query.ToListAsync(ct).ConfigureAwait(false));
     }
 
     /// <summary>
@@ -49,7 +52,8 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// </summary>
     public Task<T?> QuerySingle<T>(IQueryable<T> queryable)
     {
-        return Enqueue(queryable, ct => FirstOrDefaultAsync(queryable, ct));
+        var query = CapturedValues.Freeze(queryable);
+        return enqueue(query, ct => firstOrDefaultAsync(query, ct));
     }
 
     /// <summary>
@@ -57,13 +61,14 @@ public sealed class BatchedQuery : IAsyncDisposable
     /// </summary>
     public Task<T> Scalar<T>(IQueryable<T> queryable)
     {
-        return Enqueue(queryable, async ct => (await FirstOrDefaultAsync(queryable, ct).ConfigureAwait(false))!);
+        var query = CapturedValues.Freeze(queryable);
+        return enqueue(query, async ct => (await firstOrDefaultAsync(query, ct).ConfigureAwait(false))!);
     }
 
     // The batch runs exactly the queued query's SQL, so the first result comes from reading that
     // query's results rather than from FirstOrDefaultAsync(), whose SQL would differ (LIMIT 1).
     // Stopping after the first result also leaves the rest untracked, as FirstOrDefaultAsync() would.
-    private static async Task<T?> FirstOrDefaultAsync<T>(IQueryable<T> queryable, CancellationToken ct)
+    private static async Task<T?> firstOrDefaultAsync<T>(IQueryable<T> queryable, CancellationToken ct)
     {
         await foreach (var result in queryable.AsAsyncEnumerable().WithCancellation(ct).ConfigureAwait(false))
         {
@@ -73,49 +78,41 @@ public sealed class BatchedQuery : IAsyncDisposable
         return default;
     }
 
-    private Task<TResult> Enqueue<TResult>(IQueryable queryable, Func<CancellationToken, Task<TResult>> execute)
+    private Task<TResult> enqueue<TResult>(IQueryable queryable, Func<CancellationToken, Task<TResult>> execute)
     {
-        var query = new QueuedQuery<TResult>(_context, queryable, execute);
-
-        // A split query sends more than one command, which a single result set can't answer
-        if (_canBatch && !IsSplitQuery(queryable))
-        {
-            _ = query.SourceCommand; // compile the SQL now, as documented
-            _batched.Add(query);
-        }
-        else
-        {
-            if (!_canBatch) WarnNotBatching();
-            _separate.Add(query);
-        }
-
+        var query = new QueuedQuery<TResult>(_context, queryable, isSplitQuery(queryable), execute);
+        _queries.Add(query);
         return query.Result;
     }
 
     /// <summary>
-    ///     Executes all queued queries, in a single database round trip when possible.
-    ///     After this call, all <see cref="Task{T}" /> futures returned by
+    ///     Executes all queued queries in the order they were queued, in a single database round trip
+    ///     when possible. After this call, all <see cref="Task{T}" /> futures returned by
     ///     <see cref="Query{T}" />, <see cref="QuerySingle{T}" />, and
     ///     <see cref="Scalar{T}" /> are resolved.
     /// </summary>
     public async Task ExecuteAsync(CancellationToken ct = default)
     {
+        if (_queries.Count == 0) return;
+
         try
         {
-            if (_batched.Count > 0)
+            if (canBatch())
             {
-                await ExecuteBatchAsync(ct).ConfigureAwait(false);
+                await executeBatchAsync(ct).ConfigureAwait(false);
             }
-
-            foreach (var query in _separate)
+            else
             {
-                await query.ExecuteAsync(ct).ConfigureAwait(false);
+                foreach (var query in _queries)
+                {
+                    await query.ExecuteAsync(ct).ConfigureAwait(false);
+                }
             }
         }
         catch (Exception e)
         {
             // Don't leave the futures of queries that never ran pending forever
-            foreach (var query in _batched.Concat(_separate))
+            foreach (var query in _queries)
             {
                 query.Fail(e);
             }
@@ -124,7 +121,34 @@ public sealed class BatchedQuery : IAsyncDisposable
         }
     }
 
-    private async Task ExecuteBatchAsync(CancellationToken ct)
+    private bool canBatch()
+    {
+        if (!BatchedQueryInterceptor.IsRegistered(_context))
+        {
+            warnOnce("does not have the BatchedQueryInterceptor registered. Call UseWeaselBatchedQueries() on its " +
+                     "DbContextOptionsBuilder to batch them");
+            return false;
+        }
+
+        // A batch bypasses other command interceptors, so whatever they change about a command wouldn't apply
+        if (!BatchedQueryInterceptor.IsOnlyCommandInterceptor(_context))
+        {
+            warnOnce("has other command interceptors registered, whose changes to commands a batch can't apply");
+            return false;
+        }
+
+        // EF Core retries a failed query by running it again, which a result set read from a batch can't support
+        if (_context.Database.CreateExecutionStrategy().RetriesOnFailure)
+        {
+            warnOnce("uses an execution strategy that retries on failure");
+            return false;
+        }
+
+        // Running a split query separately would change the order the queries run in
+        return !_queries.Any(x => x.IsSplitQuery);
+    }
+
+    private async Task executeBatchAsync(CancellationToken ct)
     {
         await _context.Database.OpenConnectionAsync(ct).ConfigureAwait(false);
         try
@@ -132,7 +156,7 @@ public sealed class BatchedQuery : IAsyncDisposable
             await using var batch = _context.Database.GetDbConnection().CreateBatch();
             batch.Transaction = _context.Database.CurrentTransaction?.GetDbTransaction();
 
-            foreach (var query in _batched)
+            foreach (var query in _queries)
             {
                 var batchCommand = batch.CreateBatchCommand();
                 query.ConfigureCommand(batchCommand);
@@ -141,15 +165,15 @@ public sealed class BatchedQuery : IAsyncDisposable
 
             await using var reader = await batch.ExecuteReaderAsync(ct).ConfigureAwait(false);
 
-            for (var i = 0; i < _batched.Count; i++)
+            for (var i = 0; i < _queries.Count; i++)
             {
                 if (i > 0 && !await reader.NextResultAsync(ct).ConfigureAwait(false))
                 {
                     throw new InvalidOperationException(
-                        $"Expected {_batched.Count} result sets but only received {i}.");
+                        $"Expected {_queries.Count} result sets but only received {i}.");
                 }
 
-                await _batched[i].ReadFromBatchAsync(reader, ct).ConfigureAwait(false);
+                await _queries[i].ReadFromBatchAsync(reader, ct).ConfigureAwait(false);
             }
         }
         finally
@@ -158,17 +182,16 @@ public sealed class BatchedQuery : IAsyncDisposable
         }
     }
 
-    private void WarnNotBatching()
+    private void warnOnce(string reason)
     {
-        if (!WarnedContextTypes.TryAdd(_context.GetType(), true)) return;
+        if (!WarnedContextTypes.TryAdd((_context.GetType(), reason), true)) return;
 
         _context.GetService<ILoggerFactory>().CreateLogger<BatchedQuery>().LogWarning(
-            "{DbContext} does not have the {Interceptor} registered, so BatchedQuery runs each query on its own " +
-            "round trip. Call UseWeaselBatchedQueries() on its DbContextOptionsBuilder to batch them.",
-            _context.GetType().Name, nameof(BatchedQueryInterceptor));
+            "{DbContext} {Reason}, so BatchedQuery runs each query on its own round trip.",
+            _context.GetType().Name, reason);
     }
 
-    private bool IsSplitQuery(IQueryable queryable)
+    private bool isSplitQuery(IQueryable queryable)
     {
         var visitor = new SplitQueryVisitor();
         visitor.Visit(queryable.Expression);
@@ -181,13 +204,12 @@ public sealed class BatchedQuery : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        foreach (var query in _batched)
+        foreach (var query in _queries.Where(x => x.HasSourceCommand))
         {
             await query.SourceCommand.DisposeAsync().ConfigureAwait(false);
         }
 
-        _batched.Clear();
-        _separate.Clear();
+        _queries.Clear();
     }
 
     private sealed class SplitQueryVisitor : ExpressionVisitor

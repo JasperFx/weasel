@@ -69,7 +69,7 @@ public class BatchQuerySamples
         // to ensure the underlying DbCommands are properly disposed.
         await using var batch = context.CreateBatchQuery();
 
-        // 1. Queue phase — SQL is compiled immediately via CreateDbCommand(),
+        // 1. Queue phase — each query and the values it captures are recorded,
         //    but nothing is sent to the database yet.
         var customersTask = batch.Query(context.Customers);
         var ordersTask = batch.Query(context.Orders);

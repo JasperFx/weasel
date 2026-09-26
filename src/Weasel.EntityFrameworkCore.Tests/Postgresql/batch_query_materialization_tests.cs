@@ -1,4 +1,6 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
@@ -49,13 +51,19 @@ public class batch_query_materialization_tests: IAsyncLifetime
     };
 
     private BatchQueryDbContext CreateContext(bool batching = true,
-        QueryTrackingBehavior tracking = QueryTrackingBehavior.TrackAll)
+        QueryTrackingBehavior tracking = QueryTrackingBehavior.TrackAll, bool retryOnFailure = false,
+        IInterceptor[]? interceptors = null, IInterceptor[]? interceptorsAfterBatching = null)
     {
         var builder = new DbContextOptionsBuilder<BatchQueryDbContext>()
-            .UseNpgsql(_dataSource)
-            .UseQueryTrackingBehavior(tracking);
+            .UseNpgsql(_dataSource, o =>
+            {
+                if (retryOnFailure) o.EnableRetryOnFailure();
+            })
+            .UseQueryTrackingBehavior(tracking)
+            .AddInterceptors(interceptors ?? []);
 
         if (batching) builder.UseWeaselBatchedQueries();
+        builder.AddInterceptors(interceptorsAfterBatching ?? []);
 
         return new BatchQueryDbContext(builder.Options);
     }
@@ -184,7 +192,7 @@ public class batch_query_materialization_tests: IAsyncLifetime
     }
 
     [Fact]
-    public async Task split_queries_run_separately_and_the_rest_still_batch()
+    public async Task a_split_query_makes_every_query_run_separately_with_the_same_results()
     {
         await using var context = CreateContext();
         await using var batch = context.CreateBatchQuery();
@@ -196,8 +204,8 @@ public class batch_query_materialization_tests: IAsyncLifetime
         _roundTrips.Reset();
         await batch.ExecuteAsync();
 
-        // One batch for the two single queries, then the split query's own two commands
-        _roundTrips.Count.ShouldBe(3);
+        // The split query's own two commands, then one for each of the other queries
+        _roundTrips.Count.ShouldBe(4);
         ShouldBeFullyLoaded(await split);
         (await first)!.Id.ShouldBe(_orderId);
         (await second)!.Id.ShouldBe(_otherOrderId);
@@ -219,12 +227,160 @@ public class batch_query_materialization_tests: IAsyncLifetime
         neverRead.IsFaulted.ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task captured_values_are_read_when_the_query_is_queued(bool batching)
+    {
+        await using var context = CreateContext(batching);
+        await using var batch = context.CreateBatchQuery();
+
+        string? customer = "c";
+        var orders = batch.Query(context.Orders.Where(x => x.Customer == customer));
+        customer = null;
+
+        await batch.ExecuteAsync();
+
+        (await orders).Single().Id.ShouldBe(_orderId);
+    }
+
+    [Fact]
+    public async Task command_interceptors_apply_to_batched_queries()
+    {
+        // Registered before the batching interceptor, so EF Core runs it first
+        await using var context = CreateContext(interceptors: [new ReplaceParameterValue("c", "d")]);
+        await using var batch = context.CreateBatchQuery();
+
+        // A variable, so EF Core sends it as a parameter the interceptor can change
+        var customer = "c";
+        var orders = batch.Query(context.Orders.Where(x => x.Customer == customer));
+        await batch.ExecuteAsync();
+
+        // Exactly what EF Core returns for the same query with the same interceptor
+        (await orders).Single().Id.ShouldBe(_otherOrderId);
+        (await context.Orders.Where(x => x.Customer == customer).SingleAsync()).Id.ShouldBe(_otherOrderId);
+    }
+
+    [Fact]
+    public async Task a_retrying_execution_strategy_recovers_from_a_transient_error()
+    {
+        // Fails after the batch has handed EF Core the query's result set, like an error while reading it
+        var probe = new FailOnceWithTransientError();
+        await using var context = CreateContext(retryOnFailure: true, interceptorsAfterBatching: [probe]);
+        await using var batch = context.CreateBatchQuery();
+
+        var first = batch.QuerySingle(context.Orders.Where(x => x.Id == _orderId));
+        var second = batch.QuerySingle(context.Orders.Where(x => x.Id == _otherOrderId));
+
+        probe.Armed = true;
+        await batch.ExecuteAsync();
+
+        probe.Failed.ShouldBeTrue();
+        (await first)!.Id.ShouldBe(_orderId);
+        (await second)!.Id.ShouldBe(_otherOrderId);
+    }
+
+    [Fact]
+    public async Task a_retrying_execution_strategy_runs_each_query_separately()
+    {
+        await using var context = CreateContext(retryOnFailure: true);
+        await using var batch = context.CreateBatchQuery();
+
+        var first = batch.QuerySingle(context.Orders.Where(x => x.Id == _orderId));
+        var second = batch.QuerySingle(context.Orders.Where(x => x.Id == _otherOrderId));
+
+        _roundTrips.Reset();
+        await batch.ExecuteAsync();
+
+        _roundTrips.Count.ShouldBe(2);
+        (await first)!.Id.ShouldBe(_orderId);
+        (await second)!.Id.ShouldBe(_otherOrderId);
+    }
+
+    [Fact]
+    public async Task queries_run_in_the_order_they_were_queued()
+    {
+        await using var context = CreateContext();
+        await using var batch = context.CreateBatchQuery();
+
+        var split = batch.Query(context.Orders.TagWith("first").Include(x => x.Lines).AsSplitQuery());
+        var single = batch.QuerySingle(context.Orders.TagWith("second").Where(x => x.Id == _orderId));
+
+        _roundTrips.Reset();
+        await batch.ExecuteAsync();
+
+        var commands = _roundTrips.Commands;
+        commands.FindIndex(x => x.Contains("-- first")).ShouldBeLessThan(commands.FindIndex(x => x.Contains("-- second")));
+        (await split).Count.ShouldBe(2);
+        (await single)!.Id.ShouldBe(_orderId);
+    }
+
+    /// <summary>Rewrites a parameter value before EF Core executes a command.</summary>
+    private sealed class ReplaceParameterValue(object from, object to): DbCommandInterceptor
+    {
+        private void replace(DbCommand command)
+        {
+            foreach (DbParameter parameter in command.Parameters)
+            {
+                if (Equals(parameter.Value, from)) parameter.Value = to;
+            }
+        }
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(DbCommand command, CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            replace(command);
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
+            CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            replace(command);
+            return new(result);
+        }
+    }
+
+    /// <summary>Fails the first query after being armed with an error the retrying strategy treats as transient.</summary>
+    private sealed class FailOnceWithTransientError: DbCommandInterceptor
+    {
+        public bool Armed { get; set; }
+        public bool Failed { get; private set; }
+
+        private void maybeFail()
+        {
+            if (!Armed || Failed) return;
+            Failed = true;
+            throw new NpgsqlException("Injected transient error", new TimeoutException());
+        }
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(DbCommand command, CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            maybeFail();
+            return result;
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
+            CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            maybeFail();
+            return new(result);
+        }
+    }
+
     /// <summary>Counts Npgsql command and batch executions, i.e. database round trips.</summary>
     private sealed class RoundTripCounter: ILoggerProvider
     {
         private int _count;
         public int Count => _count;
-        public void Reset() => Interlocked.Exchange(ref _count, 0);
+        public List<string> Commands { get; } = [];
+
+        public void Reset()
+        {
+            Interlocked.Exchange(ref _count, 0);
+            lock (Commands) Commands.Clear();
+        }
 
         public ILogger CreateLogger(string categoryName) => new Logger(categoryName == "Npgsql.Command" ? this : null);
         public void Dispose() { }
@@ -237,9 +393,11 @@ public class batch_query_materialization_tests: IAsyncLifetime
             public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
                 Func<TState, Exception?, string> formatter)
             {
-                if (counter != null && formatter(state, exception).StartsWith("Executing"))
+                var message = formatter(state, exception);
+                if (counter != null && message.StartsWith("Executing"))
                 {
                     Interlocked.Increment(ref counter._count);
+                    lock (counter.Commands) counter.Commands.Add(message);
                 }
             }
         }

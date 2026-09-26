@@ -14,7 +14,7 @@ In benchmarks on a local SQL Server with 4 keyed lookups per handler invocation,
 
 ## API Reference
 
-`BatchedQuery` exposes three query methods. Each queues the `IQueryable<T>` and returns a `Task<T>` future that is resolved when `ExecuteAsync()` is called. Results are exactly what EF Core returns for the same query, including entities with owned, complex or JSON members, `Include`s and projections.
+`BatchedQuery` exposes three query methods. Each queues the `IQueryable<T>` and returns a `Task<T>` future that is resolved when `ExecuteAsync()` is called. Variables the query captures are read when it is queued, so changing them afterwards doesn't affect the query. Results are exactly what EF Core returns for the same query, including entities with owned, complex or JSON members, `Include`s and projections.
 
 | Method | Returns | Description |
 |--------|---------|-------------|
@@ -43,7 +43,14 @@ var options = new DbContextOptionsBuilder<ShopDbContext>()
 
 The same call works inside `services.AddDbContext<T>(options => ...)` or a `DbContext`'s `OnConfiguring`.
 
-Without the interceptor, `BatchedQuery` still works and returns the same results, but runs each query on its own round trip, and logs a warning once per `DbContext` type.
+`BatchedQuery` runs every query on its own round trip instead, with the same results, when a batch can't reproduce what EF Core would do:
+
+- the interceptor isn't registered,
+- other command interceptors are registered (a batch can't apply their changes to commands),
+- the execution strategy retries on failure (a query read from a batch can't be retried on its own), or
+- one of the queued queries is a split query (running it separately would change the order the queries run in).
+
+It logs a warning once per `DbContext` type for the first three.
 
 ## Basic Usage
 
@@ -128,7 +135,7 @@ await batch.ExecuteAsync();
 // to ensure the underlying DbCommands are properly disposed.
 await using var batch = context.CreateBatchQuery();
 
-// 1. Queue phase — SQL is compiled immediately via CreateDbCommand(),
+// 1. Queue phase — each query and the values it captures are recorded,
 //    but nothing is sent to the database yet.
 var customersTask = batch.Query(context.Customers);
 var ordersTask = batch.Query(context.Orders);
@@ -186,6 +193,8 @@ var orders = await ordersTask;
 
 **Order**: Queries execute in the order they were queued. Result sets are read sequentially via `NextResultAsync()`.
 
+**Captured values**: Variables a query captures are read when the query is queued, whether or not it ends up in a batch.
+
 **Independence**: Each query in the batch is independent. Results from one query cannot feed into another within the same batch. If you need dependent queries, execute the first batch, await the result, then build a second batch.
 
 **Thread safety**: `BatchedQuery` is **not thread-safe**. All `Query`/`QuerySingle`/`Scalar` calls and the `ExecuteAsync` call must happen on the same async context (which is the natural pattern in request handlers and test methods).
@@ -218,7 +227,6 @@ There are no provider-specific differences in behavior. The same `BatchedQuery` 
 
 ## Limitations
 
-- **Interceptor required for batching**: Without `UseWeaselBatchedQueries()`, each query runs on its own round trip (see [Setup](#setup)).
-- **Split queries run separately**: A query using `AsSplitQuery()` (or a context configured for split queries) sends one command per collection `Include`, so it runs on its own round trip after the batch. The other queries are still batched.
+- **Batching isn't always possible**: Without `UseWeaselBatchedQueries()`, with other command interceptors, with a retrying execution strategy, or with a split query in the batch, every query runs on its own round trip (see [Setup](#setup)).
 - **IQueryable only**: Queries must be expressible as `IQueryable<T>`. Raw SQL string queries are not yet supported in the batch API.
 - **Single-use**: A `BatchedQuery` cannot be reused after `ExecuteAsync()` is called.

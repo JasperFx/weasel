@@ -27,27 +27,38 @@ public sealed class BatchedQueryInterceptor : DbCommandInterceptor
     internal static void Supply(DbContext context, DbDataReader reader, string commandText) =>
         Pending.AddOrUpdate(context, new PendingResult(new BatchResultSetReader(reader), commandText));
 
+    // The context's command interceptors, aggregated by EF Core from AddInterceptors() and registered services
+    internal static bool IsOnlyCommandInterceptor(DbContext context) =>
+        context.GetService<IInterceptors>().Aggregate<IDbCommandInterceptor>() is BatchedQueryInterceptor;
+
+    internal static bool IsPending(DbContext context) => Pending.TryGetValue(context, out _);
+
     internal static void Clear(DbContext context) => Pending.Remove(context);
 
     public override InterceptionResult<DbDataReader> ReaderExecuting(DbCommand command, CommandEventData eventData,
-        InterceptionResult<DbDataReader> result) => Take(command, eventData, result);
+        InterceptionResult<DbDataReader> result) => take(command, eventData, result);
 
     public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
         CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
-        => new(Take(command, eventData, result));
+        => new(take(command, eventData, result));
 
-    private static InterceptionResult<DbDataReader> Take(DbCommand command, CommandEventData eventData,
+    private static InterceptionResult<DbDataReader> take(DbCommand command, CommandEventData eventData,
         InterceptionResult<DbDataReader> result)
     {
-        // Only the command the batch ran may read its result set. Any other command EF Core issues
-        // while materializing executes normally, and fails loudly on the busy connection.
-        if (eventData.Context == null || !Pending.TryGetValue(eventData.Context, out var pending) ||
-            pending.CommandText != command.CommandText)
-        {
-            return result;
-        }
+        if (eventData.Context == null || !Pending.TryGetValue(eventData.Context, out var pending)) return result;
 
         Pending.Remove(eventData.Context);
+
+        // Only the command the batch ran may read its result set. The batch reader still holds the
+        // connection, so any other command could not run anyway.
+        if (pending.CommandText != command.CommandText)
+        {
+            throw new InvalidOperationException(
+                "EF Core sent a different command for a batched query than the batch ran, so it can't be given the " +
+                "batch's result set. This happens when the query's SQL depends on something evaluated at execution " +
+                "time. Run this query outside BatchedQuery.");
+        }
+
         return InterceptionResult<DbDataReader>.SuppressWithResult(pending.Reader);
     }
 }

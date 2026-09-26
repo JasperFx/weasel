@@ -10,8 +10,13 @@ namespace Weasel.EntityFrameworkCore.Batching;
 /// </summary>
 internal abstract class QueuedQuery
 {
+    /// <summary>A split query sends more than one command, which a single result set can't answer.</summary>
+    public abstract bool IsSplitQuery { get; }
+
     /// <summary>The SQL and parameters EF Core generates for the query, used to build the batch command.</summary>
     public abstract DbCommand SourceCommand { get; }
+
+    public abstract bool HasSourceCommand { get; }
 
     public abstract void ConfigureCommand(DbBatchCommand command);
 
@@ -31,16 +36,22 @@ internal sealed class QueuedQuery<TResult> : QueuedQuery
     private readonly Func<CancellationToken, Task<TResult>> _execute;
     private readonly TaskCompletionSource<TResult> _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public QueuedQuery(DbContext context, IQueryable queryable, Func<CancellationToken, Task<TResult>> execute)
+    public QueuedQuery(DbContext context, IQueryable queryable, bool isSplitQuery,
+        Func<CancellationToken, Task<TResult>> execute)
     {
         _context = context;
         _sourceCommand = new Lazy<DbCommand>(queryable.CreateDbCommand);
         _execute = execute;
+        IsSplitQuery = isSplitQuery;
     }
 
     public Task<TResult> Result => _completion.Task;
 
+    public override bool IsSplitQuery { get; }
+
     public override DbCommand SourceCommand => _sourceCommand.Value;
+
+    public override bool HasSourceCommand => _sourceCommand.IsValueCreated;
 
     public override void ConfigureCommand(DbBatchCommand command)
     {
@@ -62,7 +73,20 @@ internal sealed class QueuedQuery<TResult> : QueuedQuery
         BatchedQueryInterceptor.Supply(_context, reader, SourceCommand.CommandText);
         try
         {
-            await ExecuteAsync(ct).ConfigureAwait(false);
+            var result = await _execute(ct).ConfigureAwait(false);
+
+            if (BatchedQueryInterceptor.IsPending(_context))
+            {
+                throw new InvalidOperationException(
+                    "EF Core completed a batched query without reading the result set the batch returned for it.");
+            }
+
+            _completion.TrySetResult(result);
+        }
+        catch (Exception e)
+        {
+            _completion.TrySetException(e);
+            throw;
         }
         finally
         {
