@@ -299,8 +299,18 @@ order by column_index;
 
     private static async Task<TableColumn> readColumnAsync(DbDataReader reader, CancellationToken ct = default)
     {
+        // preserveCase: the catalog is reporting the column's real name, so folding it here throws
+        // away the one piece of information this side of the delta exists to carry. information_schema
+        // already gives the stored spelling -- lowercase for anything Weasel created unquoted, so
+        // this changes nothing there -- and TableColumn.Equals / ItemDelta / ColumnFor all compare
+        // names case-insensitively, so an expected "id" still pairs with an actual "Id".
+        //
+        // What it fixes is emission. Columns.Extras and Columns.Different render from the ACTUAL
+        // column, and a folded name renders unquoted: "drop column total_amount" against a column
+        // the catalog calls "Total_Amount", which fails with 42703 -- or, worse, succeeds against a
+        // lowercase twin and drops the wrong column (weasel#627).
         var column = new TableColumn(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false),
-            await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false));
+            await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false), preserveCase: true);
 
         if (column.Type.Equals("user-defined"))
         {

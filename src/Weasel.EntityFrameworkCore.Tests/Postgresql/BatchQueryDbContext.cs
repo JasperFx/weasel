@@ -8,8 +8,7 @@ namespace Weasel.EntityFrameworkCore.Tests.Postgresql;
 /// </summary>
 public class BatchQueryDbContext: DbContext
 {
-    public const string ConnectionString =
-        "Host=localhost;Port=5432;Database=marten_testing;Username=postgres;Password=postgres";
+    public static readonly string ConnectionString = PostgresqlDbContext.ConnectionString;
 
     public const string TestSchema = "batch_query_test";
 
