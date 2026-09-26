@@ -3,6 +3,10 @@ name: Publish Nugets
 on:
   workflow_dispatch:
 
+# No concurrency group here, deliberately (weasel#611). This workflow is workflow_dispatch only,
+# each dispatch publishes once, and a cancelled publish -- packages half pushed, the run gone -- is
+# far worse than a duplicated queue slot. The seven ci-build-* workflows do have one.
+
 jobs:
   build:
     runs-on: ubuntu-latest

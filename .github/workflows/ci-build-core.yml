@@ -6,6 +6,23 @@ on:
   pull_request:
     branches: [ master ]
 
+# A re-pushed pull request branch supersedes its predecessor, so cancel the older run instead of
+# letting it hold a slot (weasel#611). JasperFx is on the Free org plan, where the concurrent-job
+# ceiling is shared across every repo, so a superseded weasel run is a slot marten, wolverine or
+# fisher does not get -- and one commit here is 18 jobs across the seven workflows.
+#
+# Two deliberate choices, neither of them boilerplate:
+#   - cancel-in-progress is conditional rather than true. On a pull request the older run really is
+#     superseded. On a push to master it is not: each commit's result is the record for that commit
+#     and a release is cut from one, so cancelling an in-flight master run destroys the only
+#     evidence the commit was green.
+#   - github.workflow is part of the group key. Grouping by branch alone would make the seven
+#     workflows cancel EACH OTHER on the same branch, which is the opposite of the point -- they
+#     are seven different test matrices, not seven attempts at one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   config: Release
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
