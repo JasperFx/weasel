@@ -4,7 +4,11 @@ namespace Weasel.EntityFrameworkCore.Tests.SqlServer;
 
 public class SqlServerDbContext : DbContext
 {
-    public const string ConnectionString = "Server=localhost,1435;Database=weasel_testing;User Id=sa;Password=P@55w0rd;TrustServerCertificate=True";
+    // Honours the same environment variable as Weasel.SqlServer.Tests' ConnectionSource, so one
+    // setting points both suites at the same server. The literal is the docker-compose default.
+    public static readonly string ConnectionString =
+        Environment.GetEnvironmentVariable("weasel_sqlserver_testing_database")
+        ?? "Server=localhost,1435;Database=weasel_testing;User Id=sa;Password=P@55w0rd;TrustServerCertificate=True";
 
     public SqlServerDbContext(DbContextOptions<SqlServerDbContext> options) : base(options)
     {

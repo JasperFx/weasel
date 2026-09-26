@@ -143,6 +143,24 @@ public class IndexDefinition: ITableIndex
     string ITableIndex.ToDDL(ITable parent) => ToDDL((Table)parent);
 
     /// <summary>
+    ///     Write the index creation guarded by an existence check, so a rendered migration script can
+    ///     be run more than once.
+    /// </summary>
+    /// <remarks>
+    ///     The guard lives here rather than in <see cref="ToDDL(Table)" /> because that rendering is
+    ///     also the canonical text delta detection compares (see
+    ///     <see cref="CanonicizeDdl(IndexDefinition, Table, bool)" />); adding a preamble to it would
+    ///     make every index report drift. Emission sites call this, comparison keeps calling
+    ///     <c>ToDDL</c>.
+    /// </remarks>
+    public void WriteCreateStatement(Table parent, TextWriter writer)
+    {
+        writer.WriteLine(
+            $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{SchemaUtils.EscapeLiteral(Name)}' AND object_id = OBJECT_ID(N'{SchemaUtils.EscapeLiteral(parent.Identifier.QualifiedName)}'))");
+        writer.WriteLine($"    {ToDDL(parent)}");
+    }
+
+    /// <summary>
     ///     Render the index, optionally ignoring <see cref="DescendingColumns" /> and falling back to
     ///     the coarse trailing <c>DESC</c>. The coarse form is what comparison uses unless the model
     ///     opted into <see cref="CompareColumnDirection" />.

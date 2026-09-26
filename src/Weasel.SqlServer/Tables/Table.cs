@@ -278,7 +278,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         foreach (var index in Indexes)
         {
             writer.WriteLine();
-            writer.WriteLine(index.ToDDL(this));
+            index.WriteCreateStatement(this, writer);
         }
     }
 

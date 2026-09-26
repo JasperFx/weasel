@@ -88,8 +88,27 @@ $$;
 
     public override IDatabaseProvider Provider => SqlServerProvider.Instance;
 
+    /// <summary>
+    ///     Heads every rendered script with <c>SET QUOTED_IDENTIFIER ON;</c> so the file runs under
+    ///     sqlcmd without extra flags (weasel#593). sqlcmd is the one client that leaves the setting
+    ///     off, and SQL Server refuses to create a filtered index, an index on a computed column or
+    ///     an indexed view while it is off. The failure is quiet and cascading: the batch aborts at
+    ///     the index, every statement after it in that batch is skipped, and sqlcmd still exits 0.
+    /// </summary>
+    /// <remarks>
+    ///     This is the script wrapper, so only the file paths go through it:
+    ///     <see cref="Migrator.WriteTemplatedFile" />, <c>WriteMigrationFileAsync</c> and
+    ///     <c>DatabaseBase.ToDatabaseScript</c>. The runtime executor writes deltas straight out
+    ///     through <c>WriteUpdate</c> and never sees this line, which is correct: SqlClient already
+    ///     defaults <c>QUOTED_IDENTIFIER</c> on. No <c>GO</c> is needed after it either, because
+    ///     <c>SET QUOTED_IDENTIFIER</c> takes effect at parse time for the batch containing it and
+    ///     then persists for the rest of the session.
+    /// </remarks>
     public override void WriteScript(TextWriter writer, Action<Migrator, TextWriter> writeStep)
     {
+        writer.WriteLine("SET QUOTED_IDENTIFIER ON;");
+        writer.WriteLine();
+
         writeStep(this, writer);
     }
 
@@ -166,6 +185,12 @@ $$;
     /// </summary>
     public override int MaxParametersPerCommand => 2000;
 
+    /// <inheritdoc />
+    public override IReadOnlyList<string> SplitIntoBatches(string sql)
+    {
+        return SqlServerBatchSplitter.Split(sql);
+    }
+
     /// <summary>
     ///     Validates a database object name before it is written into DDL. See
     ///     <see cref="IdentifierValidation" /> for why each rule is here; this method had no body at all
@@ -221,31 +246,41 @@ $$;
         }
     }
 
+    /// <summary>
+    ///     Runs one piece of rendered DDL, a batch at a time. <c>GO</c> is a sqlcmd directive rather
+    ///     than T-SQL, so text carrying one has to be split before it reaches a command (weasel#593).
+    ///     A batch that fails stops the rest of that text: the batches after it were written on the
+    ///     assumption that the earlier ones ran.
+    /// </summary>
     private async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)
     {
-        var cmd = conn.CreateCommand(writer.ToString());
-        logger.SchemaChange(cmd.CommandText);
-
-        try
+        foreach (var batch in SqlServerBatchSplitter.Split(writer.ToString()))
         {
-            await cmd
-                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception e)
-        {
-            var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+            var cmd = conn.CreateCommand(batch);
+            logger.SchemaChange(cmd.CommandText);
 
-            if (logger is DefaultMigrationLogger)
+            try
             {
-                if (ReferenceEquals(failure, e))
+                await cmd
+                    .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
+
+                if (logger is DefaultMigrationLogger)
                 {
-                    throw;
+                    if (ReferenceEquals(failure, e))
+                    {
+                        throw;
+                    }
+
+                    throw failure;
                 }
 
-                throw failure;
+                logger.OnFailure(cmd, failure);
+                return;
             }
-
-            logger.OnFailure(cmd, failure);
         }
     }
 

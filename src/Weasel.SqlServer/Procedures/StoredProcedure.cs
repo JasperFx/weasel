@@ -50,16 +50,54 @@ where
         => new StoredProcedureDelta(this, existing == null ? null : new StoredProcedure(Identifier, existing));
 
     /// <summary>
+    ///     The body with its leading <c>CREATE [OR ALTER] PROC[EDURE]</c> keyword rewritten to
+    ///     <c>CREATE OR ALTER PROCEDURE</c>. Internal rather than private so it can be exercised
+    ///     without a database.
+    /// </summary>
+    internal static string NormalizeCreateStatement(string body) => body.ToCreateOrAlterProcedure();
+
+    /// <summary>
+    ///     The create path and the update path emit the same thing, because there is only one form
+    ///     that is safe to run twice. See <see cref="WriteCreateOrAlterStatement" />.
+    /// </summary>
+    public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    {
+        if (IsRemoved)
+        {
+            return;
+        }
+
+        writeBatchedBody(writer);
+    }
+
+    /// <summary>
     ///     <c>CREATE OR ALTER PROCEDURE</c>, which SQL Server has and the other three providers
     ///     spell differently or not at all.
     /// </summary>
+    /// <remarks>
+    ///     Bracketed by <c>GO</c> lines: SQL Server requires <c>CREATE OR ALTER PROCEDURE</c> to be
+    ///     the first statement of its batch, and a rendered migration concatenates every object's
+    ///     DDL into one script, so the separators are what make that script runnable at all
+    ///     (weasel#593). They are written here rather than folded into the body so that
+    ///     <see cref="StoredProcedureBase.BodyText" /> and
+    ///     <see cref="StoredProcedureBase.CanonicizeSql" />, which are compared against
+    ///     <c>sys.sql_modules</c>, never see them.
+    /// </remarks>
     public void WriteCreateOrAlterStatement(Migrator rules, TextWriter writer)
     {
-        var body = BodyText()
-            .Replace("CREATE PROCEDURE", "CREATE OR ALTER PROCEDURE")
-            .Replace("create procedure", "create or alter procedure");
+        if (IsRemoved)
+        {
+            return;
+        }
 
-        writer.WriteLine(body);
+        writeBatchedBody(writer);
+    }
+
+    private void writeBatchedBody(TextWriter writer)
+    {
+        writer.WriteLine("GO");
+        writer.WriteLine(NormalizeCreateStatement(BodyText()));
+        writer.WriteLine("GO");
     }
 
     public async Task<StoredProcedure?> FetchExistingAsync(SqlConnection conn, CancellationToken ct = default)

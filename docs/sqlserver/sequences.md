@@ -59,13 +59,19 @@ var migrator = new SqlServerMigrator();
 var writer = new StringWriter();
 
 seq.WriteCreateStatement(migrator, writer);
-// Output: CREATE SEQUENCE dbo.order_seq START WITH 1;
+// Output: IF OBJECT_ID(N'dbo.order_seq', N'SO') IS NULL, then CREATE SEQUENCE dbo.order_seq START WITH 1;
 
 seq.WriteDropStatement(migrator, writer);
 // Output: DROP SEQUENCE IF EXISTS dbo.order_seq;
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L324-L333' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_sequence_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+`CREATE SEQUENCE` has no `IF NOT EXISTS` of its own, so the create statement leads with an
+`OBJECT_ID` check for a sequence object (`N'SO'`) of that name. Without it a rendered migration
+script fails on its second run with "There is already an object named ... in the database", taking
+every statement after it down with it. See
+[batch separators and re-runnable scripts](/sqlserver/#batch-separators-and-re-runnable-scripts).
 
 ## Delta Detection
 

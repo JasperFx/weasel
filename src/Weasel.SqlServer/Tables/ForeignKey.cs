@@ -133,8 +133,19 @@ public class ForeignKey: ForeignKeyBase
         return writer.ToString();
     }
 
+    /// <summary>
+    ///     Write the constraint, guarded by an existence check so a rendered migration script can be
+    ///     run more than once.
+    /// </summary>
+    /// <remarks>
+    ///     A constraint is a schema-scoped object, so the guard names the parent table's schema and
+    ///     not the linked table's. Unlike the index rendering, nothing compares this text, so the
+    ///     guard can live here and every emission site, <see cref="ToDDL" /> included, inherits it.
+    /// </remarks>
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
+        writer.WriteLine(
+            $"IF OBJECT_ID(N'{SchemaUtils.EscapeLiteral(parent.Identifier.Schema)}.{SchemaUtils.EscapeLiteral(Name)}', N'F') IS NULL");
         writer.WriteLine($"ALTER TABLE {parent.Identifier}");
         writer.WriteLine(
             $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteName).Join(", ")})");

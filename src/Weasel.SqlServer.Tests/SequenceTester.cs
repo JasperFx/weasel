@@ -34,6 +34,28 @@ public class SequenceTester: IntegrationContext
 
 
     [Fact]
+    public async Task can_create_sequence_twice_without_blowing_up()
+    {
+        await ResetSchema();
+
+        await theSequence.CreateAsync(theConnection);
+        await Should.NotThrowAsync(() => theSequence.CreateAsync(theConnection));
+    }
+
+    [Fact]
+    public void write_create_statement_is_guarded()
+    {
+        var writer = new StringWriter();
+
+        theSequence.WriteCreateStatement(new SqlServerMigrator(), writer);
+
+        var lines = writer.ToString().Split(Environment.NewLine, StringSplitOptions.None);
+
+        lines[0].ShouldBe("IF OBJECT_ID(N'sequences.mysequence', N'SO') IS NULL");
+        lines[1].ShouldBe("CREATE SEQUENCE sequences.mysequence START WITH 1;");
+    }
+
+    [Fact]
     public async Task determine_that_it_is_missing()
     {
         await ResetSchema();

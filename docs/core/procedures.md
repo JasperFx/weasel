@@ -61,7 +61,7 @@ procedure is still there and still yours to drop.
 | --- | --- |
 | PostgreSQL | `CREATE OR REPLACE PROCEDURE` |
 | Oracle | `CREATE OR REPLACE PROCEDURE` |
-| SQL Server | `CREATE OR ALTER PROCEDURE`, via `WriteCreateOrAlterStatement` |
+| SQL Server | `CREATE OR ALTER PROCEDURE` on both create and update, wrapped in `GO` |
 | MySQL | drop, then create — it has no replace form |
 
 Oracle's delta emits only the `CREATE OR REPLACE`, because its drop has to be an anonymous PL/SQL

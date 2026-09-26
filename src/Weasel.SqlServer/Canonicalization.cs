@@ -14,6 +14,41 @@ internal static class Canonicalization
         new(@"\b(CREATE)\s+(?:OR\s+ALTER\s+)?(FUNCTION)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     /// <summary>
+    ///     The procedure counterpart of <see cref="CreatePreamble" />, in every spelling SQL Server
+    ///     accepts: <c>PROC</c> or <c>PROCEDURE</c>, with or without <c>OR ALTER</c>.
+    /// </summary>
+    /// <remarks>
+    ///     Anchored at the start of the body, behind a group that swallows leading whitespace,
+    ///     <c>--</c> line comments and <c>/* */</c> block comments, so only the statement's own
+    ///     keyword is matched and the same words further in, inside a string literal or a nested
+    ///     <c>EXEC</c>, are left as written. The function regex cannot do this because
+    ///     <c>Function.Body()</c> wraps its body in <c>EXEC sp_executesql</c>, which puts the
+    ///     preamble mid-string; a procedure body starts with its own statement.
+    /// </remarks>
+    private static readonly Regex ProcedurePreamble =
+        new(@"\A(?<lead>(?>(?:\s+|--[^\r\n]*|/\*.*?\*/)*))CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\b",
+            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+
+    /// <summary>
+    ///     Rewrite a procedure's leading <c>CREATE [OR ALTER] PROC[EDURE]</c> keyword to the
+    ///     <c>CREATE OR ALTER PROCEDURE</c> form, which is the one spelling a rendered migration
+    ///     script can run a second time without failing (weasel#593). A body already in that form
+    ///     comes back unchanged.
+    /// </summary>
+    public static string ToCreateOrAlterProcedure(this string sql)
+        => ProcedurePreamble.Replace(sql, "${lead}CREATE OR ALTER PROCEDURE", 1);
+
+    /// <summary>
+    ///     Reduce a procedure's leading <c>CREATE [OR ALTER] PROC[EDURE]</c> keyword to the bare
+    ///     <c>CREATE PROCEDURE</c> form, so a body authored any of those ways meets the catalog's
+    ///     own rendering: SQL Server blanks <c>OR ALTER</c> in place and stores
+    ///     <c>CREATE   PROCEDURE</c>. Without this the delta reads <c>Update</c> forever, because
+    ///     applying it writes back the very text that does not match.
+    /// </summary>
+    public static string ToBareCreateProcedure(this string sql)
+        => ProcedurePreamble.Replace(sql, "${lead}CREATE PROCEDURE", 1);
+
+    /// <summary>
     ///     Normalize a T-SQL function body for comparison against what <c>sys.sql_modules</c> stores.
     /// </summary>
     /// <remarks>

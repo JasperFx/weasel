@@ -73,6 +73,67 @@ migrator.WriteSchemaCreationSql(new[] { "myschema" }, writer);
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L41-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_schema_management' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Batch separators and re-runnable scripts
+
+A rendered migration concatenates every object's DDL into one script, and SQL Server requires
+`CREATE OR ALTER PROCEDURE` to be the first statement of its batch. So a generated script contains
+`GO` lines around each stored procedure:
+
+```sql
+IF TYPE_ID(N'gh593.ChildIdList') IS NULL
+CREATE TYPE gh593.ChildIdList AS TABLE (ID uniqueidentifier NOT NULL)
+GO
+
+CREATE OR ALTER PROCEDURE gh593.uspDeleteChildren
+    @IDLIST gh593.ChildIdList READONLY
+AS
+    DELETE FROM gh593.child WHERE id IN (SELECT ID FROM @IDLIST);
+GO
+```
+
+`sqlcmd -i` and SQL Server Management Studio both understand `GO`, so a script file written out by
+`WriteMigrationFileAsync` (which is what `db-patch` uses), `WriteTemplatedFile` or `ToDatabaseScript`
+runs as it stands. A bare `WriteAllUpdates` render is the DDL on its own: it has the `GO` lines but
+not the `SET QUOTED_IDENTIFIER ON;` header described below, because only the script wrapper adds
+that. `GO` is not T-SQL, though, so `SqlClient` would
+answer `Incorrect syntax near 'GO'` if the text were handed to it whole. Weasel's own executors
+therefore split the script first and send one command per batch, with sqlcmd's semantics:
+
+- A separator is a line whose entire content is `GO`, ignoring surrounding whitespace.
+- It is case insensitive, so `go` separates too.
+- The optional repeat count (`GO 5`) is accepted and ignored. The batch runs once, which is the
+  only thing a migration can mean, and nothing in Weasel emits a count.
+- String literals and comments are not parsed, exactly as sqlcmd does not parse them. A line
+  reading only `GO` inside a literal ends the batch there. Do not author one.
+- A trailing comment on the same line, `GO -- procedure done`, is not recognised as a separator.
+  The whole line has to be the separator and nothing else.
+
+A rendered script also begins with `SET QUOTED_IDENTIFIER ON;`, so it needs no extra flags. sqlcmd
+is the one client that leaves that setting off, and SQL Server refuses to create a filtered index,
+an index on a computed column or an indexed view while it is off. The header saves you from a
+failure that is both quiet and cascading: the batch aborts at the index, every statement after it
+in that batch is skipped, and sqlcmd still exits 0. `-b` is still worth passing, because it is what
+makes a failed batch set a non-zero exit code:
+
+```bash
+sqlcmd -S localhost -d mydb -b -i migration.sql
+```
+
+The header is written by the script wrapper, so it appears in files written by
+`WriteMigrationFileAsync`, `WriteTemplatedFile` and `ToDatabaseScript`, and not in the DDL the
+runtime executor applies. `SqlClient` already defaults `QUOTED_IDENTIFIER` on, and `SET
+QUOTED_IDENTIFIER` takes effect at parse time for the batch that contains it and then persists for
+the session, so no `GO` is needed after it.
+
+The generated DDL is also re-runnable. Table creation, index creation, foreign key constraints,
+table types and sequences each carry their own existence guard (`IF OBJECT_ID(...) IS NULL`,
+`IF NOT EXISTS (SELECT 1 FROM sys.indexes ...)`, `IF TYPE_ID(...) IS NULL`), procedures are emitted
+as `CREATE OR ALTER`, and index drops use `DROP INDEX IF EXISTS`. Running the same script twice
+against the same database is a no-op the second time rather than a failure, which matters because
+one unguarded object aborts every statement after it.
+
+`DROP INDEX IF EXISTS` and `CREATE OR ALTER` require **SQL Server 2016 SP1 or later**.
+
 ## Identifiers
 
 SQL Server delimits with `[name]` and escapes an embedded `]` by doubling it. Weasel brackets any

@@ -34,10 +34,10 @@ END;
 var migrator = new SqlServerMigrator();
 var writer = new StringWriter();
 
-// CREATE PROCEDURE
+// CREATE OR ALTER PROCEDURE, between GO lines
 proc.WriteCreateStatement(migrator, writer);
 
-// CREATE OR ALTER PROCEDURE (for updates)
+// The same text: one form is safe on both paths
 proc.WriteCreateOrAlterStatement(migrator, writer);
 
 // DROP PROCEDURE IF EXISTS
@@ -45,6 +45,30 @@ proc.WriteDropStatement(migrator, writer);
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L161-L173' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_procedure_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+`WriteCreateStatement` and `WriteCreateOrAlterStatement` emit the same thing, because only one form
+is safe to run twice: `CREATE OR ALTER PROCEDURE`, on a line of its own, between two `GO` lines.
+The separators are what make a rendered migration runnable at all, since SQL Server requires
+`CREATE OR ALTER PROCEDURE` to be the first statement of its batch and a migration concatenates
+every object's DDL into one script. See
+[batch separators and re-runnable scripts](/sqlserver/#batch-separators-and-re-runnable-scripts).
+
+You do not have to author the body that way. Whatever the leading keyword is, `CREATE PROCEDURE`,
+`CREATE PROC`, `CREATE OR ALTER PROC` or `CREATE OR ALTER PROCEDURE`, it is normalised to
+`CREATE OR ALTER PROCEDURE` on the way out. The `GO` lines are written around the body rather than
+folded into it, so the text compared against `sys.sql_modules` never sees them, and a body already
+authored as `CREATE OR ALTER PROCEDURE` compares equal to what the catalog holds instead of
+reporting a permanent `Update`.
+
+The body does have to begin with its `CREATE` statement, after optional `--` or `/* */` comments.
+Leading `SET` options such as `SET ANSI_NULLS ON`, or `GO` lines inside the body, are not supported:
+the normaliser looks for the first `CREATE` token and leaves everything else exactly as authored, so
+they are emitted unnormalised and inside the procedure's own batch.
+
+If you execute the rendered text yourself rather than through `CreateAsync` or `ApplyAllAsync`, split
+it on the `GO` lines first with `SqlServerBatchSplitter.Split(sql)` and send one `SqlCommand` per
+batch. `GO` is a sqlcmd directive, not T-SQL, and `SqlClient` answers `Incorrect syntax near 'GO'` if
+the whole text reaches it.
 
 ## Delta Detection
 

@@ -137,6 +137,31 @@ public class TableTests
     }
 
     [Fact]
+    public void create_statement_guards_each_index()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<int>("state_id").AddIndex();
+        table.AddColumn<int>("city_id").AddIndex();
+
+        var writer = new StringWriter();
+        table.WriteCreateStatement(new SqlServerMigrator(), writer);
+
+        var ddl = writer.ToString();
+
+        _output.WriteLine(ddl);
+
+        var lines = ddl.ReadLines().ToArray();
+
+        foreach (var index in table.Indexes)
+        {
+            var guard =
+                $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{index.Name}' AND object_id = OBJECT_ID(N'dbo.people'))";
+            lines.Count(x => x == guard).ShouldBe(1);
+        }
+    }
+
+    [Fact]
     public void add_foreign_key_to_table_with_fluent_interface()
     {
         var states = new Table("states");

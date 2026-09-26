@@ -19,8 +19,15 @@ public class TableType: ISchemaObject
 
     public DbObjectName Identifier { get; }
 
+    /// <summary>
+    ///     Guarded by a <c>TYPE_ID</c> existence check so a rendered migration script can be run more
+    ///     than once (weasel#593). <c>CREATE TYPE</c> has no <c>OR ALTER</c> and no
+    ///     <c>IF NOT EXISTS</c> of its own, and unguarded it raises "The type ... already exists" on
+    ///     the second run, which aborts the whole script -- including the objects after it.
+    /// </summary>
     public void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
+        writer.WriteLine($"IF TYPE_ID(N'{SchemaUtils.EscapeLiteral(Identifier.QualifiedName)}') IS NULL");
         writer.Write($"CREATE TYPE {Identifier} AS TABLE (");
 
         writer.Write(_columns.Select(x => x.Declaration()).Join(", "));

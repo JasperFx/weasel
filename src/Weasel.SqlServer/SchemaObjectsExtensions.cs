@@ -31,7 +31,7 @@ public static class SchemaObjectsExtensions
         var writer = new StringWriter();
         schemaObject.WriteDropStatement(new SqlServerMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
+        return executeBatchesAsync(conn, writer.ToString(), ct);
     }
 
     public static Task CreateAsync(this ISchemaObject schemaObject, SqlConnection conn, CancellationToken ct = default)
@@ -39,7 +39,19 @@ public static class SchemaObjectsExtensions
         var writer = new StringWriter();
         schemaObject.WriteCreateStatement(new SqlServerMigrator(), writer);
 
-        return conn.CreateCommand(writer.ToString()).ExecuteNonQueryAsync(ct);
+        return executeBatchesAsync(conn, writer.ToString(), ct);
+    }
+
+    /// <summary>
+    ///     Runs rendered DDL one <c>GO</c> separated batch at a time. <c>GO</c> is a sqlcmd directive
+    ///     rather than T-SQL, so a command carrying one is rejected by the server (weasel#593).
+    /// </summary>
+    private static async Task executeBatchesAsync(SqlConnection conn, string sql, CancellationToken ct)
+    {
+        foreach (var batch in SqlServerBatchSplitter.Split(sql))
+        {
+            await conn.CreateCommand(batch).ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
     }
 
     public static async Task EnsureSchemaExists(this SqlConnection conn, string schemaName,

@@ -31,31 +31,27 @@ public abstract class IntegrationContext: IAsyncLifetime
         await theConnection.ResetSchemaAsync(_schemaName);
     }
 
+    // Both helpers go through the extension methods rather than building a command themselves, so
+    // the test fixture cannot drift from how Weasel actually executes rendered DDL -- notably the
+    // GO batch splitting (weasel#593).
     protected async Task CreateSchemaObjectInDatabase(ISchemaObject schemaObject)
     {
-        var rules = new SqlServerMigrator();
-        var writer = new StringWriter();
-        schemaObject.WriteCreateStatement(rules, writer);
-
         try
         {
-            await theConnection.CreateCommand(writer.ToString())
-                .ExecuteNonQueryAsync();
+            await schemaObject.CreateAsync(theConnection);
         }
         catch (Exception e)
         {
+            var writer = new StringWriter();
+            schemaObject.WriteCreateStatement(new SqlServerMigrator(), writer);
+
             throw new Exception("DDL Execution Failure.\n" + writer.ToString(), e);
         }
     }
 
     protected Task DropSchemaObjectInDatabase(ISchemaObject schemaObject)
     {
-        var rules = new SqlServerMigrator();
-        var writer = new StringWriter();
-        schemaObject.WriteDropStatement(rules, writer);
-
-        return theConnection.CreateCommand(writer.ToString())
-            .ExecuteNonQueryAsync();
+        return schemaObject.Drop(theConnection);
     }
 
     public virtual ValueTask InitializeAsync()

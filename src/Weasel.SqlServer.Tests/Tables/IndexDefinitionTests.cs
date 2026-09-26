@@ -91,4 +91,32 @@ public class IndexDefinitionTests
         theIndex.ToDDL(parent)
             .ShouldBe("CREATE INDEX idx_1 ON dbo.people (column1) INCLUDE (column2);");
     }
+
+    [Fact]
+    public void write_create_statement_is_guarded()
+    {
+        var writer = new StringWriter();
+        theIndex.WriteCreateStatement(parent, writer);
+
+        writer.ToString().ShouldBe(
+            "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_1' AND object_id = OBJECT_ID(N'dbo.people'))"
+            + Environment.NewLine
+            + "    CREATE INDEX idx_1 ON dbo.people (column1);"
+            + Environment.NewLine);
+    }
+
+    [Fact]
+    public void write_create_statement_escapes_literals()
+    {
+        var index = new IndexDefinition("o'brien").AgainstColumns("column1");
+
+        var writer = new StringWriter();
+        index.WriteCreateStatement(parent, writer);
+
+        writer.ToString().ShouldBe(
+            "IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'o''brien' AND object_id = OBJECT_ID(N'dbo.people'))"
+            + Environment.NewLine
+            + "    CREATE INDEX [o'brien] ON dbo.people (column1);"
+            + Environment.NewLine);
+    }
 }

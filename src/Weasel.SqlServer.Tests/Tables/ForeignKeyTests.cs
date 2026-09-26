@@ -28,6 +28,23 @@ public class ForeignKeyTests
     }
 
     [Fact]
+    public void write_fk_ddl_is_guarded()
+    {
+        var table = new Table("people");
+        var fk = new ForeignKey("fk_state")
+        {
+            LinkedTable = new SqlServerObjectName("dbo", "states"),
+            ColumnNames = new[] { "state_id" },
+            LinkedNames = new[] { "id" }
+        };
+
+        fk.ToDDL(table).ShouldStartWith(
+            "IF OBJECT_ID(N'dbo.fk_state', N'F') IS NULL"
+            + Environment.NewLine
+            + "ALTER TABLE dbo.people");
+    }
+
+    [Fact]
     public void write_fk_ddl_with_on_delete()
     {
         var table = new Table("people");

@@ -162,10 +162,10 @@ END;
         var migrator = new SqlServerMigrator();
         var writer = new StringWriter();
 
-        // CREATE PROCEDURE
+        // CREATE OR ALTER PROCEDURE, between GO lines
         proc.WriteCreateStatement(migrator, writer);
 
-        // CREATE OR ALTER PROCEDURE (for updates)
+        // The same text: one form is safe on both paths
         proc.WriteCreateOrAlterStatement(migrator, writer);
 
         // DROP PROCEDURE IF EXISTS
@@ -326,7 +326,7 @@ END;
         var writer = new StringWriter();
 
         seq.WriteCreateStatement(migrator, writer);
-        // Output: CREATE SEQUENCE dbo.order_seq START WITH 1;
+        // Output: IF OBJECT_ID(N'dbo.order_seq', N'SO') IS NULL, then CREATE SEQUENCE dbo.order_seq START WITH 1;
 
         seq.WriteDropStatement(migrator, writer);
         // Output: DROP SEQUENCE IF EXISTS dbo.order_seq;
@@ -381,7 +381,7 @@ END;
         var migrator = new SqlServerMigrator();
         var writer = new StringWriter();
         tableType.WriteCreateStatement(migrator, writer);
-        // Output: CREATE TYPE dbo.OrderItemType AS TABLE (product_id int NOT NULL, ...)
+        // Output: IF TYPE_ID(N'dbo.OrderItemType') IS NULL, then CREATE TYPE dbo.OrderItemType AS TABLE (...)
         #endregion
     }
 
