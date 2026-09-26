@@ -19,6 +19,9 @@ public class BatchQueryDbContext: DbContext
 
     public DbSet<BatchOrder> Orders => Set<BatchOrder>();
 
+    // Not mapped; for queries that read a value from the context
+    public string? CurrentCustomer { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.HasDefaultSchema(TestSchema);
@@ -26,6 +29,7 @@ public class BatchQueryDbContext: DbContext
         modelBuilder.Entity<BatchOrder>(entity =>
         {
             entity.ToTable("orders");
+            entity.Property(x => x.Metadata).HasColumnType("jsonb");
             entity.OwnsOne(x => x.ShippingAddress);
             entity.OwnsOne(x => x.Settings, s => s.ToJson());
             entity.ComplexProperty(x => x.Total);
@@ -58,6 +62,7 @@ public class BatchOrder
 
     public Guid Id { get; private set; }
     public string Customer { get; private set; } = "";
+    public string Metadata { get; set; } = "{}"; // a string in a jsonb column
     public BatchAddress ShippingAddress { get; set; } = null!; // owned type
     public BatchSettings Settings { get; set; } = null!; // owned type in a JSON column
     public BatchMoney Total { get; set; } = null!; // complex type

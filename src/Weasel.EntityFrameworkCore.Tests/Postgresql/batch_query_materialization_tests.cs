@@ -1,10 +1,13 @@
+using System.Data;
 using System.Data.Common;
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Npgsql;
+using Npgsql.EntityFrameworkCore.PostgreSQL;
 using Shouldly;
 using Weasel.EntityFrameworkCore.Batching;
 using Xunit;
@@ -42,6 +45,7 @@ public class batch_query_materialization_tests: IAsyncLifetime
 
     private static BatchOrder NewOrder(Guid id, string customer) => new(id, customer)
     {
+        Metadata = $$"""{"customer": "{{customer}}"}""",
         ShippingAddress = new BatchAddress { City = "Oslo" },
         Settings = new BatchSettings { Gift = true },
         Total = new BatchMoney { Amount = 42 },
@@ -52,7 +56,8 @@ public class batch_query_materialization_tests: IAsyncLifetime
 
     private BatchQueryDbContext CreateContext(bool batching = true,
         QueryTrackingBehavior tracking = QueryTrackingBehavior.TrackAll, bool retryOnFailure = false,
-        IInterceptor[]? interceptors = null, IInterceptor[]? interceptorsAfterBatching = null)
+        IInterceptor[]? interceptors = null, IInterceptor[]? interceptorsAfterBatching = null,
+        Action<DbContextOptionsBuilder>? configure = null)
     {
         var builder = new DbContextOptionsBuilder<BatchQueryDbContext>()
             .UseNpgsql(_dataSource, o =>
@@ -64,6 +69,7 @@ public class batch_query_materialization_tests: IAsyncLifetime
 
         if (batching) builder.UseWeaselBatchedQueries();
         builder.AddInterceptors(interceptorsAfterBatching ?? []);
+        configure?.Invoke(builder);
 
         return new BatchQueryDbContext(builder.Options);
     }
@@ -236,12 +242,207 @@ public class batch_query_materialization_tests: IAsyncLifetime
         await using var batch = context.CreateBatchQuery();
 
         string? customer = "c";
-        var orders = batch.Query(context.Orders.Where(x => x.Customer == customer));
+        var ids = new[] { _orderId };
+        context.CurrentCustomer = "c";
+        var byVariable = batch.Query(context.Orders.Where(x => x.Customer == customer));
+        var byArrayElement = batch.Query(context.Orders.Where(x => x.Id == ids[0]));
+        var byContextProperty = batch.Query(context.Orders.Where(x => x.Customer == context.CurrentCustomer));
         customer = null;
+        ids[0] = _otherOrderId;
+        context.CurrentCustomer = "d";
 
         await batch.ExecuteAsync();
 
+        (await byVariable).Single().Id.ShouldBe(_orderId);
+        (await byArrayElement).Single().Id.ShouldBe(_orderId);
+        (await byContextProperty).Single().Id.ShouldBe(_orderId);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task captured_values_are_read_once(bool batching)
+    {
+        await using var context = CreateContext(batching);
+        await using var batch = context.CreateBatchQuery();
+
+        var filter = new CountingFilter();
+        var orders = batch.Query(context.Orders.Where(x => x.Customer == filter.Customer));
+        var others = batch.Query(context.Orders.Where(x => x.Customer == "d"));
+        await batch.ExecuteAsync();
+
         (await orders).Single().Id.ShouldBe(_orderId);
+        (await others).Single().Id.ShouldBe(_otherOrderId);
+        filter.CustomerReads.ShouldBe(1);
+    }
+
+    [Fact]
+    public void a_query_ef_core_cannot_translate_throws_when_queued()
+    {
+        using var context = CreateContext();
+        var batch = context.CreateBatchQuery();
+
+        Should.Throw<InvalidOperationException>(() => batch.Query(context.Orders.Where(x => isVip(x.Customer))));
+    }
+
+    private static bool isVip(string customer) => customer == "c";
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task expressions_ef_core_translates_to_sql_stay_in_sql(bool batching)
+    {
+        await using var context = CreateContext(batching);
+        await using var batch = context.CreateBatchQuery();
+
+        // EF Core translates DateTime.UtcNow to the database clock instead of sending the client's
+        var now = batch.Scalar(context.Orders.Select(x => DateTime.UtcNow));
+
+        _roundTrips.Reset();
+        await batch.ExecuteAsync();
+
+        await now;
+        _roundTrips.Commands.Single().ShouldContain("now()");
+    }
+
+    [Fact]
+    public async Task ef_core_reads_batched_results_from_the_providers_own_reader()
+    {
+        // Some type mappings read through provider-specific reader methods, like SQL Server spatial
+        // types through SqlDataReader.GetSqlBytes, so EF Core must get the provider's own reader
+        var readers = new List<Type>();
+        await using var context = CreateContext(configure: b => b.LogTo(
+            (eventId, _) => eventId == RelationalEventId.DataReaderDisposing,
+            e => readers.Add(((DataReaderDisposingEventData)e).DataReader.GetType())));
+        await using var batch = context.CreateBatchQuery();
+
+        var single = batch.QuerySingle(context.Orders.Include(x => x.Lines).Where(x => x.Id == _orderId));
+        var list = batch.Query(context.Orders.OrderBy(x => x.Customer));
+        await batch.ExecuteAsync();
+
+        ShouldBeFullyLoaded(await single);
+        (await list).Count.ShouldBe(2);
+        readers.ShouldBe([typeof(NpgsqlDataReader), typeof(NpgsqlDataReader)]);
+
+        // The batch opened the connection, so it's closed again afterwards
+        context.Database.GetDbConnection().State.ShouldBe(ConnectionState.Closed);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task captured_values_in_a_branch_ef_core_skips_are_not_read(bool batching)
+    {
+        await using var context = CreateContext(batching);
+        await using var batch = context.CreateBatchQuery();
+
+        var filter = new DisabledFilter();
+        var orders = batch.Query(context.Orders.Where(x => !filter.Enabled || x.Customer == filter.Customer));
+        var conditional = batch.Query(context.Orders.Where(x => filter.Enabled ? x.Customer == filter.Customer : true));
+        var literal = batch.Query(context.Orders.Where(x => true || x.Customer == filter.Customer));
+        await batch.ExecuteAsync();
+
+        (await orders).Count.ShouldBe(2);
+        (await conditional).Count.ShouldBe(2);
+        (await literal).Count.ShouldBe(2);
+        filter.CustomerReads.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task a_query_that_a_query_interceptor_makes_split_runs_separately()
+    {
+        await using var context = CreateContext(interceptors: [new SplitEveryQuery()]);
+        await using var batch = context.CreateBatchQuery();
+
+        var orders = batch.Query(context.Orders.Include(x => x.Lines));
+        var customers = batch.Query(context.Orders.Select(x => x.Customer));
+        await batch.ExecuteAsync();
+
+        (await orders).ShouldAllBe(x => x.Lines.Count == 2);
+        (await customers).Count.ShouldBe(2);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task projections_into_initialized_objects_can_be_batched(bool batching)
+    {
+        await using var context = CreateContext(batching);
+        await using var batch = context.CreateBatchQuery();
+
+        var label = "order";
+        var capacity = 4;
+        var summaries = batch.Query(context.Orders.Where(x => x.Id == _orderId)
+            .Select(x => new OrderSummary(label) { Customer = x.Customer }));
+        var lists = batch.Query(context.Orders.Where(x => x.Id == _orderId)
+            .Select(x => new List<string>(capacity) { x.Customer }));
+        await batch.ExecuteAsync();
+
+        (await summaries).Single().ShouldBe(new OrderSummary("order") { Customer = "c" });
+        (await lists).Single().ShouldBe(["c"]);
+    }
+
+    [Fact]
+    public async Task a_retrying_execution_strategy_that_is_already_running_runs_each_query_separately()
+    {
+        await using var context = CreateContext(retryOnFailure: true);
+
+        // Inside the strategy, a newly created strategy doesn't retry, but EF Core still buffers readers
+        await context.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            await using var batch = context.CreateBatchQuery();
+            var first = batch.Query(context.Orders.Where(x => x.Customer == "c"));
+            var second = batch.Query(context.Orders.Where(x => x.Customer == "d"));
+
+            _roundTrips.Reset();
+            await batch.ExecuteAsync();
+
+            _roundTrips.Count.ShouldBe(2);
+            (await first).Single().Id.ShouldBe(_orderId);
+            (await second).Single().Id.ShouldBe(_otherOrderId);
+        });
+    }
+
+    [Fact]
+    public async Task queries_queued_while_a_retrying_execution_strategy_runs_run_separately()
+    {
+        await using var context = CreateContext();
+        await using var batch = context.CreateBatchQuery();
+
+        // EF Core prepares the queries, and decides to buffer their results, while the strategy runs
+        Task<IReadOnlyList<BatchOrder>> first = null!, second = null!;
+        await new NpgsqlRetryingExecutionStrategy(context).ExecuteAsync(() =>
+        {
+            first = batch.Query(context.Orders.Where(x => x.Customer == "c"));
+            second = batch.Query(context.Orders.Where(x => x.Customer == "d"));
+            return Task.CompletedTask;
+        });
+
+        _roundTrips.Reset();
+        await batch.ExecuteAsync();
+
+        _roundTrips.Count.ShouldBe(2);
+        (await first).Single().Id.ShouldBe(_orderId);
+        (await second).Single().Id.ShouldBe(_otherOrderId);
+    }
+
+    [Fact]
+    public async Task parameters_keep_their_provider_specific_type()
+    {
+        await using var context = CreateContext();
+        await using var batch = context.CreateBatchQuery();
+
+        // EF Core sends this as a jsonb parameter, a type DbParameter.DbType can't express
+        var metadata = """{"customer": "c"}""";
+        var orders = batch.Query(context.Orders.Where(x => x.Metadata == metadata));
+        var others = batch.Query(context.Orders.Where(x => x.Customer == "d"));
+
+        _roundTrips.Reset();
+        await batch.ExecuteAsync();
+
+        _roundTrips.Count.ShouldBe(1);
+        (await orders).Single().Id.ShouldBe(_orderId);
+        (await others).Single().Id.ShouldBe(_otherOrderId);
     }
 
     [Fact]
@@ -370,6 +571,67 @@ public class batch_query_materialization_tests: IAsyncLifetime
     }
 
     /// <summary>Counts Npgsql command and batch executions, i.e. database round trips.</summary>
+    private sealed record OrderSummary(string Label)
+    {
+        public string Customer { get; init; } = "";
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task a_query_of_another_context_throws_when_queued(bool batching)
+    {
+        await using var context = CreateContext(batching);
+        await using var other = CreateContext(batching);
+        await using var batch = context.CreateBatchQuery();
+        _roundTrips.Reset();
+
+        Should.Throw<InvalidOperationException>(() => batch.Query(other.Orders.Where(x => x.Customer == "c")))
+            .Message.ShouldContain("another DbContext");
+
+        await batch.ExecuteAsync();
+        _roundTrips.Count.ShouldBe(0);
+        other.ChangeTracker.Entries().ShouldBeEmpty();
+    }
+
+    private sealed class CountingFilter
+    {
+        public int CustomerReads { get; private set; }
+
+        public string Customer
+        {
+            get
+            {
+                CustomerReads++;
+                return "c";
+            }
+        }
+    }
+
+    private sealed class DisabledFilter
+    {
+        public int CustomerReads { get; private set; }
+        public bool Enabled => false;
+
+        public string Customer
+        {
+            get
+            {
+                CustomerReads++;
+                throw new InvalidOperationException("A disabled filter has no customer");
+            }
+        }
+    }
+
+    private sealed class SplitEveryQuery: IQueryExpressionInterceptor
+    {
+        public Expression QueryCompilationStarting(Expression queryExpression, QueryExpressionEventData eventData) =>
+            typeof(IQueryable<BatchOrder>).IsAssignableFrom(queryExpression.Type)
+                ? Expression.Call(typeof(RelationalQueryableExtensions), nameof(RelationalQueryableExtensions.AsSplitQuery),
+                    [typeof(BatchOrder)], queryExpression)
+                : queryExpression;
+    }
+
     private sealed class RoundTripCounter: ILoggerProvider
     {
         private int _count;

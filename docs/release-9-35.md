@@ -205,10 +205,21 @@ services.AddDbContext<MyDbContext>(opts =>
 ```
 
 Without it — and in a handful of cases where a batch cannot faithfully stand in for separate
-execution: another command interceptor is registered, the execution strategy retries on failure, or
-a query is a split query — every queued query runs on its own round trip instead, with the same
+execution: the database provider doesn't support `DbBatch` (SQLite and Oracle don't), another command
+interceptor is registered, the execution strategy retries on failure, or a query is a split query — every queued query runs on its own round trip instead, with the same
 results. So the correctness of this release does not depend on registering anything; only the round
 trip count does. A warning is logged once per `DbContext` type explaining which case applied.
+
+EF Core prepares each queued query once, when it is queued, and that prepared query supplies both the
+batch's SQL and the results, so captured values are read once and at queue time, as in 9.34.
+`BatchedQuery` takes the prepared query's command from `IRelationalQueryingEnumerable`, an EF Core
+internal interface that has not changed since EF Core 5.0. If a version of EF Core doesn't provide
+it, every queued query runs on its own round trip, as above.
+
+A batch only accepts queries of the `DbContext` it was created for; queuing another context's query
+throws. EF Core enumerates a collection used in `Contains()` each time it builds the query's command,
+which a batch does more than once, so pass a list or array rather than a sequence that can only be
+enumerated once.
 
 ::: warning Wolverine users
 Wolverine batches query plans automatically as soon as a handler has two of them against the same
