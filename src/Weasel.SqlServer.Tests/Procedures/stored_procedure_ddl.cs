@@ -91,6 +91,55 @@ public class stored_procedure_ddl
         writeCreateOrAlter(procedure).ShouldBeEmpty();
     }
 
+    /// <summary>
+    ///     The one hazard the <c>GO</c> bracketing carries: neither sqlcmd nor Weasel's splitter parses
+    ///     string literals, so a line reading only <c>GO</c> inside a body would end the batch in the
+    ///     middle of the definition. Emission refuses it rather than writing a script that splits in the
+    ///     wrong place.
+    /// </summary>
+    [Fact]
+    public void a_body_carrying_a_go_line_is_refused_on_both_paths()
+    {
+        // The reachable shape: T-SQL that builds a script, where GO is data rather than a directive
+        var body = $"CREATE PROCEDURE dbo.p AS SET @script = 'SELECT 1{Environment.NewLine}GO{Environment.NewLine}';";
+        var procedure = new StoredProcedure(theIdentifier, body);
+
+        var create = Should.Throw<InvalidOperationException>(() => writeCreate(procedure));
+        create.Message.ShouldContain("dbo.p");
+        create.Message.ShouldContain("entire content is GO");
+
+        Should.Throw<InvalidOperationException>(() => writeCreateOrAlter(procedure));
+    }
+
+    [Fact]
+    public void the_word_go_inside_a_line_is_not_a_separator_and_is_left_alone()
+    {
+        // The refusal is the splitter's rule, not a search for the letters: GOTO, the word in a
+        // literal, and GO with anything else on the line are all fine.
+        var lines = new[]
+        {
+            "CREATE PROCEDURE dbo.p AS",
+            "IF @x = 1 GOTO done",
+            "SELECT 'GO', 'go 5';",
+            "done:"
+        };
+
+        var body = string.Join(Environment.NewLine, lines);
+
+        Should.NotThrow(() => writeCreate(new StoredProcedure(theIdentifier, body)));
+    }
+
+    [Fact]
+    public void the_refusal_names_the_procedure_that_carries_it()
+    {
+        var other = new SqlServerObjectName("reporting", "rebuild");
+        var body = $"CREATE PROCEDURE reporting.rebuild AS SELECT '{Environment.NewLine}GO{Environment.NewLine}';";
+
+        Should.Throw<InvalidOperationException>(
+                () => writeCreate(new StoredProcedure(other, body)))
+            .Message.ShouldContain("reporting.rebuild");
+    }
+
     [Fact]
     public void the_go_lines_are_written_by_the_ddl_and_never_reach_the_body()
     {

@@ -71,6 +71,25 @@ is `GO` ends the batch wherever it appears, case insensitively, with an optional
 accepted and ignored. String literals and comments are not parsed, and a trailing comment on the same
 line as `GO` means the line is not a separator at all.
 
+### A procedure body with a `GO` line is refused
+
+Rendering a procedure whose body contains a line whose entire content is `GO` now throws:
+
+```
+The body of stored procedure reporting.rebuild contains a line whose entire content is GO.
+```
+
+This is the one hazard the bracketing carries, and without the refusal it is silent. Neither sqlcmd
+nor `SqlServerBatchSplitter` parses string literals, so such a line ends the batch wherever it
+appears — including in the middle of a definition, which submits the fragment before it as a complete
+procedure and the fragment after it as a statement of its own. The result is a syntax error pointing
+at the tail of somebody's dynamic SQL, or a procedure that compiles and is not the one that was
+written.
+
+A body is T-SQL somebody wrote, and T-SQL that builds scripts is normal, so this is reachable rather
+than theoretical. The refusal uses the splitter's own definition of a separator, so `GOTO`, the word
+inside a literal, and `GO` with anything else on the line are all still fine.
+
 ## Rendered create DDL carries existence guards
 
 Running a generated script twice used to fail on the first unguarded object, and one failure aborts

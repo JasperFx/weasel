@@ -95,9 +95,54 @@ where
 
     private void writeBatchedBody(TextWriter writer)
     {
+        var body = NormalizeCreateStatement(BodyText());
+
+        AssertBodyCarriesNoBatchSeparator(Identifier, body);
+
         writer.WriteLine("GO");
-        writer.WriteLine(NormalizeCreateStatement(BodyText()));
+        writer.WriteLine(body);
         writer.WriteLine("GO");
+    }
+
+    /// <summary>
+    ///     Refuse a body that contains a line reading only <c>GO</c>.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     This is the one hazard the <c>GO</c> bracketing carries, and without this check it is
+    ///     silent. sqlcmd does not parse string literals and neither does
+    ///     <see cref="SqlServerBatchSplitter" />, so a line reading only <c>GO</c> inside a body ends
+    ///     the batch wherever it appears. The rendered script then splits in the middle of the
+    ///     procedure: the fragment before the line is submitted as a complete definition, the
+    ///     fragment after it as a statement of its own. What comes back is a syntax error pointing
+    ///     at the tail of somebody's dynamic SQL, or -- worse -- a procedure that compiles and is
+    ///     not the procedure that was written.
+    ///     </para>
+    ///     <para>
+    ///     A body is user-authored T-SQL, and T-SQL that builds scripts is a normal thing to write,
+    ///     so this is reachable rather than theoretical. Throwing at the point of emission puts the
+    ///     failure where the cause is, naming the procedure, instead of somewhere downstream in a
+    ///     file nobody has opened yet.
+    ///     </para>
+    ///     <para>
+    ///     Internal and static so it can be exercised without a database, and so the
+    ///     <see cref="Function" /> path -- which wraps its body in <c>EXEC sp_executesql</c> and is
+    ///     therefore immune -- is not tempted to call it.
+    ///     </para>
+    /// </remarks>
+    internal static void AssertBodyCarriesNoBatchSeparator(DbObjectName identifier, string body)
+    {
+        if (!SqlServerBatchSplitter.ContainsSeparator(body))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"The body of stored procedure {identifier.QualifiedName} contains a line whose entire content is GO. "
+            + "Weasel brackets procedure DDL with GO separators so that a rendered migration script runs under "
+            + "sqlcmd or SSMS (weasel#593), and neither sqlcmd nor Weasel's own splitter parses string literals, so "
+            + "that line would end the batch in the middle of this definition. Put the word on a line with something "
+            + "else on it, build it from pieces, or execute the statement through EXEC instead.");
     }
 
     public async Task<StoredProcedure?> FetchExistingAsync(SqlConnection conn, CancellationToken ct = default)
