@@ -217,6 +217,17 @@ public abstract class
             }
         }
 
+        // The mirror image, and just as invisible without saying it: a difference this migration is
+        // deliberately NOT applying, because the table is add-only (weasel#629).
+        foreach (var delta in migration.Deltas)
+        {
+            if (delta is ISchemaObjectDeltaWithWithheldDrops { WithheldDrops.Count: > 0 } withholding)
+            {
+                logger.WithheldDrop(
+                    AddOnlyMigration.Describe(delta.SchemaObject.Identifier, withholding.WithheldDrops));
+            }
+        }
+
         return executeDelta(migration, conn, autoCreate, logger, ct);
     }
 

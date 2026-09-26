@@ -91,6 +91,15 @@ public class SchemaComparisonException : Exception
 /// </summary>
 public static class SchemaComparisonHarness
 {
+    /// <summary>
+    ///     EF-derived tables are <see cref="ITable.AddOnlyMigrations" /> in production (weasel#629),
+    ///     which means a column the mapper failed to translate reports NO delta -- exactly the
+    ///     silence this harness exists to break. So every comparison here runs with drops allowed:
+    ///     a mapping gap must still show up as "Weasel would drop this", which is how weasel#628
+    ///     was caught. The add-only policy has its own tests.
+    /// </summary>
+    private static readonly EfSchemaMappingCustomization DropsAllowed = new() { AllowDrops = true };
+
     public static async Task<SchemaComparisonResult> RunPostgresqlAsync(
         DbContext context,
         string schemaName,
@@ -100,7 +109,8 @@ public static class SchemaComparisonHarness
         var connectionString = context.Database.GetConnectionString()
                                ?? throw new InvalidOperationException("DbContext has no connection string");
 
-        var schemaObjects = DbContextExtensions.GetSchemaObjectsForMigration(context, migrator).ToArray();
+        var schemaObjects = DbContextExtensions
+            .GetSchemaObjectsForMigration(context, migrator, DropsAllowed).ToArray();
         var tables = schemaObjects.OfType<ITable>().ToArray();
 
         guardSchemaIsolation(schemaObjects, schemaName);
@@ -165,7 +175,8 @@ public static class SchemaComparisonHarness
         var connectionString = context.Database.GetConnectionString()
                                ?? throw new InvalidOperationException("DbContext has no connection string");
 
-        var schemaObjects = DbContextExtensions.GetSchemaObjectsForMigration(context, migrator).ToArray();
+        var schemaObjects = DbContextExtensions
+            .GetSchemaObjectsForMigration(context, migrator, DropsAllowed).ToArray();
         var tables = schemaObjects.OfType<ITable>().ToArray();
 
         guardSchemaIsolation(schemaObjects, schemaName);

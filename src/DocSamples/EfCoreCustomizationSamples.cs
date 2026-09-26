@@ -62,6 +62,39 @@ public class EfCoreCustomizationSamples
         #endregion
     }
 
+    public async Task allow_drops_on_ef_derived_tables()
+    {
+        #region sample_efcore_allow_drops
+        // EF-derived tables are add-only by default: a column, index or foreign key the mapper
+        // could not translate is left in place rather than dropped (weasel#629). Set AllowDrops
+        // when the EF model really is the whole truth about these tables.
+        var customization = new EfSchemaMappingCustomization { AllowDrops = true };
+
+        await using var migration =
+            await serviceProvider.CreateMigrationAsync(dbContext, customization, ct);
+        await migration.ExecuteAsync(AutoCreate.CreateOrUpdate, ct);
+        #endregion
+    }
+
+    public void allow_drops_on_one_table_only()
+    {
+        #region sample_efcore_allow_drops_per_table
+        var customization = new EfSchemaMappingCustomization
+        {
+            // CustomizeTable runs AFTER the mapping, so it has the last word on the policy
+            CustomizeTable = (entityType, table) =>
+            {
+                if (entityType.ClrType.Name == "StagingRow")
+                {
+                    table.AddOnlyMigrations = false;
+                }
+            }
+        };
+
+        var database = serviceProvider.CreateDatabase(dbContext, customization);
+        #endregion
+    }
+
     public void customize_when_building_a_database()
     {
         #region sample_efcore_customization_create_database

@@ -7,8 +7,14 @@ namespace Weasel.Sqlite.Tables;
 /// Represents the differences between an expected table schema and the actual table in the database.
 /// SQLite has limited ALTER TABLE support, so many changes require table recreation.
 /// </summary>
-public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild, ISchemaObjectDeltaWithReason
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild, ISchemaObjectDeltaWithReason,
+    ISchemaObjectDeltaWithWithheldDrops
 {
+    private readonly List<string> _withheldDrops = new();
+
+    /// <inheritdoc cref="ISchemaObjectDeltaWithWithheldDrops.WithheldDrops" />
+    public IReadOnlyList<string> WithheldDrops => _withheldDrops;
+
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
     }
@@ -61,18 +67,24 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
             return SchemaPatchDifference.Create;
         }
 
-        Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
+        _withheldDrops.Clear();
+
+        Columns = new ItemDelta<TableColumn>(expected.Columns,
+            droppable(expected, expected.Columns, actual.Columns, "column"));
         // The comparison is not optional. Without it ItemDelta falls back to IndexDefinition's
         // Equals, which compares the name and nothing else -- so an index that changed from
         // non-unique to unique, or moved to different columns, reported no difference at all and
         // was never corrected. SQLite was the only provider not passing its Matches (weasel#449);
         // PostgreSQL, SQL Server and Oracle all did.
+        var expectedIndexes = expected.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)).ToArray();
         Indexes = new ItemDelta<IndexDefinition>(
-            expected.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)),
-            actual.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)),
+            expectedIndexes,
+            droppable(expected, expectedIndexes,
+                actual.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)), "index"),
             (e, a) => e.Matches(a, expected));
 
-        ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
+        ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys,
+            droppable(expected, expected.ForeignKeys, actual.ForeignKeys, "foreign key"));
 
         // Detect column renames: match Missing (new name) with Extras (old name) by structural equality
         detectRenamedColumns();
@@ -130,6 +142,18 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
             unmatchedExtras.Remove(match);
         }
     }
+
+    /// <summary>
+    ///     The actual objects this delta is allowed to consider for removal. On an
+    ///     <see cref="ITable.AddOnlyMigrations" /> table the actual side is narrowed to what the
+    ///     model declares, so an undeclared object never becomes an Extra and is never dropped
+    ///     (weasel#629). Otherwise everything the catalog reported is in play, exactly as before.
+    /// </summary>
+    private IEnumerable<T> droppable<T>(Table expected, IEnumerable<T> expectedItems,
+        IEnumerable<T> actualItems, string kind) where T : INamed
+        => expected.AddOnlyMigrations
+            ? AddOnlyMigration.DeclaredOnly(expectedItems, actualItems, kind, _withheldDrops)
+            : actualItems;
 
     private SchemaPatchDifference determinePatchDifference()
     {

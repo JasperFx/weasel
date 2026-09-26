@@ -307,6 +307,9 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     /// <inheritdoc cref="ITable.PreserveIdentifierCase" />
     public bool PreserveIdentifierCase { get; set; }
 
+    /// <inheritdoc cref="ITable.AddOnlyMigrations" />
+    public bool AddOnlyMigrations { get; set; }
+
     /// <inheritdoc cref="ITable.DetectColumnDrift" />
     public bool DetectColumnDrift { get; set; }
 

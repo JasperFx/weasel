@@ -67,6 +67,32 @@ public interface ITable : ISchemaObject
     ///     unusable by the EF runtime. Defaults to false.
     /// </summary>
     bool PreserveIdentifierCase { get; set; }
+
+    /// <summary>
+    ///     When true, a migration for this table never drops a column, index or foreign key that
+    ///     the model does not declare. Additive and in-place changes still apply: a new column is
+    ///     added, a changed index is recreated, a widened type is altered -- only the removal of
+    ///     something undeclared is withheld. Defaults to false.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     For a table defined directly in code, the model is the whole truth about the schema and
+    ///     dropping what it no longer declares is the point. For a table <em>translated</em> from
+    ///     another model it is not: a column the source model knows about and the translator could
+    ///     not express is not "removed", it is "not understood", and the right answer is to leave it
+    ///     alone. That turns every gap in a translation layer into a data-loss branch, which is why
+    ///     tables mapped from an EF Core model set this by default (weasel#629).
+    ///     </para>
+    ///     <para>
+    ///     Withheld drops are reported through
+    ///     <see cref="ISchemaObjectDeltaWithWithheldDrops" />, and logged once per table before a
+    ///     migration runs, so the omission is visible rather than silent. A schema whose ONLY
+    ///     difference is a withheld drop has nothing to migrate and is not warned about -- that
+    ///     line would otherwise appear on every application start for as long as the column
+    ///     exists; read the delta, or use the reporting commands, for the quiet case.
+    ///     </para>
+    /// </remarks>
+    bool AddOnlyMigrations { get; set; }
     bool HasColumn(string columnName);
     void RemoveColumn(string columnName);
 
