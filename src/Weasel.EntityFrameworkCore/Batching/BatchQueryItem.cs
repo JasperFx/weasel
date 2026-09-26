@@ -16,10 +16,13 @@ internal sealed class ListBatchQueryItem<T> : IBatchQueryItem where T : class, n
 
     public Task<IReadOnlyList<T>> Result => _completion.Task;
 
-    public ListBatchQueryItem(DbCommand sourceCommand, IEntityType entityType)
+    private readonly Func<T, T>? _track;
+
+    public ListBatchQueryItem(DbCommand sourceCommand, IEntityType entityType, Func<T, T>? track = null)
     {
         _sourceCommand = sourceCommand;
         _entityType = entityType;
+        _track = track;
     }
 
     public void ConfigureCommand(DbBatchCommand command)
@@ -45,7 +48,7 @@ internal sealed class ListBatchQueryItem<T> : IBatchQueryItem where T : class, n
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var entity = EntityMaterializer.Materialize<T>(reader, properties);
-            results.Add(entity);
+            results.Add(_track?.Invoke(entity) ?? entity);
         }
 
         _completion.SetResult(results);
@@ -63,10 +66,13 @@ internal sealed class SingleBatchQueryItem<T> : IBatchQueryItem where T : class,
 
     public Task<T?> Result => _completion.Task;
 
-    public SingleBatchQueryItem(DbCommand sourceCommand, IEntityType entityType)
+    private readonly Func<T, T>? _track;
+
+    public SingleBatchQueryItem(DbCommand sourceCommand, IEntityType entityType, Func<T, T>? track = null)
     {
         _sourceCommand = sourceCommand;
         _entityType = entityType;
+        _track = track;
     }
 
     public void ConfigureCommand(DbBatchCommand command)
@@ -90,7 +96,8 @@ internal sealed class SingleBatchQueryItem<T> : IBatchQueryItem where T : class,
 
         if (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
-            _completion.SetResult(EntityMaterializer.Materialize<T>(reader, properties));
+            var entity = EntityMaterializer.Materialize<T>(reader, properties);
+            _completion.SetResult(_track?.Invoke(entity) ?? entity);
         }
         else
         {
