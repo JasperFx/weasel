@@ -20,8 +20,9 @@ namespace Weasel.EntityFrameworkCore.Batching;
 ///     <para>
 ///     Batching into one round trip requires <see cref="BatchedQueryInterceptor" /> on the
 ///     <see cref="DbContext" /> (see <see cref="BatchQueryExtensions.UseWeaselBatchedQueries(DbContextOptionsBuilder)" />).
-///     When a batch can't be used — the interceptor isn't registered, other command interceptors are
-///     registered, the execution strategy retries on failure, or a query is a split query — every
+///     When a batch can't be used — the interceptor isn't registered, the provider doesn't support
+///     <see cref="DbBatch" />, other command interceptors are registered, the execution strategy
+///     retries on failure, or a query is a split query — every
 ///     query runs on its own round trip instead, with the same results.
 ///     </para>
 /// </summary>
@@ -127,6 +128,13 @@ public sealed class BatchedQuery : IAsyncDisposable
         {
             warnOnce("does not have the BatchedQueryInterceptor registered. Call UseWeaselBatchedQueries() on its " +
                      "DbContextOptionsBuilder to batch them");
+            return false;
+        }
+
+        // Not every ADO.NET provider supports DbBatch (SQLite and Oracle don't)
+        if (!_context.Database.GetDbConnection().CanCreateBatch)
+        {
+            warnOnce("uses a database provider that can't batch commands");
             return false;
         }
 

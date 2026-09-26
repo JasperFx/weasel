@@ -42,6 +42,7 @@ public class batch_query_materialization_tests: IAsyncLifetime
 
     private static BatchOrder NewOrder(Guid id, string customer) => new(id, customer)
     {
+        Metadata = $$"""{"customer": "{{customer}}"}""",
         ShippingAddress = new BatchAddress { City = "Oslo" },
         Settings = new BatchSettings { Gift = true },
         Total = new BatchMoney { Amount = 42 },
@@ -242,6 +243,25 @@ public class batch_query_materialization_tests: IAsyncLifetime
         await batch.ExecuteAsync();
 
         (await orders).Single().Id.ShouldBe(_orderId);
+    }
+
+    [Fact]
+    public async Task parameters_keep_their_provider_specific_type()
+    {
+        await using var context = CreateContext();
+        await using var batch = context.CreateBatchQuery();
+
+        // EF Core sends this as a jsonb parameter, a type DbParameter.DbType can't express
+        var metadata = """{"customer": "c"}""";
+        var orders = batch.Query(context.Orders.Where(x => x.Metadata == metadata));
+        var others = batch.Query(context.Orders.Where(x => x.Customer == "d"));
+
+        _roundTrips.Reset();
+        await batch.ExecuteAsync();
+
+        _roundTrips.Count.ShouldBe(1);
+        (await orders).Single().Id.ShouldBe(_orderId);
+        (await others).Single().Id.ShouldBe(_otherOrderId);
     }
 
     [Fact]

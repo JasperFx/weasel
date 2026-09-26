@@ -186,8 +186,8 @@ services.AddDbContext<MyDbContext>(opts =>
 ```
 
 Without it — and in a handful of cases where a batch cannot faithfully stand in for separate
-execution: another command interceptor is registered, the execution strategy retries on failure, or
-a query is a split query — every queued query runs on its own round trip instead, with the same
+execution: the database provider doesn't support `DbBatch` (SQLite and Oracle don't), another command
+interceptor is registered, the execution strategy retries on failure, or a query is a split query — every queued query runs on its own round trip instead, with the same
 results. So the correctness of this release does not depend on registering anything; only the round
 trip count does. A warning is logged once per `DbContext` type explaining which case applied.
 

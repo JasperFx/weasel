@@ -58,6 +58,13 @@ internal sealed class QueuedQuery<TResult> : QueuedQuery
         command.CommandText = SourceCommand.CommandText;
         foreach (DbParameter param in SourceCommand.Parameters)
         {
+            // The provider's own clone keeps provider-specific types, like Npgsql's jsonb, that DbType can't express
+            if (param is ICloneable cloneable)
+            {
+                command.Parameters.Add(cloneable.Clone());
+                continue;
+            }
+
             var clone = command.CreateParameter();
             clone.ParameterName = param.ParameterName;
             clone.Value = param.Value;

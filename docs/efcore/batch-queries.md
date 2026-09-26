@@ -46,6 +46,7 @@ The same call works inside `services.AddDbContext<T>(options => ...)` or a `DbCo
 `BatchedQuery` runs every query on its own round trip instead, with the same results, when a batch can't reproduce what EF Core would do:
 
 - the interceptor isn't registered,
+- the database provider doesn't support `DbBatch` (`DbConnection.CanCreateBatch` is false, as for SQLite and Oracle),
 - other command interceptors are registered (a batch can't apply their changes to commands),
 - the execution strategy retries on failure (a query read from a batch can't be retried on its own), or
 - one of the queued queries is a split query (running it separately would change the order the queries run in).
@@ -227,6 +228,6 @@ There are no provider-specific differences in behavior. The same `BatchedQuery` 
 
 ## Limitations
 
-- **Batching isn't always possible**: Without `UseWeaselBatchedQueries()`, with other command interceptors, with a retrying execution strategy, or with a split query in the batch, every query runs on its own round trip (see [Setup](#setup)).
+- **Batching isn't always possible**: Without `UseWeaselBatchedQueries()`, on a provider without `DbBatch` support, with other command interceptors, with a retrying execution strategy, or with a split query in the batch, every query runs on its own round trip (see [Setup](#setup)).
 - **IQueryable only**: Queries must be expressible as `IQueryable<T>`. Raw SQL string queries are not yet supported in the batch API.
 - **Single-use**: A `BatchedQuery` cannot be reused after `ExecuteAsync()` is called.
