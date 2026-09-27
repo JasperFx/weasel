@@ -6,6 +6,9 @@ under `sqlcmd` or SSMS, and runs a second time against the same database without
 `Weasel.EntityFrameworkCore` now returns exactly what EF Core returns
 ([#621](https://github.com/JasperFx/weasel/issues/621)). No other provider is affected.
 
+**[9.35.2](#_9-35-2)** is one PostgreSQL fix: an exhausted `SchemaUtils.DropSchema` retry reported
+success instead of throwing.
+
 **[9.35.1](#_9-35-1) is an EF Core release, and one of its fixes is urgent**: a table-split
 `ComplexProperty` was not mapped at all, and a migration against a table EF Core created **dropped**
 its columns — silently, on lowercase column names. If you use `ComplexProperty` with a Weasel-managed
@@ -483,3 +486,44 @@ environment variable reached, so that suite could only be run against `localhost
 It now honors `weasel_postgresql_testing_database` like every other Weasel suite, and like the SQL
 Server half has since [#620](https://github.com/JasperFx/weasel/issues/620). No product change; it is
 part of why a defect on a path that suite covers went unnoticed.
+
+## 9.35.2
+
+One fix, PostgreSQL only: [#634](https://github.com/JasperFx/weasel/issues/634).
+
+`SchemaUtils.DropSchema(connectionString, schemaName)` retried the drop up to three times and, on the
+third failure, **returned as though it had succeeded**. One condition served two opposite outcomes:
+
+```csharp
+if (success || ++reconnectionCount == maxReconnectionCount)
+    return;
+```
+
+so the `throw` below the loop was unreachable, and the loop's own
+`reconnectionCount < maxReconnectionCount` could never be false either.
+
+`dropSchema` reports failure for exactly one condition — `57P01 admin_shutdown` — and rethrows
+everything else. So the only way to exhaust the attempts is a server that is still down after the
+backoff, which is precisely the case the caller needs to hear about. It heard nothing, and carried on
+as though the schema were gone.
+
+Exhausting the attempts now throws, which is what the unreachable line always intended:
+
+```
+System.InvalidOperationException: Unable to drop schema: my_schema
+```
+
+### Is this a behaviour change for you?
+
+Only if a drop was already failing silently.
+
+- A drop that succeeds, on any of the three attempts, behaves exactly as before.
+- An exception that is not `admin_shutdown` propagates unretried and unwrapped, as before.
+- A drop that exhausted all three attempts used to return normally and now throws. If you have a
+  `try`/`catch` around this call that never fired, it may start firing — and what it is telling you is
+  that the drop was not happening.
+
+No signature changed. The public two-argument method drops its own `async` keyword and delegates to a
+new internal overload that takes the single attempt as a delegate — an implementation detail, and
+source- and binary-compatible. That overload is what makes the exhausted path testable without a
+PostgreSQL server that stays down across three tries, which is why the defect went uncovered.
