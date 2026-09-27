@@ -137,22 +137,36 @@ public static class SchemaUtils
     }
 
     // TODO: This should probably go to Weasel
-    public static async Task DropSchema(string connectionString, string schemaName)
+    public static Task DropSchema(string connectionString, string schemaName)
+        => DropSchema(connectionString, schemaName, dropSchema);
+
+    /// <summary>
+    ///     The retry itself, with the single attempt injected so that a caller can make it fail
+    ///     without needing a PostgreSQL server that restarts on command.
+    /// </summary>
+    /// <remarks>
+    ///     Only <see cref="PostgresErrorCodes.AdminShutdown" /> is retried, so exhausting the attempts
+    ///     means the server stayed down longer than the backoff — which has to be reported, not
+    ///     swallowed. The earlier loop returned on the last failed attempt as though the drop had
+    ///     succeeded, leaving the trailing throw unreachable (weasel#634).
+    /// </remarks>
+    internal static async Task DropSchema(
+        string connectionString,
+        string schemaName,
+        Func<string, string, Task<bool>> attempt)
     {
-        var reconnectionCount = 0;
-        const int maxReconnectionCount = 3;
+        const int maxAttemptCount = 3;
 
-        var success = false;
-
-        do
+        for (var attemptCount = 1; attemptCount <= maxAttemptCount; attemptCount++)
         {
-            success = await dropSchema(connectionString, schemaName).ConfigureAwait(false);
-
-            if (success || ++reconnectionCount == maxReconnectionCount)
+            if (await attempt(connectionString, schemaName).ConfigureAwait(false))
                 return;
 
-            await Task.Delay(reconnectionCount * 50, CancellationToken.None).ConfigureAwait(false);
-        } while (!success && reconnectionCount < maxReconnectionCount);
+            if (attemptCount == maxAttemptCount)
+                break;
+
+            await Task.Delay(attemptCount * 50, CancellationToken.None).ConfigureAwait(false);
+        }
 
         throw new InvalidOperationException($"Unable to drop schema: {schemaName}");
     }
