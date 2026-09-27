@@ -536,13 +536,17 @@ public static class DbContextExtensions
             }
 
             // Add JSON columns from owned entities mapped via OwnsOne().ToJson()
-            mapJsonColumns(et, addedColumns, table);
+            mapJsonColumns(migrator, et, addedColumns, table);
+
+            // Add the columns of table-split complex properties -- ComplexProperty(...)
+            // WITHOUT ToJson(), which lives in the owner's own table (weasel#628)
+            mapComplexTableColumns(migrator, et, storeObjectIdentifier, addedColumns, table);
 
 #if NET10_0_OR_GREATER
             // Add JSON columns from complex properties / collections mapped via
             // ComplexProperty(...).ToJson() / ComplexCollection(...).ToJson()
             // (EF Core 10+; weasel#291).
-            mapComplexJsonColumns(et, addedColumns, table);
+            mapComplexJsonColumns(migrator, et, addedColumns, table);
 #endif
         }
 
@@ -872,7 +876,8 @@ public static class DbContextExtensions
         return null;
     }
 
-    private static void mapJsonColumns(IEntityType entityType, HashSet<string> addedColumns, ITable table)
+    private static void mapJsonColumns(Migrator migrator, IEntityType entityType,
+        HashSet<string> addedColumns, ITable table)
     {
         foreach (var navigation in entityType.GetNavigations())
         {
@@ -885,15 +890,75 @@ public static class DbContextExtensions
             var columnName = targetType.GetContainerColumnName();
             if (columnName == null || !addedColumns.Add(columnName)) continue;
 
-            var columnType = targetType.GetContainerColumnType() ?? "jsonb";
+            var columnType = targetType.GetContainerColumnType() ?? migrator.DefaultJsonColumnType;
 #else
             var columnName = RelationalEntityTypeExtensions.GetContainerColumnName(targetType);
             if (columnName == null || !addedColumns.Add(columnName)) continue;
 
-            var columnType = RelationalEntityTypeExtensions.GetContainerColumnType(targetType) ?? "jsonb";
+            var columnType = RelationalEntityTypeExtensions.GetContainerColumnType(targetType) ?? migrator.DefaultJsonColumnType;
 #endif
             var column = table.AddColumn(columnName, columnType);
             column.AllowNulls = !navigation.ForeignKey.IsRequired;
+        }
+    }
+
+    /// <summary>
+    ///     Map the columns of <b>table-split</b> complex properties: EF Core 8+
+    ///     <c>ComplexProperty(...)</c> members that are not <c>ToJson()</c>, whose scalar members
+    ///     become columns of the owner's own table exactly as a table-split <c>OwnsOne</c>'s do.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     <see cref="MapToTable" /> otherwise sees none of these: complex properties are not
+    ///     navigations, so the owned-type walk misses them, and they carry no
+    ///     <see cref="IEntityType" /> of their own, so <c>GetProperties()</c> on the entity type
+    ///     does not reach their members either. The only code that looked at
+    ///     <c>GetComplexProperties()</c> was the <c>ToJson()</c> container mapping from weasel#291,
+    ///     which skipped everything else.
+    ///     </para>
+    ///     <para>
+    ///     That made a complex property a silent translation gap with two failure modes: a table
+    ///     created without the columns (EF's first insert fails with 42703), and -- against a table
+    ///     EF Core itself created -- a <c>CreateOrUpdate</c> delta that DROPPED them, which on
+    ///     lowercase column names executes and destroys the data (weasel#628).
+    ///     </para>
+    ///     <para>
+    ///     Nested complex properties are walked transitively, so
+    ///     <c>ComplexProperty(x => x.Origin, c => c.ComplexProperty(o => o.Coordinates))</c>
+    ///     contributes <c>Origin_Coordinates_Latitude</c> too. Collections are left out
+    ///     deliberately: EF Core only maps a complex collection to JSON, which
+    ///     <see cref="mapComplexJsonColumns" /> already handles.
+    ///     </para>
+    /// </remarks>
+    private static void mapComplexTableColumns(Migrator migrator, ITypeBase typeBase,
+        StoreObjectIdentifier storeObjectIdentifier, HashSet<string> addedColumns, ITable table)
+    {
+        foreach (var complexProperty in typeBase.GetComplexProperties())
+        {
+            if (complexProperty.IsCollection) continue;
+
+            var complexType = complexProperty.ComplexType;
+
+#if NET10_0_OR_GREATER
+            // the JSON half is mapped as a single container column instead (weasel#291)
+            if (complexType.IsMappedToJson()) continue;
+#endif
+
+            foreach (var property in complexType.GetProperties())
+            {
+                var columnName = property.GetColumnName(storeObjectIdentifier);
+                if (columnName == null || migrator.IsSystemColumn(columnName) || !addedColumns.Add(columnName))
+                {
+                    continue;
+                }
+
+                // No primary key names: a complex member's Name is its name WITHIN the complex
+                // type ("Id" on an Address is not the entity's key), so matching it against the
+                // entity's primary-key property names would mark an unrelated column as the PK.
+                mapColumn(property, storeObjectIdentifier, [], table);
+            }
+
+            mapComplexTableColumns(migrator, complexType, storeObjectIdentifier, addedColumns, table);
         }
     }
 
@@ -909,7 +974,8 @@ public static class DbContextExtensions
     ///     serialize into a single container column, so each top-level JSON-mapped
     ///     complex property contributes exactly one column (weasel#291).
     /// </summary>
-    private static void mapComplexJsonColumns(IEntityType entityType, HashSet<string> addedColumns, ITable table)
+    private static void mapComplexJsonColumns(Migrator migrator, IEntityType entityType,
+        HashSet<string> addedColumns, ITable table)
     {
         foreach (var complexProperty in entityType.GetComplexProperties())
         {
@@ -919,7 +985,7 @@ public static class DbContextExtensions
             var columnName = complexType.GetContainerColumnName();
             if (columnName == null || !addedColumns.Add(columnName)) continue;
 
-            var columnType = complexType.GetContainerColumnType() ?? "jsonb";
+            var columnType = complexType.GetContainerColumnType() ?? migrator.DefaultJsonColumnType;
             var column = table.AddColumn(columnName, columnType);
             column.AllowNulls = complexProperty.IsNullable;
         }
