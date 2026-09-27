@@ -6,6 +6,12 @@ under `sqlcmd` or SSMS, and runs a second time against the same database without
 `Weasel.EntityFrameworkCore` now returns exactly what EF Core returns
 ([#621](https://github.com/JasperFx/weasel/issues/621)). No other provider is affected.
 
+**[9.35.1](#_9-35-1) is an EF Core release, and one of its fixes is urgent**: a table-split
+`ComplexProperty` was not mapped at all, and a migration against a table EF Core created **dropped**
+its columns — silently, on lowercase column names. If you use `ComplexProperty` with a Weasel-managed
+EF migration, read [9.35.1](#_9-35-1) before upgrading. It also changes what an existing database does
+on its next migration, which is unusual for a patch and is called out there.
+
 ::: tip Coming from 9.34?
 Two things to know.
 
@@ -242,3 +248,238 @@ then your plans are correct and take one round trip each.
   which register `BatchedQueryInterceptor` on a `DbContext`.
 - `BatchedQueryInterceptor`, the `DbCommandInterceptor` that hands EF Core a queued query's result
   set out of the batch instead of executing the command.
+
+## 9.35.1
+
+An EF Core release: three issues, filed together and fixed together, all of which met in one place.
+A table-split `ComplexProperty` produced a migration that **dropped** the columns EF Core had created
+for it, and on lowercase column names that drop executed and destroyed the data
+([#628](https://github.com/JasperFx/weasel/issues/628)).
+
+::: danger Read this before upgrading if you use `ComplexProperty` with a Weasel-managed EF migration
+Check those tables on your **current** version first. This is a bug that has already run.
+
+A table-split `ComplexProperty` — one *without* `ToJson()` — was not mapped at all, on 9.35.0 and
+every earlier version carrying the EF bridge. So:
+
+- on a fresh database, the table was created without those columns and the first insert failed with
+  `42703`
+- against a table EF Core itself created, a `CreateOrUpdate` migration emitted
+  `drop column total_amount`. With **PascalCase** column names that failed with `42703` and aborted
+  the migration, which is how this was found. With **lowercase** column names — what
+  `UseSnakeCaseNamingConvention()` or an explicit `HasColumnName` produces — **it succeeded, and the
+  data is gone.**
+
+Every Weasel-managed EF migration path runs through this mapper, including Wolverine's
+`UseEntityFrameworkCoreWolverineManagedMigrations()` and its tenanted `DbContext` builders.
+:::
+
+::: warning A behaviour change, in a patch release
+A migration for an EF-derived table **no longer drops columns, indexes or foreign keys that the EF
+model does not declare.** That is deliberate and it is the fix for
+[#629](https://github.com/JasperFx/weasel/issues/629), but it is not the kind of change a patch bump
+usually carries, so it is called out here rather than left to be discovered.
+
+If you relied on a removed EF property taking its column with it, set
+`EfSchemaMappingCustomization.AllowDrops = true` — see [below](#restoring-the-old-behaviour). Tables
+you define in Weasel directly are completely unaffected.
+:::
+
+Two things had to be true for the data loss to happen: the mapper did not translate complex
+properties (#628), and `CreateOrUpdate` read a column the mapper could not express as a column the
+developer had removed (#629). Both are fixed.
+[#627](https://github.com/JasperFx/weasel/issues/627) is the third, and it is what made the failure
+visible at all — the drop statement named the wrong identifier.
+
+### ⚠️ Table-split complex properties are mapped
+
+[#628](https://github.com/JasperFx/weasel/issues/628).
+
+`MapToTable` reached a `ComplexProperty` through neither of its two walks. Complex properties are not
+navigations, so the owned-type walk missed them, and they carry no `IEntityType` of their own, so
+`GetProperties()` on the entity type did not reach their members either. The only code that looked at
+`GetComplexProperties()` was the `ToJson()` container mapping from
+[#291](https://github.com/JasperFx/weasel/issues/291), which skipped everything else.
+
+So this model produced a table with `Id` and `Customer` and nothing else:
+
+```csharp
+modelBuilder.Entity<Order>(o =>
+{
+    o.ToTable("orders");
+    o.ComplexProperty(x => x.Total);          // table-split: NOT mapped before 9.35.1
+    o.OwnsOne(x => x.Address);                // table-split owned type: always mapped
+});
+```
+
+Every member of a non-JSON complex type now becomes a column of the owner's table, exactly as a
+table-split `OwnsOne`'s members do, with the same store type, nullability and default handling.
+Nested complex properties are walked transitively, so
+`ComplexProperty(x => x.Origin, c => c.ComplexProperty(o => o.Coordinates))` contributes
+`Origin_Coordinates_Latitude`. An explicit `HasColumnName` on a complex member is honored.
+
+A complex **collection** is unchanged: EF Core only maps one to JSON, which was already handled.
+
+#### What this means for an existing database
+
+- **A table EF Core created** (`dotnet ef database update`, `CreateTablesAsync`) is now correct:
+  Weasel sees the complex columns, reports no delta, and stops wanting to drop them.
+- **A table Weasel created** is missing those columns. The next migration adds them — as nullable
+  columns, or as `NOT NULL` if the complex property is required, which cannot be applied to a table
+  that already has rows. Such a delta is `Invalid`, which `CreateOrUpdate` refuses rather than
+  applying; add the columns by hand, or run one `AutoCreate.All` against a database you are willing
+  to rebuild.
+- **Rows you inserted through EF Core against a table that was missing the columns** do not exist:
+  the insert failed at the time. Nothing needs recovering.
+
+#### A `ToJson()` container column is no longer always `jsonb`
+
+Fixed in the same code. When EF Core's model does not name the container column's store type, the
+fallback was the literal `"jsonb"` — on every provider. A `ToJson()` mapping therefore emitted a
+`jsonb` column on SQL Server, which is not a type it has.
+
+The fallback is now the provider's own JSON store type, matching each provider's `GetDatabaseType`
+fallback, through the new `Migrator.DefaultJsonColumnType`:
+
+| Provider | Type |
+| --- | --- |
+| PostgreSQL | `jsonb` |
+| SQL Server | `nvarchar(max)` |
+| MySQL | `TEXT` |
+| SQLite | `TEXT` |
+| Oracle | `CLOB` |
+
+Only reached when the model leaves the type unspecified; a `ToJson("shipping", "jsonb")` or a
+`HasColumnType` is unaffected.
+
+### EF-derived tables are add-only by default
+
+[#629](https://github.com/JasperFx/weasel/issues/629).
+
+`AutoCreate.CreateOrUpdate` drops the columns, indexes and foreign keys the model no longer declares.
+For a table you define in code, that is the point: the model is the whole truth about the schema.
+
+For a table **translated** from an EF Core model it is not. The mapper reads EF Core's relational
+model, and there are shapes it does not translate — TPC, entity splitting, temporal table period
+columns, Npgsql enums and extensions, sequence min/max/cycle. A column EF Core knows about and the
+mapper cannot express is not *removed from the model*; it is *not understood*. Reading it as a
+removal made every gap in the translation a data-loss branch, which is exactly how #628 came to
+execute a `DROP COLUMN`.
+
+So every table from `MapToTable()` now sets the new `ITable.AddOnlyMigrations`:
+
+- a column, index or foreign key the model does not declare is **left in place**
+- everything additive still applies — new columns, new indexes, new foreign keys
+- everything in-place still applies — a changed index is recreated, a widened type is altered
+- only the *removal of something undeclared* is withheld
+
+A migration whose only difference is a withheld drop reports `SchemaPatchDifference.None`, so it is
+not an update that writes nothing.
+
+`AddOnlyMigrations` is `Weasel.Core` API that all five providers implement, but nothing except the EF
+mapper sets it, so a table you define yourself behaves exactly as it did in 9.35.0.
+
+#### The withheld drops are reported
+
+Each table delta carries them, and the apply path logs them once per table before running:
+
+```
+Not dropping column period_start from ef_add_only.AddOnlyOrders: the table is marked
+AddOnlyMigrations, so a migration never removes what the model does not declare. ...
+```
+
+That goes through a new **defaulted** member on `IMigrationLogger`, so an existing implementation
+gains it without being changed; override `WithheldDrop(string)` to route it at Warning into a real
+logger. A schema whose *only* difference is a withheld drop has nothing to migrate and is
+deliberately **not** warned about — that line would otherwise appear on every application start for
+as long as the column exists. Read `ISchemaObjectDeltaWithWithheldDrops.WithheldDrops` off the delta
+for the quiet case.
+
+#### Restoring the old behaviour
+
+When the EF model really is the whole truth about these tables:
+
+```csharp
+var customization = new EfSchemaMappingCustomization { AllowDrops = true };
+
+await using var migration = await services.CreateMigrationAsync(context, customization, token);
+await migration.ExecuteAsync(AutoCreate.CreateOrUpdate, token);
+```
+
+The same customization works on `CreateDatabase`. For one table rather than all of them, clear the
+flag from `CustomizeTable`, which runs after the mapping and so has the last word:
+
+```csharp
+CustomizeTable = (entityType, table) =>
+{
+    if (entityType.ClrType == typeof(StagingRow)) table.AddOnlyMigrations = false;
+}
+```
+
+::: warning
+`AddOnlyMigrations` is about *removal*, not about data. It does not make `AutoCreate.All` safe: a
+change that can only be applied by dropping and recreating the table still drops it.
+`Migrator.RefuseDestructiveChanges` ([#600](https://github.com/JasperFx/weasel/issues/600)) is the
+control for that.
+:::
+
+### PostgreSQL: a drop-column statement names the identifier the catalog holds
+
+[#627](https://github.com/JasperFx/weasel/issues/627).
+
+A delta drops an extra column by rendering it from the **actual** column — the one read back from
+`information_schema` — and that column was built with its name folded to lowercase. So against a
+table whose columns are quoted and mixed-case, which is every EF-derived table (`MapToTable` sets
+`PreserveIdentifierCase`), the delta emitted
+
+```sql
+alter table cp_ef.orders drop column total_amount;
+```
+
+for a column PostgreSQL calls `"Total_Amount"`, and the migration died with
+`42703: column "total_amount" of relation "orders" does not exist`.
+
+An introspected column now carries the spelling the catalog reported. Name comparison was already
+case-insensitive everywhere it matters — `TableColumn.Equals`, delta pairing, `ColumnFor` — and for
+anything Weasel created itself the catalog already reports lowercase, so the only behaviour that
+changes is the identifier the actual side renders.
+
+If you call `Table.FetchExistingAsync` yourself and depended on lowercase column names coming back
+from a table with quoted PascalCase columns, they now come back as the database spells them. Compare
+with `StringComparer.OrdinalIgnoreCase`, or call `ColumnFor`, which already does.
+
+PostgreSQL only. SQL Server and MySQL never folded introspected column names. Oracle and SQLite fold
+the same way and are **not** fixed here: SQLite's identifiers are case-insensitive so the statement
+works anyway, and Oracle's `TableColumn` ties case preservation to quoting in a way that needs its
+own change.
+
+::: tip A table holding both spellings was never mis-migrated
+The issue suspected that a table with both `"Total_Amount"` and `total_amount` could have the wrong
+column dropped. It cannot, and could not before this fix either. Name pairing is deliberately
+case-insensitive ([#224](https://github.com/JasperFx/weasel/issues/224) — PostgreSQL folds unquoted
+identifiers, so nothing downstream can tell `"Id"` from `id`), which means such a table is refused
+outright with an `ArgumentException` rather than migrated wrongly. Unchanged, and now covered by a
+test.
+:::
+
+### New public API in 9.35.1
+
+- `ITable.AddOnlyMigrations`, implemented by `TableBase` and honored by all five providers' table
+  deltas. Set by `MapToTable`; false everywhere else.
+- `EfSchemaMappingCustomization.AllowDrops`, which clears it for every table of a mapping pass.
+- `ISchemaObjectDeltaWithWithheldDrops`, implemented by every provider's `TableDelta`, exposing
+  `WithheldDrops` as one entry per object left in place (`"column Total_Amount"`).
+- `IMigrationLogger.WithheldDrop(string)`, a defaulted interface member that writes to the console,
+  overridden by `DefaultMigrationLogger` to follow its writer.
+- `AddOnlyMigration.DeclaredOnly<T>` and `AddOnlyMigration.Describe`, the shared filter and message
+  the five providers use, so the policy reads the same on each.
+- `Migrator.DefaultJsonColumnType`, `public virtual`, returning `"jsonb"` on the base and each
+  engine's JSON store type on the provider migrators.
+
+### Test infrastructure
+
+`Weasel.EntityFrameworkCore.Tests`'s PostgreSQL connection string was a hard-coded `const` that no
+environment variable reached, so that suite could only be run against `localhost:5432/marten_testing`.
+It now honors `weasel_postgresql_testing_database` like every other Weasel suite, and like the SQL
+Server half has since [#620](https://github.com/JasperFx/weasel/issues/620). No product change; it is
+part of why a defect on a path that suite covers went unnoticed.
