@@ -4,7 +4,7 @@ namespace Weasel.EntityFrameworkCore.Tests.Postgresql;
 
 public class JsonColumnDbContext : DbContext
 {
-    public const string ConnectionString = "Host=localhost;Port=5432;Database=marten_testing;Username=postgres;Password=postgres";
+    public static readonly string ConnectionString = PostgresqlDbContext.ConnectionString;
 
     public JsonColumnDbContext(DbContextOptions<JsonColumnDbContext> options) : base(options)
     {
