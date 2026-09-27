@@ -6,8 +6,14 @@ using Weasel.Postgresql.Tables.Partitioning;
 namespace Weasel.Postgresql.Tables;
 
 public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostProcessing,
-    ISchemaObjectDeltaWithDeferrableForeignKeys, ISchemaObjectDeltaWithReason
+    ISchemaObjectDeltaWithDeferrableForeignKeys, ISchemaObjectDeltaWithReason,
+    ISchemaObjectDeltaWithWithheldDrops
 {
+    private readonly List<string> _withheldDrops = new();
+
+    /// <inheritdoc cref="ISchemaObjectDeltaWithWithheldDrops.WithheldDrops" />
+    public IReadOnlyList<string> WithheldDrops => _withheldDrops;
+
     /// <summary>
     ///     Which change made this delta <see cref="SchemaPatchDifference.Invalid" />, for the
     ///     warning that precedes the drop and for the refusal that replaces it under every other
@@ -80,13 +86,20 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             return SchemaPatchDifference.Create;
         }
 
-        Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns,
+        _withheldDrops.Clear();
+
+        Columns = new ItemDelta<TableColumn>(expected.Columns,
+            droppable(expected, expected.Columns, actual.Columns, "column"),
             (e, a) => e.MatchesForDelta(a, expected.DetectColumnDrift));
-        Indexes = new ItemDelta<IndexDefinition>(expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
-            actual.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
+
+        var expectedIndexes = expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)).ToArray();
+        Indexes = new ItemDelta<IndexDefinition>(expectedIndexes,
+            droppable(expected, expectedIndexes, actual.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)),
+                "index"),
             (e, a) => e.Matches(a, Expected));
 
-        ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
+        ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys,
+            droppable(expected, expected.ForeignKeys, actual.ForeignKeys, "foreign key"));
 
         // Conservative check-constraint comparison: only the checks the expected
         // table declares participate, and actual constraints the expected table
@@ -422,6 +435,18 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             writer.WriteLine(change.Actual.ToCreateSql(Actual!));
         }
     }
+
+    /// <summary>
+    ///     The actual objects this delta is allowed to consider for removal. On an
+    ///     <see cref="ITable.AddOnlyMigrations" /> table the actual side is narrowed to what the
+    ///     model declares, so an undeclared object never becomes an Extra and is never dropped
+    ///     (weasel#629). Otherwise everything the catalog reported is in play, exactly as before.
+    /// </summary>
+    private IEnumerable<T> droppable<T>(Table expected, IEnumerable<T> expectedItems,
+        IEnumerable<T> actualItems, string kind) where T : INamed
+        => expected.AddOnlyMigrations
+            ? AddOnlyMigration.DeclaredOnly(expectedItems, actualItems, kind, _withheldDrops)
+            : actualItems;
 
     private SchemaPatchDifference determinePatchDifference()
     {

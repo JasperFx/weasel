@@ -92,6 +92,24 @@ The table schema is resolved as follows:
 1. If the entity type has an explicit schema via `.ToTable("name", "schema")`, that schema is used.
 2. Otherwise, the `Migrator.DefaultSchemaName` is used (e.g., `public` for PostgreSQL, `dbo` for SQL Server).
 
+## What Is Not Translated
+
+The mapper reads EF Core's relational model, not all of it. These shapes are known not to be
+translated, and a column or table they would have contributed is simply absent from the Weasel
+model:
+
+- **TPC (table-per-concrete-type)** hierarchies
+- **Entity splitting** (`SplitToTable`)
+- **Temporal table** period columns
+- **Npgsql enums and extensions** (`HasPostgresEnum`, `HasPostgresExtension`)
+- **Sequence min / max / cycle** options (start value and increment are mapped)
+
+A gap like this used to be worse than a missing column. Because `AutoCreate.CreateOrUpdate` drops
+what the model no longer declares, a column EF knew about and the mapper could not express was
+migrated as a column to *remove* -- so a translation gap was a data-loss branch. EF-derived tables
+are add-only by default for exactly that reason; see
+[Add-Only Migrations](./migrations#add-only-migrations-for-ef-derived-models).
+
 ## Column Drift Detection
 
 By default, Weasel's delta detection treats column defaults and nullability as write-once: they are applied when a table is created but changing them later does not produce a migration. The opt-in `ITable.DetectColumnDrift` flag adds default-expression and nullability comparison for otherwise-matching columns, emitting `ALTER COLUMN` corrections.

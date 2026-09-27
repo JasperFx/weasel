@@ -11,8 +11,14 @@ namespace Weasel.MySql.Tables;
 ///     populates the per-item deltas as a side-effect. The override surface is just
 ///     the MySQL-specific update / rollback DDL.
 /// </summary>
-public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason,
+    ISchemaObjectDeltaWithWithheldDrops
 {
+    private readonly List<string> _withheldDrops = new();
+
+    /// <inheritdoc cref="ISchemaObjectDeltaWithWithheldDrops.WithheldDrops" />
+    public IReadOnlyList<string> WithheldDrops => _withheldDrops;
+
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
     }
@@ -35,14 +41,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
             return SchemaPatchDifference.Create;
         }
 
+        _withheldDrops.Clear();
+
         Columns = new ItemDelta<TableColumn>(
             expected.Columns,
-            actual.Columns,
+            droppable(expected, expected.Columns, actual.Columns, "column"),
             (e, a) => e.IsEquivalentTo(a));
 
         ForeignKeys = new ItemDelta<ForeignKey>(
             expected.ForeignKeys,
-            actual.ForeignKeys,
+            droppable(expected, expected.ForeignKeys, actual.ForeignKeys, "foreign key"),
             (e, a) => e.IsEquivalentTo(a));
 
         // Ahead of the index comparison, which needs to know whether the primary key is
@@ -57,8 +65,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
 
         Indexes = new ItemDelta<IndexDefinition>(
             expected.Indexes,
-            comparableIndexes(expected, actual, ForeignKeys,
-                PrimaryKeyDifference == SchemaPatchDifference.None),
+            droppable(expected, expected.Indexes,
+                comparableIndexes(expected, actual, ForeignKeys,
+                    PrimaryKeyDifference == SchemaPatchDifference.None),
+                "index"),
             (e, a) => e.Matches(a, expected));
 
         // Partition strategy can't be altered in place — flag as needing manual intervention
@@ -404,4 +414,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
     {
         Actual?.WriteCreateStatement(migrator, writer);
     }
+
+    /// <summary>
+    ///     The actual objects this delta is allowed to consider for removal. On an
+    ///     <see cref="ITable.AddOnlyMigrations" /> table the actual side is narrowed to what the
+    ///     model declares, so an undeclared object never becomes an Extra and is never dropped
+    ///     (weasel#629). Otherwise everything the catalog reported is in play, exactly as before.
+    /// </summary>
+    private IEnumerable<T> droppable<T>(Table expected, IEnumerable<T> expectedItems,
+        IEnumerable<T> actualItems, string kind) where T : INamed
+        => expected.AddOnlyMigrations
+            ? AddOnlyMigration.DeclaredOnly(expectedItems, actualItems, kind, _withheldDrops)
+            : actualItems;
 }

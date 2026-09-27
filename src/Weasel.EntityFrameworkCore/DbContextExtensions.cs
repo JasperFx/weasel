@@ -67,6 +67,21 @@ public class EfSchemaMappingCustomization
     ///     tables, e.g. partition control/registry tables
     /// </summary>
     public IReadOnlyList<ISchemaObject> AdditionalObjects { get; set; } = [];
+
+    /// <summary>
+    ///     Let migrations DROP the columns, indexes and foreign keys of a mapped table that the EF
+    ///     model does not declare. Off by default: an EF-derived table is
+    ///     <see cref="ITable.AddOnlyMigrations" />, because a column the mapper cannot express is
+    ///     far more likely a gap in the translation than something the developer removed -- and a
+    ///     translation gap should not be a data-loss branch (weasel#629).
+    /// </summary>
+    /// <remarks>
+    ///     Turn this on when the EF model really is the whole truth about these tables and a removed
+    ///     property should take its column with it. Additive and in-place changes do not need it.
+    ///     For finer control, clear <see cref="ITable.AddOnlyMigrations" /> on individual tables from
+    ///     <see cref="CustomizeTable" /> instead, which runs after the mapping.
+    /// </remarks>
+    public bool AllowDrops { get; set; }
 }
 
 public static class DbContextExtensions
@@ -110,6 +125,7 @@ public static class DbContextExtensions
             foreach (var entityType in GetEntityTypesForMigration(context))
             {
                 var table = migrator.MapToTable(entityType);
+                applyDropPolicy(table, customization);
                 customization?.CustomizeTable?.Invoke(entityType, table);
                 database.AddTable(table);
             }
@@ -192,6 +208,7 @@ public static class DbContextExtensions
         foreach (var entityType in GetEntityTypesForMigration(context))
         {
             var table = migrator.MapToTable(entityType);
+            applyDropPolicy(table, customization);
             customization?.CustomizeTable?.Invoke(entityType, table);
             if (table is ISchemaObject schemaObject)
             {
@@ -200,6 +217,18 @@ public static class DbContextExtensions
         }
 
         return objects;
+    }
+
+    /// <summary>
+    ///     Applied between <see cref="MapToTable" /> and <c>CustomizeTable</c>, so a customization
+    ///     that wants per-table control can still override it afterwards (weasel#629).
+    /// </summary>
+    private static void applyDropPolicy(ITable table, EfSchemaMappingCustomization? customization)
+    {
+        if (customization?.AllowDrops == true)
+        {
+            table.AddOnlyMigrations = false;
+        }
     }
 
     public static (DbConnection conn, Migrator? migrator) FindMigratorForDbContext(this IServiceProvider services, DbContext context)
@@ -479,6 +508,13 @@ public static class DbContextExtensions
         // case-folding providers (PostgreSQL) would create lowercase columns that
         // EF's own quoted SQL cannot find.
         table.PreserveIdentifierCase = true;
+
+        // The model this table is translated FROM is EF Core's, and the translation has known gaps
+        // (see the mapper's docs: TPC, entity splitting, temporal period columns, Npgsql enums).
+        // A column one of those gaps hides is not a column the developer removed, so a migration
+        // must not read it as one and drop it (weasel#629). EfSchemaMappingCustomization.AllowDrops
+        // opts back into the old behaviour.
+        table.AddOnlyMigrations = true;
 
         // Use EF Core's schema (not resolved) for StoreObjectIdentifier to match EF Core's internal mappings
         var storeObjectIdentifier = StoreObjectIdentifier.Table(tableName, efSchema);

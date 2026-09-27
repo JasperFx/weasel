@@ -93,3 +93,78 @@ The `ExecuteAsync()` method accepts an `AutoCreate` enum that controls migration
 | `AutoCreate.CreateOnly` | Create new objects only, skip updates |
 | `AutoCreate.CreateOrUpdate` | Create new objects and update existing ones |
 | `AutoCreate.All` | Full migration including destructive changes |
+
+## Add-Only Migrations for EF-Derived Models
+
+`AutoCreate.CreateOrUpdate` normally drops the columns, indexes and foreign keys the model no longer
+declares. For a table defined directly in code that is the point: the model is the whole truth about
+the schema.
+
+For a table **translated** from an EF Core model it is not. The mapper reads EF Core's relational
+model, and there are shapes it does not translate (see
+[What Is Not Translated](./table-mapping#what-is-not-translated)). A column EF Core knows about and
+the mapper cannot express is not "removed from the model" -- it is "not understood" -- so reading it
+as a removal turns every gap in the translation into a data-loss branch. That is not hypothetical:
+before [weasel#629](https://github.com/JasperFx/weasel/issues/629), a table-split `ComplexProperty`
+was such a gap, and migrating an EF-built table executed `drop column total_amount`.
+
+So every table from `MapToTable()` sets `ITable.AddOnlyMigrations`:
+
+- a column, index or foreign key the model does not declare is **left in place**
+- everything additive still applies -- new columns, new indexes, new foreign keys
+- everything in-place still applies -- a changed index is recreated, a widened type is altered
+- the withheld drops are logged once per table before a migration runs, and are readable from the
+  delta (`ISchemaObjectDeltaWithWithheldDrops.WithheldDrops`) at any time
+
+A migration whose *only* difference is a withheld drop reports `SchemaPatchDifference.None`, so it
+is not an update that writes nothing, and it does not log the same warning on every application
+start.
+
+### Allowing drops
+
+When the EF model really is the whole truth about these tables -- a removed property should take its
+column with it -- set `AllowDrops` on the mapping customization:
+
+<!-- snippet: sample_efcore_allow_drops -->
+<a id='snippet-sample_efcore_allow_drops'></a>
+```cs
+// EF-derived tables are add-only by default: a column, index or foreign key the mapper
+// could not translate is left in place rather than dropped (weasel#629). Set AllowDrops
+// when the EF model really is the whole truth about these tables.
+var customization = new EfSchemaMappingCustomization { AllowDrops = true };
+
+await using var migration =
+    await serviceProvider.CreateMigrationAsync(dbContext, customization, ct);
+await migration.ExecuteAsync(AutoCreate.CreateOrUpdate, ct);
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreCustomizationSamples.cs#L67-L76' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_allow_drops' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+For finer control, clear `ITable.AddOnlyMigrations` on individual tables from `CustomizeTable`, which
+runs after the mapping:
+
+<!-- snippet: sample_efcore_allow_drops_per_table -->
+<a id='snippet-sample_efcore_allow_drops_per_table'></a>
+```cs
+var customization = new EfSchemaMappingCustomization
+{
+    // CustomizeTable runs AFTER the mapping, so it has the last word on the policy
+    CustomizeTable = (entityType, table) =>
+    {
+        if (entityType.ClrType.Name == "StagingRow")
+        {
+            table.AddOnlyMigrations = false;
+        }
+    }
+};
+
+var database = serviceProvider.CreateDatabase(dbContext, customization);
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreCustomizationSamples.cs#L81-L95' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_allow_drops_per_table' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+::: warning
+`AddOnlyMigrations` is about *removal*, not about data. It does not make `AutoCreate.All` safe: a
+change that can only be applied by dropping and recreating the table still drops it. Use
+`Migrator.RefuseDestructiveChanges` for that.
+:::

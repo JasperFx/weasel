@@ -263,6 +263,19 @@ public interface IMigrationLogger
     {
         Console.Out.WriteLine(description);
     }
+
+    /// <summary>
+    ///     Called once per object, before any statement runs, when the migration is NOT dropping
+    ///     something the model does not declare because the table is
+    ///     <see cref="ITable.AddOnlyMigrations" /> (weasel#629). The counterpart to
+    ///     <see cref="DestructiveChange" />: that one announces data about to be lost, this one
+    ///     announces a schema difference deliberately left in place, which is equally invisible
+    ///     otherwise. Defaulted, so no existing implementation has to change.
+    /// </summary>
+    void WithheldDrop(string description)
+    {
+        Console.Out.WriteLine(description);
+    }
 }
 
 /// <summary>
@@ -326,6 +339,12 @@ public class DefaultMigrationLogger: IMigrationLogger
     ///     interleaved on the console.
     /// </summary>
     public void DestructiveChange(string description)
+    {
+        (_writer ?? Console.Out).WriteLine(description);
+    }
+
+    /// <inheritdoc cref="IMigrationLogger.WithheldDrop" />
+    public void WithheldDrop(string description)
     {
         (_writer ?? Console.Out).WriteLine(description);
     }

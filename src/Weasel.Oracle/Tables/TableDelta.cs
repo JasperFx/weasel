@@ -3,8 +3,14 @@ using Weasel.Core;
 
 namespace Weasel.Oracle.Tables;
 
-public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
+public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason,
+    ISchemaObjectDeltaWithWithheldDrops
 {
+    private readonly List<string> _withheldDrops = new();
+
+    /// <inheritdoc cref="ISchemaObjectDeltaWithWithheldDrops.WithheldDrops" />
+    public IReadOnlyList<string> WithheldDrops => _withheldDrops;
+
     public TableDelta(Table expected, Table? actual): base(expected, actual)
     {
     }
@@ -33,11 +39,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
             return SchemaPatchDifference.Create;
         }
 
-        Columns = new ItemDelta<TableColumn>(expected.Columns, actual.Columns);
-        Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, actual.Indexes,
+        _withheldDrops.Clear();
+
+        Columns = new ItemDelta<TableColumn>(expected.Columns,
+            droppable(expected, expected.Columns, actual.Columns, "column"));
+        Indexes = new ItemDelta<IndexDefinition>(expected.Indexes,
+            droppable(expected, expected.Indexes, actual.Indexes, "index"),
             (e, a) => e.Matches(a, Expected));
 
-        ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, actual.ForeignKeys);
+        ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys,
+            droppable(expected, expected.ForeignKeys, actual.ForeignKeys, "foreign key"));
 
         PrimaryKeyDifference = SchemaPatchDifference.None;
 
@@ -291,6 +302,18 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason
             writer.WriteLine("/");
         }
     }
+
+    /// <summary>
+    ///     The actual objects this delta is allowed to consider for removal. On an
+    ///     <see cref="ITable.AddOnlyMigrations" /> table the actual side is narrowed to what the
+    ///     model declares, so an undeclared object never becomes an Extra and is never dropped
+    ///     (weasel#629). Otherwise everything the catalog reported is in play, exactly as before.
+    /// </summary>
+    private IEnumerable<T> droppable<T>(Table expected, IEnumerable<T> expectedItems,
+        IEnumerable<T> actualItems, string kind) where T : INamed
+        => expected.AddOnlyMigrations
+            ? AddOnlyMigration.DeclaredOnly(expectedItems, actualItems, kind, _withheldDrops)
+            : actualItems;
 
     private SchemaPatchDifference determinePatchDifference()
     {
