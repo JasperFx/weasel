@@ -43,6 +43,24 @@ orders.AddColumn<int>("user_id").NotNull()
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/OracleSamples.cs#L53-L58' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_oracle_foreign_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Index Direction
+
+`IndexDefinition.SortOrder = SortOrder.Desc` appends one trailing `DESC`, which Oracle applies to the last
+key column only. For an index that mixes directions, name the descending columns instead:
+
+```cs
+var index = new IndexDefinition("idx_triggers_acquire")
+{
+    Columns = ["sched_name", "trigger_state", "next_fire_time", "priority", "misfire_instr"]
+};
+index.DescendingColumns.Add("priority");
+// CREATE INDEX WEASEL.idx_triggers_acquire ON ... (sched_name, trigger_state, next_fire_time, priority DESC, misfire_instr)
+```
+
+Direction is read back per column and compared, so an index whose direction differs from the model is
+rebuilt. When `DescendingColumns` names any column, `SortOrder` is ignored. A name that is not a key column
+throws, as does any entry on an index built from `FunctionExpression`.
+
 ## Partitioning
 
 Oracle tables support Range, Hash, and List partitioning:

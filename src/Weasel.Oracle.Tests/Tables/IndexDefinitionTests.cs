@@ -133,4 +133,101 @@ public class IndexDefinitionTests
 
         index1.Matches(index2, table).ShouldBeFalse();
     }
+
+    [Fact]
+    public void descending_columns_set_the_direction_per_column()
+    {
+        var table = new Table("WEASEL.QRTZ_TRIGGERS");
+        var index = new IndexDefinition("idx_qrtz_t_nft_st")
+        {
+            Columns = ["sched_name", "trigger_state", "next_fire_time", "priority", "misfire_instr"]
+        };
+        index.DescendingColumns.Add("priority");
+
+        index.ToDDL(table).ShouldBe(
+            "CREATE INDEX WEASEL.idx_qrtz_t_nft_st ON WEASEL.QRTZ_TRIGGERS "
+            + "(sched_name, trigger_state, next_fire_time, priority DESC, misfire_instr)");
+    }
+
+    [Fact]
+    public void a_whole_index_sort_order_still_renders_one_trailing_desc()
+    {
+        var table = new Table("WEASEL.PEOPLE");
+        var index = new IndexDefinition("idx_test")
+        {
+            Columns = ["last_name", "first_name"], SortOrder = SortOrder.Desc
+        };
+
+        index.ToDDL(table).ShouldEndWith("(last_name, first_name DESC)");
+    }
+
+    [Fact]
+    public void descending_columns_decide_the_direction_over_a_whole_index_sort_order()
+    {
+        var table = new Table("WEASEL.PEOPLE");
+        var index = new IndexDefinition("idx_test")
+        {
+            Columns = ["last_name", "first_name"], SortOrder = SortOrder.Desc
+        };
+        index.DescendingColumns.Add("last_name");
+
+        index.ToDDL(table).ShouldEndWith("(last_name DESC, first_name)");
+    }
+
+    [Fact]
+    public void a_delimited_descending_column_names_the_same_key_column()
+    {
+        var table = new Table("WEASEL.PEOPLE");
+        var index = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        index.DescendingColumns.Add("\"PRIORITY\"");
+
+        index.ToDDL(table).ShouldEndWith("(next_fire_time, priority DESC)");
+    }
+
+    [Fact]
+    public void a_descending_column_that_is_not_a_key_column_is_refused()
+    {
+        var table = new Table("WEASEL.PEOPLE");
+        var index = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        index.DescendingColumns.Add("priorty");
+
+        Should.Throw<InvalidOperationException>(() => index.ToDDL(table))
+            .Message.ShouldContain("priorty");
+    }
+
+    [Fact]
+    public void descending_columns_on_a_function_expression_are_refused()
+    {
+        var table = new Table("WEASEL.PEOPLE");
+        var index = new IndexDefinition("idx_test")
+        {
+            IndexType = OracleIndexType.FunctionBased, FunctionExpression = "UPPER(name)"
+        };
+        index.DescendingColumns.Add("name");
+
+        Should.Throw<InvalidOperationException>(() => index.ToDDL(table));
+    }
+
+    [Fact]
+    public void direction_is_compared_per_column()
+    {
+        var table = new Table("WEASEL.PEOPLE");
+
+        // What the reader builds from an index created as (next_fire_time DESC, priority).
+        var readBack = new IndexDefinition("idx_test")
+        {
+            Columns = ["NEXT_FIRE_TIME", "PRIORITY"], SortOrder = SortOrder.Desc
+        };
+        readBack.DescendingColumns.Add("NEXT_FIRE_TIME");
+
+        var trailing = new IndexDefinition("idx_test")
+        {
+            Columns = ["next_fire_time", "priority"], SortOrder = SortOrder.Desc
+        };
+        var firstDescending = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        firstDescending.DescendingColumns.Add("next_fire_time");
+
+        trailing.Matches(readBack, table).ShouldBeFalse();
+        firstDescending.Matches(readBack, table).ShouldBeTrue();
+    }
 }
