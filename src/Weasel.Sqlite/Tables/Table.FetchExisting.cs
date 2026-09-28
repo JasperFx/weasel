@@ -80,7 +80,7 @@ WHERE type = 'trigger' AND tbl_name = '{sanitizedName}' AND sql IS NOT NULL;
          """;
 
     private static string ColumnQuery(string sanitizedName) =>
-        $"""SELECT cid, name, type, "notnull", dflt_value, pk FROM pragma_table_xinfo('{sanitizedName}') WHERE hidden <> 1;""";
+        $"""SELECT cid, name, type, "notnull", dflt_value, pk, hidden FROM pragma_table_xinfo('{sanitizedName}') WHERE hidden <> 1;""";
 
     public async Task<Table?> FetchExistingAsync(SqliteConnection conn, CancellationToken ct = default)
     {
@@ -142,6 +142,8 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
             await reader.NextResultAsync(ct).ConfigureAwait(false); // Skip foreign keys → triggers
             return null;
         }
+
+        existing.ExistingCreateStatement = tableSql;
 
         // Read columns (second result set)
         await readColumnsAsync(reader, existing, ct).ConfigureAwait(false);
@@ -206,7 +208,7 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
         // PRIMARY KEY (b, a) on a table declared (a, b) as the key (a, b).
         var primaryKeys = new List<(long Position, string Name)>();
 
-        // ColumnQuery projects: cid, name, type, notnull, dflt_value, pk
+        // ColumnQuery projects: cid, name, type, notnull, dflt_value, pk, hidden
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var name = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false); // name
@@ -216,13 +218,16 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
                 ? null
                 : await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false); // dflt_value
             var pk = await reader.GetFieldValueAsync<long>(5, ct).ConfigureAwait(false); // pk
+            var hidden = await reader.GetFieldValueAsync<long>(6, ct).ConfigureAwait(false); // hidden
 
             var column = new TableColumn(name, type)
             {
                 Parent = existing,
                 AllowNulls = notNull == 0,
                 DefaultExpression = defaultValue,
-                IsPrimaryKey = pk > 0
+                IsPrimaryKey = pk > 0,
+                // 2 is a VIRTUAL generated column, 3 a STORED one
+                IsGeneratedInDatabase = hidden is 2 or 3
             };
 
             if (pk > 0)
@@ -260,6 +265,7 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
             var index = ParseIndexFromSql(indexName, indexSql);
             if (index != null)
             {
+                index.ExistingCreateStatement = indexSql;
                 existing.Indexes.Add(index);
             }
         }

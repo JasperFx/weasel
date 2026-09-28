@@ -70,6 +70,20 @@ public class ForeignKey: ForeignKeyBase
 
     public override int GetHashCode() => base.GetHashCode();
 
+    /// <summary>
+    ///     Whether this key constrains the same columns to the same columns of the same table, name
+    ///     and referential actions aside.
+    /// </summary>
+    /// <remarks>
+    ///     SQLite never addresses a foreign key by name — there is no <c>DROP CONSTRAINT</c>, and
+    ///     <c>pragma_foreign_key_list</c> has no name column — so two keys that agree on this are
+    ///     the same constraint. A rebuild uses it to recognise an undeclared key the model redeclares
+    ///     under another name, rather than keeping both.
+    /// </remarks>
+    internal bool LinksSameColumnsAs(ForeignKey other)
+        => string.Equals(LinkedTable?.Name, other.LinkedTable?.Name, StringComparison.OrdinalIgnoreCase)
+           && SamePairs(other);
+
     /// <inheritdoc />
     protected override StringComparer NameComparer => StringComparer.OrdinalIgnoreCase;
 

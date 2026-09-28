@@ -143,3 +143,16 @@ Weasel detects differences between expected and actual schema states. When a cha
 4. Rename the new table
 
 Supported incremental changes include `ADD COLUMN`, `DROP COLUMN` (3.35+), and `RENAME COLUMN` (3.25+).
+
+### What a recreation keeps that the model does not declare
+
+The new table is built from the model, so a recreation leaves out whatever the model does not declare, just as the incremental path would drop it. The table's triggers are always put back, and so are:
+
+- **An index named in `IgnoredIndexes`**, on any table, from the `CREATE INDEX` statement SQLite stored for it.
+- **Everything undeclared on an `AddOnlyMigrations` table** (the default for a table mapped from an EF Core model):
+  - a column and its rows, from its definition in the stored `CREATE TABLE` text, so its collation, `CHECK`, `DEFAULT`, generation expression and inline `REFERENCES` come back as they were
+  - an index, from its stored `CREATE INDEX` statement
+  - a foreign key, unless the model declares one over the same columns to the same table under another name; SQLite never addresses a foreign key by name, so that is the same constraint
+  - a `UNIQUE` or `CHECK` table constraint, which the SQLite model cannot declare
+
+An `AddOnlyMigrations` table whose primary key includes a column the model does not declare is refused instead: the key is the model's to declare. The migration throws `SchemaMigrationException` naming the column, before any statement runs.
