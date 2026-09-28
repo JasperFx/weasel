@@ -172,10 +172,11 @@ Each database provider has a `Migrator` subclass that knows how to format SQL fo
 
 ### Privileges needed to apply a migration
 
-A migration only needs the privilege to create what is actually missing. Both the PostgreSQL and SQL Server
+A migration only needs the privilege to create what is actually missing. The PostgreSQL, SQL Server and MySQL
 migrators check whether a schema exists before attempting to create it, so applying a delta into a schema
 that is already there does not require a database-level create privilege -- only the privileges the objects
-in the delta need.
+in the delta need. On MySQL a schema is a database, so the check is for the database, and a user granted
+`ALTER`, `INDEX` and the rest on `my_db.*` but not `CREATE` can apply a delta that only changes existing tables.
 
 This matters because a schema-level grant is the usual way to let an application manage its own tables while
 a separate migration role owns everything else. On PostgreSQL, `GRANT USAGE, CREATE ON SCHEMA my_schema TO

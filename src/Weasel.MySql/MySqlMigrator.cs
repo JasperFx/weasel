@@ -199,16 +199,74 @@ public class MySqlMigrator: Migrator
         IMigrationLogger logger,
         CancellationToken ct = default)
     {
-        var writer = new StringWriter();
-
-        if (migration.Schemas.Any())
+        if (!migration.Schemas.Any())
         {
-            WriteSchemaCreationSql(migration.Schemas, writer);
-            if (writer.ToString().Trim().IsNotEmpty())
+            return;
+        }
+
+        // Only the databases that are actually missing. SchemaMigration.Schemas is every schema a delta
+        // mentions, and MySQL checks the CREATE privilege on a database before it evaluates CREATE
+        // DATABASE's own IF NOT EXISTS -- so a user that may alter the tables of a database it may not
+        // create was refused with 1044 for a database that was already there, on the first statement of
+        // every migration. PostgresqlMigrator (weasel#495) and SqlServerMigrator guard the same way.
+        var missing = await missingDatabasesAsync(conn, migration.Schemas, ct).ConfigureAwait(false);
+        if (missing.Length == 0)
+        {
+            return;
+        }
+
+        var writer = new StringWriter();
+        WriteSchemaCreationSql(missing, writer);
+        await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     The databases in <paramref name="names" /> that <c>information_schema.SCHEMATA</c> does not list.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         SCHEMATA lists only the databases the user holds some privilege on. One it cannot see is
+    ///         one it could not have created a table in either, and it is left to CREATE DATABASE to
+    ///         refuse, exactly as before.
+    ///     </para>
+    ///     <para>
+    ///         Matched ordinally here rather than in the query, whose collation ignores case: with
+    ///         <c>lower_case_table_names=0</c>, <c>Orders</c> and <c>orders</c> are two databases, and a
+    ///         case-insensitive match would skip creating the one that is missing. Where the server folds
+    ///         names, a model spelled in another case is simply not matched and still gets its
+    ///         <c>CREATE DATABASE IF NOT EXISTS</c>.
+    ///     </para>
+    /// </remarks>
+    private static async Task<string[]> missingDatabasesAsync(
+        DbConnection conn,
+        IReadOnlyList<string> names,
+        CancellationToken ct)
+    {
+        await using var cmd = conn.CreateCommand();
+
+        var placeholders = new List<string>();
+        for (var i = 0; i < names.Count; i++)
+        {
+            var parameter = cmd.CreateParameter();
+            parameter.ParameterName = $"@database{i}";
+            parameter.Value = names[i];
+            cmd.Parameters.Add(parameter);
+            placeholders.Add(parameter.ParameterName);
+        }
+
+        cmd.CommandText =
+            $"SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME IN ({placeholders.Join(", ")});";
+
+        var existing = new HashSet<string>(StringComparer.Ordinal);
+        await using (var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(ct).ConfigureAwait(false))
             {
-                await executeCommand(conn, logger, writer, ct).ConfigureAwait(false);
+                existing.Add(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false));
             }
         }
+
+        return names.Where(x => !existing.Contains(x)).ToArray();
     }
 
     private async Task executeCommand(DbConnection conn, IMigrationLogger logger, StringWriter writer, CancellationToken ct = default)

@@ -40,7 +40,7 @@ public class MySqlSamples
     public void mysql_define_table()
     {
         #region sample_mysql_define_table
-        var table = new Table("users");
+        var table = new Table("mydb.users");
 
         table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
         table.AddColumn<string>("name").NotNull();

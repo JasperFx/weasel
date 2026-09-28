@@ -10,7 +10,7 @@ dotnet add package Weasel.MySql
 
 ## Key Components
 
-- **MySqlProvider** -- Singleton at `MySqlProvider.Instance` that handles type mappings and identifier parsing. The default schema is `public`.
+- **MySqlProvider** -- Singleton at `MySqlProvider.Instance` that handles type mappings and identifier parsing. The default schema is `public`; see [Schemas are databases](#schemas-are-databases).
 - **MySqlMigrator** -- Generates DDL scripts and executes schema migrations. Identifiers are quoted with backticks.
 
 ## Supported Schema Objects
@@ -67,6 +67,31 @@ await migrator.EnsureDatabaseExistsAsync(conn);
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MySqlSamples.cs#L31-L35' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_mysql_ensure_database_exists' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+## Schemas are databases
+
+MySQL has no schemas inside a database: `CREATE SCHEMA` is a synonym for `CREATE DATABASE`. So a Weasel
+schema name is a MySQL database name, and `mydb.users` is the table `users` in the database `mydb`.
+
+| You write | DDL targets | Introspection reads |
+|---|---|---|
+| `new Table("mydb.users")` | `` `mydb`.`users` `` | `TABLE_SCHEMA = 'mydb'` |
+| `new Table("users")` | `` `public`.`users` `` | `TABLE_SCHEMA = 'public'` |
+
+A table with no schema is **not** placed in the connection's database. It is placed in a database named
+`public`, and the migration fails with `1142 CREATE command denied` or `1049 Unknown database 'public'` unless
+that database exists. Name the database explicitly -- the connection's own, if that is where the table
+belongs:
+
+```cs
+var database = new MySqlConnectionStringBuilder(connectionString).Database;
+var table = new Table(new MySqlObjectName(database, "users"));
+```
+
+A migration creates each database it mentions that does not exist yet (`CREATE DATABASE IF NOT EXISTS`), which
+needs the `CREATE` privilege on it. A database that already exists -- the connection's own, typically -- is
+not created again, so a user that may alter the tables of a database but not create databases can still apply
+a delta that only changes existing tables.
 
 ## Identifiers
 
