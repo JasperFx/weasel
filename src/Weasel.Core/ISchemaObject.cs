@@ -99,6 +99,11 @@ public interface ISchemaObjectDeltaWithRebuild : ISchemaObjectDelta
     ///     Whether <see cref="ISchemaObjectDelta.WriteUpdate" /> can carry out this change without
     ///     discarding the object's data. When false the caller falls back to drop-and-create.
     /// </summary>
+    /// <remarks>
+    ///     When true, <see cref="ISchemaObjectDelta.WriteRollback" /> has to be the reverse rebuild:
+    ///     <see cref="SchemaMigration.WriteAllRollbacks" /> calls it instead of dropping the object
+    ///     and restoring its previous shape, which would roll a rebuilt table back empty.
+    /// </remarks>
     bool CanRebuildInPlace { get; }
 }
 

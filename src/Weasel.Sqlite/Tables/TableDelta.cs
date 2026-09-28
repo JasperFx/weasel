@@ -519,8 +519,9 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         }
 
         // For SQLite, many changes require table recreation due to ALTER TABLE limitations
-        // If table recreation was required for the forward migration, rollback also requires recreation
-        if (RequiresTableRecreation)
+        // If table recreation was required for the forward migration, rollback also requires recreation.
+        // The same condition WriteUpdate rebuilds on, so the rollback is always the mirror of it.
+        if (Difference == SchemaPatchDifference.Invalid || RequiresTableRecreation)
         {
             // Rollback to the actual (previous) state by recreating with old schema
             writeTableRecreationRollback(rules, writer);
@@ -581,28 +582,38 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         }
     }
 
+    /// <summary>
+    ///     The reverse of <see cref="writeTableRecreation" />: rebuild the table back into the shape
+    ///     it had, with its rows.
+    /// </summary>
+    /// <remarks>
+    ///     Unreachable until <c>SchemaMigration.WriteAllRollbacks</c> learned to call it for a
+    ///     rebuildable delta instead of dropping the table and recreating it empty, so it had drifted
+    ///     from the forward rebuild. It now mirrors it step for step: the temporary table in the
+    ///     table's own schema, a rename copied back under the old name, a generated column left out
+    ///     of the copy, the <c>AUTOINCREMENT</c> high-water mark carried across, and the triggers
+    ///     <c>DROP TABLE</c> takes put back.
+    /// </remarks>
     private void writeTableRecreationRollback(Migrator rules, TextWriter writer)
     {
-        // SQLite rollback for table recreation: restore the Actual (previous) schema
-        // This is the reverse of writeTableRecreation()
-
-        var tempName = new SqliteObjectName(Actual.Identifier.Name + "_rollback");
+        var actual = Actual!;
+        var tempName = new SqliteObjectName(actual.Identifier.Schema, actual.Identifier.Name + "_rollback");
 
         writer.WriteLine("-- Rollback: Table recreation required due to SQLite ALTER TABLE limitations");
         writer.WriteLine();
 
         // Create temp table with actual (old) schema
-        var tempTable = new Table(tempName) { StrictTypes = Actual.StrictTypes, WithoutRowId = Actual.WithoutRowId };
-        foreach (var column in Actual.Columns)
+        var tempTable = new Table(tempName) { StrictTypes = actual.StrictTypes, WithoutRowId = actual.WithoutRowId };
+        foreach (var column in actual.Columns)
         {
             tempTable.AddColumn(column.Clone());
         }
-        foreach (var pk in Actual.PrimaryKeyColumns)
+        foreach (var pk in actual.PrimaryKeyColumns)
         {
             tempTable._primaryKeyColumns.Add(pk);
         }
-        tempTable.PrimaryKeyName = Actual.PrimaryKeyName;
-        foreach (var fk in Actual.ForeignKeys)
+        tempTable.PrimaryKeyName = actual.PrimaryKeyName;
+        foreach (var fk in actual.ForeignKeys)
         {
             tempTable.ForeignKeys.Add(fk);
         }
@@ -610,33 +621,59 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         tempTable.WriteCreateStatement(rules, writer);
         writer.WriteLine();
 
-        // Copy data - only copy columns that exist in both tables
-        var commonColumns = Actual.Columns
-            .Where(a => Expected.Columns.Any(e =>
-                e.Name.Equals(a.Name, StringComparison.OrdinalIgnoreCase)))
-            .Select(c => SchemaUtils.QuoteName(c.Name))
-            .ToList();
+        // Copy back every column of the old shape that the rebuilt table still has, under the name
+        // it has there: its own, or the one a rename in the rebuild gave it
+        var renamedTo = _renamedColumns.ToDictionary(
+            r => r.Actual.Name, r => r.Expected.Name, StringComparer.OrdinalIgnoreCase);
 
-        if (commonColumns.Any())
+        var targetColumns = new List<string>();
+        var sourceColumns = new List<string>();
+
+        foreach (var column in actual.Columns)
         {
-            var columnList = commonColumns.Join(", ");
-            writer.WriteLine($"INSERT INTO {tempName.QualifiedName} ({columnList})");
-            writer.WriteLine($"SELECT {columnList} FROM {Expected.Identifier.QualifiedName};");
+            // The forward copy's rule, by the forward copy's test: a column the recreated table
+            // declares as generated re-derives its value, and SQLite refuses the write. A column read
+            // back from the catalog carries no expression today, so it is recreated plain and copied.
+            if (column.GeneratedExpression.IsNotEmpty())
+            {
+                continue;
+            }
+
+            if (renamedTo.TryGetValue(column.Name, out var newName))
+            {
+                targetColumns.Add(SchemaUtils.QuoteName(column.Name));
+                sourceColumns.Add(SchemaUtils.QuoteName(newName));
+            }
+            else if (Expected.Columns.Any(e => e.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)))
+            {
+                targetColumns.Add(SchemaUtils.QuoteName(column.Name));
+                sourceColumns.Add(SchemaUtils.QuoteName(column.Name));
+            }
+        }
+
+        if (targetColumns.Any())
+        {
+            writer.WriteLine($"INSERT INTO {tempName.QualifiedName} ({targetColumns.Join(", ")})");
+            writer.WriteLine($"SELECT {sourceColumns.Join(", ")} FROM {Expected.Identifier.QualifiedName};");
             writer.WriteLine();
         }
+
+        writeAutoIncrementCarryOver(writer, tempName);
 
         // Drop current table
         writer.WriteLine($"DROP TABLE {Expected.Identifier.QualifiedName};");
         writer.WriteLine();
 
         // Rename temp table to original name
-        writer.WriteLine($"ALTER TABLE {tempName.QualifiedName} RENAME TO {SchemaUtils.QuoteName(Actual.Identifier.Name)};");
+        writer.WriteLine($"ALTER TABLE {tempName.QualifiedName} RENAME TO {SchemaUtils.QuoteName(actual.Identifier.Name)};");
         writer.WriteLine();
 
         // Recreate indexes from actual (old) schema
-        foreach (var index in Actual.Indexes)
+        foreach (var index in actual.Indexes)
         {
-            writer.WriteLine(index.ToDDL(Actual));
+            writer.WriteLine(index.ToDDL(actual));
         }
+
+        writeTriggerRestoration(writer);
     }
 }

@@ -70,12 +70,7 @@ public class SqliteMigrator: Migrator
         CancellationToken ct = default
     )
     {
-        var rebuilt = migration.Deltas
-            .OfType<Tables.TableDelta>()
-            .Where(x => x.CanRebuildInPlace &&
-                        (x.RequiresTableRecreation || x.Difference == SchemaPatchDifference.Invalid))
-            .Select(x => x.Expected.Identifier)
-            .ToArray();
+        var rebuilt = rebuiltTables(migration);
 
         if (rebuilt.Length == 0)
         {
@@ -83,6 +78,53 @@ public class SqliteMigrator: Migrator
             return;
         }
 
+        await rebuildAsync(conn, rebuilt, () => writeDeltasAsync(migration, conn, logger, true, ct), ct)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     A rollback that reverses a table rebuild is a table rebuild, so it runs exactly as the
+    ///     forward one does: foreign key enforcement off, legacy <c>ALTER TABLE</c> on, one
+    ///     transaction. Run bare, <c>DROP TABLE</c> fired the implicit delete against every table
+    ///     referencing it, and the rename that puts the table back failed against any view naming it
+    ///     — after the drop, leaving no table at all.
+    /// </summary>
+    protected override async Task executeRollback(
+        SchemaMigration migration,
+        DbConnection conn,
+        string sql,
+        CancellationToken ct = default
+    )
+    {
+        var rebuilt = rebuiltTables(migration);
+
+        if (rebuilt.Length == 0)
+        {
+            await base.executeRollback(migration, conn, sql, ct).ConfigureAwait(false);
+            return;
+        }
+
+        await rebuildAsync(conn, rebuilt, () => executeSqlAsync(conn, sql, ct), ct).ConfigureAwait(false);
+    }
+
+    private static DbObjectName[] rebuiltTables(SchemaMigration migration) =>
+        migration.Deltas
+            .OfType<Tables.TableDelta>()
+            .Where(x => x.CanRebuildInPlace &&
+                        (x.RequiresTableRecreation || x.Difference == SchemaPatchDifference.Invalid))
+            .Select(x => x.Expected.Identifier)
+            .ToArray();
+
+    /// <summary>
+    ///     SQLite's own procedure for a table rebuild, around <paramref name="rebuild" />.
+    /// </summary>
+    private static async Task rebuildAsync(
+        DbConnection conn,
+        IReadOnlyList<DbObjectName> rebuilt,
+        Func<Task> rebuild,
+        CancellationToken ct
+    )
+    {
         var foreignKeysWereOn = await readPragmaFlagAsync(conn, "foreign_keys", ct).ConfigureAwait(false);
         var legacyAlterTableWasOn = await readPragmaFlagAsync(conn, "legacy_alter_table", ct).ConfigureAwait(false);
         Exception? failure = null;
@@ -96,7 +138,7 @@ public class SqliteMigrator: Migrator
 
             try
             {
-                await writeDeltasAsync(migration, conn, logger, true, ct).ConfigureAwait(false);
+                await rebuild().ConfigureAwait(false);
 
                 // Only when enforcement was on to begin with, which is step 10 of SQLite's own
                 // rebuild procedure. foreign_key_check reports every violation in the table, not
