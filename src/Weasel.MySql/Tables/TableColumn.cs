@@ -89,16 +89,22 @@ public class TableColumn: ITableColumn
             return false;
         }
 
-        if (RawType() != other.RawType())
+        // Both sides folded onto the catalog's spelling first: MySQL stores BOOLEAN as tinyint(1),
+        // INTEGER as int and NUMERIC as decimal, so the declared spelling of a synonym never matched
+        // what was read back and the column reported drift on every check.
+        var expectedType = MySqlColumnType.Parse(Type);
+        var actualType = MySqlColumnType.Parse(other.Type);
+
+        if (expectedType.WithoutArguments != actualType.WithoutArguments)
         {
             return false;
         }
 
-        // RawType() throws the parenthesised part away, which is right for an INT display width the
-        // catalog invented and wrong for a character length the model declared. See
-        // CharacterColumnLength: a widened varchar used to be invisible here, so an existing table kept
-        // the narrow column forever.
-        if (CharacterColumnLength.Differ(Type, other.Type))
+        // The arguments are thrown away above, which is right for an INT display width the catalog
+        // invented and wrong for a character length the model declared. See CharacterColumnLength: a
+        // widened varchar used to be invisible here, so an existing table kept the narrow column
+        // forever.
+        if (CharacterColumnLength.Differ(expectedType.ToString(), actualType.ToString()))
         {
             return false;
         }
@@ -132,6 +138,6 @@ public class TableColumn: ITableColumn
 
     public override int GetHashCode()
     {
-        return HashCode.Combine(Name.ToUpperInvariant(), RawType());
+        return HashCode.Combine(Name.ToUpperInvariant(), MySqlColumnType.Parse(Type).WithoutArguments);
     }
 }
