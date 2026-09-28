@@ -134,7 +134,9 @@ public class TableColumn: ITableColumn
     ///     reported only <c>DATA_LENGTH</c> before it read <c>CHAR_LENGTH</c>, so such a model matched,
     ///     and reporting it now would <c>MODIFY</c> a settled column: that re-pads every stored
     ///     <c>CHAR</c> value, and <c>NVARCHAR2(2000)</c> against a model of <c>NVARCHAR2(4000)</c> is
-    ///     ORA-00910 on every migration.
+    ///     ORA-00910 on every migration. Only a model spelled with a stored name is excused, because that
+    ///     is the only kind that could match: <c>NCHAR VARYING(200)</c> never matched an
+    ///     <c>NVARCHAR2</c>, so its <c>MODIFY</c> widened the column, and still does.
     /// </remarks>
     private static bool lengthsDiffer(TableColumn a, TableColumn b)
     {
@@ -146,12 +148,25 @@ public class TableColumn: ITableColumn
             return false;
         }
 
-        return !(statesByteLength(CharacterColumnLength.TryParse(aType), b)
-                 || statesByteLength(CharacterColumnLength.TryParse(bType), a));
+        return !(statesByteLength(a, aType, b) || statesByteLength(b, bType, a));
     }
 
-    private static bool statesByteLength(int? length, TableColumn column)
-        => length.HasValue && length == column.StoredByteLength;
+    private static readonly HashSet<string> StoredCharacterTypes = new(StringComparer.Ordinal)
+    {
+        "VARCHAR2", "CHAR", "NVARCHAR2", "NCHAR"
+    };
+
+    private static bool statesByteLength(TableColumn declared, string declaredSpelling, TableColumn column)
+    {
+        var open = declared.Type.IndexOf('(');
+        if (open < 0 || !StoredCharacterTypes.Contains(collapse(declared.Type[..open])))
+        {
+            return false;
+        }
+
+        var length = CharacterColumnLength.TryParse(declaredSpelling);
+        return length.HasValue && length == column.StoredByteLength;
+    }
 
     private static readonly Regex Parenthesised = new(@"\([^)]*\)", RegexOptions.Compiled);
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);

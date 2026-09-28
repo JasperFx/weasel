@@ -159,6 +159,33 @@ public class detecting_respelled_column_types: IntegrationContext
         (await storedLength()).ShouldBe(before);
     }
 
+    [Theory]
+    [InlineData("NVARCHAR2(100)", "NATIONAL CHARACTER VARYING(200)", "N'x'", "NVARCHAR2(200)")]
+    [InlineData("NVARCHAR2(100)", "NCHAR VARYING(200)", "N'x'", "NVARCHAR2(200)")]
+    [InlineData("VARCHAR2(100 CHAR)", "CHARACTER VARYING(400 CHAR)", "'x'", "VARCHAR2(400 CHAR)")]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR(400 CHAR)", "'x'", "VARCHAR2(400 CHAR)")]
+    [InlineData("NCHAR(10)", "NATIONAL CHAR(20)", "N'abc'", "NCHAR(20)")]
+    [InlineData("NCHAR(10)", "NATIONAL CHARACTER(20)", "N'abc'", "NCHAR(20)")]
+    public async Task a_widening_declared_through_a_synonym_is_detected_even_at_the_byte_size(
+        string existingType, string widenedModel, string value, string widenedType)
+    {
+        // The new length is the column's size in bytes, which a stored spelling is excused for. A
+        // synonym never matched on master, so master's MODIFY widened the column; it still has to.
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(TableWith(existingType));
+        await theConnection.CreateCommand($"INSERT INTO {SchemaName}.respelled (id, value) VALUES (1, {value})")
+            .ExecuteNonQueryAsync(Ct);
+
+        var model = TableWith(widenedModel);
+        (await model.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await model.ApplyChangesAsync(theConnection, Ct);
+
+        (await model.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.None);
+        (await model.FetchExistingAsync(theConnection, Ct))!.ColumnFor("value")!.Type.ShouldBe(widenedType);
+    }
+
     [Fact]
     public async Task a_real_type_change_is_still_detected()
     {

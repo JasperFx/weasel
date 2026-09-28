@@ -174,7 +174,9 @@ public class TableColumnTests
         "CHARACTER VARYING(100)", "CHARACTER VARYING(400)", "CHAR VARYING(100)", "CHAR(10)", "CHAR(40)",
         "CHAR(10 CHAR)", "CHARACTER(10)", "CHARACTER(40)", "NCHAR(10)", "NCHAR(20)", "NCHAR(1000)",
         "NCHAR(2000)", "NATIONAL CHAR(10)", "NATIONAL CHAR(20)", "NVARCHAR2(100)", "NVARCHAR2(200)",
-        "NVARCHAR2(2000)", "NVARCHAR2(4000)", "NCHAR VARYING(100)", "NCHAR VARYING(200)", "TEXT", "CLOB",
+        "NVARCHAR2(2000)", "NVARCHAR2(4000)", "NCHAR VARYING(100)", "NCHAR VARYING(200)",
+        "NATIONAL CHARACTER VARYING(200)", "NATIONAL CHARACTER(20)", "CHARACTER VARYING(400 CHAR)",
+        "VARCHAR(400 CHAR)", "TEXT", "CLOB",
         "BLOB", "RAW(16)", "DATE", "TIMESTAMP", "TIMESTAMP(3)", "TIMESTAMP WITH TIME ZONE",
         "TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
         "INTERVAL DAY TO SECOND", "INTERVAL DAY(3) TO SECOND(2)", "INTERVAL YEAR TO MONTH",
@@ -210,6 +212,25 @@ public class TableColumnTests
         stoppedMatching.ShouldBeEmpty();
     }
 
+    // ALL_TAB_COLUMNS rows in an AL32UTF8 database with an AL16UTF16 national character set:
+    // data_type, data_length, data_precision, data_scale, char_length, char_used.
+    private static readonly (string, int?, int?, int?, int?, string?)[] CatalogRows =
+    [
+        ("NUMBER", 22, null, null, 0, null), ("NUMBER", 22, 10, 0, 0, null), ("NUMBER", 22, 13, 4, 0, null),
+        ("NUMBER", 22, null, 0, 0, null), ("FLOAT", 22, 126, null, 0, null), ("FLOAT", 22, 63, null, 0, null),
+        ("BINARY_FLOAT", 4, null, null, 0, null), ("BINARY_DOUBLE", 8, null, null, 0, null),
+        ("VARCHAR2", 100, null, null, 100, "B"), ("VARCHAR2", 400, null, null, 100, "C"),
+        ("VARCHAR2", 400, null, null, 400, "B"), ("CHAR", 10, null, null, 10, "B"),
+        ("CHAR", 40, null, null, 10, "C"), ("NCHAR", 20, null, null, 10, "C"),
+        ("NCHAR", 2000, null, null, 1000, "C"), ("NVARCHAR2", 200, null, null, 100, "C"),
+        ("NVARCHAR2", 4000, null, null, 2000, "C"), ("RAW", 16, null, null, 0, null),
+        ("CLOB", 4000, null, null, 0, null), ("BLOB", 4000, null, null, 0, null),
+        ("DATE", 7, null, null, 0, null), ("BOOLEAN", 1, null, null, 0, null),
+        ("TIMESTAMP(6)", 11, null, 6, 0, null), ("TIMESTAMP(6) WITH TIME ZONE", 13, null, 6, 0, null),
+        ("TIMESTAMP(6) WITH LOCAL TIME ZONE", 11, null, 6, 0, null),
+        ("INTERVAL DAY(2) TO SECOND(6)", 11, 2, 6, 0, null), ("INTERVAL YEAR(2) TO MONTH", 5, 2, 0, 0, null)
+    ];
+
     /// <summary>
     ///     The same guarantee through the reader, which now reports a column sized in characters in
     ///     characters. Before, it reported <c>DATA_LENGTH</c>, the size in bytes, and a model stating that
@@ -219,29 +240,10 @@ public class TableColumnTests
     [Fact]
     public void nothing_the_catalog_reported_that_matched_before_stops_matching()
     {
-        // ALL_TAB_COLUMNS rows in an AL32UTF8 database with an AL16UTF16 national character set:
-        // data_type, data_length, data_precision, data_scale, char_length, char_used.
-        (string, int?, int?, int?, int?, string?)[] rows =
-        [
-            ("NUMBER", 22, null, null, 0, null), ("NUMBER", 22, 10, 0, 0, null), ("NUMBER", 22, 13, 4, 0, null),
-            ("NUMBER", 22, null, 0, 0, null), ("FLOAT", 22, 126, null, 0, null), ("FLOAT", 22, 63, null, 0, null),
-            ("BINARY_FLOAT", 4, null, null, 0, null), ("BINARY_DOUBLE", 8, null, null, 0, null),
-            ("VARCHAR2", 100, null, null, 100, "B"), ("VARCHAR2", 400, null, null, 100, "C"),
-            ("VARCHAR2", 400, null, null, 400, "B"), ("CHAR", 10, null, null, 10, "B"),
-            ("CHAR", 40, null, null, 10, "C"), ("NCHAR", 20, null, null, 10, "C"),
-            ("NCHAR", 2000, null, null, 1000, "C"), ("NVARCHAR2", 200, null, null, 100, "C"),
-            ("NVARCHAR2", 4000, null, null, 2000, "C"), ("RAW", 16, null, null, 0, null),
-            ("CLOB", 4000, null, null, 0, null), ("BLOB", 4000, null, null, 0, null),
-            ("DATE", 7, null, null, 0, null), ("BOOLEAN", 1, null, null, 0, null),
-            ("TIMESTAMP(6)", 11, null, 6, 0, null), ("TIMESTAMP(6) WITH TIME ZONE", 13, null, 6, 0, null),
-            ("TIMESTAMP(6) WITH LOCAL TIME ZONE", 11, null, 6, 0, null),
-            ("INTERVAL DAY(2) TO SECOND(6)", 11, 2, 6, 0, null), ("INTERVAL YEAR(2) TO MONTH", 5, 2, 0, 0, null)
-        ];
-
         var matchedBeforeCount = 0;
         var stoppedMatching = new List<string>();
 
-        foreach (var (dataType, dataLength, precision, scale, charLength, charUsed) in rows)
+        foreach (var (dataType, dataLength, precision, scale, charLength, charUsed) in CatalogRows)
         {
             var before = typeAsReadBefore(dataType, dataLength, precision, scale);
             var now = Table.ReadColumn("value", dataType, dataLength, precision, scale, "Y", charLength, charUsed);
@@ -258,6 +260,42 @@ public class TableColumnTests
 
         matchedBeforeCount.ShouldBeGreaterThan(50);
         stoppedMatching.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    ///     And the other way round: a match the reader gained must be a real one, on the size in
+    ///     characters. The byte size is excused only for a stored spelling, the one kind master could
+    ///     match; a synonym never matched on master, so master re-issued its MODIFY and the first one
+    ///     widened the column. Excusing <c>NCHAR VARYING(200)</c> against <c>NVARCHAR2(100)</c> because
+    ///     that column is 200 bytes would drop that widening.
+    /// </summary>
+    [Fact]
+    public void a_match_the_reader_gained_is_on_the_size_in_characters()
+    {
+        var spurious = new List<string>();
+
+        foreach (var (dataType, dataLength, precision, scale, charLength, charUsed) in CatalogRows)
+        {
+            var before = typeAsReadBefore(dataType, dataLength, precision, scale);
+            var now = Table.ReadColumn("value", dataType, dataLength, precision, scale, "Y", charLength, charUsed);
+
+            if (charLength is not > 0)
+            {
+                continue;
+            }
+
+            foreach (var declared in DeclaredSpellings.Where(d => !matchedBefore(d, before)))
+            {
+                var length = System.Text.RegularExpressions.Regex.Match(declared, @"\((\d+)");
+                if (length.Success && int.Parse(length.Groups[1].Value) != charLength
+                                   && new TableColumn("value", declared).Equals(now))
+                {
+                    spurious.Add($"{declared} ~ {now.Type}");
+                }
+            }
+        }
+
+        spurious.ShouldBeEmpty();
     }
 
     // The type the reader built from a catalog row before it read CHAR_LENGTH: DATA_LENGTH for every
