@@ -107,6 +107,35 @@ public class TableColumnTests
         column1.Equals(column3).ShouldBeFalse();
     }
 
+    [Theory]
+    [InlineData("NUMERIC(13,4)", "NUMBER(13,4)")]
+    [InlineData("DECIMAL(10,2)", "NUMBER(10,2)")]
+    [InlineData("INTEGER", "NUMBER")]
+    [InlineData("SMALLINT", "NUMBER")]
+    [InlineData("DOUBLE PRECISION", "FLOAT(126)")]
+    [InlineData("REAL", "FLOAT(63)")]
+    [InlineData("VARCHAR(50)", "VARCHAR2(50)")]
+    [InlineData("CHARACTER(10)", "CHAR(10)")]
+    [InlineData("NATIONAL CHARACTER VARYING(10)", "NVARCHAR2(10)")]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(100)")]
+    [InlineData("INTERVAL DAY TO SECOND", "INTERVAL DAY(2) TO SECOND(6)")]
+    [InlineData("INTERVAL YEAR TO MONTH", "INTERVAL YEAR(2) TO MONTH")]
+    [InlineData("TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP WITH TIME ZONE")]
+    public void a_declared_type_equals_the_type_oracle_stores_for_it(string declared, string stored)
+    {
+        new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("NUMERIC(13,4)", "VARCHAR2(13)")]
+    [InlineData("TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP")]
+    [InlineData("INTERVAL DAY TO SECOND", "INTERVAL YEAR(2) TO MONTH")]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(200 CHAR)")]
+    public void a_different_type_is_still_different(string declared, string stored)
+    {
+        new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeFalse();
+    }
+
     [Fact]
     public void raw_type_extracts_type_without_size()
     {

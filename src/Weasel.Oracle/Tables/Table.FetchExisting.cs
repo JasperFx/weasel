@@ -9,7 +9,7 @@ namespace Weasel.Oracle.Tables;
 public partial class Table
 {
     private const string ColumnSql = @"
-SELECT column_name, data_type, data_length, data_precision, data_scale, nullable
+SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, char_length, char_used
 FROM all_tab_columns
 WHERE owner = :schemaName AND table_name = :tableName
 ORDER BY column_id";
@@ -458,8 +458,14 @@ ORDER BY ic.index_name, ic.column_position";
             ? (int?)null
             : Convert.ToInt32(await reader.GetFieldValueAsync<decimal>(4, ct).ConfigureAwait(false));
         var nullable = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false);
+        var charLength = await reader.IsDBNullAsync(6, ct).ConfigureAwait(false)
+            ? (int?)null
+            : Convert.ToInt32(await reader.GetFieldValueAsync<decimal>(6, ct).ConfigureAwait(false));
+        var charUsed = await reader.IsDBNullAsync(7, ct).ConfigureAwait(false)
+            ? null
+            : await reader.GetFieldValueAsync<string>(7, ct).ConfigureAwait(false);
 
-        var type = BuildOracleType(dataType, dataLength, dataPrecision, dataScale);
+        var type = BuildOracleType(dataType, dataLength, dataPrecision, dataScale, charLength, charUsed);
         var column = new TableColumn(columnName, type)
         {
             AllowNulls = nullable == "Y"
@@ -468,16 +474,36 @@ ORDER BY ic.index_name, ic.column_position";
         return column;
     }
 
-    private static string BuildOracleType(string dataType, int? dataLength, int? dataPrecision, int? dataScale)
+    private static string BuildOracleType(string dataType, int? dataLength, int? dataPrecision, int? dataScale,
+        int? charLength, string? charUsed)
     {
         var upperType = dataType.ToUpperInvariant();
 
         switch (upperType)
         {
+            // DATA_LENGTH is always bytes. A column declared in characters -- VARCHAR2(100 CHAR), or
+            // any VARCHAR2 under NLS_LENGTH_SEMANTICS=CHAR -- reports 400 there in an AL32UTF8
+            // database, and a national type is always in characters, so NVARCHAR2(100) reports 200.
+            // Read those back as they were declared, or the length comparison sees a column that
+            // never matches its model.
             case "VARCHAR2":
-            case "NVARCHAR2":
             case "CHAR":
+                if (charUsed == "C" && charLength.HasValue)
+                {
+                    return $"{dataType}({charLength} CHAR)";
+                }
+
+                return dataLength.HasValue ? $"{dataType}({dataLength})" : dataType;
+
+            case "NVARCHAR2":
             case "NCHAR":
+                if (charLength.HasValue)
+                {
+                    return $"{dataType}({charLength})";
+                }
+
+                return dataLength.HasValue ? $"{dataType}({dataLength})" : dataType;
+
             case "RAW":
                 return dataLength.HasValue ? $"{dataType}({dataLength})" : dataType;
 

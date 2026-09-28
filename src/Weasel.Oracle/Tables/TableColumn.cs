@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Weasel.Core;
@@ -105,8 +106,8 @@ public class TableColumn: ITableColumn
 
     protected bool Equals(TableColumn other)
     {
-        // RawType() throws the parenthesised part away, which is right for a NUMBER precision and wrong
-        // for a VARCHAR2 length the model declared. See CharacterColumnLength: a widened VARCHAR2 used to
+        // StoredTypeName() throws the parenthesised parts away, which is right for a NUMBER precision and
+        // wrong for a VARCHAR2 length the model declared. See CharacterColumnLength: a widened VARCHAR2 used to
         // be invisible here, so an existing table kept the narrow column forever.
         if (CharacterColumnLength.Differ(Type, other.Type))
         {
@@ -114,8 +115,47 @@ public class TableColumn: ITableColumn
         }
 
         return string.Equals(QuotedName, other.QuotedName, StringComparison.OrdinalIgnoreCase) &&
-               string.Equals(OracleProvider.Instance.ConvertSynonyms(RawType()),
-                   OracleProvider.Instance.ConvertSynonyms(other.RawType()), StringComparison.OrdinalIgnoreCase);
+               string.Equals(StoredTypeName(Type), StoredTypeName(other.Type), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static readonly Regex Parenthesised = new(@"\([^)]*\)", RegexOptions.Compiled);
+    private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
+
+    /// <summary>
+    ///     The name Oracle's catalog reports for a column declared as <paramref name="type" />, without
+    ///     its sizes. Both sides of a comparison go through this, so a model may spell a type any way
+    ///     Oracle accepts and still match the column Oracle created from it.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Every parenthesised part is removed, not only a trailing one: <c>INTERVAL DAY(2) TO
+    ///         SECOND(6)</c> and <c>TIMESTAMP(3) WITH TIME ZONE</c> carry theirs in the middle, and
+    ///         <see cref="RawType" /> cut those names short. The catalog reports <c>INTERVAL DAY TO
+    ///         SECOND</c> -- which is what a <see cref="TimeSpan" /> maps to -- with both precisions
+    ///         filled in, so that column used to compare unequal to its own model.
+    ///     </para>
+    ///     <para>
+    ///         Then the ANSI names Oracle rewrites are folded onto the name it stores, as reported by
+    ///         <c>ALL_TAB_COLUMNS.DATA_TYPE</c>. <see cref="OracleProvider.ConvertSynonyms" /> keeps the
+    ///         last word, exactly as before, for the cross-provider spellings it knows.
+    ///     </para>
+    /// </remarks>
+    private static string StoredTypeName(string type)
+    {
+        var name = Whitespace.Replace(Parenthesised.Replace(type, " "), " ").Trim().ToUpperInvariant();
+
+        name = name switch
+        {
+            "NUMERIC" or "DECIMAL" or "DEC" or "INTEGER" or "INT" or "SMALLINT" => "NUMBER",
+            "REAL" or "DOUBLE PRECISION" => "FLOAT",
+            "VARCHAR" or "CHARACTER VARYING" or "CHAR VARYING" => "VARCHAR2",
+            "CHARACTER" => "CHAR",
+            "NATIONAL CHARACTER VARYING" or "NATIONAL CHAR VARYING" or "NCHAR VARYING" => "NVARCHAR2",
+            "NATIONAL CHARACTER" or "NATIONAL CHAR" => "NCHAR",
+            _ => name
+        };
+
+        return OracleProvider.Instance.ConvertSynonyms(name);
     }
 
     public override bool Equals(object? obj)
