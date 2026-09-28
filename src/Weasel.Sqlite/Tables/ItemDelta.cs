@@ -12,7 +12,13 @@ public class ItemDelta<T> where T : INamed
     public ItemDelta(IEnumerable<T> expectedItems, IEnumerable<T> actualItems, Func<T, T, bool>? comparison = null)
     {
         comparison ??= (expected, actual) => expected.Equals(actual);
-        var expecteds = expectedItems.ToDictionary(x => x.Name);
+
+        // Name matching is case-insensitive: SQLite identifiers are, and the catalog read folds
+        // column names to lowercase, so a model that preserves "CustomerId" has to pair with the
+        // catalog's customerid. Pairing them case-sensitively made every column of a
+        // PreserveIdentifierCase table both Missing and Extra, so the table was renamed column by
+        // column, or rebuilt, on every migration. The other four providers already pair this way.
+        var expecteds = expectedItems.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
 
         foreach (var actual in actualItems)
         {
@@ -33,7 +39,7 @@ public class ItemDelta<T> where T : INamed
             }
         }
 
-        var actuals = actualItems.ToDictionary(x => x.Name);
+        var actuals = actualItems.ToDictionary(x => x.Name, StringComparer.OrdinalIgnoreCase);
         _missing.AddRange(expectedItems.Where(x => !actuals.ContainsKey(x.Name)));
     }
 
