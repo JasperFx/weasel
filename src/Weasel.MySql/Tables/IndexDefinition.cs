@@ -19,7 +19,31 @@ public class IndexDefinition: ITableIndex
     }
 
     public MySqlIndexType IndexType { get; set; } = MySqlIndexType.BTree;
+
+    /// <summary>
+    ///     The direction of every key column at once. <see cref="SortOrder.Desc" /> writes <c>DESC</c> after
+    ///     each of them; use <see cref="DescendingColumns" /> for an index that mixes directions.
+    /// </summary>
     public SortOrder SortOrder { get; set; } = SortOrder.Asc;
+
+    /// <summary>
+    ///     Key columns that sort descending, when the index mixes directions -- <c>(a, b DESC, c)</c>, which
+    ///     <see cref="SortOrder" /> cannot say.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         An index read back from the database carries its direction here, one entry per column that
+    ///         <c>information_schema.STATISTICS</c> reports with a <c>COLLATION</c> of <c>D</c>, and the
+    ///         comparison renders both sides per column. An index whose every column is descending
+    ///         therefore matches a model that says <see cref="SortOrder.Desc" />.
+    ///     </para>
+    ///     <para>
+    ///         MySQL honours a key column's direction from 8.0 on. 5.7 parses <c>DESC</c> and ignores it,
+    ///         reporting every column ascending, so a descending declaration reports drift there.
+    ///     </para>
+    /// </remarks>
+    public ISet<string> DescendingColumns { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
     public bool IsUnique { get; set; }
 
     public string[] Columns
@@ -124,6 +148,7 @@ public class IndexDefinition: ITableIndex
 
     bool Weasel.Core.ITableIndex.HasProviderSpecificOptions
         => SortOrder != SortOrder.Asc
+           || DescendingColumns.Count > 0
            || FulltextParser.IsNotEmpty()
            || PrefixLength.HasValue;
 
@@ -185,6 +210,18 @@ public class IndexDefinition: ITableIndex
             throw new InvalidOperationException("IndexDefinition requires at least one column");
         }
 
+        var descending = DescendingColumns.Select(SchemaUtils.Unquote).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        // A name here that is not a key column is always a mistake -- a typo, or a column that was
+        // renamed and left behind. Ignoring it would emit an index whose direction is not what the
+        // model says.
+        var stray = descending.Where(x => !Columns.Contains(x, StringComparer.OrdinalIgnoreCase)).ToArray();
+        if (stray.Any())
+        {
+            throw new InvalidOperationException(
+                $"Index {Name} marks {stray.Join(", ")} descending, but {(stray.Length == 1 ? "it is not a key column" : "they are not key columns")} of the index. Key columns are: {Columns.Join(", ")}.");
+        }
+
         var columns = Columns.Select(c =>
         {
             var col = $"{SchemaUtils.QuoteName(c)}";
@@ -196,7 +233,7 @@ public class IndexDefinition: ITableIndex
             // Fulltext and spatial indexes don't support ASC/DESC
             if (IndexType != MySqlIndexType.Fulltext && IndexType != MySqlIndexType.Spatial)
             {
-                if (SortOrder == SortOrder.Desc)
+                if (SortOrder == SortOrder.Desc || descending.Contains(c))
                 {
                     col += " DESC";
                 }

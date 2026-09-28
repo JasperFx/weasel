@@ -263,4 +263,72 @@ public class IndexDefinitionTests
 
         canonical.ShouldNotContain("`");
     }
+
+    [Fact]
+    public void to_ddl_with_descending_columns_sets_the_direction_per_column()
+    {
+        var table = new Table("weasel_testing.triggers");
+        var index = new IndexDefinition("idx_triggers_acquire")
+        {
+            Columns = ["sched_name", "trigger_state", "next_fire_time", "priority", "misfire_instr"]
+        };
+        index.DescendingColumns.Add("priority");
+
+        index.ToDDL(table).ShouldBe(
+            "CREATE INDEX `idx_triggers_acquire` ON `weasel_testing`.`triggers` "
+            + "(`sched_name`, `trigger_state`, `next_fire_time`, `priority` DESC, `misfire_instr`);");
+    }
+
+    [Fact]
+    public void a_delimited_descending_column_names_the_same_key_column()
+    {
+        var table = new Table("weasel_testing.triggers");
+        var index = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        index.DescendingColumns.Add("`priority`");
+
+        index.ToDDL(table).ShouldContain("(`next_fire_time`, `priority` DESC)");
+    }
+
+    [Fact]
+    public void a_descending_column_that_is_not_a_key_column_is_refused()
+    {
+        var table = new Table("weasel_testing.triggers");
+        var index = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        index.DescendingColumns.Add("priorty");
+
+        Should.Throw<InvalidOperationException>(() => index.ToDDL(table))
+            .Message.ShouldContain("priorty");
+    }
+
+    [Fact]
+    public void a_whole_index_sort_order_matches_every_column_marked_descending()
+    {
+        var table = new Table("weasel_testing.triggers");
+        var declared = new IndexDefinition("idx_test")
+        {
+            Columns = ["next_fire_time", "priority"], SortOrder = SortOrder.Desc
+        };
+
+        // What the table reader builds from an index whose every column has COLLATION 'D'.
+        var readBack = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        readBack.DescendingColumns.Add("next_fire_time");
+        readBack.DescendingColumns.Add("priority");
+
+        declared.Matches(readBack, table).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void does_not_match_a_different_direction()
+    {
+        var table = new Table("weasel_testing.triggers");
+        var declared = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        declared.DescendingColumns.Add("priority");
+
+        var ascending = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        var otherColumn = new IndexDefinition("idx_test") { Columns = ["next_fire_time", "priority"] };
+        otherColumn.DescendingColumns.Add("next_fire_time");
+
+        declared.Matches(ascending, table).ShouldBeFalse();
+        declared.Matches(otherColumn, table).ShouldBeFalse();
+    }
 }

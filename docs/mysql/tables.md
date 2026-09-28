@@ -45,6 +45,25 @@ The `AddColumn` method returns a `ColumnExpression` with these options:
 - `AddSpatialIndex(configure?)` -- adds a SPATIAL index
 - `ForeignKeyTo(table, column)` -- adds a foreign key constraint
 
+## Index Direction
+
+`IndexDefinition.SortOrder = SortOrder.Desc` makes every key column descending. For an index that mixes
+directions, name the descending columns instead:
+
+```cs
+var index = new IndexDefinition("idx_triggers_acquire")
+{
+    Columns = ["sched_name", "trigger_state", "next_fire_time", "priority", "misfire_instr"]
+};
+index.DescendingColumns.Add("priority");
+// CREATE INDEX `idx_triggers_acquire` ON ... (`sched_name`, `trigger_state`, `next_fire_time`, `priority` DESC, `misfire_instr`);
+```
+
+Direction is read back per column from `information_schema.STATISTICS.COLLATION` and compared, so an
+index whose direction differs from the model is rebuilt. A name in `DescendingColumns` that is not a
+key column throws. MySQL 5.7 parses `DESC` and ignores it, so declare a direction only against 8.0 or
+later.
+
 ## Partitioning
 
 MySQL tables support Range, Hash, List, and Key partitioning:
