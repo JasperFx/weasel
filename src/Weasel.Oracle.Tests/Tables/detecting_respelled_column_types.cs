@@ -8,8 +8,8 @@ namespace Weasel.Oracle.Tests.Tables;
 /// <summary>
 ///     Oracle does not store a column type the way it was declared. The ANSI names are rewritten --
 ///     <c>NUMERIC(13,4)</c> and <c>DECIMAL(13,4)</c> come back as <c>NUMBER</c>, <c>INTEGER</c> as
-///     <c>NUMBER</c> with scale 0, <c>REAL</c> and <c>DOUBLE PRECISION</c> as <c>FLOAT</c>,
-///     <c>VARCHAR</c> as <c>VARCHAR2</c> -- and a character column declared in characters reports its
+///     <c>NUMBER</c> with scale 0, <c>REAL</c> as <c>FLOAT</c>, <c>VARCHAR</c> as <c>VARCHAR2</c>, an
+///     <c>INTERVAL</c> with its precisions filled in -- and a character column declared in characters reports its
 ///     size in bytes in <c>DATA_LENGTH</c>. A model that said any of those compared unequal to the
 ///     column Oracle created from it, so the table drifted forever: every migration issued the same
 ///     <c>ALTER TABLE … MODIFY</c> and every assert reported a difference.
@@ -43,7 +43,6 @@ public class detecting_respelled_column_types: IntegrationContext
     [InlineData("INT")]
     [InlineData("SMALLINT")]
     [InlineData("REAL")]
-    [InlineData("DOUBLE PRECISION")]
     [InlineData("VARCHAR(50)")]
     [InlineData("CHARACTER(10)")]
     [InlineData("CHARACTER VARYING(50)")]
@@ -56,7 +55,6 @@ public class detecting_respelled_column_types: IntegrationContext
     [InlineData("INTERVAL DAY(3) TO SECOND(2)")]
     [InlineData("INTERVAL YEAR TO MONTH")]
     [InlineData("TIMESTAMP(3)")]
-    [InlineData("TIMESTAMP(3) WITH TIME ZONE")]
     [InlineData("TIMESTAMP WITH LOCAL TIME ZONE")]
     public async Task a_column_created_from_the_model_matches_the_model(string columnType)
     {
@@ -88,6 +86,64 @@ public class detecting_respelled_column_types: IntegrationContext
 
         (await Durations().MigrateAsync(theConnection)).ShouldBeTrue();
         (await Durations().MigrateAsync(theConnection)).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task a_widened_column_declared_through_a_multi_word_synonym_is_detected_and_settles()
+    {
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(TableWith("CHARACTER VARYING(100)"));
+
+        var widened = TableWith("CHARACTER VARYING(200)");
+        (await widened.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await widened.ApplyChangesAsync(theConnection, Ct);
+
+        (await widened.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    [Theory]
+    [InlineData("BINARY_DOUBLE", "DOUBLE PRECISION", "1.5")]
+    [InlineData("TIMESTAMP", "TIMESTAMP(3) WITH TIME ZONE", "SYSTIMESTAMP")]
+    public async Task a_populated_column_that_matched_its_model_before_is_left_alone(
+        string existingType, string declaredType, string value)
+    {
+        // Both pairs compared equal before the stored-name comparison. Reporting them now would issue
+        // an ALTER ... MODIFY that Oracle refuses on a populated column (ORA-01439).
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(TableWith(existingType));
+        await theConnection.CreateCommand($"INSERT INTO {SchemaName}.respelled (id, value) VALUES (1, {value})")
+            .ExecuteNonQueryAsync(Ct);
+
+        var model = TableWith(declaredType);
+        (await model.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.None);
+
+        await model.ApplyChangesAsync(theConnection, Ct);
+    }
+
+    [Theory]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(400)")]
+    [InlineData("NVARCHAR2(100)", "NVARCHAR2(200)")]
+    public async Task a_model_that_gave_the_byte_size_of_a_column_sized_in_characters_widens_it_once(
+        string existingType, string declaredType)
+    {
+        // The one kind of column that matched before and does not now: the model's number was the
+        // byte size DATA_LENGTH reported, not the column's size in characters. The ALTER it gets is a
+        // widening, which Oracle applies to a populated column, and then the table settles.
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(TableWith(existingType));
+        await theConnection.CreateCommand($"INSERT INTO {SchemaName}.respelled (id, value) VALUES (1, 'x')")
+            .ExecuteNonQueryAsync(Ct);
+
+        var model = TableWith(declaredType);
+        (await model.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await model.ApplyChangesAsync(theConnection, Ct);
+
+        (await model.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
     [Fact]

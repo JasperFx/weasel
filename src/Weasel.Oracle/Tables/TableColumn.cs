@@ -106,10 +106,11 @@ public class TableColumn: ITableColumn
 
     protected bool Equals(TableColumn other)
     {
-        // StoredTypeName() throws the parenthesised parts away, which is right for a NUMBER precision and
+        // Sizes are left out of the type-name comparison below, which is right for a NUMBER precision and
         // wrong for a VARCHAR2 length the model declared. See CharacterColumnLength: a widened VARCHAR2 used to
-        // be invisible here, so an existing table kept the narrow column forever.
-        if (CharacterColumnLength.Differ(Type, other.Type))
+        // be invisible here, so an existing table kept the narrow column forever. Compared on the stored
+        // spelling, so a length declared through CHARACTER VARYING or NATIONAL CHAR counts like any other.
+        if (CharacterColumnLength.Differ(StoredSpelling(Type), StoredSpelling(other.Type)))
         {
             return false;
         }
@@ -123,40 +124,69 @@ public class TableColumn: ITableColumn
 
     /// <summary>
     ///     The name Oracle's catalog reports for a column declared as <paramref name="type" />, without
-    ///     its sizes. Both sides of a comparison go through this, so a model may spell a type any way
-    ///     Oracle accepts and still match the column Oracle created from it.
+    ///     its sizes. Both sides of a comparison go through this, so a model may spell a type the way
+    ///     Oracle rewrites it and still match the column Oracle created from it.
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         Every parenthesised part is removed, not only a trailing one: <c>INTERVAL DAY(2) TO
-    ///         SECOND(6)</c> and <c>TIMESTAMP(3) WITH TIME ZONE</c> carry theirs in the middle, and
-    ///         <see cref="RawType" /> cut those names short. The catalog reports <c>INTERVAL DAY TO
-    ///         SECOND</c> -- which is what a <see cref="TimeSpan" /> maps to -- with both precisions
-    ///         filled in, so that column used to compare unequal to its own model.
+    ///         Every parenthesised part is removed, not only a trailing one: the catalog reports
+    ///         <c>INTERVAL DAY(2) TO SECOND(6)</c> -- what a <see cref="TimeSpan" /> maps to -- and
+    ///         <see cref="RawType" /> cut that name short, so the column never matched its own model.
+    ///         Then the ANSI names Oracle rewrites are folded (<see cref="FoldAnsiName" />), and
+    ///         <see cref="OracleProvider.ConvertSynonyms" /> is applied last, as before.
     ///     </para>
     ///     <para>
-    ///         Then the ANSI names Oracle rewrites are folded onto the name it stores, as reported by
-    ///         <c>ALL_TAB_COLUMNS.DATA_TYPE</c>. <see cref="OracleProvider.ConvertSynonyms" /> keeps the
-    ///         last word, exactly as before, for the cross-provider spellings it knows.
+    ///         The TIMESTAMP family keeps the comparison it always had, cut at the first parenthesis, so
+    ///         <c>TIMESTAMP(3) WITH TIME ZONE</c> still compares as <c>TIMESTAMP</c>. That leaves such a
+    ///         model drifting against the column Oracle creates from it, but it also matches a plain
+    ///         <c>TIMESTAMP</c> column today, and reporting that pair would <c>ALTER</c> a populated
+    ///         column, which Oracle refuses (ORA-01439).
     ///     </para>
     /// </remarks>
     private static string StoredTypeName(string type)
     {
-        var name = Whitespace.Replace(Parenthesised.Replace(type, " "), " ").Trim().ToUpperInvariant();
+        var name = collapse(type).StartsWith("TIMESTAMP", StringComparison.Ordinal)
+            ? collapse(type.Split('(')[0])
+            : collapse(Parenthesised.Replace(type, " "));
 
-        name = name switch
+        return OracleProvider.Instance.ConvertSynonyms(FoldAnsiName(name));
+    }
+
+    /// <summary>
+    ///     The declared type with its name folded onto the one Oracle stores and its sizes kept:
+    ///     <c>NATIONAL CHAR VARYING(20)</c> is <c>NVARCHAR2(20)</c>. This is the spelling character lengths
+    ///     are compared in, which only recognises the stored names.
+    /// </summary>
+    private static string StoredSpelling(string type)
+    {
+        var open = type.IndexOf('(');
+        return open < 0 ? FoldAnsiName(type) : FoldAnsiName(type[..open]) + type[open..];
+    }
+
+    /// <summary>
+    ///     An ANSI type name folded onto the name <c>ALL_TAB_COLUMNS.DATA_TYPE</c> reports for it. Only
+    ///     names that <see cref="OracleProvider.ConvertSynonyms" /> does not already map, or maps to a
+    ///     sized <c>NUMBER</c> the catalog side can never produce: <c>DOUBLE PRECISION</c> is left to it,
+    ///     because it has always read that as <c>BINARY_DOUBLE</c> and a model saying it matches such a
+    ///     column.
+    /// </summary>
+    private static string FoldAnsiName(string name)
+    {
+        var collapsed = collapse(name);
+
+        return collapsed switch
         {
             "NUMERIC" or "DECIMAL" or "DEC" or "INTEGER" or "INT" or "SMALLINT" => "NUMBER",
-            "REAL" or "DOUBLE PRECISION" => "FLOAT",
+            "REAL" => "FLOAT",
             "VARCHAR" or "CHARACTER VARYING" or "CHAR VARYING" => "VARCHAR2",
             "CHARACTER" => "CHAR",
             "NATIONAL CHARACTER VARYING" or "NATIONAL CHAR VARYING" or "NCHAR VARYING" => "NVARCHAR2",
             "NATIONAL CHARACTER" or "NATIONAL CHAR" => "NCHAR",
-            _ => name
+            _ => collapsed
         };
-
-        return OracleProvider.Instance.ConvertSynonyms(name);
     }
+
+    private static string collapse(string value) => Whitespace.Replace(value, " ").Trim().ToUpperInvariant();
 
     public override bool Equals(object? obj)
     {
@@ -182,7 +212,9 @@ public class TableColumn: ITableColumn
     {
         unchecked
         {
-            return (Name.ToUpperInvariant().GetHashCode() * 397) ^ Type.ToUpperInvariant().GetHashCode();
+            // The same type name Equals compares, or two equal columns -- NUMERIC(13,4) and the
+            // NUMBER(13,4) Oracle stores for it -- would hash apart.
+            return (Name.ToUpperInvariant().GetHashCode() * 397) ^ StoredTypeName(Type).GetHashCode();
         }
     }
 

@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Oracle.Tables;
 using Xunit;
 
@@ -112,7 +113,6 @@ public class TableColumnTests
     [InlineData("DECIMAL(10,2)", "NUMBER(10,2)")]
     [InlineData("INTEGER", "NUMBER")]
     [InlineData("SMALLINT", "NUMBER")]
-    [InlineData("DOUBLE PRECISION", "FLOAT(126)")]
     [InlineData("REAL", "FLOAT(63)")]
     [InlineData("VARCHAR(50)", "VARCHAR2(50)")]
     [InlineData("CHARACTER(10)", "CHAR(10)")]
@@ -120,7 +120,6 @@ public class TableColumnTests
     [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(100)")]
     [InlineData("INTERVAL DAY TO SECOND", "INTERVAL DAY(2) TO SECOND(6)")]
     [InlineData("INTERVAL YEAR TO MONTH", "INTERVAL YEAR(2) TO MONTH")]
-    [InlineData("TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP WITH TIME ZONE")]
     public void a_declared_type_equals_the_type_oracle_stores_for_it(string declared, string stored)
     {
         new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeTrue();
@@ -128,12 +127,92 @@ public class TableColumnTests
 
     [Theory]
     [InlineData("NUMERIC(13,4)", "VARCHAR2(13)")]
-    [InlineData("TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP")]
     [InlineData("INTERVAL DAY TO SECOND", "INTERVAL YEAR(2) TO MONTH")]
     [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(200 CHAR)")]
     public void a_different_type_is_still_different(string declared, string stored)
     {
         new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("CHARACTER VARYING(200)", "VARCHAR2(100)")]
+    [InlineData("CHAR VARYING(200)", "VARCHAR2(100)")]
+    [InlineData("NATIONAL CHARACTER VARYING(20)", "NVARCHAR2(10)")]
+    [InlineData("NATIONAL CHAR VARYING(20)", "NVARCHAR2(10)")]
+    [InlineData("NCHAR VARYING(20)", "NVARCHAR2(10)")]
+    [InlineData("NATIONAL CHARACTER(20)", "NCHAR(10)")]
+    [InlineData("NATIONAL CHAR(20)", "NCHAR(10)")]
+    public void a_length_declared_through_a_multi_word_synonym_is_still_compared(string declared, string stored)
+    {
+        new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("NUMERIC(13,4)", "NUMBER(13,4)")]
+    [InlineData("INTEGER", "NUMBER")]
+    [InlineData("VARCHAR(50)", "VARCHAR2(50)")]
+    [InlineData("CHARACTER VARYING(50)", "VARCHAR2(50)")]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(100)")]
+    [InlineData("INTERVAL DAY TO SECOND", "INTERVAL DAY(2) TO SECOND(6)")]
+    public void columns_that_are_equal_hash_alike(string declared, string stored)
+    {
+        var expected = new TableColumn("value", declared);
+        var actual = new TableColumn("value", stored);
+
+        expected.Equals(actual).ShouldBeTrue();
+        expected.GetHashCode().ShouldBe(actual.GetHashCode());
+    }
+
+    /// <summary>
+    ///     Folding the declared spelling onto the stored one may only add matches. A declared type that
+    ///     matched a catalog type the way the comparison used to work must still match it, or a column
+    ///     that settled long ago starts migrating -- and changing the type of a populated column is
+    ///     ORA-01439. <c>DOUBLE PRECISION</c> against <c>BINARY_DOUBLE</c> and <c>TIMESTAMP(n) WITH TIME
+    ///     ZONE</c> against <c>TIMESTAMP</c> are the two pairs that would have broken.
+    /// </summary>
+    [Fact]
+    public void nothing_that_matched_before_stops_matching()
+    {
+        string[] declared =
+        [
+            "NUMBER", "NUMBER(10)", "NUMBER(13,4)", "NUMERIC(13,4)", "DECIMAL", "DEC(10,2)", "INT", "INTEGER",
+            "SMALLINT", "BIGINT", "BOOLEAN", "FLOAT", "FLOAT(126)", "REAL", "DOUBLE", "DOUBLE PRECISION",
+            "BINARY_FLOAT", "BINARY_DOUBLE", "VARCHAR(100)", "VARCHAR2(100)", "VARCHAR2(100 CHAR)",
+            "VARCHAR2(400)", "CHARACTER VARYING(100)", "CHAR VARYING(100)", "CHAR(10)", "CHARACTER(10)",
+            "NCHAR(10)", "NATIONAL CHAR(10)", "NVARCHAR2(100)", "NCHAR VARYING(100)", "TEXT", "CLOB", "BLOB",
+            "RAW(16)", "DATE", "TIMESTAMP", "TIMESTAMP(3)", "TIMESTAMP WITH TIME ZONE",
+            "TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
+            "INTERVAL DAY TO SECOND", "INTERVAL DAY(3) TO SECOND(2)", "INTERVAL YEAR TO MONTH",
+            "INTERVAL YEAR(4) TO MONTH"
+        ];
+
+        // What the reader builds from ALL_TAB_COLUMNS.
+        string[] stored =
+        [
+            "NUMBER", "NUMBER(10)", "NUMBER(13,4)", "FLOAT(126)", "FLOAT(63)", "BINARY_FLOAT", "BINARY_DOUBLE",
+            "VARCHAR2(100)", "VARCHAR2(100 CHAR)", "VARCHAR2(400)", "CHAR(10)", "CHAR(10 CHAR)", "NCHAR(10)",
+            "NVARCHAR2(100)", "CLOB", "BLOB", "RAW(16)", "DATE", "BOOLEAN", "TIMESTAMP",
+            "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "INTERVAL DAY(2) TO SECOND(6)",
+            "INTERVAL DAY(3) TO SECOND(2)", "INTERVAL YEAR(2) TO MONTH"
+        ];
+
+        var stoppedMatching =
+            from d in declared
+            from s in stored
+            where matchedBefore(d, s) && !new TableColumn("value", d).Equals(new TableColumn("value", s))
+            select $"{d} ~ {s}";
+
+        stoppedMatching.ShouldBeEmpty();
+    }
+
+    // The type half of TableColumn.Equals as it was before the stored-name comparison.
+    private static bool matchedBefore(string declared, string stored)
+    {
+        static string rawType(string type) => type.ToUpperInvariant().Split('(')[0].Trim();
+
+        return !CharacterColumnLength.Differ(declared.ToUpperInvariant(), stored.ToUpperInvariant())
+               && string.Equals(OracleProvider.Instance.ConvertSynonyms(rawType(declared)),
+                   OracleProvider.Instance.ConvertSynonyms(rawType(stored)), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
