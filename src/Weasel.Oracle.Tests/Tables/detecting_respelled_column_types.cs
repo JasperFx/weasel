@@ -124,26 +124,39 @@ public class detecting_respelled_column_types: IntegrationContext
     }
 
     [Theory]
-    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(400)")]
-    [InlineData("NVARCHAR2(100)", "NVARCHAR2(200)")]
-    public async Task a_model_that_gave_the_byte_size_of_a_column_sized_in_characters_widens_it_once(
-        string existingType, string declaredType)
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(400)", "'x'")]
+    [InlineData("CHAR(10 CHAR)", "CHAR(40)", "'abc'")]
+    [InlineData("NCHAR(10)", "NCHAR(20)", "N'abc'")]
+    [InlineData("NVARCHAR2(2000)", "NVARCHAR2(4000)", "N'x'")]
+    [InlineData("NCHAR(1000)", "NCHAR(2000)", "N'abc'")]
+    public async Task a_column_sized_in_characters_matches_its_size_in_characters_or_in_bytes(
+        string existingType, string byteSizedModel, string value)
     {
-        // The one kind of column that matched before and does not now: the model's number was the
-        // byte size DATA_LENGTH reported, not the column's size in characters. The ALTER it gets is a
-        // widening, which Oracle applies to a populated column, and then the table settles.
+        // Before the reader took CHAR_LENGTH it reported DATA_LENGTH, the size in bytes, and a model
+        // stating that matched. It must still: the MODIFY to the byte size re-pads every stored CHAR
+        // value, and NVARCHAR2(4000) / NCHAR(2000) are ORA-00910 on every migration. The size in
+        // characters is the drift this fixes.
         await ResetSchema();
 
         await CreateSchemaObjectInDatabase(TableWith(existingType));
-        await theConnection.CreateCommand($"INSERT INTO {SchemaName}.respelled (id, value) VALUES (1, 'x')")
+        await theConnection.CreateCommand($"INSERT INTO {SchemaName}.respelled (id, value) VALUES (1, {value})")
             .ExecuteNonQueryAsync(Ct);
 
-        var model = TableWith(declaredType);
-        (await model.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.Update);
+        async Task<object?> storedLength() => await theConnection
+            .CreateCommand($"SELECT LENGTH(value) FROM {SchemaName}.respelled WHERE id = 1")
+            .ExecuteScalarAsync(Ct);
 
-        await model.ApplyChangesAsync(theConnection, Ct);
+        var before = await storedLength();
 
-        (await model.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.None);
+        (await TableWith(byteSizedModel).FindDeltaAsync(theConnection, Ct)).Difference
+            .ShouldBe(SchemaPatchDifference.None);
+        (await TableWith(byteSizedModel).MigrateAsync(theConnection, Ct)).ShouldBeFalse();
+
+        (await TableWith(existingType).FindDeltaAsync(theConnection, Ct)).Difference
+            .ShouldBe(SchemaPatchDifference.None);
+        (await TableWith(existingType).MigrateAsync(theConnection, Ct)).ShouldBeFalse();
+
+        (await storedLength()).ShouldBe(before);
     }
 
     [Fact]

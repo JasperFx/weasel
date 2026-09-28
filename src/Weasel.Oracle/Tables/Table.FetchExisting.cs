@@ -465,10 +465,29 @@ ORDER BY ic.index_name, ic.column_position";
             ? null
             : await reader.GetFieldValueAsync<string>(7, ct).ConfigureAwait(false);
 
+        return ReadColumn(columnName, dataType, dataLength, dataPrecision, dataScale, nullable, charLength, charUsed);
+    }
+
+    /// <summary>
+    ///     One <c>ALL_TAB_COLUMNS</c> row as the column it describes.
+    /// </summary>
+    internal static TableColumn ReadColumn(string columnName, string dataType, int? dataLength, int? dataPrecision,
+        int? dataScale, string nullable, int? charLength, string? charUsed)
+    {
         var type = BuildOracleType(dataType, dataLength, dataPrecision, dataScale, charLength, charUsed);
+
+        // Sized in characters: always for a national type, and for VARCHAR2/CHAR when CHAR_USED says so.
+        var inCharacters = charLength.HasValue && dataType.ToUpperInvariant() switch
+        {
+            "NVARCHAR2" or "NCHAR" => true,
+            "VARCHAR2" or "CHAR" => charUsed == "C",
+            _ => false
+        };
+
         var column = new TableColumn(columnName, type)
         {
-            AllowNulls = nullable == "Y"
+            AllowNulls = nullable == "Y",
+            StoredByteLength = inCharacters ? dataLength : null
         };
 
         return column;

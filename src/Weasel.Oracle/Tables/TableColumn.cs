@@ -66,6 +66,13 @@ public class TableColumn: ITableColumn
 
     public string Name { get; }
 
+    /// <summary>
+    ///     For a column read from the catalog and sized in characters, its size in bytes
+    ///     (<c>DATA_LENGTH</c>). The reader reported only that until it read <c>CHAR_LENGTH</c>, so a
+    ///     model stating it matched, and still does; see <see cref="lengthsDiffer" />.
+    /// </summary>
+    internal int? StoredByteLength { get; init; }
+
     public string QuotedName => _preserveCase ? $"\"{Name}\"" : SchemaUtils.QuoteName(Name);
 
     public string RawType()
@@ -108,9 +115,8 @@ public class TableColumn: ITableColumn
     {
         // Sizes are left out of the type-name comparison below, which is right for a NUMBER precision and
         // wrong for a VARCHAR2 length the model declared. See CharacterColumnLength: a widened VARCHAR2 used to
-        // be invisible here, so an existing table kept the narrow column forever. Compared on the stored
-        // spelling, so a length declared through CHARACTER VARYING or NATIONAL CHAR counts like any other.
-        if (CharacterColumnLength.Differ(StoredSpelling(Type), StoredSpelling(other.Type)))
+        // be invisible here, so an existing table kept the narrow column forever.
+        if (lengthsDiffer(this, other))
         {
             return false;
         }
@@ -118,6 +124,34 @@ public class TableColumn: ITableColumn
         return string.Equals(QuotedName, other.QuotedName, StringComparison.OrdinalIgnoreCase) &&
                string.Equals(StoredTypeName(Type), StoredTypeName(other.Type), StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    ///     Character lengths, compared on the stored spelling so that a length declared through
+    ///     <c>CHARACTER VARYING</c> or <c>NATIONAL CHAR</c> counts like any other.
+    /// </summary>
+    /// <remarks>
+    ///     A column sized in characters also matches a model that states its size in bytes. The reader
+    ///     reported only <c>DATA_LENGTH</c> before it read <c>CHAR_LENGTH</c>, so such a model matched,
+    ///     and reporting it now would <c>MODIFY</c> a settled column: that re-pads every stored
+    ///     <c>CHAR</c> value, and <c>NVARCHAR2(2000)</c> against a model of <c>NVARCHAR2(4000)</c> is
+    ///     ORA-00910 on every migration.
+    /// </remarks>
+    private static bool lengthsDiffer(TableColumn a, TableColumn b)
+    {
+        var aType = StoredSpelling(a.Type);
+        var bType = StoredSpelling(b.Type);
+
+        if (!CharacterColumnLength.Differ(aType, bType))
+        {
+            return false;
+        }
+
+        return !(statesByteLength(CharacterColumnLength.TryParse(aType), b)
+                 || statesByteLength(CharacterColumnLength.TryParse(bType), a));
+    }
+
+    private static bool statesByteLength(int? length, TableColumn column)
+        => length.HasValue && length == column.StoredByteLength;
 
     private static readonly Regex Parenthesised = new(@"\([^)]*\)", RegexOptions.Compiled);
     private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);

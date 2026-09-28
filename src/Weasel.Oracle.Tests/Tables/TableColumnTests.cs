@@ -163,6 +163,24 @@ public class TableColumnTests
         expected.GetHashCode().ShouldBe(actual.GetHashCode());
     }
 
+    // Declared spellings for the two grids below: every synonym, sizes on both sides of the ones the
+    // catalog reports, and lengths in bytes and in characters.
+    private static readonly string[] DeclaredSpellings =
+    [
+        "NUMBER", "NUMBER(10)", "NUMBER(13,4)", "NUMERIC(13,4)", "DECIMAL", "DEC(10,2)", "INT", "INTEGER",
+        "SMALLINT", "BIGINT", "BOOLEAN", "FLOAT", "FLOAT(126)", "REAL", "DOUBLE", "DOUBLE PRECISION",
+        "BINARY_FLOAT", "BINARY_DOUBLE", "VARCHAR(100)", "VARCHAR(400)", "VARCHAR2(100)", "VARCHAR2(200)",
+        "VARCHAR2(400)", "VARCHAR2(100 CHAR)", "VARCHAR2(400 CHAR)", "VARCHAR2(400 BYTE)",
+        "CHARACTER VARYING(100)", "CHARACTER VARYING(400)", "CHAR VARYING(100)", "CHAR(10)", "CHAR(40)",
+        "CHAR(10 CHAR)", "CHARACTER(10)", "CHARACTER(40)", "NCHAR(10)", "NCHAR(20)", "NCHAR(1000)",
+        "NCHAR(2000)", "NATIONAL CHAR(10)", "NATIONAL CHAR(20)", "NVARCHAR2(100)", "NVARCHAR2(200)",
+        "NVARCHAR2(2000)", "NVARCHAR2(4000)", "NCHAR VARYING(100)", "NCHAR VARYING(200)", "TEXT", "CLOB",
+        "BLOB", "RAW(16)", "DATE", "TIMESTAMP", "TIMESTAMP(3)", "TIMESTAMP WITH TIME ZONE",
+        "TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
+        "INTERVAL DAY TO SECOND", "INTERVAL DAY(3) TO SECOND(2)", "INTERVAL YEAR TO MONTH",
+        "INTERVAL YEAR(4) TO MONTH"
+    ];
+
     /// <summary>
     ///     Folding the declared spelling onto the stored one may only add matches. A declared type that
     ///     matched a catalog type the way the comparison used to work must still match it, or a column
@@ -173,19 +191,6 @@ public class TableColumnTests
     [Fact]
     public void nothing_that_matched_before_stops_matching()
     {
-        string[] declared =
-        [
-            "NUMBER", "NUMBER(10)", "NUMBER(13,4)", "NUMERIC(13,4)", "DECIMAL", "DEC(10,2)", "INT", "INTEGER",
-            "SMALLINT", "BIGINT", "BOOLEAN", "FLOAT", "FLOAT(126)", "REAL", "DOUBLE", "DOUBLE PRECISION",
-            "BINARY_FLOAT", "BINARY_DOUBLE", "VARCHAR(100)", "VARCHAR2(100)", "VARCHAR2(100 CHAR)",
-            "VARCHAR2(400)", "CHARACTER VARYING(100)", "CHAR VARYING(100)", "CHAR(10)", "CHARACTER(10)",
-            "NCHAR(10)", "NATIONAL CHAR(10)", "NVARCHAR2(100)", "NCHAR VARYING(100)", "TEXT", "CLOB", "BLOB",
-            "RAW(16)", "DATE", "TIMESTAMP", "TIMESTAMP(3)", "TIMESTAMP WITH TIME ZONE",
-            "TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
-            "INTERVAL DAY TO SECOND", "INTERVAL DAY(3) TO SECOND(2)", "INTERVAL YEAR TO MONTH",
-            "INTERVAL YEAR(4) TO MONTH"
-        ];
-
         // What the reader builds from ALL_TAB_COLUMNS.
         string[] stored =
         [
@@ -197,12 +202,82 @@ public class TableColumnTests
         ];
 
         var stoppedMatching =
-            from d in declared
+            from d in DeclaredSpellings
             from s in stored
             where matchedBefore(d, s) && !new TableColumn("value", d).Equals(new TableColumn("value", s))
             select $"{d} ~ {s}";
 
         stoppedMatching.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    ///     The same guarantee through the reader, which now reports a column sized in characters in
+    ///     characters. Before, it reported <c>DATA_LENGTH</c>, the size in bytes, and a model stating that
+    ///     matched. It still has to: <c>MODIFY</c>ing such a column to the byte size re-pads every stored
+    ///     <c>CHAR</c> value, and for an <c>NVARCHAR2(2000)</c> it is ORA-00910 on every migration.
+    /// </summary>
+    [Fact]
+    public void nothing_the_catalog_reported_that_matched_before_stops_matching()
+    {
+        // ALL_TAB_COLUMNS rows in an AL32UTF8 database with an AL16UTF16 national character set:
+        // data_type, data_length, data_precision, data_scale, char_length, char_used.
+        (string, int?, int?, int?, int?, string?)[] rows =
+        [
+            ("NUMBER", 22, null, null, 0, null), ("NUMBER", 22, 10, 0, 0, null), ("NUMBER", 22, 13, 4, 0, null),
+            ("NUMBER", 22, null, 0, 0, null), ("FLOAT", 22, 126, null, 0, null), ("FLOAT", 22, 63, null, 0, null),
+            ("BINARY_FLOAT", 4, null, null, 0, null), ("BINARY_DOUBLE", 8, null, null, 0, null),
+            ("VARCHAR2", 100, null, null, 100, "B"), ("VARCHAR2", 400, null, null, 100, "C"),
+            ("VARCHAR2", 400, null, null, 400, "B"), ("CHAR", 10, null, null, 10, "B"),
+            ("CHAR", 40, null, null, 10, "C"), ("NCHAR", 20, null, null, 10, "C"),
+            ("NCHAR", 2000, null, null, 1000, "C"), ("NVARCHAR2", 200, null, null, 100, "C"),
+            ("NVARCHAR2", 4000, null, null, 2000, "C"), ("RAW", 16, null, null, 0, null),
+            ("CLOB", 4000, null, null, 0, null), ("BLOB", 4000, null, null, 0, null),
+            ("DATE", 7, null, null, 0, null), ("BOOLEAN", 1, null, null, 0, null),
+            ("TIMESTAMP(6)", 11, null, 6, 0, null), ("TIMESTAMP(6) WITH TIME ZONE", 13, null, 6, 0, null),
+            ("TIMESTAMP(6) WITH LOCAL TIME ZONE", 11, null, 6, 0, null),
+            ("INTERVAL DAY(2) TO SECOND(6)", 11, 2, 6, 0, null), ("INTERVAL YEAR(2) TO MONTH", 5, 2, 0, 0, null)
+        ];
+
+        var matchedBeforeCount = 0;
+        var stoppedMatching = new List<string>();
+
+        foreach (var (dataType, dataLength, precision, scale, charLength, charUsed) in rows)
+        {
+            var before = typeAsReadBefore(dataType, dataLength, precision, scale);
+            var now = Table.ReadColumn("value", dataType, dataLength, precision, scale, "Y", charLength, charUsed);
+
+            foreach (var declared in DeclaredSpellings.Where(d => matchedBefore(d, before)))
+            {
+                matchedBeforeCount++;
+                if (!new TableColumn("value", declared).Equals(now))
+                {
+                    stoppedMatching.Add($"{declared} ~ {now.Type} (read as {before} before)");
+                }
+            }
+        }
+
+        matchedBeforeCount.ShouldBeGreaterThan(50);
+        stoppedMatching.ShouldBeEmpty();
+    }
+
+    // The type the reader built from a catalog row before it read CHAR_LENGTH: DATA_LENGTH for every
+    // character and binary type.
+    private static string typeAsReadBefore(string dataType, int? dataLength, int? precision, int? scale)
+    {
+        switch (dataType)
+        {
+            case "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" or "RAW":
+                return dataLength.HasValue ? $"{dataType}({dataLength})" : dataType;
+            case "NUMBER":
+                if (precision.HasValue && scale is > 0) return $"NUMBER({precision},{scale})";
+                return precision.HasValue ? $"NUMBER({precision})" : "NUMBER";
+            case "FLOAT":
+                return precision.HasValue ? $"FLOAT({precision})" : "FLOAT";
+            default:
+                return dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal)
+                    ? System.Text.RegularExpressions.Regex.Replace(dataType, @"\(\d+\)", "").Replace("  ", " ")
+                    : dataType;
+        }
     }
 
     // The type half of TableColumn.Equals as it was before the stored-name comparison.
