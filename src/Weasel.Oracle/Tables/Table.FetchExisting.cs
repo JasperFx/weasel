@@ -45,7 +45,8 @@ ORDER BY cons.constraint_name, cols.position";
 SELECT
     i.index_name,
     i.uniqueness,
-    i.index_type
+    i.index_type,
+    i.tablespace_name
 FROM all_indexes i
 WHERE i.owner = :schemaName
   AND i.table_name = :tableName
@@ -350,12 +351,18 @@ ORDER BY ic.index_name, ic.column_position";
             var uniqueness = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
             var indexType = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
 
+            // NULL for a partitioned index, whose partitions each have their own.
+            var tablespace = await reader.IsDBNullAsync(3, ct).ConfigureAwait(false)
+                ? null
+                : await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
+
             var index = new IndexDefinition(name)
             {
                 IsUnique = uniqueness == "UNIQUE",
                 IndexType = indexType == "BITMAP" ? OracleIndexType.Bitmap :
                     indexType.Contains("FUNCTION") ? OracleIndexType.FunctionBased :
-                    OracleIndexType.BTree
+                    OracleIndexType.BTree,
+                Tablespace = tablespace
             };
 
             indexes.Add(name, index);
