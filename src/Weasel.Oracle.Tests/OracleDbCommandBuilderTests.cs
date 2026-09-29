@@ -205,6 +205,35 @@ public class OracleDbCommandBuilderTests
             .ShouldAllBe(x => x.BindByName);
     }
 
+    /// <summary>
+    ///     A schema object sets the driver options its introspection query needs on the builder's
+    ///     <c>Command</c> -- <c>InitialLONGFetchSize</c> above all, without which ODP.NET reads a LONG back
+    ///     empty. The commands a batch is split into have to carry them, or an option only holds for a
+    ///     batch of one statement.
+    /// </summary>
+    [Fact]
+    public void split_commands_carry_the_options_set_on_the_command_being_built()
+    {
+        var builder = new OracleDbCommandBuilder();
+        var command = (OracleCommand)builder.Command;
+        command.InitialLONGFetchSize = -1;
+        command.InitialLOBFetchSize = -1;
+        command.FetchSize = 1024 * 1024;
+        command.CommandTimeout = 90;
+
+        builder.Append("select column_expression from all_ind_expressions");
+        builder.StartNewCommand();
+        builder.Append("select text from all_views");
+
+        var commands = builder.CompileCommands().Cast<OracleCommand>().ToArray();
+
+        commands.Length.ShouldBe(2);
+        commands.ShouldAllBe(x => x.InitialLONGFetchSize == -1);
+        commands.ShouldAllBe(x => x.InitialLOBFetchSize == -1);
+        commands.ShouldAllBe(x => x.FetchSize == 1024 * 1024);
+        commands.ShouldAllBe(x => x.CommandTimeout == 90);
+    }
+
     [Fact]
     public void command_count_reports_the_open_statement_too()
     {
