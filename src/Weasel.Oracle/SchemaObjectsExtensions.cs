@@ -164,8 +164,23 @@ public static class SchemaObjectsExtensions
                AND table_name NOT IN (SELECT mview_name FROM all_mviews WHERE owner = '{upperSchema}')
              """).ConfigureAwait(false);
 
+        // The sequence behind an identity column is system-generated (ISEQ$$_…) and Oracle refuses
+        // to drop one directly -- ORA-32794, which is a real failure rather than an "already gone",
+        // so it propagated and left the whole teardown unfinished. One identity column anywhere in
+        // the schema was enough to make the schema undroppable. It needs no drop of its own in any
+        // case: it goes with its table, and the table drop above already runs first. Filtered on
+        // ALL_OBJECTS.GENERATED rather than on the ISEQ$$ name, which is a convention, not a
+        // contract.
         var sequences = await fetchAsync(
-            $"SELECT sequence_name FROM all_sequences WHERE sequence_owner = '{upperSchema}'").ConfigureAwait(false);
+            $"""
+             SELECT s.sequence_name FROM all_sequences s
+             WHERE s.sequence_owner = '{upperSchema}'
+               AND NOT EXISTS (SELECT 1 FROM all_objects o
+                               WHERE o.owner = s.sequence_owner
+                                 AND o.object_name = s.sequence_name
+                                 AND o.object_type = 'SEQUENCE'
+                                 AND o.generated = 'Y')
+             """).ConfigureAwait(false);
 
         var synonyms = await fetchAsync(
             $"SELECT synonym_name FROM all_synonyms WHERE owner = '{upperSchema}'").ConfigureAwait(false);

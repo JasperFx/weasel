@@ -27,6 +27,11 @@ GRANT CREATE ANY INDEX TO weasel;
 GRANT DROP ANY INDEX TO weasel;
 GRANT CREATE ANY SEQUENCE TO weasel;
 GRANT DROP ANY SEQUENCE TO weasel;
+-- Dropping a table that has an identity column reads the system-generated ISEQ$$_ sequence behind
+-- it, so a cross-schema drop needs READ on that sequence as well as DROP ANY TABLE:
+-- ORA-41900: missing READ privilege on "<SCHEMA>"."ISEQ$$_nnnnn". Same cross-schema intent as the
+-- grants above; it was simply missing, and nothing exercised an identity column until now.
+GRANT SELECT ANY SEQUENCE TO weasel;
 GRANT CREATE ANY PROCEDURE TO weasel;
 GRANT DROP ANY PROCEDURE TO weasel;
 GRANT EXECUTE ANY PROCEDURE TO weasel;
