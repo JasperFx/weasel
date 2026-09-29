@@ -143,8 +143,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     ///     that is left to decide is whether the expression changed.
     /// </summary>
     private static bool checkConstraintsMatch(TableCheckConstraint expected, TableCheckConstraint actual)
-        => TableCheckConstraint.Canonicalize(expected.Expression)
-           == TableCheckConstraint.Canonicalize(actual.Expression);
+        => SqlServerExpression.Canonicalize(expected.Expression)
+           == SqlServerExpression.Canonicalize(actual.Expression);
 
     public override void WriteUpdate(Migrator rules, TextWriter writer)
     {

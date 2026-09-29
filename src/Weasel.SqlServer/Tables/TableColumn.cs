@@ -92,7 +92,7 @@ public class TableColumn: ITableColumn
     }
 
     private static string? canonicalDefault(string? expression)
-        => expression == null ? null : TableCheckConstraint.Canonicalize(expression);
+        => expression == null ? null : SqlServerExpression.Canonicalize(expression);
 
     /// <summary>
     ///     Column matching for delta detection. Computed columns are compared by
@@ -128,8 +128,8 @@ public class TableColumn: ITableColumn
     internal bool HasSameComputedDefinition(TableColumn actual)
     {
         return actual.ComputedExpression.IsNotEmpty() &&
-               TableCheckConstraint.Canonicalize(ComputedExpression!) ==
-               TableCheckConstraint.Canonicalize(actual.ComputedExpression!) &&
+               SqlServerExpression.Canonicalize(ComputedExpression!) ==
+               SqlServerExpression.Canonicalize(actual.ComputedExpression!) &&
                ComputedColumnIsStored == actual.ComputedColumnIsStored;
     }
 
