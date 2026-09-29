@@ -86,7 +86,8 @@ public class OracleDbCommandBuilder: DbCommandBuilder
 
     /// <summary>
     ///     Compile into one <see cref="OracleCommand" /> per <see cref="StartNewCommand" /> boundary.
-    ///     Each command carries only the parameters bound by its own statement.
+    ///     Each command carries only the parameters bound by its own statement, and the options set on
+    ///     the command being built.
     /// </summary>
     public override IReadOnlyList<DbCommand> CompileCommands()
     {
@@ -114,7 +115,7 @@ public class OracleDbCommandBuilder: DbCommandBuilder
         var commands = new List<DbCommand>(_statements.Count);
         foreach (var statement in _statements)
         {
-            var command = new OracleCommand(statement.Sql) { BindByName = true };
+            var command = splitOff(statement.Sql);
 
             for (var i = 0; i < parameters.Length; i++)
             {
@@ -135,6 +136,31 @@ public class OracleDbCommandBuilder: DbCommandBuilder
         }
 
         return commands;
+    }
+
+    /// <summary>
+    ///     A command for one statement of a split batch, carrying the options set on the command being
+    ///     built. A single statement executes that very command, so several have to behave the same.
+    /// </summary>
+    /// <remarks>
+    ///     A schema object sets the driver options its introspection query needs on
+    ///     <see cref="CommandBuilderBase{TCommand,TParameter,TParameterType}.Command" />, and
+    ///     for Oracle that is <c>InitialLONGFetchSize</c>: ODP.NET reads a LONG back empty without it.
+    ///     Split commands used to drop it, so a migration read <c>ALL_IND_EXPRESSIONS.COLUMN_EXPRESSION</c>
+    ///     back empty and a descending index key came back as its hidden <c>SYS_NC…$</c> column, which
+    ///     rebuilt the index on every apply. <c>ALL_VIEWS.TEXT</c> the same: a view migrated alongside
+    ///     anything else was replaced on every apply.
+    /// </remarks>
+    private OracleCommand splitOff(string sql)
+    {
+        return new OracleCommand(sql)
+        {
+            BindByName = true,
+            CommandTimeout = _oracleCommand.CommandTimeout,
+            FetchSize = _oracleCommand.FetchSize,
+            InitialLONGFetchSize = _oracleCommand.InitialLONGFetchSize,
+            InitialLOBFetchSize = _oracleCommand.InitialLOBFetchSize
+        };
     }
 
     /// <inheritdoc />

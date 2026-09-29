@@ -438,6 +438,12 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             : null;
 
         TConnection? conn = null;
+
+        // weasel#659: the global lock is session-scoped, so nothing but an explicit release -- or the
+        // connection actually going back to the pool and being reset -- gives it up. Track whether this
+        // call is the holder so a failed migration releases it on the way out.
+        var holdsGlobalLock = false;
+
         try
         {
             conn = CreateConnection();
@@ -485,6 +491,8 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
 
             if (attainLockResult == AttainLockResult.Success)
             {
+                holdsGlobalLock = true;
+
                 // Re-check the fingerprint now that we hold the lock: a concurrent applier (another
                 // replica racing this one) may have applied + stamped while we waited.
                 if (fingerprint != null)
@@ -495,6 +503,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                     {
                         MarkAllFeaturesAsChecked();
                         await globalLock.ReleaseLock(conn, ct).ConfigureAwait(false);
+                        holdsGlobalLock = false;
                         return SchemaPatchDifference.None;
                     }
                 }
@@ -517,6 +526,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                 MarkAllFeaturesAsChecked();
 
                 await globalLock.ReleaseLock(conn, ct).ConfigureAwait(false);
+                holdsGlobalLock = false;
 
                 return patch.Difference;
             }
@@ -537,6 +547,15 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                 "Unable to attain the global lock in time to apply database changes. Another replica is usually "
                 + "applying them; set ResourceMigrationFailureMode.ContinueOnFailures to let a replica that loses "
                 + "this race start against the schema the winner is applying.");
+        }
+        catch
+        {
+            if (holdsGlobalLock && conn != null)
+            {
+                await releaseGlobalLockAfterFailure(globalLock, conn).ConfigureAwait(false);
+            }
+
+            throw;
         }
         finally
         {
@@ -563,6 +582,31 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
         {
             // Nothing to fall back on and nothing to report: the connection is being discarded either
             // way, and the reconnection that follows is the caller's actual business.
+        }
+    }
+
+    /// <summary>
+    ///     Give up the global migration lock when the apply fails (weasel#659). Without this, a
+    ///     migration that threw anywhere between attaining the lock and finishing left it held for the
+    ///     life of that connection, and every other store or replica sharing the database was locked
+    ///     out of migrating -- reporting "Unable to attain the global lock in time to apply database
+    ///     changes", whose own advice (ContinueOnFailures) would then start them against an unmigrated
+    ///     schema. Disposing the connection is not enough on its own: the reset that releases a
+    ///     session-scoped lock only happens when the connection is really returned to the pool, and a
+    ///     connection observed sitting idle kept the lock for the rest of the run.
+    /// </summary>
+    private static async Task releaseGlobalLockAfterFailure(IGlobalLock<TConnection> globalLock, TConnection conn)
+    {
+        try
+        {
+            // CancellationToken.None deliberately: a cancelled apply is one of the ways to get here,
+            // and passing the caller's token would mean never releasing in exactly that case.
+            await globalLock.ReleaseLock(conn, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // The migration failure is the one the caller needs to see, and a release that cannot run
+            // has nothing to fall back on -- the connection is disposed either way.
         }
     }
 
