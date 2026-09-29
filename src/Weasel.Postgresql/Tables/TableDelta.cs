@@ -182,6 +182,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         // Different indexes
         foreach (var change in Indexes.Different) writer.WriteDropIndex(Expected, change.Actual);
 
+        // A generation expression is changed by dropping and re-adding the column, and PostgreSQL takes
+        // every index and constraint on that column down with it -- silently, unlike SQL Server, which
+        // refuses the drop. An index that matches the model is in neither set above, so nothing put it
+        // back and one apply left the schema not matching the model (weasel#638).
+        var recreatedIndexes = matchedIndexesOnRegeneratedColumns();
+        var recreatedForeignKeys = matchedForeignKeysOnRegeneratedColumns();
+
+        foreach (var index in recreatedIndexes) writer.WriteDropIndex(Expected, index);
+        foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteDropStatement(Expected, writer);
+
         // Missing columns
         foreach (var column in Columns.Missing) writer.WriteLine(column.AddColumnSql(Expected));
 
@@ -219,6 +229,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
 
         foreach (var change in Indexes.Different)
             writer.WriteLine(change.Expected.ToCreateSql(Expected, concurrently || change.Expected.IsConcurrent));
+
+        // ...and back
+        foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteAddStatement(Expected, writer);
+
+        foreach (var index in recreatedIndexes)
+            writer.WriteLine(index.ToCreateSql(Expected, concurrently || index.IsConcurrent));
 
         // Need to make Primary key changes before dropping extra columns
         writePrimaryKeyChanges(writer);
@@ -284,6 +300,56 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
                 writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                 break;
         }
+    }
+
+    /// <summary>
+    ///     The columns this update changes by dropping and re-adding them, because their generation
+    ///     expression changed.
+    /// </summary>
+    private HashSet<string> regeneratedColumnNames()
+    {
+        return Columns.Different
+            .Where(x => x.Expected.ComputedDefinitionChanged(x.Actual))
+            .Select(x => x.Expected.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    ///     Indexes that match the model and sit on a column being regenerated, so PostgreSQL drops them
+    ///     with the column and they have to be put back.
+    /// </summary>
+    /// <remarks>
+    ///     Taken from Matched alone: an index that is Extra or Different is already dropped by the
+    ///     passes above and, if Different, recreated by them.
+    /// </remarks>
+    private IReadOnlyList<IndexDefinition> matchedIndexesOnRegeneratedColumns()
+    {
+        var regenerated = regeneratedColumnNames();
+        if (regenerated.Count == 0)
+        {
+            return [];
+        }
+
+        return Indexes.Matched
+            .Where(x => x.Columns.Any(c => regenerated.Contains(SchemaUtils.Unquote(c))))
+            .ToList();
+    }
+
+    /// <summary>
+    ///     Foreign keys that match the model and sit on a column being regenerated. PostgreSQL drops the
+    ///     constraint with the column.
+    /// </summary>
+    private IReadOnlyList<ForeignKey> matchedForeignKeysOnRegeneratedColumns()
+    {
+        var regenerated = regeneratedColumnNames();
+        if (regenerated.Count == 0)
+        {
+            return [];
+        }
+
+        return ForeignKeys.Matched
+            .Where(x => x.ColumnNames.Any(c => regenerated.Contains(SchemaUtils.Unquote(c))))
+            .ToList();
     }
 
     private void writeForeignKeyUpdates(TextWriter writer)
