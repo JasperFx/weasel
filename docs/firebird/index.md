@@ -18,12 +18,15 @@ dotnet add package Weasel.Firebird
 
 | Object | Class | Namespace |
 |--------|-------|-----------|
-| Tables | `Table` | `Weasel.Firebird.Tables` |
-| Sequences | `Sequence` | `Weasel.Firebird` |
-| Views | `View` | `Weasel.Firebird.Views` |
-| Functions | `Function` | `Weasel.Firebird.Functions` |
-| Stored procedures | `StoredProcedure` | `Weasel.Firebird.Procedures` |
-| Triggers | `Trigger` | `Weasel.Firebird.Triggers` |
+| [Tables](/firebird/tables) | `Table` | `Weasel.Firebird.Tables` |
+| [Sequences](/firebird/sequences) | `Sequence` | `Weasel.Firebird` |
+| [Views](/firebird/views) | `View` | `Weasel.Firebird.Views` |
+| [Functions](/firebird/functions) | `Function` | `Weasel.Firebird.Functions` |
+| [Stored procedures](/firebird/procedures) | `StoredProcedure` | `Weasel.Firebird.Procedures` |
+| [Triggers](/firebird/triggers) | `Trigger` | `Weasel.Firebird.Triggers` |
+
+Tables also carry [computed columns](/firebird/tables#computed-columns) (`COMPUTED BY`, virtual only) and identity
+columns.
 
 ## Connection String
 
@@ -77,7 +80,7 @@ var migrator = new FirebirdMigrator();
 |---|---|---|
 | `MaxIdentifierLength` | `31` | Longest name Weasel writes. See [Identifiers](#identifiers) |
 | `LockTimeout` | 10 seconds | How long one DDL statement waits for another transaction's lock |
-| `MaxGuardedStatementAttempts` | `5` | Runs of a guarded statement before a catalog conflict is reported |
+| `MaxGuardedStatementAttempts` | `5` | Runs of a statement that keeps losing a catalog race before the conflict is reported |
 | `NewDatabasePageSize` | `16384` | Page size of a database `EnsureDatabaseExistsAsync` creates. See [Page size](#page-size) |
 
 The migrator can ensure the target database exists:
@@ -139,18 +142,32 @@ whole database.
 
 ## How a migration runs
 
-Everything is rendered first, so a refusal fires before any DDL runs. Then each statement runs in a transaction of
-its own and commits alone:
+Everything is rendered first, so a refusal -- a schema, a mixed-direction index, a name over the limit -- fires before
+any DDL runs. A name longer than the server's catalog holds is refused before introspection binds it, too. Then each
+statement runs in a transaction of its own and commits alone:
 
 | | Weasel.Firebird |
 |---|---|
 | Transaction | one per statement, `WAIT` with `LockTimeout`, rolled back if it fails |
-| Every `CREATE` and `ADD` | guarded: runs only while the object is missing |
-| Two appliers racing | both succeed; a guarded statement that loses is run again |
+| Tables, columns, keys, indexes, sequences | guarded: created only while missing |
+| Views, functions, procedures, triggers | `CREATE OR ALTER`: altered in place, never dropped first |
+| Two appliers racing | both succeed: a statement that loses a catalog race is run again, up to `MaxGuardedStatementAttempts` |
 | Global lock | none, as on Oracle, MySQL and SQLite |
+| Rollback | last delta first |
 
-FirebirdClient's default is `NO WAIT`, under which DDL beside any uncommitted write fails at once. `WAIT` makes it
-wait for the commit instead. Beside a running application:
+Concurrent appliers are safe without a lock because a re-run is harmless: the guard makes it a no-op once another
+applier has created the object, and `CREATE OR ALTER` leaves the same object however often it runs. A statement is
+run again only after a race -- a catalog conflict, a lock conflict or a lock timeout -- never after an ordinary
+failure, which would only fail again.
+
+A rollback undoes the last delta first. Firebird refuses to drop a table, view or procedure that a view, procedure or
+trigger still uses, so undoing in the order of the apply could not drop a table before the view over it.
+
+### Beside a running application
+
+FirebirdClient's default is `NO WAIT`, under which DDL beside any uncommitted write fails at once. Under `WAIT`, DDL
+waits for another transaction's uncommitted writes to commit, up to `LockTimeout`, and `DROP TABLE` needs the table
+idle:
 
 | Change | Another attachment reading the table | Another attachment with uncommitted writes to it |
 |---|---|---|

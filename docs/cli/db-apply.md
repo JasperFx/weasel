@@ -66,7 +66,7 @@ What counts as a transient refusal is decided per provider:
 | MySQL | `1040` too many connections, `1203`, `1226`, unable to connect to host |
 | Oracle | `ORA-00020` max processes exceeded, `ORA-12516`/`12518`/`12520` listener busy |
 | SQLite | N/A -- no server, so no connection ceiling to hit |
-| Firebird | `335544721` unable to complete network request, `335544727`/`335544726` connection lost, `335544856` connection shut down, a client-side connect timeout |
+| Firebird | `335544721` unable to complete network request, `335544727`/`335544726` connection lost, `335544856` connection shut down, a client-side `TimeoutException` |
 
 The list is deliberately narrow, because a wrong retry is worse than a missed one: a missed code just means today's behavior (fail immediately), while a false positive silently re-runs a migration that genuinely failed. So errors that can't be told apart from a failed migration are excluded even when they look connection-ish -- SQL Server's `-2` ("timeout expired") is also raised for *command* timeouts, so a slow `CREATE INDEX` would otherwise be retried as though the server had refused it, and transport-level drops (`10053`/`10054`, `ORA-12537`/`12570`) are reported identically whether they happened while connecting or midway through a statement. Bad credentials, deadlocks and DDL mistakes are excluded for the same reason.
 

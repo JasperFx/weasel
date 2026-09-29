@@ -137,8 +137,9 @@ Provider-specific extensions stay on the concrete `Table` / `ColumnExpression`:
   `AddFulltextIndex`
 - **SQLite**: `WithoutRowId`, `StrictTypes`, `GeneratedAs`, JSON expression
   indexes via `ForJsonPath`
-- **Firebird**: `COMPUTED BY` expression indexes via `IndexDefinition.Expression`;
-  `MaxIdentifierLength`, `LockTimeout` and `NewDatabasePageSize` on `FirebirdMigrator`
+- **Firebird**: `ComputedBy` (virtual computed columns), `COMPUTED BY` expression indexes via
+  `IndexDefinition.Expression`; `MaxIdentifierLength`, `LockTimeout` and `NewDatabasePageSize`
+  on `FirebirdMigrator`
 
 Polymorphic code uses the shared `ITable` / `TableBase` surface; code that
 needs provider extras casts to the concrete `Table` type.

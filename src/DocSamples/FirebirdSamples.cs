@@ -111,4 +111,67 @@ public class FirebirdSamples
         table.WriteCreateStatement(migrator, writer);
         #endregion
     }
+
+    public void firebird_computed_column()
+    {
+        var table = new Table("order_lines");
+
+        #region sample_firebird_computed_column
+        table.AddColumn<int>("quantity");
+        table.AddColumn<decimal>("price");
+        table.AddColumn("total", "NUMERIC(18,4)").ComputedBy("quantity * price");
+        // total NUMERIC(18,4) COMPUTED BY (quantity * price)
+        #endregion
+    }
+
+    // sequences.md samples
+
+    public void firebird_define_sequence()
+    {
+        #region sample_firebird_define_sequence
+        // Starts at 1 and counts up by 1
+        var seq = new Sequence("order_seq");
+
+        // The first value is 1000 on Firebird 3, 4 and 5 alike
+        var invoices = new Sequence("invoice_seq") { StartWith = 1000, IncrementBy = 10 };
+        #endregion
+    }
+
+    public void firebird_sequence_create_ddl()
+    {
+        var seq = new Sequence("invoice_seq") { StartWith = 1000, IncrementBy = 10 };
+
+        #region sample_firebird_sequence_create_ddl
+        var migrator = new FirebirdMigrator();
+        var writer = new StringWriter();
+        seq.WriteCreateStatement(migrator, writer);
+        #endregion
+    }
+
+    public void firebird_sequence_drop_ddl()
+    {
+        var seq = new Sequence("invoice_seq");
+        var migrator = new FirebirdMigrator();
+        var writer = new StringWriter();
+
+        #region sample_firebird_sequence_drop_ddl
+        seq.WriteDropStatement(migrator, writer);
+        // An EXECUTE BLOCK that runs DROP SEQUENCE invoice_seq only while it exists
+        #endregion
+    }
+
+    public async Task firebird_sequence_delta_detection()
+    {
+        var connectionString =
+            "DataSource=localhost;Port=3050;Database=/var/lib/firebird/data/mydb.fdb;User=SYSDBA;Password=YourPassword;Charset=UTF8";
+        var seq = new Sequence("invoice_seq") { IncrementBy = 10 };
+
+        #region sample_firebird_sequence_delta_detection
+        await using var conn = new FbConnection(connectionString);
+        await conn.OpenAsync();
+
+        var delta = await seq.FindDeltaAsync(conn);
+        // Create when it is missing, Update when its increment differs, otherwise None
+        #endregion
+    }
 }

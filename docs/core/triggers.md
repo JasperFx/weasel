@@ -1,6 +1,6 @@
 # Triggers
 
-Triggers work on all five providers as of 9.25. They were the one whole category of database
+Triggers work on all six providers: the first five as of 9.25, and Firebird. They were the one whole category of database
 object that no provider modelled, and the one with the most variation between engines — so the
 shared model is deliberately small and each provider refuses what it cannot express rather than
 quietly narrowing it.
@@ -38,16 +38,16 @@ Weasel never declared, because a hand-written trigger is still yours.
 
 ## What each engine accepts
 
-| | PostgreSQL | SQL Server | Oracle | MySQL | SQLite |
-| --- | --- | --- | --- | --- | --- |
-| `BEFORE` | ✓ | — | ✓ | ✓ | ✓ |
-| `AFTER` | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `INSTEAD OF` | ✓ (views) | ✓ (views) | ✓ | — | ✓ (views) |
-| Several events on one trigger | ✓ | ✓ | ✓ | — | — |
-| `TRUNCATE` event | ✓ | — | — | — | — |
-| Row-level (`FOR EACH ROW`) | ✓ | — always statement | ✓ | always | always |
-| `WHEN` condition | ✓ | — | ✓ | — | ✓ |
-| Body | a function call | T-SQL | PL/SQL | SQL | SQL |
+| | PostgreSQL | SQL Server | Oracle | MySQL | SQLite | Firebird |
+| --- | --- | --- | --- | --- | --- | --- |
+| `BEFORE` | ✓ | — | ✓ | ✓ | ✓ | ✓ (tables and views) |
+| `AFTER` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `INSTEAD OF` | ✓ (views) | ✓ (views) | ✓ | — | ✓ (views) | — (`BEFORE` on a view) |
+| Several events on one trigger | ✓ | ✓ | ✓ | — | — | ✓ |
+| `TRUNCATE` event | ✓ | — | — | — | — | — |
+| Row-level (`FOR EACH ROW`) | ✓ | — always statement | ✓ | always | always | always |
+| `WHEN` condition | ✓ | — | ✓ | — | ✓ | — |
+| Body | a function call | T-SQL | PL/SQL | SQL | SQL | PSQL |
 
 **An engine that cannot express something refuses it.** Setting `Condition` on SQL Server throws
 and names the alternative; asking MySQL for two events throws and tells you to declare two
@@ -96,10 +96,12 @@ whitespace and case:
 | Oracle | `all_triggers.trigger_body` | verbatim |
 | MySQL | `information_schema.TRIGGERS.action_statement` | verbatim |
 | SQLite | `sqlite_master.sql` | verbatim |
+| Firebird | `RDB$TRIGGERS.RDB$TRIGGER_SOURCE` | verbatim, from `AS` |
 
 MySQL is the interesting one: it rewrites a *view* definition but stores a *trigger* body as
 submitted, so triggers need none of the probe machinery
 [views do](/core/object-types).
 
-Only Oracle has `CREATE OR REPLACE TRIGGER`. The other four drop and recreate, which their
-`WriteCreateStatement` does in one go — so applying a trigger is idempotent everywhere.
+Only Oracle has `CREATE OR REPLACE TRIGGER`, and Firebird `CREATE OR ALTER TRIGGER`. The other four
+drop and recreate, which their `WriteCreateStatement` does in one go — so applying a trigger is
+idempotent everywhere.

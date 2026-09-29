@@ -337,7 +337,8 @@ migrator.UseSchemaFingerprinting = true;
 ```
 
 With the flag enabled, a successful **full** apply stamps a SHA-256 fingerprint of the configured
-schema's expected DDL into `{DefaultSchemaName}.weasel_schema_fingerprints`. The next full apply
+schema's expected DDL into `{DefaultSchemaName}.weasel_schema_fingerprints` -- on Firebird, which has no schemas,
+`weasel_schema_fingerprints` alone. The next full apply
 recomputes the fingerprint in memory and, when that exact fingerprint is present, returns immediately —
 no global lock, no catalog introspection. Any configuration change (a new table, column, index, or
 managed partition) changes the fingerprint and re-enables the real apply, which then adds a new stamp.
