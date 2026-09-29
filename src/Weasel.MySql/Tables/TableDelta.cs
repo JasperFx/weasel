@@ -63,11 +63,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason,
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
 
+        // IgnoreIndex is Weasel.Core API and is honoured by the PostgreSQL, SQLite and SQL Server twins;
+        // without this MySQL put an ignored index in Extras and WriteUpdate dropped it. Matched ignoring
+        // case, as MySQL matches an index name.
+        var expectedIndexes = expected.Indexes.Where(x => !isIgnored(expected, x)).ToArray();
         Indexes = new ItemDelta<IndexDefinition>(
-            expected.Indexes,
-            droppable(expected, expected.Indexes,
+            expectedIndexes,
+            droppable(expected, expectedIndexes,
                 comparableIndexes(expected, actual, ForeignKeys,
-                    PrimaryKeyDifference == SchemaPatchDifference.None),
+                        PrimaryKeyDifference == SchemaPatchDifference.None)
+                    .Where(x => !isIgnored(expected, x)),
                 "index"),
             (e, a) => e.Matches(a, expected));
 
@@ -98,6 +103,9 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason,
 
         return false;
     }
+
+    private static bool isIgnored(Table expected, IndexDefinition index)
+        => expected.IgnoredIndexes.Contains(index.Name, StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     ///     MySQL creates a backing index for every FOREIGN KEY constraint — normally one
