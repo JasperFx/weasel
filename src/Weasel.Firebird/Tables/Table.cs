@@ -81,6 +81,12 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     internal string CatalogName => SchemaUtils.CatalogName(Identifier.Name, PreserveIdentifierCase);
 
     /// <summary>
+    ///     Read from the catalog: the columns a unique constraint covers, which a model never has --
+    ///     it says "unique" with a unique index -- but a table created outside Weasel may.
+    /// </summary>
+    internal ISet<string> UniqueConstraintColumns { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
     ///     A guarded <c>CREATE TABLE</c>, then each foreign key and index as its own guarded statement.
     /// </summary>
     /// <remarks>

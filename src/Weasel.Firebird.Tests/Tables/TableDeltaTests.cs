@@ -144,7 +144,7 @@ public class TableDeltaTests
 
         delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
         delta.InvalidReason!.ShouldContain("column 'id' (INTEGER to BIGINT)");
-        delta.InvalidReason!.ShouldContain("primary key, unique index or foreign key");
+        delta.InvalidReason!.ShouldContain("primary key, unique constraint, unique index or foreign key");
     }
 
     [Fact]
@@ -158,6 +158,25 @@ public class TableDeltaTests
         actual.Indexes.Add(new IndexDefinition("IDX_NAME") { Columns = ["NAME"], IsUnique = true });
 
         new TableDelta(expected, actual).Difference.ShouldBe(SchemaPatchDifference.Invalid);
+    }
+
+    /// <summary>
+    ///     A unique constraint is never in the model, but a table created outside Weasel may have one, and
+    ///     Firebird refuses to retype its columns as it does a key's.
+    /// </summary>
+    [Fact]
+    public void widening_a_column_a_unique_constraint_covers_is_invalid()
+    {
+        var expected = model();
+        expected.ModifyColumn("name").Column.Type = "VARCHAR(200)";
+
+        var actual = catalog();
+        actual.UniqueConstraintColumns.Add("NAME");
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
+        delta.InvalidReason!.ShouldContain("column 'name' (VARCHAR(100) CHARACTER SET UTF8 to VARCHAR(200))");
     }
 
     [Fact]

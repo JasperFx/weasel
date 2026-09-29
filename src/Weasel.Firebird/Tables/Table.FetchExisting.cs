@@ -41,12 +41,17 @@ public partial class Table
         ORDER BY rf.RDB$FIELD_POSITION
         """;
 
-    private const string PrimaryKeySql = """
-        SELECT TRIM(rc.RDB$CONSTRAINT_NAME), TRIM(s.RDB$FIELD_NAME)
+    /// <summary>
+    ///     The primary key and every unique constraint, one row per column, the key first. The model has
+    ///     no unique constraints -- a unique index is how it says "unique" -- but Firebird will not change
+    ///     the type of a column one covers, so the delta has to know which columns those are.
+    /// </summary>
+    private const string KeySql = """
+        SELECT TRIM(rc.RDB$CONSTRAINT_NAME), TRIM(s.RDB$FIELD_NAME), TRIM(rc.RDB$CONSTRAINT_TYPE)
         FROM RDB$RELATION_CONSTRAINTS rc
         JOIN RDB$INDEX_SEGMENTS s ON s.RDB$INDEX_NAME = rc.RDB$INDEX_NAME
-        WHERE rc.RDB$RELATION_NAME = @table AND rc.RDB$CONSTRAINT_TYPE = 'PRIMARY KEY'
-        ORDER BY s.RDB$FIELD_POSITION
+        WHERE rc.RDB$RELATION_NAME = @table AND rc.RDB$CONSTRAINT_TYPE IN ('PRIMARY KEY', 'UNIQUE')
+        ORDER BY rc.RDB$CONSTRAINT_TYPE, rc.RDB$CONSTRAINT_NAME, s.RDB$FIELD_POSITION
         """;
 
     /// <summary>
@@ -106,7 +111,7 @@ public partial class Table
         => conn is FbConnection firebird ? new FirebirdDbCommandBuilder(firebird) : base.CreateCommandBuilder(conn);
 
     /// <summary>
-    ///     Register the four introspection queries -- columns, primary key, foreign keys, indexes -- as
+    ///     Register the four introspection queries -- columns, keys, foreign keys, indexes -- as
     ///     four statements separated by <see cref="CommandBuilderBase{TCommand,TParameter,TParameterType}.StartNewCommand" />.
     ///     They stay unterminated: each is a command of its own.
     /// </summary>
@@ -123,7 +128,7 @@ public partial class Table
         builder.Append(bind(ColumnSql));
         builder.StartNewCommand();
 
-        builder.Append(bind(PrimaryKeySql));
+        builder.Append(bind(KeySql));
         builder.StartNewCommand();
 
         builder.Append(bind(ForeignKeySql));
@@ -161,7 +166,7 @@ public partial class Table
         }
 
         await reader.NextResultAsync(ct).ConfigureAwait(false);
-        await readPrimaryKeyAsync(reader, existing, ct).ConfigureAwait(false);
+        await readKeysAsync(reader, existing, ct).ConfigureAwait(false);
 
         await reader.NextResultAsync(ct).ConfigureAwait(false);
         await readForeignKeysAsync(reader, existing, ct).ConfigureAwait(false);
@@ -215,13 +220,19 @@ public partial class Table
         }
     }
 
-    private static async Task readPrimaryKeyAsync(DbDataReader reader, Table existing, CancellationToken ct)
+    private static async Task readKeysAsync(DbDataReader reader, Table existing, CancellationToken ct)
     {
         string? name = null;
         var columns = new List<string>();
 
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
+            if (reader.GetString(2) == "UNIQUE")
+            {
+                existing.UniqueConstraintColumns.Add(reader.GetString(1));
+                continue;
+            }
+
             name = reader.GetString(0);
             columns.Add(reader.GetString(1));
         }

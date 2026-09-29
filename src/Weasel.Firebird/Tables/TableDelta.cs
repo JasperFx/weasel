@@ -147,8 +147,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 $"{switched.Select(x => $"column '{x.Expected.Name}'").Join(" and ")} would change between computed and stored, which Firebird cannot do in place";
         }
 
-        // Firebird refuses to change the type of a column a primary key, unique index or foreign key
-        // covers (335544538), widening included. Weasel never drops a key to make room: that is a
+        // Firebird refuses to change the type of a column a primary key, unique constraint, unique index
+        // or foreign key covers (335544538), widening included. Weasel never drops a key to make room: that is a
         // decision about the data, not about the schema.
         var keyed = keyColumns(actual);
         // A computed column holds no data, so any change to its type is made in place.
@@ -160,7 +160,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         if (keyTypeChanges.Any())
         {
             return
-                $"{keyTypeChanges.Select(x => $"column '{x.Expected.Name}' ({x.Actual.Type} to {x.Expected.Type})").Join(" and ")} {(keyTypeChanges.Length == 1 ? "is" : "are")} part of a primary key, unique index or foreign key, and Firebird cannot change the type of such a column in place";
+                $"{keyTypeChanges.Select(x => $"column '{x.Expected.Name}' ({x.Actual.Type} to {x.Expected.Type})").Join(" and ")} {(keyTypeChanges.Length == 1 ? "is" : "are")} part of a primary key, unique constraint, unique index or foreign key, and Firebird cannot change the type of such a column in place";
         }
 
         var unalterable = typeChanges
@@ -183,11 +183,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     }
 
     /// <summary>
-    ///     The columns a primary key, a unique index or a foreign key of <paramref name="actual" /> covers.
+    ///     The columns a primary key, a unique constraint, a unique index or a foreign key of
+    ///     <paramref name="actual" /> covers.
     /// </summary>
     private static HashSet<string> keyColumns(Table actual)
     {
         var keyed = new HashSet<string>(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase);
+        keyed.UnionWith(actual.UniqueConstraintColumns);
 
         foreach (var index in actual.Indexes.Where(x => x.IsUnique))
         {

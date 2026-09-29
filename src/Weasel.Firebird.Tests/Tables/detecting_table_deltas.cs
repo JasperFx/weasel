@@ -330,7 +330,7 @@ public class detecting_table_deltas: IntegrationContext
         delta.InvalidReason!.ShouldContain("column 'id'");
 
         var ex = await Should.ThrowAsync<SchemaMigrationException>(() => ApplyAsync(AutoCreate.CreateOrUpdate, widened));
-        ex.Message.ShouldContain("primary key, unique index or foreign key");
+        ex.Message.ShouldContain("primary key, unique constraint, unique index or foreign key");
 
         (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$RELATION_FIELDS WHERE RDB$RELATION_NAME = 'PEOPLE' AND RDB$FIELD_NAME = 'ADDED'"))
             .ShouldBe(0, "nothing runs when the migration is refused");
@@ -348,6 +348,60 @@ public class detecting_table_deltas: IntegrationContext
             ExecuteAsync("ALTER TABLE people ALTER id TYPE BIGINT"));
 
         FirebirdMigrator.HasErrorNumber(ex, 335544538).ShouldBeTrue();
+    }
+
+    /// <summary>
+    ///     A unique constraint created outside Weasel covers its columns as a key does: Firebird will not
+    ///     retype them either, so the delta refuses before anything runs rather than halfway through.
+    /// </summary>
+    [Fact]
+    public async Task widening_a_column_a_unique_constraint_covers_is_refused_up_front()
+    {
+        await ExecuteAsync("""
+            CREATE TABLE people (id INTEGER NOT NULL, name VARCHAR(20),
+                CONSTRAINT pk_people PRIMARY KEY (id), CONSTRAINT uq_people_name UNIQUE (name))
+            """);
+
+        await Should.ThrowAsync<FirebirdSql.Data.FirebirdClient.FbException>(() =>
+            ExecuteAsync("ALTER TABLE people ALTER name TYPE VARCHAR(40)"));
+
+        var widened = new Table("people");
+        widened.AddColumn<int>("id").AsPrimaryKey();
+        widened.AddColumn("name", "VARCHAR(40)");
+        widened.AddColumn<int>("added");
+
+        (await widened.FetchExistingAsync(theConnection))!.UniqueConstraintColumns.ShouldBe(["NAME"]);
+
+        var delta = await widened.FindDeltaAsync(theConnection);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
+        delta.InvalidReason!.ShouldContain("column 'name'");
+
+        await Should.ThrowAsync<SchemaMigrationException>(() => ApplyAsync(AutoCreate.CreateOrUpdate, widened));
+        (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$RELATION_FIELDS WHERE RDB$RELATION_NAME = 'PEOPLE' AND RDB$FIELD_NAME = 'ADDED'"))
+            .ShouldBe(0, "nothing runs when the migration is refused");
+    }
+
+    /// <summary>
+    ///     The unique constraint's own index is still not an index of the table's, and its columns are
+    ///     not a key: a model that does not retype them sees no change.
+    /// </summary>
+    [Fact]
+    public async Task a_unique_constraint_created_outside_weasel_is_no_change()
+    {
+        await ExecuteAsync("""
+            CREATE TABLE people (id INTEGER NOT NULL, name VARCHAR(20),
+                CONSTRAINT pk_people PRIMARY KEY (id), CONSTRAINT uq_people_name UNIQUE (name))
+            """);
+
+        var same = new Table("people");
+        same.AddColumn<int>("id").AsPrimaryKey();
+        same.AddColumn("name", "VARCHAR(20)");
+
+        var existing = (await same.FetchExistingAsync(theConnection))!;
+        existing.PrimaryKeyColumns.ShouldBe(["ID"]);
+        existing.PrimaryKeyName.ShouldBe("PK_PEOPLE");
+
+        (await same.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
     [Fact]
