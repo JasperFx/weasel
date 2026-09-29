@@ -307,7 +307,13 @@ public static class FirebirdScript
     ///     over?
     /// </summary>
     internal static bool IsCreateOrAlter(string statement, string kind)
-        => skipWords(statement, 0, "CREATE", "OR", "ALTER", kind) >= 0;
+        => StartsWithWords(statement, "CREATE", "OR", "ALTER", kind);
+
+    /// <summary>
+    ///     Does <paramref name="statement" /> read <paramref name="words" />, in order, once whitespace and
+    ///     comments before each are passed over?
+    /// </summary>
+    internal static bool StartsWithWords(string statement, params string[] words) => skipWords(statement, 0, words) >= 0;
 
     /// <summary>
     ///     Is <paramref name="statement" /> <c>COMMIT</c> or <c>COMMIT WORK</c> and nothing else, comments

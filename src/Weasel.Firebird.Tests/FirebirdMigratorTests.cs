@@ -255,6 +255,65 @@ public class FirebirdMigratorTests
             theMigrator.GenerateDeleteAllSql([new FirebirdObjectName("sales", "orders")]));
     }
 
+    /// <summary>
+    ///     A statement's own kind's "already exists" is a lost race -- another applier created the object
+    ///     while it ran -- and anything else is not: another kind's is a name clash that recurs, and bare
+    ///     "unsuccessful metadata update" heads every failed DDL statement.
+    /// </summary>
+    [Theory]
+    [InlineData("CREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", 336068740, true)]
+    [InlineData("-- by hand\nCREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", 336068740, true)]
+    [InlineData("CREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", 336068743, false)]
+    [InlineData("CREATE OR ALTER PROCEDURE p AS BEGIN END", 336068743, true)]
+    [InlineData("CREATE OR ALTER PROCEDURE p AS BEGIN END", 336068740, false)]
+    [InlineData("CREATE OR ALTER FUNCTION f RETURNS INTEGER AS BEGIN RETURN 1; END", 336068876, true)]
+    [InlineData("CREATE OR ALTER TRIGGER t FOR x AS BEGIN END", 336068740, false)]
+    [InlineData("CREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", 335544351, false)]
+    [InlineData("CREATE TABLE t (id INTEGER)", 336068740, false)]
+    public void a_statements_own_kinds_already_exists_is_a_lost_race(string sql, int number, bool race)
+    {
+        FirebirdMigrator.IsCreatedConcurrently(sql, [335544351, number]).ShouldBe(race);
+    }
+
+    private static string[] createStatements(ISchemaObject schemaObject)
+    {
+        var writer = new StringWriter();
+        schemaObject.WriteCreateStatement(new FirebirdMigrator(), writer);
+        return FirebirdScript.Split(writer.ToString()).ToArray();
+    }
+
+    /// <summary>
+    ///     A guarded block is classified by the statement it executes, read out of its literal -- quotes
+    ///     doubled and all, and whichever branch a sequence's block takes.
+    /// </summary>
+    [Fact]
+    public void a_guarded_create_counts_its_own_kinds_already_exists_as_a_lost_race()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn("note", "VARCHAR(20)").DefaultValueByString("it's (quoted)");
+        table.AddColumn<int>("age").AddIndex();
+
+        var statements = createStatements(table);
+        FirebirdMigrator.IsCreatedConcurrently(statements[0], [335544351, 336068740]).ShouldBeTrue();
+        FirebirdMigrator.IsCreatedConcurrently(statements[0], [335544351, 336068743])
+            .ShouldBeFalse("a procedure holding the table's name is a clash that recurs");
+        FirebirdMigrator.IsCreatedConcurrently(statements[1], [335544351, 336068859])
+            .ShouldBeFalse("an index's name taken by a constraint's own index is a clash the guard cannot see");
+
+        FirebirdMigrator.IsCreatedConcurrently(createStatements(new Sequence("numbers")).Single(), [335544351, 336068862])
+            .ShouldBeTrue();
+        FirebirdMigrator.IsCreatedConcurrently(
+                createStatements(new Sequence(new FirebirdObjectName("numbers"), 100) { IncrementBy = 10 }).Single(),
+                [335544351, 336068862])
+            .ShouldBeTrue();
+
+        var drop = new StringWriter();
+        table.WriteDropStatement(new FirebirdMigrator(), drop);
+        FirebirdScript.Split(drop.ToString())
+            .ShouldAllBe(x => !FirebirdMigrator.IsCreatedConcurrently(x, new[] { 335544351, 336068740 }));
+    }
+
     [Fact]
     public async Task nothing_to_apply_runs_nothing()
     {

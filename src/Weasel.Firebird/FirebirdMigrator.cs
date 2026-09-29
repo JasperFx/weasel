@@ -532,49 +532,96 @@ public class FirebirdMigrator: Migrator
     ///     leaves the same view, routine or trigger however many times it runs. Racing appliers need both:
     ///     four concurrent <c>CREATE OR ALTER</c>s of one view have three losers, with "update conflicts
     ///     with concurrent update", a unique key violation in the catalog, or the view's own "already
-    ///     exists" (see <see cref="IsCreatedConcurrently" />).
+    ///     exists" (see <see cref="IsCreatedConcurrently(string, Exception)" />).
     /// </summary>
     internal static bool IsRetryable(string sql)
         => FirebirdScript.IsExecuteBlock(sql) || FirebirdScript.IsCreateOrAlter(sql);
 
     /// <summary>
-    ///     The "already exists" a <c>CREATE OR ALTER</c> gets when another applier creates the object
-    ///     while the statement runs: Firebird looks for the object, finds none, sets out to create it, and
-    ///     looks again before storing it -- and between the two looks the other applier committed. For
-    ///     the statement's own kind of object nothing else produces it, since an object of that kind that
-    ///     was there all along is altered instead, and run again the statement alters what the other
-    ///     applier made. Firebird 3, 4 and 5 answer "Table @1 already exists" (336068740) for a view,
-    ///     "Procedure @1 already exists" (336068743) and "Function @1 already exists" (336068876); a
-    ///     trigger's loser gets the catalog's unique key violation, which <see cref="IsCatalogConflict" />
-    ///     covers.
+    ///     The "already exists" a statement gets when another applier creates the same object while it
+    ///     runs: the statement found no such object, set out to create it, and the other applier committed
+    ///     before it stored its own. Run again, the statement finds the object -- a <c>CREATE OR ALTER</c>
+    ///     alters it and a guarded block's guard skips it -- so for the kind of object the statement
+    ///     creates, it is a lost race.
     /// </summary>
     /// <remarks>
-    ///     A different kind's "already exists" is a name clash that happens every time --
-    ///     <c>CREATE OR ALTER PROCEDURE</c> named like a table gets 336068740, a view named like a procedure
-    ///     336068743 -- so the number counts only for the kind the statement creates, and only for a
-    ///     <c>CREATE OR ALTER</c>.
+    ///     <para>
+    ///         Firebird 3, 4 and 5 answer, for a <c>CREATE OR ALTER</c>: "Table @1 already exists"
+    ///         (336068740) for a view, "Procedure @1 already exists" (336068743), "Function @1 already
+    ///         exists" (336068876). For a guarded block, by the statement it executes: 336068740 for
+    ///         <c>CREATE TABLE</c>, "Sequence @1 already exists" (336068862) for <c>CREATE SEQUENCE</c>. A
+    ///         trigger's, a column's and a domain's loser gets the catalog's unique key violation, which
+    ///         <see cref="IsCatalogConflict" /> covers.
+    ///     </para>
+    ///     <para>
+    ///         Another kind's number is a name clash that recurs -- a procedure named like a table gets
+    ///         336068740, a view named like a procedure 336068743 -- and is reported on the first attempt.
+    ///         One clash shares the number: a view holding a table's name. The table's guard looks for a
+    ///         table, so it is run again, fails the same way, and surfaces when
+    ///         <see cref="MaxGuardedStatementAttempts" /> runs out.
+    ///     </para>
+    ///     <para>
+    ///         "Index @1 already exists" (336068859) is left out, for an index or a constraint: it is also
+    ///         what a name taken by another table's index or a constraint's own index gets, which the
+    ///         guard does not see and which has to surface at once, and no racing applier has been seen
+    ///         to get it -- theirs get the unique key violation or "too many keys defined for index".
+    ///     </para>
     /// </remarks>
     internal static bool IsCreatedConcurrently(string sql, Exception exception)
-    {
-        foreach (var (kind, number) in AlreadyExists)
-        {
-            if (!FirebirdScript.IsCreateOrAlter(sql, kind))
-            {
-                continue;
-            }
+        => IsCreatedConcurrently(sql,
+            ExceptionChain.Flatten(exception).OfType<FbException>()
+                .SelectMany(x => x.Errors.Cast<FbError>().Select(e => e.Number).Append(x.ErrorCode)));
 
-            return ExceptionChain.Flatten(exception).OfType<FbException>().Any(x => HasErrorNumber(x, number));
+    /// <inheritdoc cref="IsCreatedConcurrently(string, Exception)" />
+    internal static bool IsCreatedConcurrently(string sql, IEnumerable<int> errorNumbers)
+    {
+        var numbers = errorNumbers.ToHashSet();
+
+        if (FirebirdScript.IsExecuteBlock(sql))
+        {
+            return executedStatements(sql).Any(statement => GuardedAlreadyExists.Any(x =>
+                FirebirdScript.StartsWithWords(statement, x.Words) && numbers.Contains(x.Number)));
         }
 
-        return false;
+        return CreateOrAlterAlreadyExists.Any(x =>
+            FirebirdScript.StartsWithWords(sql, x.Words) && numbers.Contains(x.Number));
     }
 
-    private static readonly (string Kind, int Number)[] AlreadyExists =
+    private static readonly (string[] Words, int Number)[] CreateOrAlterAlreadyExists =
     [
-        ("VIEW", 336068740),
-        ("PROCEDURE", 336068743),
-        ("FUNCTION", 336068876)
+        (["CREATE", "OR", "ALTER", "VIEW"], 336068740),
+        (["CREATE", "OR", "ALTER", "PROCEDURE"], 336068743),
+        (["CREATE", "OR", "ALTER", "FUNCTION"], 336068876)
     ];
+
+    private static readonly (string[] Words, int Number)[] GuardedAlreadyExists =
+    [
+        (["CREATE", "TABLE"], 336068740),
+        (["CREATE", "SEQUENCE"], 336068862),
+        (["CREATE", "GENERATOR"], 336068862)
+    ];
+
+    /// <summary>
+    ///     The statements an <c>EXECUTE BLOCK</c> runs with <c>EXECUTE STATEMENT</c>, each as far as its
+    ///     first literal goes -- which for a guarded statement is the whole of it, or its first 16,000
+    ///     characters.
+    /// </summary>
+    private static IEnumerable<string> executedStatements(string block)
+    {
+        var tokens = PsqlLexer.Tokenize(block);
+        for (var i = 0; i + 2 < tokens.Count; i++)
+        {
+            if (tokens[i].IsWord(block, "EXECUTE") && tokens[i + 1].IsWord(block, "STATEMENT")
+                                                   && tokens[i + 2].Kind == PsqlTokenKind.Literal)
+            {
+                var literal = tokens[i + 2].Text(block);
+                if (literal.Length >= 2 && literal[0] == '\'')
+                {
+                    yield return literal[1..^1].Replace("''", "'");
+                }
+            }
+        }
+    }
 
     /// <summary>
     ///     Run rendered DDL the way a migration runs it: split into statements, each in a <c>WAIT</c>
