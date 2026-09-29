@@ -102,7 +102,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             WriteDropStatement(migrator, writer);
         }
 
-        FirebirdScript.WriteGuarded(writer, CatalogProbes.Relation(CatalogName), createTableSql(migrator));
+        FirebirdScript.WriteGuarded(writer, CatalogProbes.Table(CatalogName), createTableSql(migrator));
 
         foreach (var foreignKey in ForeignKeys.Where(x => !deferredForeignKeys.Contains(x.Name)))
         {
@@ -117,12 +117,12 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
     internal void WriteCreateIndex(TextWriter writer, IndexDefinition index)
     {
-        FirebirdScript.WriteGuarded(writer, CatalogProbes.Index(index.CatalogName(this)), index.ToDDL(this));
+        FirebirdScript.WriteGuarded(writer, CatalogProbes.Index(CatalogName, index.CatalogName(this)), index.ToDDL(this));
     }
 
     internal void WriteDropIndex(TextWriter writer, IndexDefinition index)
     {
-        FirebirdScript.WriteGuardedWhenExists(writer, CatalogProbes.Index(index.CatalogName(this)),
+        FirebirdScript.WriteGuardedWhenExists(writer, CatalogProbes.Index(CatalogName, index.CatalogName(this)),
             $"DROP INDEX {SchemaUtils.QuoteName(index.Name, PreserveIdentifierCase)}");
     }
 
@@ -214,7 +214,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             END
             """);
 
-        FirebirdScript.WriteGuardedWhenExists(writer, CatalogProbes.Relation(CatalogName), $"DROP TABLE {QuotedName}");
+        FirebirdScript.WriteGuardedWhenExists(writer, CatalogProbes.Table(CatalogName), $"DROP TABLE {QuotedName}");
     }
 
     public override IEnumerable<DbObjectName> AllNames()

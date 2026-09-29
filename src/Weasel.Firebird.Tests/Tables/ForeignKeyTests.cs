@@ -96,17 +96,17 @@ public class ForeignKeyTests
     }
 
     /// <summary>
-    ///     Constraint and index names share one namespace in a Firebird database, and the guard is on
-    ///     the constraint catalog.
+    ///     The guard looks for this key -- a foreign key of that name on this table -- rather than the
+    ///     name alone, which an index or another table's constraint could hold.
     /// </summary>
     [Fact]
-    public void the_add_is_guarded_on_the_constraint_name()
+    public void the_add_is_guarded_on_the_key_itself()
     {
         var writer = new StringWriter();
         key().WriteAddStatement(people, writer);
 
         var sql = writer.ToString();
-        sql.ShouldContain("IF (NOT EXISTS(SELECT 1 FROM RDB$RELATION_CONSTRAINTS WHERE RDB$CONSTRAINT_NAME = 'FK_PEOPLE_STATE'))");
+        sql.ShouldContain("IF (NOT EXISTS(SELECT 1 FROM RDB$RELATION_CONSTRAINTS WHERE RDB$CONSTRAINT_NAME = 'FK_PEOPLE_STATE' AND RDB$RELATION_NAME = 'PEOPLE' AND RDB$CONSTRAINT_TYPE = 'FOREIGN KEY'))");
         FirebirdScript.Split(sql).Count.ShouldBe(1);
     }
 
@@ -117,7 +117,7 @@ public class ForeignKeyTests
         key().WriteDropStatement(people, writer);
 
         var sql = writer.ToString();
-        sql.ShouldContain("IF (EXISTS(SELECT 1 FROM RDB$RELATION_CONSTRAINTS WHERE RDB$CONSTRAINT_NAME = 'FK_PEOPLE_STATE'))");
+        sql.ShouldContain("IF (EXISTS(SELECT 1 FROM RDB$RELATION_CONSTRAINTS WHERE RDB$CONSTRAINT_NAME = 'FK_PEOPLE_STATE' AND RDB$RELATION_NAME = 'PEOPLE' AND RDB$CONSTRAINT_TYPE = 'FOREIGN KEY'))");
         sql.ShouldContain("'ALTER TABLE people DROP CONSTRAINT fk_people_state'");
     }
 

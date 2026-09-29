@@ -86,17 +86,17 @@ public class ForeignKey: ForeignKeyBase
     internal string CatalogName(Table parent) => SchemaUtils.CatalogName(Name, parent.PreserveIdentifierCase);
 
     /// <summary>
-    ///     Write the key, guarded on its name: constraint and index names share one namespace in a
-    ///     Firebird database, so the probe is the constraint catalog.
+    ///     Write the key, guarded on a foreign key of that name on this table -- not on the name alone,
+    ///     which an index could hold, since constraint and index names share one namespace.
     /// </summary>
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
-        FirebirdScript.WriteGuarded(writer, CatalogProbes.Constraint(CatalogName(parent)), ToDDL(parent));
+        FirebirdScript.WriteGuarded(writer, CatalogProbes.ForeignKey(parent.CatalogName, CatalogName(parent)), ToDDL(parent));
     }
 
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
-        FirebirdScript.WriteGuardedWhenExists(writer, CatalogProbes.Constraint(CatalogName(parent)),
+        FirebirdScript.WriteGuardedWhenExists(writer, CatalogProbes.ForeignKey(parent.CatalogName, CatalogName(parent)),
             $"ALTER TABLE {parent.QuotedName} DROP CONSTRAINT {SchemaUtils.QuoteName(Name, parent.PreserveIdentifierCase)}");
     }
 

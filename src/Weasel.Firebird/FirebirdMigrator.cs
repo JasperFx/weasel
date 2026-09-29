@@ -254,11 +254,52 @@ public class FirebirdMigrator: Migrator
     )
     {
         var statements = RenderStatements(migration);
+        AssertServerSupports(migration, FirebirdServerVersion.Of(conn));
 
         foreach (var statement in statements)
         {
             await executeStatementAsync(conn, statement, logger, ct).ConfigureAwait(false);
         }
+    }
+
+    /// <summary>
+    ///     Refuse, before anything runs, what the model can say but this server cannot do: a partial
+    ///     index on Firebird 3 or 4, where the <c>WHERE</c> is a syntax error that would otherwise stop the
+    ///     migration halfway through. DDL is written without knowing the server, so this is where the
+    ///     version is consulted.
+    /// </summary>
+    internal static void AssertServerSupports(SchemaMigration migration, FirebirdServerVersion? version)
+    {
+        if (version is not { SupportsPartialIndexes: false })
+        {
+            return;
+        }
+
+        var partial = migration.Deltas
+            .OfType<Tables.TableDelta>()
+            .SelectMany(indexesCreatedBy)
+            .Where(x => x.Index.Predicate.IsNotEmpty())
+            .Select(x => $"{x.Index.Name} on {x.Table}")
+            .ToArray();
+
+        if (partial.Any())
+        {
+            throw new NotSupportedException(
+                $"Partial indexes need Firebird 5, and this server is Firebird {version}: {partial.Join(", ")}. "
+                + "Drop the Predicate, or apply this migration to a Firebird 5 database.");
+        }
+    }
+
+    private static IEnumerable<(DbObjectName Table, Tables.IndexDefinition Index)> indexesCreatedBy(Tables.TableDelta delta)
+    {
+        IEnumerable<Tables.IndexDefinition> indexes = delta.Difference switch
+        {
+            SchemaPatchDifference.Create or SchemaPatchDifference.Invalid => delta.Expected.Indexes,
+            SchemaPatchDifference.Update => delta.Indexes.Missing.Concat(delta.Indexes.Different.Select(x => x.Expected)),
+            _ => []
+        };
+
+        return indexes.Select(x => (delta.Expected.Identifier, x));
     }
 
     /// <summary>

@@ -71,7 +71,7 @@ public class TableTests
 
         var statement = statements.Single().Replace("\r\n", "\n");
         statement.ShouldStartWith("EXECUTE BLOCK AS");
-        statement.ShouldContain("IF (NOT EXISTS(SELECT 1 FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = 'PEOPLE')) THEN");
+        statement.ShouldContain("IF (NOT EXISTS(SELECT 1 FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = 'PEOPLE' AND RDB$VIEW_BLR IS NULL)) THEN");
         statement.ShouldContain("EXECUTE STATEMENT 'CREATE TABLE people (");
         statement.ShouldContain("CONSTRAINT pk_people PRIMARY KEY (id)");
     }
@@ -157,7 +157,7 @@ public class TableTests
         statements.Count.ShouldBe(2);
         statements[0].ShouldContain("WHERE pk.RDB$RELATION_NAME = 'PEOPLE' AND fk.RDB$RELATION_NAME <> 'PEOPLE'");
         statements[0].ShouldContain("DROP CONSTRAINT");
-        statements[1].ShouldContain("IF (EXISTS(SELECT 1 FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = 'PEOPLE'))");
+        statements[1].ShouldContain("IF (EXISTS(SELECT 1 FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = 'PEOPLE' AND RDB$VIEW_BLR IS NULL))");
         statements[1].ShouldContain("'DROP TABLE people'");
     }
 

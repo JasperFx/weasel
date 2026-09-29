@@ -325,7 +325,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     private void writeDropPrimaryKey(TextWriter writer, string constraintName)
     {
         FirebirdScript.WriteGuardedWhenExists(writer,
-            CatalogProbes.Constraint(SchemaUtils.CatalogName(constraintName, Expected.PreserveIdentifierCase)),
+            CatalogProbes.Constraint(Expected.CatalogName,
+                SchemaUtils.CatalogName(constraintName, Expected.PreserveIdentifierCase), "PRIMARY KEY"),
             $"ALTER TABLE {Expected.QuotedName} DROP CONSTRAINT {SchemaUtils.QuoteName(constraintName, Expected.PreserveIdentifierCase)}");
     }
 
