@@ -44,7 +44,8 @@ public class table_identifier_coverage_conformance
             { "MySql", () => new MySql.Tables.Table("weasel_testing.people"), false },
             { "Sqlite", () => new Sqlite.Tables.Table("people"), false },
             { "Postgresql", () => new Postgresql.Tables.Table("public.people"), true },
-            { "Oracle", () => new Oracle.Tables.Table("WEASEL.PEOPLE"), false }
+            { "Oracle", () => new Oracle.Tables.Table("WEASEL.PEOPLE"), false },
+            { "Firebird", () => new Firebird.Tables.Table("people"), false }
         };
 
     /// <summary>

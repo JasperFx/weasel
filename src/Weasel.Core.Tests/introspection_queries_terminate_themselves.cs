@@ -124,6 +124,16 @@ public class introspection_queries_terminate_themselves
             new DbObjectName("TEST", "THING"), "before insert on TEST.THING begin null; end;");
     }
 
+    /// <summary>
+    ///     The Firebird objects, which must NOT terminate either. Firebird executes one statement per
+    ///     command, so <c>FirebirdDbCommandBuilder</c> splits on <c>StartNewCommand</c> as Oracle's does,
+    ///     and each query is a command of its own.
+    /// </summary>
+    private static IEnumerable<ISchemaObject> firebirdObjects()
+    {
+        yield return new Firebird.Tables.Table("thing");
+    }
+
     private static DbCommand commandFor(string provider) => provider switch
     {
         "PostgreSQL" => new NpgsqlCommand(),
@@ -171,6 +181,23 @@ public class introspection_queries_terminate_themselves
     }
 
     /// <summary>
+    ///     Firebird's queries must stay unterminated for the same reason as Oracle's: each is a command
+    ///     of its own, split out by <c>FirebirdDbCommandBuilder</c>.
+    /// </summary>
+    [Fact]
+    public void firebird_objects_do_not_terminate_their_queries()
+    {
+        var offenders = firebirdObjects()
+            .Where(x => sqlFor(x, new global::FirebirdSql.Data.FirebirdClient.FbCommand()).TrimEnd().EndsWith(';'))
+            .Select(x => x.GetType().FullName!)
+            .ToArray();
+
+        offenders.ShouldBeEmpty(
+            $"Firebird executes one statement per command, so these must NOT end in ';':{Environment.NewLine}"
+            + string.Join(Environment.NewLine, offenders));
+    }
+
+    /// <summary>
     ///     The guard on the guard: a schema object type that nothing above instantiates is a type
     ///     whose query is never checked, and adding one is exactly when this mistake gets made.
     /// </summary>
@@ -179,6 +206,7 @@ public class introspection_queries_terminate_themselves
     {
         var covered = batchingObjects().Select(x => x.Object.GetType())
             .Concat(oracleObjects().Select(x => x.GetType()))
+            .Concat(firebirdObjects().Select(x => x.GetType()))
             .ToHashSet();
 
         var assemblies = new[]
@@ -187,7 +215,8 @@ public class introspection_queries_terminate_themselves
             typeof(SqlServer.Tables.Table).Assembly,
             typeof(Sqlite.Tables.Table).Assembly,
             typeof(MySql.Tables.Table).Assembly,
-            typeof(Oracle.Tables.Table).Assembly
+            typeof(Oracle.Tables.Table).Assembly,
+            typeof(Firebird.Tables.Table).Assembly
         };
 
         var missing = assemblies
@@ -200,7 +229,7 @@ public class introspection_queries_terminate_themselves
             .ToArray();
 
         missing.ShouldBeEmpty(
-            $"These schema object types are not covered by this test, so nothing checks whether their introspection query terminates. Add an instance to batchingObjects() -- or to oracleObjects() if the type is Oracle's:{Environment.NewLine}"
+            $"These schema object types are not covered by this test, so nothing checks whether their introspection query terminates. Add an instance to batchingObjects() -- or to oracleObjects() or firebirdObjects() if the type is Oracle's or Firebird's:{Environment.NewLine}"
             + string.Join(Environment.NewLine, missing));
     }
 }

@@ -33,6 +33,7 @@ public class object_type_support_matrix
             "Oracle" => typeof(Oracle.Tables.Table).Assembly,
             "MySql" => typeof(MySql.Tables.Table).Assembly,
             "Sqlite" => typeof(Sqlite.Tables.Table).Assembly,
+            "Firebird" => typeof(Firebird.Tables.Table).Assembly,
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
         };
 
@@ -79,7 +80,9 @@ public class object_type_support_matrix
 
         ("Sqlite", "Table", "Weasel.Sqlite.Tables.Table"),
         ("Sqlite", "View", "Weasel.Sqlite.Views.View"),
-        ("Sqlite", "Trigger", "Weasel.Sqlite.Triggers.Trigger")
+        ("Sqlite", "Trigger", "Weasel.Sqlite.Triggers.Trigger"),
+
+        ("Firebird", "Table", "Weasel.Firebird.Tables.Table")
     ];
 
     public static TheoryData<string, string, string> Supported
@@ -131,6 +134,7 @@ public class object_type_support_matrix
     [InlineData("Oracle")]
     [InlineData("MySql")]
     [InlineData("Sqlite")]
+    [InlineData("Firebird")]
     public void no_object_type_is_missing_from_the_matrix(string provider)
     {
         var documented = SupportedRows.Select(x => x.TypeName).ToHashSet();
