@@ -22,6 +22,7 @@
       <ProjectReference Include="..\Weasel.Sqlite\Weasel.Sqlite.csproj" />
       <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
       <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
+      <ProjectReference Include="..\Weasel.Firebird\Weasel.Firebird.csproj" />
       <!-- Weasel.Storage has no test project of its own; its flat-table lift is verified here
            because the reference dialects need the provider assemblies this project already
            references. Still pure string logic — no database. -->

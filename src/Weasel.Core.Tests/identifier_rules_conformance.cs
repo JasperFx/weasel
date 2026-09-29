@@ -1,5 +1,6 @@
 using Shouldly;
 using Weasel.Core;
+using Weasel.Firebird;
 using Weasel.MySql;
 using Weasel.Oracle;
 using Weasel.Postgresql;
@@ -41,7 +42,8 @@ public class identifier_rules_conformance
             { "Sqlite", SqliteIdentifierRules.Instance },
             { "Postgresql", PostgresqlIdentifierRules.General },
             { "Postgresql/function", PostgresqlIdentifierRules.Function },
-            { "Oracle", OracleIdentifierRules.Instance }
+            { "Oracle", OracleIdentifierRules.Instance },
+            { "Firebird", FirebirdIdentifierRules.Instance }
         };
 
     /// <summary>
