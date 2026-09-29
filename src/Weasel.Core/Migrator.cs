@@ -588,4 +588,25 @@ public abstract class
     /// <param name="resetIdentity">Whether to reset identity/sequence/autoincrement counters</param>
     /// <returns>SQL string ready for execution</returns>
     public abstract string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true);
+
+    /// <summary>
+    ///     <see cref="GenerateDeleteAllSql" /> for a provider that has to look at the database to know
+    ///     what it can emit. The default answers with the connectionless form, which is right for every
+    ///     provider whose reset statement is always valid.
+    /// </summary>
+    /// <remarks>
+    ///     SQLite overrides it because <c>sqlite_sequence</c> exists in a database only once something
+    ///     in it has been declared <c>AUTOINCREMENT</c>, and a <c>DELETE</c> naming a table that is not
+    ///     there fails when the statement is prepared -- before any guard in the SQL itself could be
+    ///     read (weasel#546).
+    /// </remarks>
+    public virtual Task<string> GenerateDeleteAllSqlAsync(
+        DbConnection conn,
+        IReadOnlyList<DbObjectName> tables,
+        bool resetIdentity = true,
+        CancellationToken ct = default
+    )
+    {
+        return Task.FromResult(GenerateDeleteAllSql(tables, resetIdentity));
+    }
 }

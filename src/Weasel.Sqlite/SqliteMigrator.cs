@@ -416,6 +416,71 @@ public class SqliteMigrator: Migrator
 
     public override string GenerateDeleteAllSql(IReadOnlyList<DbObjectName> tables, bool resetIdentity = true)
     {
+        return generateDeleteAllSql(tables, resetIdentity, schemasWithSequence: null);
+    }
+
+    /// <summary>
+    ///     The same SQL, but with a reset statement only for the schemas that actually have a
+    ///     <c>sqlite_sequence</c> to delete from.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <c>sqlite_sequence</c> comes into existence only when something in that database is
+    ///         declared <c>AUTOINCREMENT</c>, and SQLite resolves table names when it prepares a
+    ///         statement, so <c>DELETE FROM "main".sqlite_sequence</c> against a schema that has none
+    ///         throws <c>no such table</c> and no <c>WHERE</c> guard can prevent it -- the guard is
+    ///         never read. Microsoft.Data.Sqlite prepares and steps one statement at a time, so the
+    ///         table deletes ahead of it had already run: the operation half applied and then threw
+    ///         (weasel#546).
+    ///     </para>
+    ///     <para>
+    ///         Semantically there is nothing to do in that case. No sequence means the next id already
+    ///         starts at 1, which is what the reset is for.
+    ///     </para>
+    /// </remarks>
+    public override async Task<string> GenerateDeleteAllSqlAsync(
+        DbConnection conn,
+        IReadOnlyList<DbObjectName> tables,
+        bool resetIdentity = true,
+        CancellationToken ct = default
+    )
+    {
+        if (tables.Count == 0 || !resetIdentity)
+        {
+            return generateDeleteAllSql(tables, resetIdentity, schemasWithSequence: null);
+        }
+
+        var wanted = tables
+            .Select(SqliteObjectName.From)
+            .Select(x => owner(x.Schema))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var attached = await attachedSchemasAsync(conn, ct).ConfigureAwait(false);
+
+        var withSequence = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in wanted)
+        {
+            // A schema that is not attached has no sqlite_master to ask. Leaving it out of the resets
+            // lets its own DELETE report the missing schema, which is the useful error.
+            if (attached.Contains(schema) && await hasSequenceTableAsync(conn, schema, ct).ConfigureAwait(false))
+            {
+                withSequence.Add(schema);
+            }
+        }
+
+        return generateDeleteAllSql(tables, resetIdentity, withSequence);
+    }
+
+    /// <param name="schemasWithSequence">
+    ///     The schemas known to have a <c>sqlite_sequence</c>, or null to emit a reset for every schema
+    ///     without asking -- what the connectionless overload has to do.
+    /// </param>
+    private static string generateDeleteAllSql(
+        IReadOnlyList<DbObjectName> tables,
+        bool resetIdentity,
+        ISet<string>? schemasWithSequence
+    )
+    {
         if (tables.Count == 0)
         {
             return string.Empty;
@@ -433,12 +498,49 @@ public class SqliteMigrator: Migrator
         {
             foreach (var group in names.GroupBy(x => x.Schema, StringComparer.OrdinalIgnoreCase))
             {
+                if (schemasWithSequence != null && !schemasWithSequence.Contains(owner(group.Key)))
+                {
+                    continue;
+                }
+
                 var literals = string.Join(", ", group.Select(t => $"'{SchemaUtils.EscapeLiteral(t.Name)}'"));
                 sb.AppendLine($"DELETE FROM {qualify(group.Key, "sqlite_sequence")} WHERE name IN ({literals});");
             }
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>The schemas this connection can actually resolve: main, temp, and anything attached.</summary>
+    private static async Task<HashSet<string>> attachedSchemasAsync(DbConnection conn, CancellationToken ct)
+    {
+        var schemas = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT name FROM pragma_database_list;";
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            schemas.Add(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false));
+        }
+
+        // temp is always resolvable, and pragma_database_list omits it until something is in it
+        schemas.Add("temp");
+
+        return schemas;
+    }
+
+    private static async Task<bool> hasSequenceTableAsync(DbConnection conn, string schema, CancellationToken ct)
+    {
+        await using var cmd = conn.CreateCommand();
+
+        // The schema qualifies the catalog being read, so it cannot be a parameter
+        cmd.CommandText =
+            $"SELECT count(*) FROM {SchemaUtils.QuoteName(schema)}.sqlite_master "
+            + "WHERE type = 'table' AND name = 'sqlite_sequence';";
+
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct).ConfigureAwait(false)) > 0;
     }
 
     /// <summary>
@@ -449,8 +551,13 @@ public class SqliteMigrator: Migrator
     /// </summary>
     private static string qualify(string schema, string name)
     {
-        var owner = schema.IsEmpty() ? SqliteProvider.Instance.DefaultDatabaseSchemaName : schema;
-        return $"{SchemaUtils.QuoteName(owner)}.{SchemaUtils.QuoteName(name)}";
+        return $"{SchemaUtils.QuoteName(owner(schema))}.{SchemaUtils.QuoteName(name)}";
+    }
+
+    /// <summary>The schema a name belongs to, with an unnamed one resolved to the default.</summary>
+    private static string owner(string schema)
+    {
+        return schema.IsEmpty() ? SqliteProvider.Instance.DefaultDatabaseSchemaName : schema;
     }
 
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
