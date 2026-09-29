@@ -311,8 +311,11 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         return new ColumnExpression(this, column);
     }
 
+    /// <exception cref="InvalidOperationException">The name is longer than the server's catalog holds.</exception>
     public async Task<bool> ExistsInDatabaseAsync(FbConnection conn, CancellationToken ct = default)
     {
+        FirebirdMigrator.AssertCatalogCanHold(CatalogName, FirebirdServerVersion.Of(conn), "the name of a table");
+
         await using var cmd = conn.CreateCommand(
             "SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = @table AND RDB$VIEW_BLR IS NULL");
         cmd.With("table", CatalogName);

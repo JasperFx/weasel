@@ -119,9 +119,18 @@ public partial class Table
     ///     A partial index's condition is in <c>RDB$INDICES.RDB$CONDITION_SOURCE</c>, which only Firebird 5
     ///     has, so the index query names it only when the builder was made against an open connection to
     ///     a Firebird 5 server. Against anything else it reads as no condition.
+    ///     <para>
+    ///         A name longer than the server's catalog holds is refused as over the limit, before it is
+    ///         bound: the query would otherwise fail with "string truncation".
+    ///     </para>
     /// </remarks>
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
+        var version = builder is FirebirdDbCommandBuilder firebird
+            ? firebird.ServerVersion
+            : FirebirdServerVersion.Of(builder.Command.Connection);
+        FirebirdMigrator.AssertCatalogCanHold(CatalogName, version, "the name of a table");
+
         var table = builder.AddParameter(CatalogName).ParameterName;
         string bind(string sql) => sql.Replace("@table", "@" + table);
 
@@ -134,9 +143,6 @@ public partial class Table
         builder.Append(bind(ForeignKeySql));
         builder.StartNewCommand();
 
-        var version = builder is FirebirdDbCommandBuilder firebird
-            ? firebird.ServerVersion
-            : FirebirdServerVersion.Of(builder.Command.Connection);
         var condition = version is { SupportsPartialIndexes: true }
             ? "CAST(i.RDB$CONDITION_SOURCE AS VARCHAR(8191))"
             : "CAST(NULL AS VARCHAR(8191))";

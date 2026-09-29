@@ -92,10 +92,16 @@ public class Sequence: SequenceBase
 
     /// <summary>
     ///     Whether the sequence exists, and its increment. Unterminated: on Firebird every introspection
-    ///     query is a command of its own.
+    ///     query is a command of its own. A name longer than the server's catalog holds is refused as over
+    ///     the limit, before it is bound: the query would otherwise fail with "string truncation".
     /// </summary>
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
+        var version = builder is FirebirdDbCommandBuilder firebird
+            ? firebird.ServerVersion
+            : FirebirdServerVersion.Of(builder.Command.Connection);
+        FirebirdMigrator.AssertCatalogCanHold(CatalogName, version, "the name of a sequence");
+
         var name = builder.AddParameter(CatalogName).ParameterName;
         builder.Append(
             $"SELECT RDB$GENERATOR_INCREMENT FROM RDB$GENERATORS WHERE RDB$GENERATOR_NAME = @{name} AND COALESCE(RDB$SYSTEM_FLAG, 0) = 0");

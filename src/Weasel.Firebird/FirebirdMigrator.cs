@@ -124,18 +124,38 @@ public class FirebirdMigrator: Migrator
     ///     do about it.
     /// </summary>
     internal void AssertFits(string name, string? remedy, string? names = null)
+        => assertFits(name, MaxIdentifierLength, remedy, names);
+
+    /// <summary>
+    ///     Refuse a name the catalog of a Firebird <paramref name="version" /> server cannot hold, before
+    ///     it is bound as a parameter against a catalog column: FirebirdClient would fail the query with
+    ///     "string truncation" (335544321), which says nothing about the name. A name the catalog holds is
+    ///     left to <see cref="MaxIdentifierLength" />, which is checked when DDL is written. Nothing is
+    ///     checked when the version is unknown.
+    /// </summary>
+    internal static void AssertCatalogCanHold(string name, FirebirdServerVersion? version, string names)
     {
-        var inBytes = MaxIdentifierLength <= 31;
+        if (version is { } server)
+        {
+            assertFits(name, server.MaxIdentifierLength,
+                $"Firebird {server} holds no longer name in its catalog, so nothing by this name can exist. Use a shorter one.",
+                names);
+        }
+    }
+
+    private static void assertFits(string name, int limit, string? remedy, string? names)
+    {
+        var inBytes = limit <= 31;
         var length = inBytes ? Encoding.UTF8.GetByteCount(name) : name.Length;
 
-        if (length <= MaxIdentifierLength)
+        if (length <= limit)
         {
             return;
         }
 
         var unit = inBytes ? "bytes" : "characters";
         throw new InvalidOperationException(
-            $"Firebird identifier '{name}'{(names == null ? "" : $", {names},")} is {length} {unit}, over the {MaxIdentifierLength}-{unit[..^1]} limit. "
+            $"Firebird identifier '{name}'{(names == null ? "" : $", {names},")} is {length} {unit}, over the {limit}-{unit[..^1]} limit. "
             + "Firebird refuses a longer name rather than truncating it, so Weasel does too. "
             + (remedy ?? $"Firebird 3 allows 31 bytes; for a database only Firebird 4 or later opens, set {nameof(FirebirdMigrator)}.{nameof(MaxIdentifierLength)} to 63."));
     }

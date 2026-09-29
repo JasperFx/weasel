@@ -190,4 +190,90 @@ public class identifier_length_limits: IntegrationContext
 
         await Should.ThrowAsync<InvalidOperationException>(() => database.ApplyAllConfiguredChangesToDatabaseAsync());
     }
+
+    /// <summary>
+    ///     A name longer than the catalog's own columns hold -- 31 bytes on Firebird 3, 63 characters from
+    ///     4 on -- cannot be bound against them: FirebirdClient fails the query with "string truncation"
+    ///     (335544321), which says nothing about the name. Every way into introspection refuses it as over
+    ///     the limit instead, whatever <see cref="FirebirdMigrator.MaxIdentifierLength" /> says.
+    /// </summary>
+    private string longerThanTheCatalogHolds() => new('t', ServerVersion.MaxIdentifierLength + 3);
+
+    private static void shouldBeTheLengthRefusal(InvalidOperationException ex)
+    {
+        ex.Message.ShouldContain("over the");
+        ex.Message.ShouldContain("no longer name");
+    }
+
+    [Fact]
+    public async Task determining_a_migration_refuses_a_table_name_the_catalog_cannot_hold()
+    {
+        var table = named(longerThanTheCatalogHolds(), "pk_long");
+        var migrator = new FirebirdMigrator { MaxIdentifierLength = 63 };
+
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            SchemaMigration.DetermineAsync(theConnection, migrator, CancellationToken.None, table)));
+    }
+
+    [Fact]
+    public async Task reading_a_table_refuses_a_name_the_catalog_cannot_hold()
+    {
+        var table = named(longerThanTheCatalogHolds(), "pk_long");
+
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            table.FetchExistingAsync(theConnection)));
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            table.FindDeltaAsync(theConnection)));
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            table.ExistsInDatabaseAsync(theConnection)));
+    }
+
+    [Fact]
+    public async Task applying_changes_refuses_a_table_name_the_catalog_cannot_hold()
+    {
+        var table = named(longerThanTheCatalogHolds(), "pk_long");
+
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            table.ApplyChangesAsync(theConnection)));
+    }
+
+    [Fact]
+    public async Task a_database_refuses_a_table_name_the_catalog_cannot_hold_when_it_checks_itself()
+    {
+        var database = new DatabaseWithTables("limits", ConnectionString);
+        database.AddTable(named(longerThanTheCatalogHolds(), "pk_long"));
+
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            database.AssertDatabaseMatchesConfigurationAsync()));
+    }
+
+    [Fact]
+    public async Task determining_a_migration_refuses_a_sequence_name_the_catalog_cannot_hold()
+    {
+        var sequence = new Sequence(longerThanTheCatalogHolds());
+        var migrator = new FirebirdMigrator { MaxIdentifierLength = 63 };
+
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            SchemaMigration.DetermineAsync(theConnection, migrator, CancellationToken.None, sequence)));
+    }
+
+    /// <summary>
+    ///     A name the catalog holds but the migrator's limit does not is read like any other -- there is
+    ///     no such table -- and refused when the DDL for it is written.
+    /// </summary>
+    [Fact]
+    public async Task a_name_the_catalog_holds_is_read_and_refused_when_it_would_be_created()
+    {
+        if (ServerVersion.Major < 4)
+        {
+            Assert.Skip($"Firebird {ServerVersion}'s catalog holds no more than the default limit");
+        }
+
+        var table = named(new string('t', 40), "pk_long");
+
+        (await table.FetchExistingAsync(theConnection)).ShouldBeNull();
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => ApplyAsync(table));
+        ex.Message.ShouldContain("the name of a table");
+    }
 }
