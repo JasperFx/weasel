@@ -9,7 +9,7 @@ namespace Weasel.Oracle.Tables;
 public partial class Table
 {
     private const string ColumnSql = @"
-SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, char_length, char_used
+SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, char_length, char_used, identity_column
 FROM all_tab_columns
 WHERE owner = :schemaName AND table_name = :tableName
 ORDER BY column_id";
@@ -497,15 +497,19 @@ ORDER BY ic.index_name, ic.column_position";
         var charUsed = await reader.IsDBNullAsync(7, ct).ConfigureAwait(false)
             ? null
             : await reader.GetFieldValueAsync<string>(7, ct).ConfigureAwait(false);
+        var identityColumn = await reader.IsDBNullAsync(8, ct).ConfigureAwait(false)
+            ? null
+            : await reader.GetFieldValueAsync<string>(8, ct).ConfigureAwait(false);
 
-        return ReadColumn(columnName, dataType, dataLength, dataPrecision, dataScale, nullable, charLength, charUsed);
+        return ReadColumn(columnName, dataType, dataLength, dataPrecision, dataScale, nullable, charLength, charUsed,
+            identityColumn);
     }
 
     /// <summary>
     ///     One <c>ALL_TAB_COLUMNS</c> row as the column it describes.
     /// </summary>
     internal static TableColumn ReadColumn(string columnName, string dataType, int? dataLength, int? dataPrecision,
-        int? dataScale, string nullable, int? charLength, string? charUsed)
+        int? dataScale, string nullable, int? charLength, string? charUsed, string? identityColumn = null)
     {
         var type = BuildOracleType(dataType, dataLength, dataPrecision, dataScale, charLength, charUsed);
 
@@ -520,7 +524,14 @@ ORDER BY ic.index_name, ic.column_position";
         var column = new TableColumn(columnName, type)
         {
             AllowNulls = nullable == "Y",
-            StoredByteLength = inCharacters ? dataLength : null
+            StoredByteLength = inCharacters ? dataLength : null,
+
+            // ALL_TAB_COLUMNS.IDENTITY_COLUMN is 'YES'/'NO'. Reading it is what lets a declared
+            // identity column match the one already in the database: the clause is emitted separately
+            // from the type (see TableColumn.Declaration), so it is invisible in DATA_TYPE, and a
+            // column that was never read back as an identity is a column that can never equal its
+            // model once IsAutoNumber counts towards equality.
+            IsAutoNumber = string.Equals(identityColumn, "YES", StringComparison.OrdinalIgnoreCase)
         };
 
         return column;
