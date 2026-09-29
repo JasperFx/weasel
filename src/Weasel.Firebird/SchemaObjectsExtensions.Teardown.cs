@@ -62,7 +62,9 @@ public static partial class SchemaObjectsExtensions
                    SELECT '', TRIM(RDB$FIELD_NAME) FROM RDB$FIELDS
                    WHERE COALESCE(RDB$SYSTEM_FLAG, 0) = 0 AND RDB$FIELD_NAME NOT STARTING WITH 'RDB$'
                    """,
-            (_, name) => $"DROP DOMAIN {delimit(name)}")
+            (_, name) => $"DROP DOMAIN {delimit(name)}"),
+        ("collation", "SELECT '', TRIM(RDB$COLLATION_NAME) FROM RDB$COLLATIONS WHERE COALESCE(RDB$SYSTEM_FLAG, 0) = 0",
+            (_, name) => $"DROP COLLATION {delimit(name)}")
     ];
 
     /// <summary>
@@ -74,10 +76,16 @@ public static partial class SchemaObjectsExtensions
     ///     <para>
     ///         There is no server-side cascade to lean on, so this enumerates: foreign keys first, then
     ///         triggers, packages, procedures, functions (legacy UDFs included), views, tables (global
-    ///         temporary ones included), sequences, exceptions and domains. It repeats until a pass
+    ///         temporary ones included), sequences, exceptions, domains and collations -- the last
+    ///         because a column or a domain may use one. It repeats until a pass
     ///         drops nothing, which settles a procedure that calls another, or a view over a view,
     ///         without working out a dependency graph. <em>Every new creatable object type has to be
     ///         added here too</em> (weasel#464, weasel#465).
+    ///     </para>
+    ///     <para>
+    ///         Roles (<c>RDB$ROLES</c>) and mappings (<c>RDB$AUTH_MAPPING</c>) are left alone. They say who
+    ///         may do what rather than what the database holds, an administrator grants them, and
+    ///         emptying the database for the next test or migration is no reason to revoke them.
     ///     </para>
     ///     <para>
     ///         The connection pool is cleared first: an idle pooled attachment still holds the tables it
