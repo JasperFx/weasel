@@ -362,6 +362,9 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         // replacement in main. Identical DDL for a main-schema table, so nothing else moves.
         var tempName = new SqliteObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_new");
 
+        // Before this table writes anything, so a refusal does not leave its statements half-written
+        var carried = carriedOver();
+
         writer.WriteLine("-- Table recreation required due to SQLite ALTER TABLE limitations");
         writer.WriteLine();
 
@@ -378,10 +381,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
             tempTable._primaryKeyColumns.Add(pk);
         }
         tempTable.PrimaryKeyName = Expected.PrimaryKeyName;
-        foreach (var fk in Expected.ForeignKeys)
+        foreach (var fk in Expected.ForeignKeys.Concat(carried.ForeignKeys))
         {
             tempTable.ForeignKeys.Add(fk);
         }
+
+        tempTable.CarriedColumnDefinitions.AddRange(carried.Columns.Select(x => x.Definition));
+        tempTable.CarriedConstraints.AddRange(carried.Constraints);
 
         tempTable.WriteCreateStatement(rules, writer);
         writer.WriteLine();
@@ -419,6 +425,14 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
             }
         }
 
+        // The same rule as above for a generated column: its definition came across, so its value
+        // re-derives, and SQLite would refuse the write anyway
+        foreach (var (column, _) in carried.Columns.Where(x => !x.Column.IsGeneratedInDatabase))
+        {
+            targetColumns.Add(SchemaUtils.QuoteName(column.Name));
+            sourceColumns.Add(SchemaUtils.QuoteName(column.Name));
+        }
+
         if (targetColumns.Any())
         {
             writer.WriteLine($"INSERT INTO {tempName.QualifiedName} ({targetColumns.Join(", ")})");
@@ -442,7 +456,145 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
             writer.WriteLine(index.ToDDL(Expected));
         }
 
+        foreach (var index in carried.Indexes)
+        {
+            writer.WriteLine(index);
+        }
+
         writeTriggerRestoration(writer);
+    }
+
+    /// <summary>
+    ///     What the rebuild has to keep of the table it replaces, beyond what the model declares.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The rebuild builds the new table from the model, and <c>DROP TABLE</c> takes everything
+    ///         else with the old one. That is right when the model is the whole truth about the
+    ///         table. It is not on an <see cref="ITable.AddOnlyMigrations" /> table, whose delta
+    ///         leaves every undeclared column, index and foreign key out of the comparison precisely
+    ///         so that no migration removes one (weasel#629) — and then the rebuild removed them all,
+    ///         with the rows, under <c>CreateOrUpdate</c>.
+    ///     </para>
+    ///     <para>
+    ///         So on an add-only table the rebuild keeps them, each taken from what SQLite recorded
+    ///         rather than re-rendered from what the pragmas report, which is the same principle it
+    ///         already applies to the table's triggers:
+    ///     </para>
+    ///     <list type="bullet">
+    ///         <item>
+    ///             a column by its definition in the stored <c>CREATE TABLE</c> text, which is the
+    ///             only place its collation, <c>CHECK</c>, generation expression or inline
+    ///             <c>REFERENCES</c> is recorded (<see cref="StoredTableDefinition" />)
+    ///         </item>
+    ///         <item>an index by the <c>CREATE INDEX</c> statement <c>sqlite_master</c> holds for it</item>
+    ///         <item>
+    ///             a <c>UNIQUE</c> or <c>CHECK</c> table constraint verbatim — the SQLite model cannot
+    ///             declare either (weasel#488), so every one is undeclared
+    ///         </item>
+    ///         <item>
+    ///             a foreign key as read back from the catalog, unless the model declares the same
+    ///             key under another name or its column's own definition already carries it
+    ///         </item>
+    ///     </list>
+    ///     <para>
+    ///         An index in <see cref="TableBase{TColumn,TIndex,TForeignKey}.IgnoredIndexes" /> is kept
+    ///         on every table, add-only or not: it is owned by someone else, and ignoring it is a
+    ///         promise that Weasel neither drops nor recreates it.
+    ///     </para>
+    /// </remarks>
+    private CarriedOver carriedOver()
+    {
+        var carried = new CarriedOver();
+        if (Actual == null)
+        {
+            return carried;
+        }
+
+        foreach (var index in Actual.Indexes)
+        {
+            var declared = Expected.Indexes.Any(x => x.Name.Equals(index.Name, StringComparison.OrdinalIgnoreCase));
+            if (!declared && (Expected.AddOnlyMigrations || Expected.IgnoredIndexes.Contains(index.Name)))
+            {
+                var statement = index.ExistingCreateStatement ?? index.ToDDL(Expected);
+                carried.Indexes.Add($"{statement.Trim().TrimEnd(';')};");
+            }
+        }
+
+        if (!Expected.AddOnlyMigrations)
+        {
+            return carried;
+        }
+
+        var stored = StoredTableDefinition.Parse(Actual.ExistingCreateStatement);
+        var inlineKeys = new List<(string Column, string Table)>();
+
+        // Matched the way AddOnlyMigration.DeclaredOnly matches them, so exactly the columns the
+        // delta withheld are the ones kept
+        var declaredColumns = Expected.Columns.Select(x => x.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var column in Actual.Columns.Where(x => !declaredColumns.Contains(x.Name)))
+        {
+            if (column.IsPrimaryKey)
+            {
+                throw new SchemaMigrationException(
+                    $"Refusing to rebuild {Expected.Identifier}: column '{column.Name}' is part of the table's primary key, " +
+                    "and the model neither declares the column nor includes it in the primary key it declares. " +
+                    $"The table is marked {nameof(ITable.AddOnlyMigrations)}, so the rebuild will not decide between keeping " +
+                    "a key the model does not declare and taking the column out of it. Declare the column in the model, " +
+                    $"or clear {nameof(ITable.AddOnlyMigrations)} to rebuild the table to the model alone.");
+            }
+
+            var definition = stored?.ColumnNamed(column.Name)
+                             ?? throw new SchemaMigrationException(
+                                 $"Refusing to rebuild {Expected.Identifier}: column '{column.Name}', which the model does not " +
+                                 "declare, could not be read back from the table's stored CREATE TABLE statement, so the rebuild " +
+                                 $"cannot keep it as it is. The table is marked {nameof(ITable.AddOnlyMigrations)}, so a migration " +
+                                 "never removes what the model does not declare. Declare the column in the model, or clear " +
+                                 $"{nameof(ITable.AddOnlyMigrations)} to rebuild the table to the model alone.");
+
+            carried.Columns.Add((column, definition.Text));
+            inlineKeys.AddRange(definition.ReferencedTables.Select(table => (column.Name, table)));
+        }
+
+        if (stored != null)
+        {
+            carried.Constraints.AddRange(stored.Constraints
+                .Where(x => x.Kind is "UNIQUE" or "CHECK")
+                .Select(x => x.Text));
+        }
+
+        foreach (var fk in Actual.ForeignKeys)
+        {
+            if (Expected.ForeignKeys.Any(x =>
+                    x.Name.Equals(fk.Name, StringComparison.OrdinalIgnoreCase) || x.LinksSameColumnsAs(fk)))
+            {
+                continue;
+            }
+
+            var inline = inlineKeys.FindIndex(x =>
+                fk.ColumnNames.Length == 1
+                && fk.ColumnNames[0].Equals(x.Column, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(fk.LinkedTable?.Name, x.Table, StringComparison.OrdinalIgnoreCase));
+
+            if (inline >= 0)
+            {
+                inlineKeys.RemoveAt(inline);
+                continue;
+            }
+
+            carried.ForeignKeys.Add(fk);
+        }
+
+        return carried;
+    }
+
+    private sealed class CarriedOver
+    {
+        public List<(TableColumn Column, string Definition)> Columns { get; } = new();
+        public List<string> Constraints { get; } = new();
+        public List<ForeignKey> ForeignKeys { get; } = new();
+        public List<string> Indexes { get; } = new();
     }
 
     private void writeAutoIncrementCarryOver(TextWriter writer, SqliteObjectName tempName)

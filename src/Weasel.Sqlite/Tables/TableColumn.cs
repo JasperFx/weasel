@@ -76,6 +76,14 @@ public class TableColumn: ITableColumn
     /// </summary>
     public GeneratedColumnType? GeneratedType { get; set; }
 
+    /// <summary>
+    ///     On a column read back from the catalog, whether <c>pragma_table_xinfo</c> reported it as
+    ///     generated. The expression itself is not read back, so <see cref="GeneratedExpression" />
+    ///     cannot answer this; a rebuild needs it because SQLite refuses a write to a generated
+    ///     column.
+    /// </summary>
+    internal bool IsGeneratedInDatabase { get; set; }
+
     public string Name { get; }
     public string QuotedName => SchemaUtils.QuoteName(Name);
 

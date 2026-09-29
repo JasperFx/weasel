@@ -117,6 +117,10 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             lines.AddRange(Columns.Select(column => column.ToDeclaration(emitInlinePrimaryKey)));
         }
 
+        // After every declared column and before any table constraint, which is the only order
+        // SQLite's grammar accepts
+        lines.AddRange(CarriedColumnDefinitions.Select(x => $"    {x}"));
+
         // Add primary key if not already defined inline. Either path emits the table-level
         // constraint exactly once: composite PK case (we suppressed every inline emission above)
         // or the legacy "registered via PrimaryKeyColumns without IsPrimaryKey set" case.
@@ -132,6 +136,8 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             fk.WriteInlineDefinition(fkWriter);
             lines.Add($"    {fkWriter}");
         }
+
+        lines.AddRange(CarriedConstraints.Select(x => $"    {x}"));
 
         // Write lines with commas
         for (var i = 0; i < lines.Count - 1; i++)
@@ -193,6 +199,29 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     ///     rather than from the model, because a trigger Weasel never declared is still the user's.
     /// </remarks>
     public IList<string> ExistingTriggers { get; } = new List<string>();
+
+    /// <summary>
+    ///     The table's <c>CREATE TABLE</c> statement as <c>sqlite_master</c> holds it. Null on a
+    ///     table you built yourself; populated on one read back from the catalog.
+    /// </summary>
+    /// <remarks>
+    ///     A column's collation, its <c>CHECK</c> and its generation expression are recorded here and
+    ///     nowhere else, so this is what a rebuild reads a column back from when it has to keep one
+    ///     the model does not declare. See <see cref="StoredTableDefinition" />.
+    /// </remarks>
+    internal string? ExistingCreateStatement { get; set; }
+
+    /// <summary>
+    ///     Column definitions <see cref="WriteCreateStatement" /> writes verbatim after the declared
+    ///     columns. Only a rebuild fills this, with what it has to keep of the table it replaces.
+    /// </summary>
+    internal List<string> CarriedColumnDefinitions { get; } = new();
+
+    /// <summary>
+    ///     Table constraints <see cref="WriteCreateStatement" /> writes verbatim after the declared
+    ///     ones. Only a rebuild fills this, with what it has to keep of the table it replaces.
+    /// </summary>
+    internal List<string> CarriedConstraints { get; } = new();
 
     /// <summary>
     ///     Sqlite has check constraints; Weasel does not emit them here yet (weasel#488). False so

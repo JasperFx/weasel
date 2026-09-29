@@ -70,6 +70,14 @@ public class IndexDefinition: ITableIndex
     /// </summary>
     public string? Expression { get; set; }
 
+    /// <summary>
+    ///     The <c>CREATE INDEX</c> statement as <c>sqlite_master</c> holds it, on an index read back
+    ///     from the catalog. A rebuild that keeps an index the model does not declare writes this
+    ///     rather than re-rendering the parsed form, which flattens per-column collation and sort
+    ///     order.
+    /// </summary>
+    internal string? ExistingCreateStatement { get; set; }
+
     public string Name
     {
         get
