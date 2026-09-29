@@ -260,6 +260,14 @@ public class FirebirdMigrator: Migrator
         return new Tables.Table(identifier);
     }
 
+    /// <summary>
+    ///     A Firebird sequence, for a model built outside Weasel -- EF Core's HiLo and <c>HasSequence</c>.
+    /// </summary>
+    public override SequenceBase CreateSequence(DbObjectName identifier)
+    {
+        return new Sequence(identifier);
+    }
+
     public override IDatabaseWithTables CreateDatabase(DbConnection connection, string? identifier = null)
     {
         if (connection is not FbConnection)

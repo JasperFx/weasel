@@ -132,6 +132,7 @@ public class introspection_queries_terminate_themselves
     private static IEnumerable<ISchemaObject> firebirdObjects()
     {
         yield return new Firebird.Tables.Table("thing");
+        yield return new Firebird.Sequence("thing_seq");
     }
 
     private static DbCommand commandFor(string provider) => provider switch
