@@ -2,7 +2,11 @@ using FirebirdSql.Data.FirebirdClient;
 using JasperFx;
 using Shouldly;
 using Weasel.Core;
+using Weasel.Firebird.Functions;
+using Weasel.Firebird.Procedures;
 using Weasel.Firebird.Tables;
+using Weasel.Firebird.Triggers;
+using Weasel.Firebird.Views;
 using Xunit;
 
 namespace Weasel.Firebird.Tests;
@@ -255,6 +259,55 @@ public class identifier_length_limits: IntegrationContext
 
         shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
             SchemaMigration.DetermineAsync(theConnection, migrator, CancellationToken.None, sequence)));
+    }
+
+    /// <summary>
+    ///     Views, functions, procedures and triggers bind their names against the catalog as tables do, so
+    ///     each is refused the same way, on every way in: a migration, a delta, a read.
+    /// </summary>
+    private async Task shouldRefuseToIntrospectAsync(ISchemaObject schemaObject, Func<Task> read)
+    {
+        var migrator = new FirebirdMigrator { MaxIdentifierLength = 63 };
+
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            SchemaMigration.DetermineAsync(theConnection, migrator, CancellationToken.None, schemaObject)));
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(() =>
+            ((SchemaObjectBase)schemaObject).FindDeltaAsync(theConnection)));
+        shouldBeTheLengthRefusal(await Should.ThrowAsync<InvalidOperationException>(read));
+    }
+
+    [Fact]
+    public async Task a_view_name_the_catalog_cannot_hold_is_refused_before_it_is_bound()
+    {
+        var view = new View(longerThanTheCatalogHolds(), "select 1 as x from rdb$database");
+
+        await shouldRefuseToIntrospectAsync(view, () => view.ExistsInDatabaseAsync(theConnection));
+    }
+
+    [Fact]
+    public async Task a_function_name_the_catalog_cannot_hold_is_refused_before_it_is_bound()
+    {
+        var name = longerThanTheCatalogHolds();
+        var function = new Function(name, $"CREATE FUNCTION {name} RETURNS INTEGER AS BEGIN RETURN 1; END");
+
+        await shouldRefuseToIntrospectAsync(function, () => function.ExistsInDatabaseAsync(theConnection));
+    }
+
+    [Fact]
+    public async Task a_procedure_name_the_catalog_cannot_hold_is_refused_before_it_is_bound()
+    {
+        var name = longerThanTheCatalogHolds();
+        var procedure = new StoredProcedure(name, $"CREATE PROCEDURE {name} AS BEGIN END");
+
+        await shouldRefuseToIntrospectAsync(procedure, () => procedure.ExistsInDatabaseAsync(theConnection));
+    }
+
+    [Fact]
+    public async Task a_trigger_name_the_catalog_cannot_hold_is_refused_before_it_is_bound()
+    {
+        var trigger = new Trigger(longerThanTheCatalogHolds(), "orders", "BEGIN END");
+
+        await shouldRefuseToIntrospectAsync(trigger, () => trigger.ExistsInDatabaseAsync(theConnection));
     }
 
     /// <summary>

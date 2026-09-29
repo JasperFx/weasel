@@ -140,15 +140,15 @@ public class running_scripts_through_isql: IntegrationContext
     }
 
     /// <summary>
-    ///     Views, routines and triggers: PSQL bodies full of semicolons, a literal with a caret and a
-    ///     semicolon in it, and a view whose query ends in a line comment. The table they use is applied
-    ///     first: a drop file drops in the order the patch created, and Firebird refuses to drop a table
-    ///     a view still uses.
+    ///     A table and the views, routines and triggers over it: PSQL bodies full of semicolons, a literal
+    ///     with a caret and a semicolon in it, and a view whose query ends in a line comment. The drop
+    ///     file undoes them last to first, since Firebird refuses to drop a table a view still uses.
     /// </summary>
     private static ISchemaObject[] psqlModel(string note = "it's; ^ touched")
     {
         return
         [
+            psqlOrders(),
             new View("psql_view", "select id, note from psql_orders -- every order"),
             new Function("psql_double",
                 "CREATE FUNCTION psql_double (n INTEGER) RETURNS INTEGER AS DECLARE VARIABLE twice INTEGER; BEGIN twice = n * 2; RETURN twice; END"),
@@ -164,7 +164,6 @@ public class running_scripts_through_isql: IntegrationContext
     [Fact]
     public async Task a_patch_of_views_routines_and_triggers_runs_clean_through_isql_twice()
     {
-        await ApplyAsync(psqlOrders());
         var (update, drop) = await patchFilesAsync(psqlModel());
 
         await isqlAsync(update);
@@ -180,11 +179,18 @@ public class running_scripts_through_isql: IntegrationContext
         await isqlAsync(changed);
         (await DetermineAsync(psqlModel("changed"))).Difference.ShouldBe(SchemaPatchDifference.None);
 
+        // This attachment ran the procedure and read the view, and Firebird will not drop a table an
+        // attachment still has in use; isql would wait on it for good. Let go, as a stopped application does.
+        await theConnection.CloseAsync();
+        FbConnection.ClearAllPools();
+        await theConnection.OpenAsync();
+
         await isqlAsync(drop);
         (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$TRIGGERS WHERE RDB$TRIGGER_NAME = 'PSQL_STAMP'")).ShouldBe(0);
         (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$PROCEDURES WHERE RDB$PROCEDURE_NAME = 'PSQL_TOUCH'")).ShouldBe(0);
         (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$FUNCTIONS WHERE RDB$FUNCTION_NAME = 'PSQL_DOUBLE'")).ShouldBe(0);
         (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = 'PSQL_VIEW'")).ShouldBe(0);
+        (await psqlOrders().ExistsInDatabaseAsync(theConnection)).ShouldBeFalse();
     }
 
     [Fact]

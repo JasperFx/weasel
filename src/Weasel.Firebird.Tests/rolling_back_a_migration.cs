@@ -1,10 +1,11 @@
-using System.Data.Common;
-using System.Globalization;
 using Shouldly;
 using Weasel.Core;
+using Weasel.Firebird.Functions;
+using Weasel.Firebird.Procedures;
 using Weasel.Firebird.Tables;
+using Weasel.Firebird.Triggers;
+using Weasel.Firebird.Views;
 using Xunit;
-using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 namespace Weasel.Firebird.Tests;
 
@@ -85,7 +86,7 @@ public class rolling_back_a_migration: IntegrationContext
     [Fact]
     public async Task rolling_back_a_table_and_a_view_over_it_drops_both()
     {
-        var names = new RawView("v_names", "SELECT name FROM people");
+        var names = new View("v_names", "SELECT name FROM people");
         var migration = await ApplyAsync(people(), names);
 
         await migration.RollbackAllAsync(theConnection, new FirebirdMigrator());
@@ -93,6 +94,32 @@ public class rolling_back_a_migration: IntegrationContext
         (await people().ExistsInDatabaseAsync(theConnection)).ShouldBeFalse();
         (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = 'V_NAMES'"))
             .ShouldBe(0);
+    }
+
+    /// <summary>
+    ///     Everything a table can have built over it -- a view, a function and a procedure that read it,
+    ///     a trigger on it -- is undone before the table, so the table can go.
+    /// </summary>
+    [Fact]
+    public async Task rolling_back_a_table_and_every_psql_object_over_it_drops_them_all()
+    {
+        var migration = await ApplyAsync(
+            people(),
+            new View("v_names", "SELECT name FROM people"),
+            new Function("f_count", "CREATE FUNCTION f_count RETURNS INTEGER AS DECLARE n INTEGER; BEGIN SELECT COUNT(*) FROM people INTO :n; RETURN n; END"),
+            new StoredProcedure("p_names", "CREATE PROCEDURE p_names RETURNS (name VARCHAR(255)) AS BEGIN FOR SELECT name FROM v_names INTO :name DO SUSPEND; END"),
+            new Trigger("t_people", "people", "NEW.name = UPPER(NEW.name)"));
+
+        await migration.RollbackAllAsync(theConnection, new FirebirdMigrator());
+
+        (await ScalarAsync<int>("""
+            SELECT
+                (SELECT COUNT(*) FROM RDB$RELATIONS WHERE COALESCE(RDB$SYSTEM_FLAG, 0) = 0)
+              + (SELECT COUNT(*) FROM RDB$FUNCTIONS WHERE COALESCE(RDB$SYSTEM_FLAG, 0) = 0)
+              + (SELECT COUNT(*) FROM RDB$PROCEDURES WHERE COALESCE(RDB$SYSTEM_FLAG, 0) = 0)
+              + (SELECT COUNT(*) FROM RDB$TRIGGERS WHERE COALESCE(RDB$SYSTEM_FLAG, 0) = 0)
+            FROM RDB$DATABASE
+            """)).ShouldBe(0);
     }
 
     /// <summary>
@@ -105,7 +132,7 @@ public class rolling_back_a_migration: IntegrationContext
 
         var changed = people();
         changed.AddColumn<int>("age");
-        var migration = await ApplyAsync(changed, new RawView("v_ages", "SELECT age FROM people"));
+        var migration = await ApplyAsync(changed, new View("v_ages", "SELECT age FROM people"));
 
         await migration.RollbackAllAsync(theConnection, new FirebirdMigrator());
 
@@ -121,7 +148,7 @@ public class rolling_back_a_migration: IntegrationContext
     public async Task a_migration_files_drop_script_drops_the_view_before_the_table()
     {
         var migrator = new FirebirdMigrator();
-        var names = new RawView("v_names", "SELECT name FROM people");
+        var names = new View("v_names", "SELECT name FROM people");
         var migration = await SchemaMigration.DetermineAsync(theConnection, migrator, CancellationToken.None,
             people(), names);
         await migrator.ApplyAllAsync(theConnection, migration, JasperFx.AutoCreate.CreateOrUpdate);
@@ -145,36 +172,5 @@ public class rolling_back_a_migration: IntegrationContext
             File.Delete(file);
             File.Delete(dropFile);
         }
-    }
-
-    /// <summary>
-    ///     A view as raw DDL, standing in for a typed one: all a rollback needs is its create, its drop
-    ///     and whether it is there.
-    /// </summary>
-    private sealed class RawView(string name, string select): ISchemaObject
-    {
-        public DbObjectName Identifier { get; } = new FirebirdObjectName(name);
-
-        public void WriteCreateStatement(Migrator migrator, TextWriter writer)
-            => FirebirdScript.WriteStatement(writer, $"CREATE VIEW {name} AS {select}");
-
-        public void WriteDropStatement(Migrator rules, TextWriter writer)
-            => FirebirdScript.WriteStatement(writer, $"DROP VIEW {name}");
-
-        public void ConfigureQueryCommand(DbCommandBuilder builder)
-        {
-            var parameter = builder.AddParameter(name.ToUpperInvariant()).ParameterName;
-            builder.Append(
-                $"SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = @{parameter} AND RDB$VIEW_BLR IS NOT NULL");
-        }
-
-        public async Task<ISchemaObjectDelta> CreateDeltaAsync(DbDataReader reader, CancellationToken ct = default)
-        {
-            await reader.ReadAsync(ct);
-            var exists = Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture) > 0;
-            return new SchemaObjectDelta(this, exists ? SchemaPatchDifference.None : SchemaPatchDifference.Create);
-        }
-
-        public IEnumerable<DbObjectName> AllNames() => [Identifier];
     }
 }

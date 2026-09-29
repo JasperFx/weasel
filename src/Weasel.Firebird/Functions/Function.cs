@@ -150,6 +150,10 @@ public class Function: FunctionBase
     /// </summary>
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
+        // A name the server's catalog cannot hold would fail the query with "string truncation".
+        FirebirdMigrator.AssertCatalogCanHold(CatalogName, FirebirdServerVersion.Of(builder.Command.Connection),
+            "the name of a function");
+
         var name = builder.AddParameter(CatalogName).ParameterName;
         builder.Append(PsqlRoutine.FunctionQuery("@" + name, PsqlRoutine.ReadsSqlSecurity(builder)));
     }
