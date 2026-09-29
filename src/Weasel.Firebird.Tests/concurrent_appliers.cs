@@ -119,6 +119,52 @@ public class concurrent_appliers: IntegrationContext
         (await people.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
+    /// <summary>
+    ///     A hand-written script that puts a comment before a guarded block keeps the retry: the first
+    ///     attempt times out on the uncommitted insert, and a later one runs once it is rolled back.
+    /// </summary>
+    [Fact]
+    public async Task a_guarded_statement_after_a_comment_is_still_run_again_after_a_lock_timeout()
+    {
+        var people = new Table("people");
+        people.AddColumn<int>("id").AsPrimaryKey();
+        people.AddColumn<string>("name");
+        await ApplyAsync(people);
+
+        var script = new StringWriter();
+        script.WriteLine("SET TERM ^ ;");
+        script.WriteLine("-- The name index, guarded so that a second applier skips it");
+        script.Write(FirebirdScript.Guarded(
+            "SELECT 1 FROM RDB$INDICES WHERE RDB$INDEX_NAME = 'IDX_PEOPLE_NAME'",
+            "CREATE INDEX idx_people_name ON people (name)"));
+        script.WriteLine("^");
+        script.WriteLine("SET TERM ; ^");
+        FirebirdScript.Split(script.ToString()).Single().ShouldStartWith("--");
+
+        await using var writer = await OpenConnectionAsync();
+        var transaction = await writer.BeginTransactionAsync();
+        await using (var insert = new FbCommand("INSERT INTO people (id, name) VALUES (1, 'x')", writer, transaction))
+        {
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        var migrator = new FirebirdMigrator { LockTimeout = TimeSpan.FromSeconds(1), MaxGuardedStatementAttempts = 10 };
+        var apply = Task.Run(async () =>
+        {
+            await using var conn = await OpenConnectionAsync();
+            await migrator.ExecuteScriptAsync(conn, script.ToString());
+        });
+
+        await Task.Delay(1500);
+        await transaction.RollbackAsync();
+        await transaction.DisposeAsync();
+
+        await apply;
+
+        (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$INDICES WHERE RDB$INDEX_NAME = 'IDX_PEOPLE_NAME'"))
+            .ShouldBe(1);
+    }
+
     [Fact]
     public async Task a_lock_that_is_never_released_is_reported_as_a_lock_timeout()
     {

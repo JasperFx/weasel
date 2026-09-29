@@ -192,10 +192,11 @@ public class FirebirdMigrator: Migrator
     private static readonly int[] PermissionErrorNumbers = [335544352, 335545094, 335545264];
 
     /// <summary>
-    ///     Is this Firebird error number a permission refusal? Public so the set can be asserted without
-    ///     having to manufacture an <see cref="FbException" />, which has no public constructor.
+    ///     Is this Firebird error number a permission refusal? A number rather than an exception, so the
+    ///     set can be asserted without manufacturing an <see cref="FbException" />, which has no public
+    ///     constructor.
     /// </summary>
-    public static bool IsPermissionErrorNumber(int errorNumber)
+    internal static bool IsPermissionErrorNumber(int errorNumber)
         => Array.IndexOf(PermissionErrorNumbers, errorNumber) >= 0;
 
     /// <summary>
@@ -451,14 +452,15 @@ public class FirebirdMigrator: Migrator
             throw new ArgumentException("Expected FbConnection", nameof(conn));
         }
 
-        if (IsTransactionControl(sql))
+        if (FirebirdScript.IsCommit(sql))
         {
             // Each statement is committed on its own, so a COMMIT in a hand-written script has
             // nothing left to do.
             return;
         }
 
-        var guarded = sql.StartsWith("EXECUTE BLOCK", StringComparison.OrdinalIgnoreCase);
+        // A hand-written script may put a comment before the block, and Split keeps it.
+        var guarded = FirebirdScript.IsExecuteBlock(sql);
         logger.SchemaChange(sql);
 
         for (var attempt = 1;; attempt++)
@@ -556,10 +558,15 @@ public class FirebirdMigrator: Migrator
     };
 
     /// <summary>
-    ///     The Firebird errors a racing applier produces: <c>unsuccessful metadata update</c>
-    ///     (335544351), a unique key violation in the catalog (335544665), a lock conflict at commit
-    ///     (SQLSTATE 40001, which carries 335544345) and a lock timeout under <c>WAIT</c> (335544510).
+    ///     The Firebird errors a racing applier produces: a unique key violation in the catalog
+    ///     (335544665), a lock conflict at commit (SQLSTATE 40001, which carries 335544345) and a lock
+    ///     timeout under <c>WAIT</c> (335544510).
     /// </summary>
+    /// <remarks>
+    ///     <c>unsuccessful metadata update</c> (335544351) is not one of them: it heads every failed DDL
+    ///     statement, a name already taken or a column that does not exist as much as a lost race, so on
+    ///     its own it would retry a failure that can only happen again.
+    /// </remarks>
     internal static bool IsCatalogConflict(Exception exception)
     {
         foreach (var e in ExceptionChain.Flatten(exception))
@@ -569,7 +576,7 @@ public class FirebirdMigrator: Migrator
                 continue;
             }
 
-            if (firebird.SQLSTATE == "40001" || HasErrorNumber(firebird, 335544351, 335544665, 335544510, 335544345))
+            if (firebird.SQLSTATE == "40001" || HasErrorNumber(firebird, 335544665, 335544510, 335544345))
             {
                 return true;
             }
@@ -594,14 +601,6 @@ public class FirebirdMigrator: Migrator
         }
 
         return false;
-    }
-
-    private static bool IsTransactionControl(string sql)
-    {
-        var words = sql.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        return words.Length is 1 or 2
-               && words[0].Equals("COMMIT", StringComparison.OrdinalIgnoreCase)
-               && (words.Length == 1 || words[1].Equals("WORK", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

@@ -281,12 +281,47 @@ public static class FirebirdScript
     /// </summary>
     internal static int FindOutsideLiterals(string sql, string token) => findTerminator(sql, 0, token);
 
-    private static bool IsCommit(string statement)
+    /// <summary>
+    ///     Is <paramref name="statement" /> an <c>EXECUTE BLOCK</c> -- which is what every guarded
+    ///     statement is -- once any leading whitespace and comments are passed over?
+    /// </summary>
+    internal static bool IsExecuteBlock(string statement) => skipWords(statement, 0, "EXECUTE", "BLOCK") >= 0;
+
+    /// <summary>
+    ///     Is <paramref name="statement" /> <c>COMMIT</c> or <c>COMMIT WORK</c> and nothing else, comments
+    ///     aside?
+    /// </summary>
+    internal static bool IsCommit(string statement)
     {
-        var words = statement.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-        return words.Length is 1 or 2
-               && words[0].Equals("COMMIT", StringComparison.OrdinalIgnoreCase)
-               && (words.Length == 1 || words[1].Equals("WORK", StringComparison.OrdinalIgnoreCase));
+        var position = skipWords(statement, 0, "COMMIT");
+        if (position < 0)
+        {
+            return false;
+        }
+
+        var afterWork = skipWords(statement, position, "WORK");
+        return skipInsignificant(statement, afterWork < 0 ? position : afterWork) >= statement.Length;
+    }
+
+    /// <summary>
+    ///     The position just past <paramref name="words" />, read in order from
+    ///     <paramref name="position" /> with whitespace and comments allowed before each, or -1 when the
+    ///     text does not read them.
+    /// </summary>
+    private static int skipWords(string sql, int position, params string[] words)
+    {
+        foreach (var word in words)
+        {
+            position = skipInsignificant(sql, position);
+            if (!startsWithWord(sql, position, word))
+            {
+                return -1;
+            }
+
+            position += word.Length;
+        }
+
+        return position;
     }
 
     private static bool hasSignificantText(string text) => skipInsignificant(text, 0) < text.Length;

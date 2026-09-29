@@ -464,5 +464,40 @@ public class FirebirdScriptTests
         split(script).Select(normalize).ShouldBe(theirs);
     }
 
+    [Theory]
+    [InlineData("EXECUTE BLOCK AS BEGIN END")]
+    [InlineData("execute block as begin end")]
+    [InlineData("-- the guard\nEXECUTE BLOCK AS BEGIN END")]
+    [InlineData("/* the guard */ EXECUTE\n  BLOCK AS BEGIN END")]
+    [InlineData("  \n-- one\n-- two\nEXECUTE /* between */ BLOCK AS BEGIN END")]
+    public void an_execute_block_is_recognised_past_leading_comments(string statement)
+    {
+        FirebirdScript.IsExecuteBlock(statement).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("EXECUTE PROCEDURE p")]
+    [InlineData("EXECUTE BLOCKS")]
+    [InlineData("-- EXECUTE BLOCK\nCREATE TABLE t (id INTEGER)")]
+    [InlineData("/* EXECUTE BLOCK */ CREATE TABLE t (id INTEGER)")]
+    [InlineData("")]
+    public void anything_else_is_not_an_execute_block(string statement)
+    {
+        FirebirdScript.IsExecuteBlock(statement).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("COMMIT", true)]
+    [InlineData("commit work", true)]
+    [InlineData("-- done\nCOMMIT", true)]
+    [InlineData("COMMIT /* all of it */ WORK -- now", true)]
+    [InlineData("COMMIT RETAIN", false)]
+    [InlineData("COMMITTED", false)]
+    [InlineData("-- COMMIT\nDROP TABLE t", false)]
+    public void a_commit_is_recognised_past_comments(string statement, bool isCommit)
+    {
+        FirebirdScript.IsCommit(statement).ShouldBe(isCommit);
+    }
+
     private static string normalize(string text) => text.Replace("\r\n", "\n");
 }

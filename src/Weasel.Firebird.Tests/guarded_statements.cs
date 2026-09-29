@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using FirebirdSql.Data.FirebirdClient;
+using JasperFx;
 using Shouldly;
 using Weasel.Core;
 using Weasel.Firebird.Tables;
@@ -25,6 +27,34 @@ public class guarded_statements: IntegrationContext
         table.Indexes.Add(new IndexDefinition("pk_people") { Columns = ["age"] });
 
         await Should.ThrowAsync<FbException>(() => ApplyAsync(table));
+    }
+
+    /// <summary>
+    ///     A refusal like the one above is "unsuccessful metadata update" first, which every failed DDL
+    ///     statement is. It is not a race, so it surfaces at once instead of being run again: twenty
+    ///     attempts would wait at least 9.5 seconds between them.
+    /// </summary>
+    [Fact]
+    public async Task a_guarded_statement_that_fails_for_good_surfaces_on_the_first_attempt()
+    {
+        var table = new Table("people");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        table.AddColumn<int>("age");
+        await CreateSchemaObjectInDatabase(table);
+
+        table.Indexes.Add(new IndexDefinition("pk_people") { Columns = ["age"] });
+
+        var migrator = new FirebirdMigrator { MaxGuardedStatementAttempts = 20 };
+        var migration = await SchemaMigration.DetermineAsync(theConnection, migrator, CancellationToken.None, table);
+
+        var stopwatch = Stopwatch.StartNew();
+        var ex = await Should.ThrowAsync<FbException>(() =>
+            migrator.ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate));
+        stopwatch.Stop();
+
+        FirebirdMigrator.HasErrorNumber(ex, 335544351).ShouldBeTrue(ex.Message);
+        FirebirdMigrator.IsCatalogConflict(ex).ShouldBeFalse(ex.Message);
+        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5), "a failure that can only recur is not retried");
     }
 
     [Fact]
