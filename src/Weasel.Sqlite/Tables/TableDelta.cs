@@ -796,7 +796,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
                 targetColumns.Add(SchemaUtils.QuoteName(column.Name));
                 sourceColumns.Add(SchemaUtils.QuoteName(newName));
             }
-            else if (Expected.Columns.Any(e => e.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)))
+            // An add-only table's rebuild keeps the columns the model does not declare (weasel#639),
+            // so they are all still there to copy back. Asking the model for them, as a declared
+            // table's rollback does, would bring every undeclared column back NULL.
+            else if (Expected.AddOnlyMigrations
+                     || Expected.Columns.Any(e => e.Name.Equals(column.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 targetColumns.Add(SchemaUtils.QuoteName(column.Name));
                 sourceColumns.Add(SchemaUtils.QuoteName(column.Name));
