@@ -22,6 +22,22 @@ You can acccess the docs [here](https://weasel.jasperfx.net).
 
 Weasel 9.0 is part of the [Critter Stack 2026](https://github.com/JasperFx/jasperfx/issues/217) release wave, shipping in lockstep with [JasperFx 2.0](https://github.com/JasperFx/jasperfx), [JasperFx.Events 2.0](https://github.com/JasperFx/jasperfx), [Marten 9.0](https://github.com/JasperFx/marten), and [Polecat 4.0](https://github.com/JasperFx/polecat). See the [9.0 master plan](https://github.com/JasperFx/weasel/issues/263) and the [migration guide](https://weasel.jasperfx.net/migration-guide) for upgrade details.
 
+## Documentation
+
+The docs site is [VitePress](https://vitepress.dev). Its dependencies live in the **root**
+`package.json` — there is no separate tree under `docs/`, and `docs/package.json` is only the
+marker that makes Node treat `docs/.vitepress/config.ts` as ESM.
+
+```bash
+npm ci
+npm run docs          # dev server on port 5050
+npm run docs-build    # production build, as publish-docs.yml runs it
+```
+
+Both scripts run [mdsnippets](https://github.com/SimonCropp/MarkdownSnippets) first, so code
+samples are pulled from the compilable test projects rather than written into the Markdown by
+hand.
+
 ## Support Plans
 
 <div align="center">
