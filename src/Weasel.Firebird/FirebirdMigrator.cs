@@ -501,10 +501,14 @@ public class FirebirdMigrator: Migrator
                 return;
             }
 
-            if (retryable && attempt < MaxGuardedStatementAttempts && IsCatalogConflict(failure)
+            if (retryable && attempt < MaxGuardedStatementAttempts
+                && (IsCatalogConflict(failure) || IsCreatedConcurrently(sql, failure))
                 && !IsInsufficientPrivilege(failure))
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt + Random.Shared.Next(50)), ct)
+                // The window widens with each attempt, so appliers that lost together come back apart:
+                // a guarded statement's re-run only reads, but a CREATE OR ALTER's writes the catalog
+                // again, and losers retrying in step would only race each other.
+                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt + Random.Shared.Next(100 * attempt)), ct)
                     .ConfigureAwait(false);
                 continue;
             }
@@ -527,10 +531,50 @@ public class FirebirdMigrator: Migrator
     ///     <c>EXECUTE BLOCK</c>, which is a no-op once the object exists, or a <c>CREATE OR ALTER</c>, which
     ///     leaves the same view, routine or trigger however many times it runs. Racing appliers need both:
     ///     four concurrent <c>CREATE OR ALTER</c>s of one view have three losers, with "update conflicts
-    ///     with concurrent update" or a unique key violation in the catalog.
+    ///     with concurrent update", a unique key violation in the catalog, or the view's own "already
+    ///     exists" (see <see cref="IsCreatedConcurrently" />).
     /// </summary>
     internal static bool IsRetryable(string sql)
         => FirebirdScript.IsExecuteBlock(sql) || FirebirdScript.IsCreateOrAlter(sql);
+
+    /// <summary>
+    ///     The "already exists" a <c>CREATE OR ALTER</c> gets when another applier creates the object
+    ///     while the statement runs: Firebird looks for the object, finds none, sets out to create it, and
+    ///     looks again before storing it -- and between the two looks the other applier committed. For
+    ///     the statement's own kind of object nothing else produces it, since an object of that kind that
+    ///     was there all along is altered instead, and run again the statement alters what the other
+    ///     applier made. Firebird 3, 4 and 5 answer "Table @1 already exists" (336068740) for a view,
+    ///     "Procedure @1 already exists" (336068743) and "Function @1 already exists" (336068876); a
+    ///     trigger's loser gets the catalog's unique key violation, which <see cref="IsCatalogConflict" />
+    ///     covers.
+    /// </summary>
+    /// <remarks>
+    ///     A different kind's "already exists" is a name clash that happens every time --
+    ///     <c>CREATE OR ALTER PROCEDURE</c> named like a table gets 336068740, a view named like a procedure
+    ///     336068743 -- so the number counts only for the kind the statement creates, and only for a
+    ///     <c>CREATE OR ALTER</c>.
+    /// </remarks>
+    internal static bool IsCreatedConcurrently(string sql, Exception exception)
+    {
+        foreach (var (kind, number) in AlreadyExists)
+        {
+            if (!FirebirdScript.IsCreateOrAlter(sql, kind))
+            {
+                continue;
+            }
+
+            return ExceptionChain.Flatten(exception).OfType<FbException>().Any(x => HasErrorNumber(x, number));
+        }
+
+        return false;
+    }
+
+    private static readonly (string Kind, int Number)[] AlreadyExists =
+    [
+        ("VIEW", 336068740),
+        ("PROCEDURE", 336068743),
+        ("FUNCTION", 336068876)
+    ];
 
     /// <summary>
     ///     Run rendered DDL the way a migration runs it: split into statements, each in a <c>WAIT</c>

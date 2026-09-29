@@ -503,6 +503,18 @@ public class FirebirdScriptTests
     }
 
     [Theory]
+    [InlineData("CREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", "VIEW", true)]
+    [InlineData("-- by hand\ncreate or /* and */ alter\n procedure p AS BEGIN END", "PROCEDURE", true)]
+    [InlineData("CREATE OR ALTER PROCEDURE p AS BEGIN END", "VIEW", false)]
+    [InlineData("CREATE VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", "VIEW", false)]
+    [InlineData("CREATE OR ALTER VIEWS", "VIEW", false)]
+    [InlineData("EXECUTE BLOCK AS BEGIN EXECUTE STATEMENT 'CREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE'; END", "VIEW", false)]
+    public void a_create_or_alter_of_a_kind_is_recognised_past_comments(string statement, string kind, bool matches)
+    {
+        FirebirdScript.IsCreateOrAlter(statement, kind).ShouldBe(matches);
+    }
+
+    [Theory]
     [InlineData("COMMIT", true)]
     [InlineData("commit work", true)]
     [InlineData("-- done\nCOMMIT", true)]

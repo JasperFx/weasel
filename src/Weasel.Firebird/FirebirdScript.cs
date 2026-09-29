@@ -302,6 +302,14 @@ public static class FirebirdScript
     internal static bool IsCreateOrAlter(string statement) => skipWords(statement, 0, "CREATE", "OR", "ALTER") >= 0;
 
     /// <summary>
+    ///     Is <paramref name="statement" /> a <c>CREATE OR ALTER</c> of that <paramref name="kind" /> of
+    ///     object -- <c>VIEW</c>, <c>PROCEDURE</c> -- once any leading whitespace and comments are passed
+    ///     over?
+    /// </summary>
+    internal static bool IsCreateOrAlter(string statement, string kind)
+        => skipWords(statement, 0, "CREATE", "OR", "ALTER", kind) >= 0;
+
+    /// <summary>
     ///     Is <paramref name="statement" /> <c>COMMIT</c> or <c>COMMIT WORK</c> and nothing else, comments
     ///     aside?
     /// </summary>
