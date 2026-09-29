@@ -75,6 +75,22 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      # Both frameworks: the Firebird EF provider has a release for EF Core 9 and for EF Core 10.
+      # The suite connects to localhost:3065 (docker-compose's firebird5) and creates its own
+      # database file; see ci-build-firebird.yml for the health check.
+      firebird:
+        image: firebirdsql/firebird:5
+        ports:
+          - 3065:3050
+        env:
+          FIREBIRD_ROOT_PASSWORD: ${{ env.db_pwd }}
+          ISC_USER: SYSDBA
+          ISC_PASSWORD: ${{ env.db_pwd }}
+        options: >-
+          --health-cmd="/opt/firebird/bin/fbsvcmgr localhost:service_mgr info_server_version"
+          --health-interval=2s
+          --health-timeout=5s
+          --health-retries=30
 
     steps:
     - uses: actions/checkout@v6
