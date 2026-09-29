@@ -130,6 +130,27 @@ public class ViewTests: IntegrationContext
     }
 
     /// <summary>
+    ///     Two views in one migration are two statements, which ODP.NET runs as two commands. Both have
+    ///     to carry the fetch size the view sets for <c>ALL_VIEWS.TEXT</c>, a LONG, or both bodies read
+    ///     back empty and every apply replaces both views.
+    /// </summary>
+    [Fact]
+    public async Task views_migrated_together_settle()
+    {
+        await ResetSchema();
+        await createSourceTableAsync("view_src");
+
+        ISchemaObject[] views =
+        [
+            new View($"{SchemaName}.first_view", $"select id from {SchemaName}.view_src"),
+            new View($"{SchemaName}.second_view", $"select id, name from {SchemaName}.view_src")
+        ];
+
+        (await views.MigrateAsync(theConnection)).ShouldBeTrue();
+        (await views.MigrateAsync(theConnection)).ShouldBeFalse();
+    }
+
+    /// <summary>
     ///     weasel#465: the Oracle teardown queried procedures, functions, tables and sequences, but
     ///     never <c>all_views</c>. <c>DROP TABLE … CASCADE CONSTRAINTS</c> invalidates a dependent
     ///     view rather than dropping it, so the view survived and the schema was never clean. Latent

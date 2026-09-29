@@ -102,6 +102,39 @@ public class index_sort_direction: IntegrationContext
         (await table.FindDeltaAsync(theConnection, Ct)).Difference.ShouldBe(SchemaPatchDifference.None);
     }
 
+    /// <summary>
+    ///     The same index, read back by the migration path rather than by <see cref="Table.FetchExistingAsync" />.
+    ///     A migration batches the table's introspection queries and ODP.NET runs one statement per command,
+    ///     so the batch is split — and a split command that does not carry the table's
+    ///     <c>InitialLONGFetchSize</c> reads <c>ALL_IND_EXPRESSIONS.COLUMN_EXPRESSION</c>, a LONG, back
+    ///     empty. The descending key then reads back as its hidden <c>SYS_NC…$</c> column, and every apply
+    ///     drops and recreates the index.
+    /// </summary>
+    [Fact]
+    public async Task a_descending_column_settles_on_the_migration_path()
+    {
+        await ResetSchema();
+
+        var table = TriggersTable("migrated");
+        var index = new IndexDefinition("idx_migrated")
+        {
+            Columns = ["sched_name", "trigger_state", "next_fire_time", "priority", "misfire_instr"]
+        };
+        index.DescendingColumns.Add("priority");
+        table.Indexes.Add(index);
+
+        (await table.MigrateAsync(theConnection, Ct)).ShouldBeTrue();
+
+        var migration = await SchemaMigration.DetermineAsync(theConnection, new OracleMigrator(), Ct, table);
+
+        var delta = migration.Deltas.Single().ShouldBeOfType<TableDelta>();
+        delta.Actual!.Indexes.Single().Columns
+            .ShouldBe(["SCHED_NAME", "TRIGGER_STATE", "NEXT_FIRE_TIME", "PRIORITY", "MISFIRE_INSTR"]);
+        migration.Difference.ShouldBe(SchemaPatchDifference.None);
+
+        (await table.MigrateAsync(theConnection, Ct)).ShouldBeFalse();
+    }
+
     [Fact]
     public async Task changing_the_direction_rebuilds_the_index_as_declared()
     {
