@@ -46,6 +46,22 @@ internal class ItemDelta<T> where T : INamed
     /// </summary>
     private static string NameKey(T item) => SchemaUtils.Unbracket(item.Name);
 
+    /// <summary>
+    ///     The delta against no actuals at all -- a table that is not in the database yet -- where
+    ///     everything expected is missing by definition (weasel#658).
+    /// </summary>
+    /// <remarks>
+    ///     Deliberately does not go through the pairing constructor: there is nothing to pair with, and
+    ///     that constructor refuses a table declaring two names that differ only in case (weasel#224),
+    ///     which a table being created for the first time is still allowed to do.
+    /// </remarks>
+    public static ItemDelta<T> AllMissing(IEnumerable<T> expectedItems) => new(expectedItems);
+
+    private ItemDelta(IEnumerable<T> expectedItems)
+    {
+        _missing.AddRange(expectedItems);
+    }
+
     public IReadOnlyList<Change<T>> Different => _different;
 
     public IReadOnlyList<T> Matched => _matched;
