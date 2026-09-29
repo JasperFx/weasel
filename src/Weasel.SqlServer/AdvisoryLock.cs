@@ -93,6 +93,88 @@ public class AdvisoryLock : IAdvisoryLock
         }
     }
 
+    /// <summary>
+    ///     Who holds <paramref name="lockId" />, or null when nothing does.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <see cref="HasLock" /> only answers "does this node", so without this no node — and no
+    ///         monitoring tool — could learn which node owns a lock set it does not hold. That is the
+    ///         diagnostic an operator needs when a projection agent stops with
+    ///         <c>ProgressionProgressOutOfOrderException</c>, which means two processes believe they own
+    ///         the same shard (weasel#650).
+    ///     </para>
+    ///     <para>
+    ///         <c>sp_getapplock</c> takes the id as a string resource, and
+    ///         <c>sys.dm_tran_locks.resource_description</c> reports it wrapped as
+    ///         <c>0:[4242]:(1bb08fa7)</c> — the database principal, the resource name in brackets, and a
+    ///         hash. Measured against the server. Matching the bracketed name rather than the whole
+    ///         string keeps the principal and hash out of it, and the read is confined to the current
+    ///         database because an application lock is per-database.
+    ///     </para>
+    ///     <para>
+    ///         Read on its own connection rather than the one holding the locks, which may be busy. The
+    ///         dynamic management views need <c>VIEW SERVER STATE</c>; without it this throws rather than
+    ///         reporting the lock as unheld, since "nothing holds this" is precisely the reassuring
+    ///         conclusion an operator chasing a double-runner must not be handed by accident.
+    ///     </para>
+    /// </remarks>
+    public async Task<AdvisoryLockHolder?> FindHolderAsync(int lockId, CancellationToken token)
+    {
+        await using var conn = _source();
+        await conn.OpenAsync(token).ConfigureAwait(false);
+
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+                          SELECT TOP 1 l.request_session_id, s.program_name, s.login_time, c.client_net_address
+                          FROM sys.dm_tran_locks l
+                          LEFT JOIN sys.dm_exec_sessions s ON s.session_id = l.request_session_id
+                          LEFT JOIN sys.dm_exec_connections c ON c.session_id = l.request_session_id
+                          WHERE l.resource_type = 'APPLICATION'
+                            AND l.resource_database_id = DB_ID()
+                            AND l.request_status = 'GRANT'
+                            AND CHARINDEX(':[' + @resource + ']:', l.resource_description) > 0
+                          """;
+
+        var resource = cmd.CreateParameter();
+        resource.ParameterName = "resource";
+        resource.Value = lockId.ToString();
+        cmd.Parameters.Add(resource);
+
+        await using var reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false);
+        if (!await reader.ReadAsync(token).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        return new AdvisoryLockHolder(lockId)
+        {
+            SessionId = await reader.IsDBNullAsync(0, token).ConfigureAwait(false)
+                ? null
+                : (await reader.GetFieldValueAsync<int>(0, token).ConfigureAwait(false)).ToString(),
+            ApplicationName = await nullableStringAsync(reader, 1, token).ConfigureAwait(false),
+
+            // The session's login time, which is the earliest the lock can have been taken: SQL Server
+            // does not record when an application lock was acquired
+            HeldSince = await reader.IsDBNullAsync(2, token).ConfigureAwait(false)
+                ? null
+                : new DateTimeOffset(await reader.GetFieldValueAsync<DateTime>(2, token).ConfigureAwait(false),
+                    TimeSpan.Zero),
+            ClientAddress = await nullableStringAsync(reader, 3, token).ConfigureAwait(false),
+
+            // Definitive either way for this instance: the lock is exclusive, so if this instance holds
+            // it the single holder is us, and if it does not, the holder is not us
+            IsCurrentNode = HasLock(lockId)
+        };
+    }
+
+    private static async Task<string?> nullableStringAsync(SqlDataReader reader, int ordinal, CancellationToken token)
+    {
+        return await reader.IsDBNullAsync(ordinal, token).ConfigureAwait(false)
+            ? null
+            : await reader.GetFieldValueAsync<string>(ordinal, token).ConfigureAwait(false);
+    }
+
     public async Task ReleaseLockAsync(int lockId)
     {
         if (!_locks.Contains(lockId)) return;

@@ -28,6 +28,7 @@ public class AdvisoryLock : IAdvisoryLock
     private readonly string _databaseName;
     private readonly AdvisoryLockOptions _options;
     private readonly ILogger _logger;
+    private readonly NpgsqlDataSource _dataSource;
 
     // Guards _handles and _disposed. Acquire, release and disposal can run concurrently, and storing a newly
     // acquired handle must be atomic with disposal (see TryAttainLockAsync).
@@ -39,6 +40,7 @@ public class AdvisoryLock : IAdvisoryLock
     public AdvisoryLock(NpgsqlDataSource dataSource, ILogger logger, string databaseName, AdvisoryLockOptions options)
     {
         _logger = logger;
+        _dataSource = EnsurePrimaryWhenMultiHost(dataSource);
 
         _distributedLockProviders = new LightweightCache<int, PostgresDistributedLock>(
             (lockId => new PostgresDistributedLock(new PostgresAdvisoryLockKey(lockId),
@@ -159,6 +161,86 @@ public class AdvisoryLock : IAdvisoryLock
             // The data source was disposed during the acquire and surfaced as a different exception type
             return false;
         }
+    }
+
+    /// <summary>
+    ///     Who holds <paramref name="lockId" />, or null when nothing does.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         <see cref="HasLock" /> only answers "does this node", so without this no node — and no
+    ///         monitoring tool — could learn which node owns a lock set it does not hold. That is the
+    ///         diagnostic an operator needs when a projection agent stops with
+    ///         <c>ProgressionProgressOutOfOrderException</c>, which means two processes believe they own
+    ///         the same shard (weasel#650).
+    ///     </para>
+    ///     <para>
+    ///         <c>pg_locks</c> reports the advisory key as two 32-bit halves of the 64-bit key Medallion
+    ///         builds from the id, so a negative id sign-extends into <c>classid = 0xFFFFFFFF</c> rather
+    ///         than 0. Measured against the server for both signs and for both session and transactional
+    ///         locks; <c>objsubid</c> is deliberately not matched, so the read survives Medallion moving
+    ///         between the two-int and bigint forms of the key.
+    ///     </para>
+    ///     <para>
+    ///         The join to <c>pg_stat_activity</c> is a LEFT join: a non-superuser sees every row of
+    ///         <c>pg_locks</c> but is shown nothing about another user's backend, and a holder whose
+    ///         details are hidden is still a holder worth reporting.
+    ///     </para>
+    /// </remarks>
+    public async Task<AdvisoryLockHolder?> FindHolderAsync(int lockId, CancellationToken token)
+    {
+        var key = (long)lockId;
+        var classId = (long)(uint)(int)(key >> 32);
+        var objId = (long)(uint)(int)key;
+
+        await using var conn = await _dataSource.OpenConnectionAsync(token).ConfigureAwait(false);
+        await using var cmd = conn.CreateCommand();
+
+        cmd.CommandText = """
+                          SELECT l.pid, a.application_name, a.client_addr::text, a.backend_start
+                          FROM pg_locks l
+                          LEFT JOIN pg_stat_activity a ON a.pid = l.pid
+                          WHERE l.locktype = 'advisory'
+                            AND l.classid::bigint = @classid
+                            AND l.objid::bigint = @objid
+                            AND l.granted
+                          LIMIT 1
+                          """;
+
+        cmd.Parameters.AddWithValue("classid", classId);
+        cmd.Parameters.AddWithValue("objid", objId);
+
+        await using var reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false);
+        if (!await reader.ReadAsync(token).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        return new AdvisoryLockHolder(lockId)
+        {
+            SessionId = await reader.IsDBNullAsync(0, token).ConfigureAwait(false)
+                ? null
+                : (await reader.GetFieldValueAsync<int>(0, token).ConfigureAwait(false)).ToString(),
+            ApplicationName = await nullableStringAsync(reader, 1, token).ConfigureAwait(false),
+            ClientAddress = await nullableStringAsync(reader, 2, token).ConfigureAwait(false),
+
+            // The backend's start, which is the earliest the lock can have been taken: PostgreSQL does
+            // not record when an advisory lock was acquired
+            HeldSince = await reader.IsDBNullAsync(3, token).ConfigureAwait(false)
+                ? null
+                : await reader.GetFieldValueAsync<DateTimeOffset>(3, token).ConfigureAwait(false),
+
+            // Definitive either way for this instance: the lock is exclusive, so if this instance holds
+            // it the single holder is us, and if it does not, the holder is not us
+            IsCurrentNode = HasLock(lockId)
+        };
+    }
+
+    private static async Task<string?> nullableStringAsync(NpgsqlDataReader reader, int ordinal, CancellationToken token)
+    {
+        return await reader.IsDBNullAsync(ordinal, token).ConfigureAwait(false)
+            ? null
+            : await reader.GetFieldValueAsync<string>(ordinal, token).ConfigureAwait(false);
     }
 
     public async Task ReleaseLockAsync(int lockId)
