@@ -57,6 +57,71 @@ public class guarded_statements: IntegrationContext
         stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5), "a failure that can only recur is not retried");
     }
 
+    private static Table wide(out string[] columns)
+    {
+        columns = Enumerable.Range(1, Table.MaxKeyColumns + 1).Select(i => $"c{i}").ToArray();
+
+        var table = new Table("wide");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        foreach (var column in columns)
+        {
+            table.AddColumn<int>(column);
+        }
+
+        return table;
+    }
+
+    /// <summary>
+    ///     An index over more than 16 columns fails at commit with "too many keys defined for index"
+    ///     (335544631), the same numbers and SQLSTATE the loser of a CREATE INDEX race gets, which is run
+    ///     again. So Weasel refuses such a key itself, before anything runs.
+    /// </summary>
+    [Fact]
+    public async Task a_key_over_16_columns_is_refused_before_anything_runs()
+    {
+        var table = wide(out var columns);
+        await CreateSchemaObjectInDatabase(table);
+
+        table.AddColumn<int>("added");
+        table.Indexes.Add(new IndexDefinition("ix_wide") { Columns = columns });
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() => ApplyAsync(table));
+        ex.Message.ShouldContain("index ix_wide on table wide has 17");
+
+        (await table.FetchExistingAsync(theConnection))!.HasColumn("added").ShouldBeFalse("nothing runs");
+
+        var keyed = new Table("wide_key");
+        foreach (var column in columns)
+        {
+            keyed.AddColumn<int>(column).AsPrimaryKey();
+        }
+
+        (await Should.ThrowAsync<InvalidOperationException>(() => ApplyAsync(keyed)))
+            .Message.ShouldContain("the primary key of table wide_key has 17");
+    }
+
+    /// <summary>
+    ///     The measurement behind the refusal: a hand-written one cannot be told from a lost race, so it
+    ///     is run <see cref="FirebirdMigrator.MaxGuardedStatementAttempts" /> times before it surfaces.
+    /// </summary>
+    [Fact]
+    public async Task a_hand_written_index_over_16_columns_surfaces_once_the_attempts_run_out()
+    {
+        var table = wide(out var columns);
+        await CreateSchemaObjectInDatabase(table);
+
+        var script = new StringWriter();
+        FirebirdScript.WriteGuarded(script,
+            "SELECT 1 FROM RDB$INDICES WHERE RDB$INDEX_NAME = 'IX_WIDE'",
+            $"CREATE INDEX ix_wide ON wide ({string.Join(", ", columns)})");
+
+        var ex = await Should.ThrowAsync<FbException>(() =>
+            new FirebirdMigrator { MaxGuardedStatementAttempts = 2 }.ExecuteScriptAsync(theConnection, script.ToString()));
+
+        FirebirdMigrator.HasErrorNumber(ex, 335544631).ShouldBeTrue(ex.Message);
+        FirebirdMigrator.IsCatalogConflict(ex).ShouldBeTrue("the numbers are a lost race's");
+    }
+
     [Fact]
     public async Task a_table_named_like_a_view_is_refused_rather_than_skipped()
     {

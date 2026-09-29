@@ -101,7 +101,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     internal void WriteCreateStatement(Migrator migrator, TextWriter writer, IReadOnlySet<string> deferredForeignKeys)
     {
         FirebirdObjectName.AssertDefaultSchema(Identifier.Schema, $"table {Identifier.Name}");
-        AssertNamesFit(migrator, true, Columns, true, Indexes, ForeignKeys);
+        AssertCreatable(migrator, true, Columns, true, Indexes, ForeignKeys);
 
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
@@ -178,19 +178,35 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     }
 
     /// <summary>
-    ///     Refuse a name this table's DDL would write when it is over <see cref="FirebirdMigrator.MaxIdentifierLength" />,
-    ///     before anything runs. Firebird refuses an over-long name outright, so a migration would
-    ///     otherwise stop at the first statement that carries one, with every statement before it
-    ///     committed. Weasel does not truncate either: a truncation scheme could never change later
-    ///     without renaming the object. A derived primary key name says which setting to use.
+    ///     Refuse, before anything runs, what this table's DDL would write and Firebird would refuse: a
+    ///     key over <see cref="MaxKeyColumns" /> columns, or a name over
+    ///     <see cref="FirebirdMigrator.MaxIdentifierLength" />. A migration would otherwise stop at the
+    ///     first statement that carries one, with every statement before it committed. Weasel does not
+    ///     truncate a name either: a truncation scheme could never change later without renaming the
+    ///     object. A derived primary key name says which setting to use.
     /// </summary>
     /// <remarks>
-    ///     A create passes every name and an update the ones it adds. Only a
-    ///     <see cref="FirebirdMigrator" /> knows the limit, so another migrator checks nothing.
+    ///     A create passes everything and an update what it adds. Only a <see cref="FirebirdMigrator" />
+    ///     knows the name limit, so another migrator checks the keys alone.
     /// </remarks>
-    internal void AssertNamesFit(Migrator migrator, bool table, IEnumerable<TableColumn> columns, bool primaryKey,
+    internal void AssertCreatable(Migrator migrator, bool table, IEnumerable<TableColumn> columns, bool primaryKey,
         IEnumerable<IndexDefinition> indexes, IEnumerable<ForeignKey> foreignKeys)
     {
+        indexes = indexes.ToArray();
+        foreignKeys = foreignKeys.ToArray();
+
+        assertKeyFits(primaryKey ? PrimaryKeyColumns.Count : 0, $"the primary key of table {Identifier.Name}");
+
+        foreach (var index in indexes)
+        {
+            assertKeyFits(index.Columns.Length, $"index {index.Name} on table {Identifier.Name}");
+        }
+
+        foreach (var foreignKey in foreignKeys)
+        {
+            assertKeyFits(foreignKey.ColumnNames.Length, $"foreign key {foreignKey.Name} of table {Identifier.Name}");
+        }
+
         if (migrator is not FirebirdMigrator firebird)
         {
             return;
@@ -222,6 +238,25 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         foreach (var foreignKey in foreignKeys)
         {
             firebird.AssertFits(foreignKey.Name, null, $"a foreign key of table {Identifier.Name}");
+        }
+    }
+
+    /// <summary>
+    ///     The most columns a Firebird index has, and so a primary key, unique index or foreign key.
+    /// </summary>
+    internal const int MaxKeyColumns = 16;
+
+    /// <summary>
+    ///     Firebird refuses a wider key at commit with "too many keys defined for index" (335544631) --
+    ///     the very error the loser of a race to create the same index gets, which Weasel runs again --
+    ///     so the refusal has to come from here.
+    /// </summary>
+    private static void assertKeyFits(int columns, string key)
+    {
+        if (columns > MaxKeyColumns)
+        {
+            throw new InvalidOperationException(
+                $"Firebird indexes at most {MaxKeyColumns} columns, and {key} has {columns}. Key fewer columns.");
         }
     }
 

@@ -599,15 +599,25 @@ public class FirebirdMigrator: Migrator
 
     /// <summary>
     ///     The Firebird errors a racing applier produces: a unique key violation in the catalog
-    ///     (335544665), a lock conflict at commit (SQLSTATE 40001, which carries 335544345), a lock
-    ///     timeout under <c>WAIT</c> (335544510), and the "deadlock" (335544336) with "update conflicts
-    ///     with concurrent update" (335544451) a <c>CREATE OR ALTER</c> gets when another applier changed
-    ///     the same catalog row first.
+    ///     (335544665), which the loser of any CREATE or ADD gets when it runs; "too many keys defined
+    ///     for index" (335544631), which the second loser of a CREATE INDEX or ADD CONSTRAINT race gets
+    ///     when it commits, both racers having written the index's segments; a lock conflict at commit
+    ///     (SQLSTATE 40001, which carries 335544345); a lock timeout under <c>WAIT</c> (335544510); and
+    ///     the "deadlock" (335544336) with "update conflicts with concurrent update" (335544451) a
+    ///     <c>CREATE OR ALTER</c> gets when another applier changed the same catalog row first.
     /// </summary>
     /// <remarks>
-    ///     <c>unsuccessful metadata update</c> (335544351) is not one of them: it heads every failed DDL
-    ///     statement, a name already taken or a column that does not exist as much as a lost race, so on
-    ///     its own it would retry a failure that can only happen again.
+    ///     <para>
+    ///         <c>unsuccessful metadata update</c> (335544351) is not one of them: it heads every failed
+    ///         DDL statement, a name already taken or a column that does not exist as much as a lost race,
+    ///         so on its own it would retry a failure that can only happen again.
+    ///     </para>
+    ///     <para>
+    ///         335544631 is also what an index over more than 16 columns gets, every time, with the same
+    ///         numbers and SQLSTATE at the same point, so nothing tells the two apart. Weasel refuses such
+    ///         a key before anything runs; a hand-written one is run <see cref="MaxGuardedStatementAttempts" />
+    ///         times before it surfaces.
+    ///     </para>
     /// </remarks>
     internal static bool IsCatalogConflict(Exception exception)
     {
@@ -618,7 +628,8 @@ public class FirebirdMigrator: Migrator
                 continue;
             }
 
-            if (firebird.SQLSTATE == "40001" || HasErrorNumber(firebird, 335544665, 335544510, 335544345, 335544336, 335544451))
+            if (firebird.SQLSTATE == "40001"
+                || HasErrorNumber(firebird, 335544665, 335544631, 335544510, 335544345, 335544336, 335544451))
             {
                 return true;
             }

@@ -142,9 +142,9 @@ whole database.
 
 ## How a migration runs
 
-Everything is rendered first, so a refusal -- a schema, a mixed-direction index, a name over the limit -- fires before
-any DDL runs. A name longer than the server's catalog holds is refused before introspection binds it, too. Then each
-statement runs in a transaction of its own and commits alone:
+Everything is rendered first, so a refusal -- a schema, a mixed-direction index, a name over the limit, a key over 16
+columns -- fires before any DDL runs. A name longer than the server's catalog holds is refused before introspection
+binds it, too. Then each statement runs in a transaction of its own and commits alone:
 
 | | Weasel.Firebird |
 |---|---|
@@ -158,7 +158,8 @@ statement runs in a transaction of its own and commits alone:
 Concurrent appliers are safe without a lock because a re-run is harmless: the guard makes it a no-op once another
 applier has created the object, and `CREATE OR ALTER` leaves the same object however often it runs. A statement is
 run again only after a race -- a catalog conflict, a lock conflict or a lock timeout -- never after an ordinary
-failure, which would only fail again.
+failure, which would only fail again. The one exception is a hand-written index over 16 columns: Firebird fails it with
+the same error as the loser of an index race, so it runs `MaxGuardedStatementAttempts` times before it surfaces.
 
 A rollback undoes the last delta first. Firebird refuses to drop a table, view or procedure that a view, procedure or
 trigger still uses, so undoing in the order of the apply could not drop a table before the view over it.
