@@ -405,6 +405,10 @@ ORDER BY ic.index_name, ic.column_position";
     {
         var columnPositions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
+        // Indexes with a key that is a real expression, not just a column. Oracle calls an index with
+        // a descending key FUNCTION-BASED too, and the ones that are only that are plain B-trees.
+        var computed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             var indexName = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
@@ -426,11 +430,22 @@ ORDER BY ic.index_name, ic.column_position";
             if (columnName.StartsWith("SYS_", StringComparison.OrdinalIgnoreCase)
                 && expressionMap.TryGetValue((indexName.ToUpperInvariant(), position), out var expression))
             {
-                // SYS_OP_DESCEND("USER_NAME"), or just "USER_NAME"
-                var match = Regex.Match(expression, "\"([^\"]+)\"");
-                if (match.Success)
+                // A descending key is a hidden SYS_NC...$ column whose expression is the real column,
+                // quoted: "PRIORITY". Anything else is a genuine expression, UPPER("NAME") say.
+                var bare = Regex.Match(expression.Trim(), "^\"([^\"]+)\"$");
+                if (bare.Success)
                 {
-                    columnName = match.Groups[1].Value;
+                    columnName = bare.Groups[1].Value;
+                }
+                else
+                {
+                    computed.Add(indexName);
+
+                    var match = Regex.Match(expression, "\"([^\"]+)\"");
+                    if (match.Success)
+                    {
+                        columnName = match.Groups[1].Value;
+                    }
                 }
             }
 
@@ -438,7 +453,18 @@ ORDER BY ic.index_name, ic.column_position";
 
             if (descend == "DESC")
             {
+                // Both, as SQL Server's reader does: the set says which column is descending, and
+                // SortOrder keeps reporting what it always did. The set decides the rendering.
+                index.DescendingColumns.Add(columnName);
                 index.SortOrder = SortOrder.Desc;
+            }
+        }
+
+        foreach (var (name, index) in indexes)
+        {
+            if (index.IndexType == OracleIndexType.FunctionBased && !computed.Contains(name))
+            {
+                index.IndexType = OracleIndexType.BTree;
             }
         }
 
