@@ -64,6 +64,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
     {
         if (actual == null)
         {
+            // Nothing below this point runs, so every ItemDelta has to be built here as well --
+            // against no actuals, which is exactly what a table that does not exist yet is. The
+            // fields were left null, and HasChanges() threw a NullReferenceException for the one
+            // case whose answer is unambiguously "yes, it needs creating" (weasel#658).
+            noActuals(expected);
+
             return SchemaPatchDifference.Create;
         }
 
@@ -655,8 +661,26 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithRebuild
         }
     }
 
+    /// <summary>
+    ///     Populate the deltas for a table that is not in the database at all: every column, index
+    ///     and foreign key the expected table declares is missing.
+    /// </summary>
+    private void noActuals(Table expected)
+    {
+        _withheldDrops.Clear();
+        _renamedColumns.Clear();
+
+        Columns = ItemDelta<TableColumn>.AllMissing(expected.Columns);
+        Indexes = ItemDelta<IndexDefinition>.AllMissing(
+            expected.Indexes.Where(x => !expected.IgnoredIndexes.Contains(x.Name)));
+        ForeignKeys = ItemDelta<ForeignKey>.AllMissing(expected.ForeignKeys);
+    }
+
     public bool HasChanges()
     {
+        // A table that is not there yet has to be created, whatever else is or is not declared on it.
+        if (Actual == null) return true;
+
         return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() ||
                PrimaryKeyDifference != SchemaPatchDifference.None || _renamedColumns.Any();
     }
