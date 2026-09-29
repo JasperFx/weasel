@@ -153,7 +153,7 @@ public class IndexDefinition: ITableIndex
     ///     make every index report drift. Emission sites call this, comparison keeps calling
     ///     <c>ToDDL</c>.
     /// </remarks>
-    public void WriteCreateStatement(Table parent, TextWriter writer)
+    public virtual void WriteCreateStatement(Table parent, TextWriter writer)
     {
         writer.WriteLine(
             $"IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'{SchemaUtils.EscapeLiteral(Name)}' AND object_id = OBJECT_ID(N'{SchemaUtils.EscapeLiteral(parent.Identifier.QualifiedName)}'))");
@@ -165,7 +165,7 @@ public class IndexDefinition: ITableIndex
     ///     the coarse trailing <c>DESC</c>. The coarse form is what comparison uses unless the model
     ///     opted into <see cref="CompareColumnDirection" />.
     /// </summary>
-    internal string ToDDL(Table parent, bool usePerColumnDirection)
+    internal virtual string ToDDL(Table parent, bool usePerColumnDirection)
     {
         var builder = new StringBuilder();
 
