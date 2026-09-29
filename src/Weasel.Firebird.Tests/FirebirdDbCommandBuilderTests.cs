@@ -177,6 +177,27 @@ public class FirebirdDbCommandBuilderTests
         builder.CompileCommands().ShouldAllBe(x => x.Connection == connection);
     }
 
+    /// <summary>
+    ///     A single statement executes the very command that was built, options and all, so several
+    ///     have to carry the same options -- the gap upstream's #660 closed for Oracle's split commands.
+    /// </summary>
+    [Fact]
+    public void split_commands_carry_the_options_set_on_the_command_being_built()
+    {
+        var command = new FbCommand { CommandTimeout = 17, FetchSize = 50 };
+        var builder = new FirebirdDbCommandBuilder(command);
+
+        builder.Append("select 1 from rdb$database");
+        builder.StartNewCommand();
+        builder.Append("select 2 from rdb$database");
+
+        var commands = builder.CompileCommands().Cast<FbCommand>().ToArray();
+
+        commands.Length.ShouldBe(2);
+        commands.ShouldAllBe(x => x.CommandTimeout == 17);
+        commands.ShouldAllBe(x => x.FetchSize == 50);
+    }
+
     [Fact]
     public void command_count_reports_the_open_statement_too()
     {

@@ -116,7 +116,14 @@ public class FirebirdDbCommandBuilder: DbCommandBuilder
         var commands = new List<DbCommand>(_statements.Count);
         foreach (var statement in _statements)
         {
-            var command = new FbCommand(statement.Sql, _firebirdCommand.Connection, _firebirdCommand.Transaction);
+            // The options set on the command being built go with every statement of it: a single
+            // statement executes that very command, so several have to behave the same (the gap
+            // upstream's #660 closed for Oracle).
+            var command = new FbCommand(statement.Sql, _firebirdCommand.Connection, _firebirdCommand.Transaction)
+            {
+                CommandTimeout = _firebirdCommand.CommandTimeout,
+                FetchSize = _firebirdCommand.FetchSize
+            };
 
             for (var i = 0; i < parameters.Length; i++)
             {
