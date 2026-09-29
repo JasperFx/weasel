@@ -165,6 +165,64 @@ public class FirebirdMigrator: Migrator
     }
 
     /// <summary>
+    ///     The page size <see cref="EnsureDatabaseExistsAsync" /> creates a database with. 16384, because a
+    ///     key over a few long <c>VARCHAR</c> columns in a UTF8 database does not fit a smaller page:
+    ///     Quartz's schema fails at 8192.
+    /// </summary>
+    public int NewDatabasePageSize { get; set; } = 16384;
+
+    /// <summary>
+    ///     Create the database file the connection string names, unless it can already be opened.
+    /// </summary>
+    /// <remarks>
+    ///     The database is opened first and created only when that fails because the file is missing
+    ///     (weasel#647's lesson, from MySQL): a user that may connect but not create databases -- or a
+    ///     server that only allows existing files -- then never reaches the create. A create that loses a
+    ///     race with another process, or finds the file there after all, counts as success. The
+    ///     connection string's character set becomes the database's default.
+    /// </remarks>
+    public override async Task EnsureDatabaseExistsAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        var connectionString = connection.ConnectionString;
+
+        try
+        {
+            await using var probe = new FbConnection(connectionString);
+            await probe.OpenAsync(ct).ConfigureAwait(false);
+            return;
+        }
+        catch (FbException e) when (IsMissingDatabase(e))
+        {
+            // Fall through to create it.
+        }
+
+        try
+        {
+            await FbConnection.CreateDatabaseAsync(connectionString, NewDatabasePageSize, true, false, ct)
+                .ConfigureAwait(false);
+        }
+        catch (FbException e) when (IsExistingDatabase(e))
+        {
+            // Somebody else created it between the open and the create.
+        }
+    }
+
+    /// <summary>
+    ///     "I/O error during open" with "Error while trying to open file": the file does not exist. The
+    ///     same SQLSTATE class (08) covers a server that is down, so the numbers are what decide.
+    /// </summary>
+    internal static bool IsMissingDatabase(FbException exception)
+        => exception.ErrorCode == 335544344 && HasErrorNumber(exception, 335544734);
+
+    /// <summary>
+    ///     The two ways a create finds the database already there: the file exists (335544344 with
+    ///     335544733), or a concurrent create won (335544351 with 335544453).
+    /// </summary>
+    internal static bool IsExistingDatabase(FbException exception)
+        => (exception.ErrorCode == 335544344 && HasErrorNumber(exception, 335544733))
+           || (exception.ErrorCode == 335544351 && HasErrorNumber(exception, 335544453));
+
+    /// <summary>
     ///     Apply a migration one statement at a time, each in its own transaction.
     /// </summary>
     /// <remarks>
