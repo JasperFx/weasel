@@ -12,8 +12,8 @@ public partial class Table
     ///     The columns, in position order, with everything the model can state about each: the type as
     ///     <c>RDB$FIELDS</c> stores it, nullability and collation coalesced from the column and its domain
     ///     -- a domain's <c>NOT NULL</c> and a column's <c>COLLATE</c> are only recorded on the domain --
-    ///     the default source cast to text, and whether it is an identity. The engine version rides along
-    ///     on every row, for the one type whose storage differs by version.
+    ///     the default source cast to text, whether it is an identity, and a computed column's expression.
+    ///     The engine version rides along on every row, for the one type whose storage differs by version.
     /// </summary>
     private const string ColumnSql = """
         SELECT
@@ -29,7 +29,8 @@ public partial class Table
             TRIM(cs.RDB$CHARACTER_SET_NAME),
             COALESCE(rf.RDB$COLLATION_ID, f.RDB$COLLATION_ID, 0),
             TRIM(co.RDB$COLLATION_NAME),
-            rdb$get_context('SYSTEM', 'ENGINE_VERSION')
+            rdb$get_context('SYSTEM', 'ENGINE_VERSION'),
+            CAST(f.RDB$COMPUTED_SOURCE AS VARCHAR(8191))
         FROM RDB$RELATION_FIELDS rf
         JOIN RDB$RELATIONS r ON r.RDB$RELATION_NAME = rf.RDB$RELATION_NAME AND r.RDB$VIEW_BLR IS NULL
         JOIN RDB$FIELDS f ON f.RDB$FIELD_NAME = rf.RDB$FIELD_SOURCE
@@ -204,7 +205,8 @@ public partial class Table
             {
                 AllowNulls = int32(reader, 6) != 1,
                 DefaultExpression = TableColumn.ReadDefault(text(reader, 7)),
-                IsAutoNumber = identity
+                IsAutoNumber = identity,
+                ComputedExpression = ExpressionText.WithoutOuterParentheses(text(reader, 13))
             };
 
             existing.AddColumn(column);

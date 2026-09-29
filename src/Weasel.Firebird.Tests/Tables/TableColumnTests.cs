@@ -102,11 +102,93 @@ public class TableColumnTests
     }
 
     [Fact]
-    public void a_computed_column_is_refused_rather_than_written_as_a_plain_one()
+    public void a_computed_column_is_written_computed_by()
     {
-        var subject = column("total", "INTEGER", x => x.ComputedExpression = "a + b");
+        column("total", "INTEGER", x => x.ComputedExpression = "a + b").ToDeclaration()
+            .ShouldBe("total INTEGER COMPUTED BY (a + b)");
+    }
 
-        Should.Throw<NotSupportedException>(() => subject.ToDeclaration()).Message.ShouldContain("COMPUTED BY");
+    /// <summary>
+    ///     Firebird refuses NOT NULL beside COMPUTED BY; a computed column is as nullable as its
+    ///     expression, so a model that says NOT NULL gets a column that is, in effect.
+    /// </summary>
+    [Fact]
+    public void a_computed_column_writes_no_not_null()
+    {
+        column("total", "INTEGER", x =>
+        {
+            x.ComputedExpression = "a + b";
+            x.AllowNulls = false;
+        }).ToDeclaration().ShouldBe("total INTEGER COMPUTED BY (a + b)");
+    }
+
+    /// <summary>
+    ///     Firebird's computed columns are virtual only; a stored one is refused rather than written
+    ///     as something else.
+    /// </summary>
+    [Fact]
+    public void a_stored_computed_column_is_refused()
+    {
+        var subject = column("total", "INTEGER", x =>
+        {
+            x.ComputedExpression = "a + b";
+            x.ComputedColumnIsStored = true;
+        });
+
+        var ex = Should.Throw<NotSupportedException>(() => subject.ToDeclaration());
+        ex.Message.ShouldContain("virtual only");
+        ex.Message.ShouldContain("ComputedColumnIsStored");
+    }
+
+    [Theory]
+    [InlineData(true, null, "INTEGER")]
+    [InlineData(false, "0", "INTEGER")]
+    [InlineData(false, null, "VARCHAR(10) COLLATE UNICODE_CI")]
+    public void a_computed_column_takes_no_identity_default_or_collation(bool identity, string? defaultExpression, string type)
+    {
+        var subject = column("total", type, x =>
+        {
+            x.ComputedExpression = "a || b";
+            x.IsAutoNumber = identity;
+            x.DefaultExpression = defaultExpression;
+        });
+
+        Should.Throw<InvalidOperationException>(() => subject.ToDeclaration()).Message.ShouldContain("computed");
+    }
+
+    [Fact]
+    public void a_computed_expression_matches_however_it_is_spaced_or_cased()
+    {
+        var model = column("total", "INTEGER", x => x.ComputedExpression = "a+b");
+        var catalog = column("TOTAL", "INTEGER", x => x.ComputedExpression = "A+B");
+
+        model.ComputationMatches(catalog).ShouldBeTrue();
+        model.ComputationMatches(column("TOTAL", "INTEGER", x => x.ComputedExpression = "a-b")).ShouldBeFalse();
+        model.ComputationMatches(column("TOTAL", "INTEGER")).ShouldBeFalse();
+        model.IsEquivalentTo(catalog).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void a_computed_column_can_always_be_added()
+    {
+        column("total", "INTEGER", x =>
+        {
+            x.ComputedExpression = "a + b";
+            x.AllowNulls = false;
+        }).CanAdd().ShouldBeTrue();
+    }
+
+    /// <summary>
+    ///     Measured on 3 and 5: <c>ALTER … TYPE</c> alone on a computed column is refused as removing the
+    ///     COMPUTED, so the type and the expression change together.
+    /// </summary>
+    [Fact]
+    public void a_computed_column_is_altered_type_and_expression_together()
+    {
+        var table = parent();
+        table.AddColumn("total", "BIGINT").ComputedBy("a * b");
+
+        table.Columns.Single().AlterComputedSql(table).ShouldBe("ALTER TABLE orders ALTER total TYPE BIGINT COMPUTED BY (a * b)");
     }
 
     [Theory]

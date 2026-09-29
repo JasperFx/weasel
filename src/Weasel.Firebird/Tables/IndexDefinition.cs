@@ -7,7 +7,6 @@ namespace Weasel.Firebird.Tables;
 
 public class IndexDefinition: ITableIndex
 {
-    private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
     private static readonly Regex WhereKeyword = new(@"^\s*WHERE\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private readonly List<string> _columns = new();
@@ -238,8 +237,8 @@ public class IndexDefinition: ITableIndex
                && isDescending == actual.isDescending
                && IsInactive == actual.IsInactive
                && Columns.SequenceEqual(actual.Columns, StringComparer.OrdinalIgnoreCase)
-               && canonical(Expression) == canonical(actual.Expression)
-               && canonical(Predicate) == canonical(actual.Predicate);
+               && ExpressionText.Canonical(Expression) == ExpressionText.Canonical(actual.Expression)
+               && ExpressionText.Canonical(Predicate) == ExpressionText.Canonical(actual.Predicate);
     }
 
     public void AssertMatches(IndexDefinition actual, Table parent)
@@ -255,57 +254,11 @@ public class IndexDefinition: ITableIndex
     ///     An expression source as <c>RDB$INDICES</c> stores it, <c>(UPPER(NAME))</c>, without the outer
     ///     parentheses the server keeps.
     /// </summary>
-    internal static string? ReadExpression(string? source)
-    {
-        if (source.IsEmpty())
-        {
-            return null;
-        }
-
-        var text = source!.Trim();
-        return text.StartsWith('(') && text.EndsWith(')') && closesAtEnd(text) ? text[1..^1].Trim() : text;
-    }
+    internal static string? ReadExpression(string? source) => ExpressionText.WithoutOuterParentheses(source);
 
     /// <summary>
     ///     A condition source as Firebird 5 stores it, <c>WHERE b &gt; 0</c>, without the keyword.
     /// </summary>
     internal static string? ReadPredicate(string? source)
         => source.IsEmpty() ? null : WhereKeyword.Replace(source!, "").Trim();
-
-    private static bool closesAtEnd(string text)
-    {
-        var depth = 0;
-        for (var i = 0; i < text.Length; i++)
-        {
-            depth += text[i] switch { '(' => 1, ')' => -1, _ => 0 };
-            if (depth == 0 && i < text.Length - 1)
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static string? canonical(string? expression)
-    {
-        if (expression.IsEmpty())
-        {
-            return null;
-        }
-
-        var builder = new StringBuilder();
-        var inLiteral = false;
-        foreach (var c in Whitespace.Replace(expression!.Trim(), " "))
-        {
-            if (c == '\'')
-            {
-                inLiteral = !inLiteral;
-            }
-
-            builder.Append(inLiteral ? c : char.ToUpperInvariant(c));
-        }
-
-        return builder.ToString().Replace("( ", "(").Replace(" )", ")");
-    }
 }

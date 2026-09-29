@@ -58,13 +58,23 @@ public class TableColumn: ITableColumn
     public bool IsAutoNumber { get; set; }
 
     /// <summary>
-    ///     Not supported: Firebird has only virtual computed columns (<c>COMPUTED BY</c>), and Weasel
-    ///     does not write or compare them yet. Rendering a column with this set throws rather than
-    ///     silently creating a plain column.
+    ///     A computed column's expression, without its outer parentheses: written
+    ///     <c>COMPUTED BY (expression)</c>, and compared ignoring case and whitespace outside its literals.
     /// </summary>
+    /// <remarks>
+    ///     Firebird's computed columns are virtual -- the expression is evaluated when the row is read --
+    ///     and take neither a default nor <c>NOT NULL</c>: a computed column is as nullable as its
+    ///     expression, so <see cref="AllowNulls" /> is neither written nor compared for one. A changed
+    ///     expression or type is altered in place; a column cannot change between computed and stored.
+    /// </remarks>
     public string? ComputedExpression { get; set; }
 
+    /// <summary>
+    ///     Refused when the column is rendered: Firebird has no stored computed columns.
+    /// </summary>
     public bool ComputedColumnIsStored { get; set; }
+
+    internal bool IsComputed => ComputedExpression.IsNotEmpty();
 
     public Table? Parent { get; internal set; }
 
@@ -81,7 +91,7 @@ public class TableColumn: ITableColumn
     ///     Whether the column takes NULL: not part of the primary key, not an identity, and not declared
     ///     <c>NOT NULL</c>.
     /// </summary>
-    internal bool AcceptsNulls => !IsPrimaryKey && !IsAutoNumber && AllowNulls;
+    internal bool AcceptsNulls => IsComputed || (!IsPrimaryKey && !IsAutoNumber && AllowNulls);
 
     /// <summary>
     ///     The type without a trailing <c>COLLATE</c>, which Firebird wants last in a column definition,
@@ -105,14 +115,13 @@ public class TableColumn: ITableColumn
 
     /// <summary>
     ///     Everything after the type in a column definition: the default or the identity clause,
-    ///     <c>NOT NULL</c>, and the collation.
+    ///     <c>NOT NULL</c>, and the collation -- or, for a computed column, <c>COMPUTED BY (…)</c>.
     /// </summary>
     public string Declaration()
     {
-        if (ComputedExpression != null)
+        if (IsComputed)
         {
-            throw new NotSupportedException(
-                $"Column '{Name}' is computed. Weasel.Firebird does not write or compare computed (COMPUTED BY) columns yet.");
+            return computedDeclaration();
         }
 
         var parts = new List<string>();
@@ -150,6 +159,29 @@ public class TableColumn: ITableColumn
         return parts.Join(" ");
     }
 
+    private string computedDeclaration()
+    {
+        if (ComputedColumnIsStored)
+        {
+            throw new NotSupportedException(
+                $"Column '{Name}' is a stored computed column, but Firebird's computed columns are virtual only: COMPUTED BY evaluates the expression each time the row is read. Clear {nameof(ComputedColumnIsStored)}, or keep the value in an ordinary column.");
+        }
+
+        if (IsAutoNumber || hasDefault(DefaultExpression))
+        {
+            throw new InvalidOperationException(
+                $"Column '{Name}' is computed, so it can be neither an identity nor have a default: its value is its expression.");
+        }
+
+        if (Collation != null)
+        {
+            throw new InvalidOperationException(
+                $"Column '{Name}' is computed, so its collation is its expression's. Put the COLLATE in {nameof(ComputedExpression)}.");
+        }
+
+        return $"COMPUTED BY ({ComputedExpression!.Trim()})";
+    }
+
     public string ToDeclaration()
     {
         return $"{QuotedName} {DeclaredType} {Declaration()}".TrimEnd();
@@ -176,9 +208,16 @@ public class TableColumn: ITableColumn
 
     internal bool NullabilityMatches(TableColumn actual) => AcceptsNulls == actual.AcceptsNulls;
 
+    /// <summary>
+    ///     Is <paramref name="actual" /> computed exactly when this column is, by the same expression?
+    /// </summary>
+    internal bool ComputationMatches(TableColumn actual)
+        => ExpressionText.Canonical(ComputedExpression) == ExpressionText.Canonical(actual.ComputedExpression);
+
     public bool IsEquivalentTo(TableColumn other)
     {
-        return Name.Equals(other.Name, StringComparison.OrdinalIgnoreCase) && TypeMatches(other, null);
+        return Name.Equals(other.Name, StringComparison.OrdinalIgnoreCase) && TypeMatches(other, null)
+                                                                            && ComputationMatches(other);
     }
 
     public override bool Equals(object? obj) => obj is TableColumn other && IsEquivalentTo(other);
@@ -272,6 +311,13 @@ public class TableColumn: ITableColumn
     internal string AlterTypeSql(Table parent)
         => $"ALTER TABLE {parent.QuotedName} ALTER {QuotedName} TYPE {DeclaredType}";
 
+    /// <summary>
+    ///     A computed column's type and expression, changed in place. Firebird takes them together --
+    ///     <c>ALTER … TYPE</c> alone on a computed column is refused as removing the <c>COMPUTED</c>.
+    /// </summary>
+    internal string AlterComputedSql(Table parent)
+        => $"ALTER TABLE {parent.QuotedName} ALTER {QuotedName} TYPE {DeclaredType} {computedDeclaration()}";
+
     internal string AlterNullabilitySql(Table parent)
         => $"ALTER TABLE {parent.QuotedName} ALTER {QuotedName} {(AcceptsNulls ? "DROP" : "SET")} NOT NULL";
 
@@ -288,6 +334,12 @@ public class TableColumn: ITableColumn
     /// </summary>
     public virtual bool CanAdd()
     {
+        if (IsComputed)
+        {
+            // Nothing to fill the rows already there with: the value is the expression.
+            return true;
+        }
+
         if (IsAutoNumber)
         {
             return false;

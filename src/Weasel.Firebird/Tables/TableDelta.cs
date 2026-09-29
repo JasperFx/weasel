@@ -78,7 +78,9 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         Columns = new ItemDelta<TableColumn>(expected.Columns,
             droppable(expected, expected.Columns, actual.Columns, "column"),
             (e, a) => e.TypeMatches(a, version)
-                      && (!expected.DetectColumnDrift || (e.DefaultMatches(a) && e.NullabilityMatches(a))));
+                      && e.ComputationMatches(a)
+                      && (!expected.DetectColumnDrift || e.IsComputed
+                                                       || (e.DefaultMatches(a) && e.NullabilityMatches(a))));
 
         ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys,
             droppable(expected, expected.ForeignKeys, actual.ForeignKeys, "foreign key"),
@@ -136,12 +138,22 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     /// </summary>
     private string? findInvalidReason(Table actual, FirebirdServerVersion? version)
     {
+        // Firebird refuses to add or remove COMPUTED from a column; only dropping it and adding it back
+        // would do, and that is the data's decision, not the schema's.
+        var switched = Columns.Different.Where(x => x.Expected.IsComputed != x.Actual.IsComputed).ToArray();
+        if (switched.Any())
+        {
+            return
+                $"{switched.Select(x => $"column '{x.Expected.Name}'").Join(" and ")} would change between computed and stored, which Firebird cannot do in place";
+        }
+
         // Firebird refuses to change the type of a column a primary key, unique index or foreign key
         // covers (335544538), widening included. Weasel never drops a key to make room: that is a
         // decision about the data, not about the schema.
         var keyed = keyColumns(actual);
+        // A computed column holds no data, so any change to its type is made in place.
         var typeChanges = Columns.Different
-            .Where(x => !x.Expected.TypeMatches(x.Actual, version))
+            .Where(x => !x.Expected.IsComputed && !x.Expected.TypeMatches(x.Actual, version))
             .ToArray();
 
         var keyTypeChanges = typeChanges.Where(x => keyed.Contains(x.Actual.Name)).ToArray();
@@ -297,10 +309,17 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     /// <summary>
     ///     Only what differs: a type, and -- when the table asks for <see cref="ITable.DetectColumnDrift" />
     ///     -- a default and nullability. The default goes before <c>SET NOT NULL</c>, which Firebird
-    ///     checks against the rows already there.
+    ///     checks against the rows already there. A computed column's type and expression are altered
+    ///     together, the only way Firebird takes either.
     /// </summary>
     private void writeColumnChange(TextWriter writer, TableColumn expected, TableColumn actual)
     {
+        if (expected.IsComputed)
+        {
+            FirebirdScript.WriteStatement(writer, expected.AlterComputedSql(Expected));
+            return;
+        }
+
         if (!expected.TypeMatches(actual, Actual!.ServerVersion))
         {
             FirebirdScript.WriteStatement(writer, expected.AlterTypeSql(Expected));
@@ -387,6 +406,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         {
             // The forward change was a widening -- nothing else is Update -- so going back is a
             // narrowing, which Firebird refuses. Only defaults and nullability can be restored.
+            if (change.Actual.IsComputed)
+            {
+                FirebirdScript.WriteStatement(writer, change.Actual.AlterComputedSql(Expected));
+                continue;
+            }
+
             var version = Actual.ServerVersion;
             if (!change.Expected.TypeMatches(change.Actual, version))
             {

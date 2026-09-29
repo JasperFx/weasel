@@ -427,5 +427,17 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
             return this;
         }
+
+        /// <summary>
+        ///     Make this a computed column, <c>COMPUTED BY (expression)</c>: evaluated when the row is read,
+        ///     never stored. The expression is written without its outer parentheses.
+        /// </summary>
+        public ColumnExpression ComputedBy(string expression)
+        {
+            Column.ComputedExpression = expression;
+            Column.ComputedColumnIsStored = false;
+
+            return this;
+        }
     }
 }

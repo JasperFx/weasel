@@ -525,6 +525,88 @@ public class TableDeltaTests
     }
 
     [Fact]
+    public void a_changed_computed_expression_is_altered_in_place()
+    {
+        var expected = model();
+        expected.AddColumn("total", "BIGINT").ComputedBy("id * 2");
+
+        var actual = catalog();
+        actual.AddColumn("TOTAL", "BIGINT").ComputedBy("ID + 1");
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        update(delta).ShouldBe(["ALTER TABLE people ALTER total TYPE BIGINT COMPUTED BY (id * 2)"]);
+        rollback(delta).ShouldBe(["ALTER TABLE people ALTER TOTAL TYPE BIGINT COMPUTED BY (ID + 1)"]);
+    }
+
+    [Fact]
+    public void a_computed_type_change_is_altered_in_place_even_when_it_narrows()
+    {
+        var expected = model();
+        expected.AddColumn("total", "SMALLINT").ComputedBy("id * 2");
+
+        var actual = catalog();
+        actual.AddColumn("TOTAL", "BIGINT").ComputedBy("ID * 2");
+
+        new TableDelta(expected, actual).Difference.ShouldBe(SchemaPatchDifference.Update);
+    }
+
+    [Fact]
+    public void the_same_computed_expression_spelled_differently_is_no_change()
+    {
+        var expected = model();
+        expected.DetectColumnDrift = true;
+        expected.AddColumn("total", "BIGINT").ComputedBy("id*2").NotNull();
+
+        var actual = catalog();
+        actual.AddColumn("TOTAL", "BIGINT").ComputedBy("ID * 2");
+
+        new TableDelta(expected, actual).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    /// <summary>
+    ///     Firebird refuses to add or remove COMPUTED from a column; dropping it and adding it back is the
+    ///     data's decision, so the delta is Invalid and says why.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void switching_between_computed_and_stored_is_invalid(bool toComputed)
+    {
+        var expected = model();
+        var column = expected.AddColumn("total", "BIGINT");
+        var actual = catalog();
+        var existing = actual.AddColumn("TOTAL", "BIGINT");
+
+        if (toComputed)
+        {
+            column.ComputedBy("id * 2");
+        }
+        else
+        {
+            existing.ComputedBy("ID * 2");
+        }
+
+        var delta = new TableDelta(expected, actual);
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Invalid);
+        delta.InvalidReason!.ShouldContain("between computed and stored");
+    }
+
+    [Fact]
+    public void a_missing_computed_column_is_added()
+    {
+        var expected = model();
+        expected.AddColumn("total", "BIGINT").ComputedBy("id * 2").NotNull();
+
+        var delta = new TableDelta(expected, catalog());
+
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+        update(delta).Single().ShouldContain("'ALTER TABLE people ADD total BIGINT COMPUTED BY (id * 2)'");
+    }
+
+    [Fact]
     public void describes_itself()
     {
         new TableDelta(model(), null).ToString().ShouldBe("TableDelta for people");
