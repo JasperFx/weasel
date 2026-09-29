@@ -36,6 +36,17 @@ public class ItemDelta<T> where T : class, INamed
         }
     }
 
+    /// <summary>
+    ///     The delta against no actuals at all -- a table that is not in the database yet -- where
+    ///     everything expected is missing by definition (weasel#658).
+    /// </summary>
+    public static ItemDelta<T> AllMissing(IEnumerable<T> expectedItems) => new(expectedItems);
+
+    private ItemDelta(IEnumerable<T> expectedItems)
+    {
+        Missing.AddRange(expectedItems);
+    }
+
     public List<T> Missing { get; } = new();
     public List<T> Extras { get; } = new();
     public List<T> Matched { get; } = new();

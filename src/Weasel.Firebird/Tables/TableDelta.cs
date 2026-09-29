@@ -64,9 +64,9 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     {
         if (actual == null)
         {
-            Columns = new ItemDelta<TableColumn>(expected.Columns, [], (_, _) => true);
-            Indexes = new ItemDelta<IndexDefinition>(expected.Indexes, [], (_, _) => true);
-            ForeignKeys = new ItemDelta<ForeignKey>(expected.ForeignKeys, [], (_, _) => true);
+            // Nothing below runs, so every ItemDelta is built here, against no actuals, which is
+            // exactly what a table that does not exist yet is (weasel#658).
+            noActuals(expected);
             return SchemaPatchDifference.Create;
         }
 
@@ -206,6 +206,20 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
     private static bool isIgnored(Table expected, IndexDefinition index)
         => expected.IgnoredIndexes.Contains(index.Name, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     The deltas for a table that is not in the database at all: every column, index and foreign
+    ///     key the expected table declares is missing.
+    /// </summary>
+    private void noActuals(Table expected)
+    {
+        _withheldDrops.Clear();
+        InvalidReason = null;
+
+        Columns = ItemDelta<TableColumn>.AllMissing(expected.Columns);
+        Indexes = ItemDelta<IndexDefinition>.AllMissing(expected.Indexes.Where(x => !isIgnored(expected, x)));
+        ForeignKeys = ItemDelta<ForeignKey>.AllMissing(expected.ForeignKeys);
+    }
 
     /// <summary>
     ///     True when at least one column, index, foreign key or the primary key differs.
