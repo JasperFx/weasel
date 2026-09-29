@@ -66,7 +66,8 @@ SELECT
     s.COLUMN_NAME,
     s.NON_UNIQUE,
     s.INDEX_TYPE,
-    s.SEQ_IN_INDEX
+    s.SEQ_IN_INDEX,
+    s.COLLATION
 FROM information_schema.STATISTICS s
 WHERE s.TABLE_SCHEMA = @{schemaParam}
     AND s.TABLE_NAME = @{nameParam}
@@ -221,6 +222,16 @@ ORDER BY s.INDEX_NAME, s.SEQ_IN_INDEX;
             }
 
             index.AddColumn(columnName);
+
+            // 'A' or 'D' for a B-tree key column, NULL where the index has no order at all (FULLTEXT,
+            // SPATIAL). This was never read, so every index came back ascending: a model with a
+            // descending index drifted on every check, and a descending one the model did not declare
+            // was never reported.
+            if (!await reader.IsDBNullAsync(5, ct).ConfigureAwait(false)
+                && await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false) == "D")
+            {
+                index.DescendingColumns.Add(columnName);
+            }
         }
     }
 
