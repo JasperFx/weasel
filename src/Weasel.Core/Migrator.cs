@@ -240,6 +240,33 @@ public abstract class
     );
 
     /// <summary>
+    ///     Run the rollback SQL <see cref="SchemaMigration.RollbackAllAsync" /> wrote for
+    ///     <paramref name="migration" />, one command per batch. Most dialects report a single batch,
+    ///     but SQL Server's rollback text can carry <c>GO</c> separators, which the server will not
+    ///     accept inside a command (weasel#593).
+    /// </summary>
+    /// <remarks>
+    ///     The rollback counterpart of <see cref="executeDelta" />, for a provider whose rollback
+    ///     needs the connection prepared the way its apply does: SQLite's reverse table rebuild needs
+    ///     the same foreign key and <c>ALTER TABLE</c> handling, and the same transaction, as the
+    ///     forward one.
+    /// </remarks>
+    protected internal virtual async Task executeRollback(
+        SchemaMigration migration,
+        DbConnection conn,
+        string sql,
+        CancellationToken ct = default
+    )
+    {
+        foreach (var batch in SplitIntoBatches(sql))
+        {
+            await conn
+                .CreateCommand(batch)
+                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
     ///     Does this exception mean the connection's role was refused for want of privilege,
     ///     rather than because the statement itself was wrong? Overridden by each provider with
     ///     its own error codes; the base returns false, so a provider that has not opted in keeps

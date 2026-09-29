@@ -450,6 +450,15 @@ public class SchemaMigration
                     break;
 
                 case SchemaPatchDifference.Invalid:
+                    if (delta is ISchemaObjectDeltaWithRebuild { CanRebuildInPlace: true })
+                    {
+                        // Going forward this object was rebuilt in place, rows and all, rather than
+                        // dropped (weasel#477), so going back is the reverse rebuild. Dropping it and
+                        // restoring the previous shape, as below, rolled a rebuilt table back empty.
+                        delta.WriteRollback(rules, writer);
+                        break;
+                    }
+
                     delta.SchemaObject.WriteDropStatement(rules, writer);
                     delta.WriteRestorationOfPreviousState(rules, writer);
                     break;
@@ -535,13 +544,6 @@ public class SchemaMigration
         var writer = new StringWriter();
         WriteAllRollbacks(writer, rules);
 
-        // One command per batch. Most dialects report a single batch, but SQL Server's rollback text
-        // can carry GO separators, which the server will not accept inside a command (weasel#593).
-        foreach (var batch in rules.SplitIntoBatches(writer.ToString()))
-        {
-            await conn
-                .CreateCommand(batch)
-                .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
-        }
+        await rules.executeRollback(this, conn, writer.ToString(), ct).ConfigureAwait(false);
     }
 }

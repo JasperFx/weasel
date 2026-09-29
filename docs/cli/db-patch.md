@@ -19,6 +19,8 @@ This generates two files:
 - `migrations/patch001.sql` -- the forward migration SQL.
 - `migrations/patch001.drop` -- the rollback SQL to undo the migration.
 
+On SQLite, a change that rebuilt a table (a column type, a foreign key, a primary key) is undone by rebuilding it back into its previous shape, so the rollback keeps the rows. Like the forward file, the script does not switch off foreign key enforcement around the rebuild, and does not set `legacy_alter_table`, so its final rename fails with `error in view ...` when a view names the table; `SchemaMigration.RollbackAllAsync` handles both, as `ApplyAllAsync` does going forward.
+
 ## Options
 
 | Option | Description |
