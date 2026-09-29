@@ -476,6 +476,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                 if (!attainLockResult.ShouldReconnect || ++reconnectionCount == maxReconnectionCount)
                     continue;
 
+                // weasel#664: hand the outgoing connection back before overwriting the variable that
+                // holds it. The finally below only ever sees the last one, so without this every
+                // reconnection attempt abandons a connection -- still holding its socket and its slot
+                // in the driver's pool -- until a finalizer gets to it, against a server that is
+                // already refusing or terminating connections. That is what put us in this loop.
+                await disposeQuietlyAsync(conn).ConfigureAwait(false);
+
                 conn = CreateConnection();
                 await conn.OpenAsync(ct).ConfigureAwait(false);
 
@@ -554,6 +561,27 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
         {
             if (conn != null)
                 await conn.DisposeAsync().ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    ///     Dispose a connection this method is finished with, in the one place where a failure to
+    ///     dispose is not worth surfacing (weasel#664). The connection abandoned by a reconnection
+    ///     attempt is broken by definition -- a terminated backend or an unreachable server is what
+    ///     made <see cref="IGlobalLock{TConnection}.TryAttainLock" /> ask to reconnect -- so a throw
+    ///     out of the dispose is the ordinary case here, not the exceptional one, and letting it out
+    ///     would abort the very reconnection the dispose exists to make cheap.
+    /// </summary>
+    private static async Task disposeQuietlyAsync(TConnection connection)
+    {
+        try
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Nothing to fall back on and nothing to report: the connection is being discarded either
+            // way, and the reconnection that follows is the caller's actual business.
         }
     }
 
