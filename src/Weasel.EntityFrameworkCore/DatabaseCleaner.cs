@@ -15,7 +15,7 @@ namespace Weasel.EntityFrameworkCore;
 public class DatabaseCleaner<TContext> : IDatabaseCleaner<TContext> where TContext : DbContext
 {
     private readonly IServiceProvider _services;
-    private string? _deleteAllSql;
+    private IReadOnlyList<DbObjectName>? _tables;
     private Migrator? _migrator;
     private readonly object _lock = new();
 
@@ -24,18 +24,18 @@ public class DatabaseCleaner<TContext> : IDatabaseCleaner<TContext> where TConte
         _services = services;
     }
 
-    private (string sql, Migrator migrator) EnsureInitialized()
+    private (IReadOnlyList<DbObjectName> tables, Migrator migrator) EnsureInitialized()
     {
-        if (_deleteAllSql != null && _migrator != null)
+        if (_tables != null && _migrator != null)
         {
-            return (_deleteAllSql, _migrator);
+            return (_tables, _migrator);
         }
 
         lock (_lock)
         {
-            if (_deleteAllSql != null && _migrator != null)
+            if (_tables != null && _migrator != null)
             {
-                return (_deleteAllSql, _migrator);
+                return (_tables, _migrator);
             }
 
             using var scope = _services.CreateScope();
@@ -59,8 +59,8 @@ public class DatabaseCleaner<TContext> : IDatabaseCleaner<TContext> where TConte
                 }
             }
 
-            _deleteAllSql = _migrator.GenerateDeleteAllSql(tables);
-            return (_deleteAllSql, _migrator);
+            _tables = tables;
+            return (_tables, _migrator);
         }
     }
 
@@ -76,8 +76,8 @@ public class DatabaseCleaner<TContext> : IDatabaseCleaner<TContext> where TConte
     /// <inheritdoc />
     public async Task DeleteAllDataAsync(DbConnection connection, CancellationToken ct = default)
     {
-        var (sql, _) = EnsureInitialized();
-        if (string.IsNullOrEmpty(sql)) return;
+        var (tables, migrator) = EnsureInitialized();
+        if (tables.Count == 0) return;
 
         var controlled = false;
         if (connection.State != ConnectionState.Open)
@@ -88,6 +88,16 @@ public class DatabaseCleaner<TContext> : IDatabaseCleaner<TContext> where TConte
 
         try
         {
+            // Generated per call rather than memoized with the table graph: a provider may have to read
+            // the database to know what it can emit, and the answer can change between calls -- SQLite's
+            // sqlite_sequence appears the first time anything is declared AUTOINCREMENT (weasel#546).
+            // The reflection over the EF model, which is the expensive part, stays cached.
+            var sql = await migrator
+                .GenerateDeleteAllSqlAsync(connection, tables, ct: ct)
+                .ConfigureAwait(false);
+
+            if (string.IsNullOrEmpty(sql)) return;
+
             await using var cmd = connection.CreateCommand();
             cmd.CommandText = sql;
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
