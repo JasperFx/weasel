@@ -138,7 +138,9 @@ public class IndexDefinition: ITableIndex
 
     string Weasel.Core.ITableIndex.ToDDL(Weasel.Core.ITable parent) => ToDDL((Table)parent);
 
-    public string ToDDL(Table parent)
+    public string ToDDL(Table parent) => toDdl(parent, includeTablespace: true);
+
+    private string toDdl(Table parent, bool includeTablespace)
     {
         var builder = new StringBuilder();
 
@@ -163,7 +165,7 @@ public class IndexDefinition: ITableIndex
         builder.Append(" ");
         builder.Append(correctedExpression());
 
-        if (Tablespace.IsNotEmpty())
+        if (includeTablespace && Tablespace.IsNotEmpty())
         {
             builder.Append($" TABLESPACE {Tablespace}");
         }
@@ -198,16 +200,16 @@ public class IndexDefinition: ITableIndex
 
     public bool Matches(IndexDefinition actual, Table parent)
     {
-        var expectedSql = CanonicizeDdl(this, parent);
-        var actualSql = CanonicizeDdl(actual, parent);
+        var expectedSql = canonicize(this, parent);
+        var actualSql = canonicize(actual, parent);
 
         return expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase);
     }
 
     public void AssertMatches(IndexDefinition actual, Table parent)
     {
-        var expectedSql = CanonicizeDdl(this, parent);
-        var actualSql = CanonicizeDdl(actual, parent);
+        var expectedSql = canonicize(this, parent);
+        var actualSql = canonicize(actual, parent);
 
         if (!expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase))
         {
@@ -216,9 +218,20 @@ public class IndexDefinition: ITableIndex
         }
     }
 
+    /// <summary>
+    ///     Both sides of a comparison, rendered with the tablespace only when this index -- the
+    ///     expected one -- names it. Every index in the catalog has a tablespace, and a model that
+    ///     names none has no opinion about the one the database chose.
+    /// </summary>
+    private string canonicize(IndexDefinition index, Table parent)
+        => canonicize(index.toDdl(parent, includeTablespace: Tablespace.IsNotEmpty()));
+
     public static string CanonicizeDdl(IndexDefinition index, Table parent)
+        => canonicize(index.ToDDL(parent));
+
+    private static string canonicize(string ddl)
     {
-        return index.ToDDL(parent)
+        return ddl
             .Replace("\"\"", "\"")
             .Replace("  ", " ")
             .Replace("(", "")
