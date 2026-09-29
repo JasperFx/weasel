@@ -88,7 +88,13 @@ from
 where
     t.name = @{nameParam} and
     s.name = @{schemaParam} and
-    i.is_primary_key = 0;
+    i.is_primary_key = 0 and
+    -- A SQL Server 2025 JSON index IS in sys.indexes, but its sys.index_columns row carries
+    -- key_ordinal = 0, which the column query below filters out. Read through here it would arrive
+    -- with NO columns, match nothing declared, and be dropped as an extra -- so it is excluded and
+    -- read from sys.json_indexes instead. The literal comparison is safe on every version: no row
+    -- has this type_desc before 2025.
+    i.type_desc <> 'JSON';
 
 
 select
@@ -121,6 +127,39 @@ order by
     ic.is_included_column,
     ic.key_ordinal,
     ic.index_column_id;
+
+-- SQL Server 2025 JSON indexes, and their indexed paths. Both go through sp_executesql because
+-- sys.json_indexes does not EXIST before 2025 and a batch that names it fails to compile there --
+-- which would break reading every table, not just one with a JSON index. The ELSE branches return
+-- the same column shapes so the reader's result-set sequence is fixed regardless of version.
+if object_id('sys.json_indexes') is not null
+    exec sp_executesql N'
+        select ji.index_id, ji.name, c.name as column_name, ji.fill_factor, ji.optimize_for_array_search
+        from sys.json_indexes ji
+            inner join sys.tables t on t.object_id = ji.object_id
+            inner join sys.schemas s on s.schema_id = t.schema_id
+            left join sys.index_columns ic on ic.object_id = ji.object_id and ic.index_id = ji.index_id
+            left join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
+        where t.name = @name and s.name = @schema;',
+        N'@name sysname, @schema sysname', @name = @{nameParam}, @schema = @{schemaParam};
+else
+    select cast(null as int) as index_id, cast(null as sysname) as name,
+           cast(null as sysname) as column_name, cast(null as tinyint) as fill_factor,
+           cast(null as bit) as optimize_for_array_search
+    where 1 = 0;
+
+if object_id('sys.json_index_paths') is not null
+    exec sp_executesql N'
+        select p.index_id, p.path
+        from sys.json_index_paths p
+            inner join sys.tables t on t.object_id = p.object_id
+            inner join sys.schemas s on s.schema_id = t.schema_id
+        where t.name = @name and s.name = @schema
+        order by p.index_id;',
+        N'@name sysname, @schema sysname', @name = @{nameParam}, @schema = @{schemaParam};
+else
+    select cast(null as int) as index_id, cast(null as nvarchar(max)) as path
+    where 1 = 0;
 
 
 select
@@ -423,6 +462,84 @@ where s.name = @{schemaParam} and t.name = @{nameParam};
                     index.DescendingColumns.Add(name);
                     index.SortOrder = SortOrder.Desc;
                 }
+            }
+        }
+
+        await readJsonIndexesAsync(reader, existing, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Read the table's SQL Server 2025 JSON indexes and their indexed paths. Both result sets are
+    ///     present on every version — the query emits an empty one of the same shape where
+    ///     <c>sys.json_indexes</c> does not exist — so this consumes them unconditionally and the
+    ///     result-set sequence stays fixed.
+    /// </summary>
+    private static async Task readJsonIndexesAsync(DbDataReader reader, Table existing,
+        CancellationToken ct = default)
+    {
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+
+        var jsonIndexes = new Dictionary<int, JsonIndexDefinition>();
+
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            if (await reader.IsDBNullAsync(1, ct).ConfigureAwait(false)) continue;
+
+            var id = await reader.GetFieldValueAsync<int>(0, ct).ConfigureAwait(false);
+            var name = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+
+            // The indexed column comes from sys.index_columns via a LEFT JOIN, so in principle it
+            // can be absent. Skip rather than invent one: a JsonIndexDefinition with no column
+            // cannot render its own DDL, and a half-built one in the model would compare unequal to
+            // itself forever.
+            if (await reader.IsDBNullAsync(2, ct).ConfigureAwait(false)) continue;
+
+            var columnName = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
+
+            var index = new JsonIndexDefinition(name, columnName);
+
+            if (!await reader.IsDBNullAsync(3, ct).ConfigureAwait(false))
+            {
+                // 0 means "server default" in sys.indexes, not an actual fill factor of zero, and a
+                // model never sets it to 0 — carrying it through would report drift on every pass.
+                var fillFactor = await reader.GetFieldValueAsync<byte>(3, ct).ConfigureAwait(false);
+                if (fillFactor > 0) index.FillFactor = fillFactor;
+            }
+
+            if (!await reader.IsDBNullAsync(4, ct).ConfigureAwait(false))
+            {
+                index.OptimizeForArraySearch =
+                    await reader.GetFieldValueAsync<bool>(4, ct).ConfigureAwait(false);
+            }
+
+            jsonIndexes.Add(id, index);
+            existing.Indexes.Add(index);
+        }
+
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+
+        var paths = new Dictionary<int, List<string>>();
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            if (await reader.IsDBNullAsync(0, ct).ConfigureAwait(false)) continue;
+
+            var id = await reader.GetFieldValueAsync<int>(0, ct).ConfigureAwait(false);
+            var path = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+
+            if (!paths.TryGetValue(id, out var list))
+            {
+                list = new List<string>();
+                paths[id] = list;
+            }
+
+            list.Add(path);
+        }
+
+        foreach (var (id, list) in paths)
+        {
+            if (jsonIndexes.TryGetValue(id, out var index))
+            {
+                index.JsonPaths = list.ToArray();
             }
         }
     }
