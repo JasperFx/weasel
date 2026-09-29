@@ -26,6 +26,7 @@ Weasel is developed and maintained by [JasperFx Software](https://jasperfx.net).
 | Oracle     | `Weasel.Oracle`        |
 | MySQL      | `Weasel.MySql`         |
 | SQLite     | `Weasel.Sqlite`        |
+| Firebird   | `Weasel.Firebird`      |
 
 ## NuGet Packages
 
@@ -37,6 +38,7 @@ Weasel is developed and maintained by [JasperFx Software](https://jasperfx.net).
 | `Weasel.Oracle`                | Oracle provider (Oracle.ManagedDataAccess.Core)  |
 | `Weasel.MySql`                 | MySQL provider                                   |
 | `Weasel.Sqlite`                | SQLite provider (Microsoft.Data.Sqlite)          |
+| `Weasel.Firebird`              | Firebird provider (FirebirdSql.Data.FirebirdClient) |
 | `Weasel.EntityFrameworkCore`   | EF Core integration for Weasel migrations        |
 
 All provider packages automatically reference `Weasel.Core`, so you only need to install the provider for your database.

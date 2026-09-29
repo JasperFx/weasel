@@ -7,7 +7,7 @@
 [![Nuget Package](https://badgen.net/nuget/v/weasel.core)](https://www.nuget.org/packages/Weasel.Core/)
 [![Nuget](https://img.shields.io/nuget/dt/weasel.core)](https://www.nuget.org/packages/Weasel.Core/)
 
-Weasel is a library for low level database development with Postgresql and Sql Server. Weasel is in the process of being extracted from [Marten](https://martendb.io) with the goal of making this code reusable in other projects.
+Weasel is a library for low level database development with PostgreSQL, SQL Server, Oracle, MySQL, SQLite and Firebird. Weasel is in the process of being extracted from [Marten](https://martendb.io) with the goal of making this code reusable in other projects.
 
 Read also more in [Introducing Weasel for Database Development](https://jeremydmiller.com/2023/08/15/introducing-weasel-for-database-development/) by [Jeremy D. Miller](https://github.com/jeremydmiller).
 

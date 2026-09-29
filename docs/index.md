@@ -4,7 +4,7 @@ layout: home
 hero:
   name: Weasel
   text: Database Schema Management for .NET
-  tagline: Programmatic schema definitions, automatic migrations with delta detection, and ADO.NET helpers across PostgreSQL, SQL Server, Oracle, MySQL, and SQLite.
+  tagline: Programmatic schema definitions, automatic migrations with delta detection, and ADO.NET helpers across PostgreSQL, SQL Server, Oracle, MySQL, SQLite, and Firebird.
   image:
     src: /weasel.png
     alt: Weasel
@@ -19,7 +19,7 @@ hero:
 features:
   - icon: <img src="/postgresql-logo.svg" alt="PostgreSQL" />
     title: Multi-Database Support
-    details: First-class support for PostgreSQL, SQL Server, Oracle, MySQL, and SQLite with provider-specific features like partitioning, stored procedures, and JSON columns.
+    details: First-class support for PostgreSQL, SQL Server, Oracle, MySQL, SQLite, and Firebird with provider-specific features like partitioning, stored procedures, and JSON columns.
   - icon: "\U0001F504"
     title: Schema Migrations
     details: Automatic delta detection compares your in-memory schema definitions against the actual database and applies only the necessary changes.

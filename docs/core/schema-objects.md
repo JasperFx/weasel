@@ -177,6 +177,7 @@ Each database provider supplies its own concrete implementations of `ISchemaObje
 | Oracle | `Table` | `Sequence` | -- | -- | -- | -- |
 | MySQL | `Table` | `Sequence` | -- | -- | -- | -- |
 | SQLite | `Table` | -- | -- | -- | `View` | -- |
+| Firebird | `Table` | `Sequence` | `Function` | `StoredProcedure` | `View` | -- |
 
 ## SchemaObjectDelta&lt;T&gt;
 
@@ -232,3 +233,4 @@ The `DbObjectName` record represents a qualified database object name with both 
 | Oracle | `WEASEL` | `WEASEL.CUSTOMERS` |
 | SQLite | `main` | `main.sessions` |
 | MySQL | `public` | `public.products` |
+| Firebird | `PUBLIC` (never written into DDL) | `invoices` |
