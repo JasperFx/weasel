@@ -53,6 +53,12 @@ public class FirebirdMigrator: Migrator
     public int MaxGuardedStatementAttempts { get; set; } = 5;
 
     /// <summary>
+    ///     How the migrator waits before running a statement again after a lost race. A test replaces it
+    ///     to see the waits.
+    /// </summary>
+    internal Func<TimeSpan, CancellationToken, Task> Wait { get; init; } = Task.Delay;
+
+    /// <summary>
     ///     The characters that are unsafe in a Firebird identifier beyond the universal ones: the
     ///     <c>"</c> Firebird delimits identifiers with, and the <c>^</c> that ends a PSQL statement in
     ///     an isql script.
@@ -493,6 +499,8 @@ public class FirebirdMigrator: Migrator
         var retryable = IsRetryable(sql);
         logger.SchemaChange(sql);
 
+        var reRunAfterAlreadyExists = false;
+
         for (var attempt = 1;; attempt++)
         {
             var failure = await TryExecuteInOwnTransactionAsync(firebird, sql, ct).ConfigureAwait(false);
@@ -501,14 +509,21 @@ public class FirebirdMigrator: Migrator
                 return;
             }
 
-            if (retryable && attempt < MaxGuardedStatementAttempts
-                && (IsCatalogConflict(failure) || IsCreatedConcurrently(sql, failure))
+            if (retryable && !reRunAfterAlreadyExists && IsAlreadyExists(sql, failure)
+                && !IsInsufficientPrivilege(failure))
+            {
+                // A lost race or a name clash; one immediate re-run tells them apart.
+                reRunAfterAlreadyExists = true;
+                continue;
+            }
+
+            if (retryable && attempt < MaxGuardedStatementAttempts && IsCatalogConflict(failure)
                 && !IsInsufficientPrivilege(failure))
             {
                 // The window widens with each attempt, so appliers that lost together come back apart:
                 // a guarded statement's re-run only reads, but a CREATE OR ALTER's writes the catalog
                 // again, and losers retrying in step would only race each other.
-                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt + Random.Shared.Next(100 * attempt)), ct)
+                await Wait(TimeSpan.FromMilliseconds(50 * attempt + Random.Shared.Next(100 * attempt)), ct)
                     .ConfigureAwait(false);
                 continue;
             }
@@ -532,74 +547,110 @@ public class FirebirdMigrator: Migrator
     ///     leaves the same view, routine or trigger however many times it runs. Racing appliers need both:
     ///     four concurrent <c>CREATE OR ALTER</c>s of one view have three losers, with "update conflicts
     ///     with concurrent update", a unique key violation in the catalog, or the view's own "already
-    ///     exists" (see <see cref="IsCreatedConcurrently(string, Exception)" />).
+    ///     exists" (see <see cref="IsAlreadyExists(string, Exception)" />).
     /// </summary>
     internal static bool IsRetryable(string sql)
         => FirebirdScript.IsExecuteBlock(sql) || FirebirdScript.IsCreateOrAlter(sql);
 
     /// <summary>
-    ///     The "already exists" a statement gets when another applier creates the same object while it
-    ///     runs: the statement found no such object, set out to create it, and the other applier committed
-    ///     before it stored its own. Run again, the statement finds the object -- a <c>CREATE OR ALTER</c>
-    ///     alters it and a guarded block's guard skips it -- so for the kind of object the statement
-    ///     creates, it is a lost race.
+    ///     Is this the "already exists" of the kind of object the statement creates? That is what a lost
+    ///     race leaves when the other applier commits between the statement's look at the catalog and its
+    ///     store -- a guard that found nothing, a <c>CREATE OR ALTER</c> that set out to create -- and also
+    ///     what a name clash the statement does not look for gets. One immediate re-run, in a fresh
+    ///     transaction, tells them apart: after a race the statement sees the object, so the guard skips it
+    ///     and <c>CREATE OR ALTER</c> alters it; a clash fails the same way again and is reported.
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         Firebird 3, 4 and 5 answer, for a <c>CREATE OR ALTER</c>: "Table @1 already exists"
-    ///         (336068740) for a view, "Procedure @1 already exists" (336068743), "Function @1 already
-    ///         exists" (336068876). For a guarded block, by the statement it executes: 336068740 for
-    ///         <c>CREATE TABLE</c>, "Sequence @1 already exists" (336068862) for <c>CREATE SEQUENCE</c>. A
-    ///         trigger's, a column's and a domain's loser gets the catalog's unique key violation, which
-    ///         <see cref="IsCatalogConflict" /> covers.
+    ///         Measured on Firebird 3, 4 and 5: "Table @1 already exists" (336068740) for
+    ///         <c>CREATE OR ALTER VIEW</c> and a guarded <c>CREATE TABLE</c>; "Procedure @1 already exists"
+    ///         (336068743); "Function @1 already exists" (336068876); "Sequence @1 already exists"
+    ///         (336068862); "Index @1 already exists" (336068859) for a guarded <c>CREATE INDEX</c> or
+    ///         <c>ADD CONSTRAINT</c>. A trigger's, a column's and a domain's loser gets the catalog's
+    ///         unique key violation instead, which <see cref="IsCatalogConflict" /> covers.
     ///     </para>
     ///     <para>
-    ///         Another kind's number is a name clash that recurs -- a procedure named like a table gets
-    ///         336068740, a view named like a procedure 336068743 -- and is reported on the first attempt.
-    ///         One clash shares the number: a view holding a table's name. The table's guard looks for a
-    ///         table, so it is run again, fails the same way, and surfaces when
-    ///         <see cref="MaxGuardedStatementAttempts" /> runs out.
-    ///     </para>
-    ///     <para>
-    ///         "Index @1 already exists" (336068859) is left out, for an index or a constraint: it is also
-    ///         what a name taken by another table's index or a constraint's own index gets, which the
-    ///         guard does not see and which has to surface at once, and no racing applier has been seen
-    ///         to get it -- theirs get the unique key violation or "too many keys defined for index".
+    ///         The clashes that share a number are the ones the guard cannot see: a view holding a table's
+    ///         name, an index name taken on another table or by a constraint's own index. Another kind's
+    ///         number -- a procedure named like a table gets 336068740 -- is reported on the first attempt.
     ///     </para>
     /// </remarks>
-    internal static bool IsCreatedConcurrently(string sql, Exception exception)
-        => IsCreatedConcurrently(sql,
+    internal static bool IsAlreadyExists(string sql, Exception exception)
+        => IsAlreadyExists(sql,
             ExceptionChain.Flatten(exception).OfType<FbException>()
                 .SelectMany(x => x.Errors.Cast<FbError>().Select(e => e.Number).Append(x.ErrorCode)));
 
-    /// <inheritdoc cref="IsCreatedConcurrently(string, Exception)" />
-    internal static bool IsCreatedConcurrently(string sql, IEnumerable<int> errorNumbers)
-    {
-        var numbers = errorNumbers.ToHashSet();
+    /// <inheritdoc cref="IsAlreadyExists(string, Exception)" />
+    internal static bool IsAlreadyExists(string sql, IEnumerable<int> errorNumbers)
+        => AlreadyExistsNumber(sql) is { } number && errorNumbers.Contains(number);
 
+    /// <summary>
+    ///     The "already exists" number of the kind of object <paramref name="sql" /> creates: a
+    ///     <c>CREATE OR ALTER</c>'s own, or for a guarded block, that of the statement it executes. Null
+    ///     for anything else.
+    /// </summary>
+    internal static int? AlreadyExistsNumber(string sql)
+    {
         if (FirebirdScript.IsExecuteBlock(sql))
         {
-            return executedStatements(sql).Any(statement => GuardedAlreadyExists.Any(x =>
-                FirebirdScript.StartsWithWords(statement, x.Words) && numbers.Contains(x.Number)));
+            return executedStatements(sql).Select(guardedAlreadyExistsNumber).FirstOrDefault(x => x != null);
         }
 
-        return CreateOrAlterAlreadyExists.Any(x =>
-            FirebirdScript.StartsWithWords(sql, x.Words) && numbers.Contains(x.Number));
+        foreach (var (kind, number) in CreateOrAlterAlreadyExists)
+        {
+            if (FirebirdScript.IsCreateOrAlter(sql, kind))
+            {
+                return number;
+            }
+        }
+
+        return null;
     }
 
-    private static readonly (string[] Words, int Number)[] CreateOrAlterAlreadyExists =
+    private static readonly (string Kind, int Number)[] CreateOrAlterAlreadyExists =
     [
-        (["CREATE", "OR", "ALTER", "VIEW"], 336068740),
-        (["CREATE", "OR", "ALTER", "PROCEDURE"], 336068743),
-        (["CREATE", "OR", "ALTER", "FUNCTION"], 336068876)
+        ("VIEW", 336068740),
+        ("PROCEDURE", 336068743),
+        ("FUNCTION", 336068876)
     ];
 
-    private static readonly (string[] Words, int Number)[] GuardedAlreadyExists =
-    [
-        (["CREATE", "TABLE"], 336068740),
-        (["CREATE", "SEQUENCE"], 336068862),
-        (["CREATE", "GENERATOR"], 336068862)
-    ];
+    /// <summary>
+    ///     <c>CREATE TABLE</c>, <c>CREATE SEQUENCE</c>, <c>CREATE [UNIQUE] [DESCENDING] INDEX</c> and
+    ///     <c>ALTER TABLE ... ADD CONSTRAINT</c>: the statements a guard runs that have an "already exists"
+    ///     of their own.
+    /// </summary>
+    private static int? guardedAlreadyExistsNumber(string statement)
+    {
+        var tokens = PsqlLexer.Tokenize(statement);
+        bool word(int i, string w) => i < tokens.Count && tokens[i].IsWord(statement, w);
+
+        if (word(0, "CREATE"))
+        {
+            if (word(1, "TABLE"))
+            {
+                return 336068740;
+            }
+
+            if (word(1, "SEQUENCE") || word(1, "GENERATOR"))
+            {
+                return 336068862;
+            }
+
+            var position = 1;
+            while (word(position, "UNIQUE") || word(position, "ASC") || word(position, "ASCENDING")
+                   || word(position, "DESC") || word(position, "DESCENDING"))
+            {
+                position++;
+            }
+
+            return word(position, "INDEX") ? 336068859 : null;
+        }
+
+        return word(0, "ALTER") && word(1, "TABLE") && tokens.Count > 4 && tokens[2].IsIdentifier
+               && word(3, "ADD") && word(4, "CONSTRAINT")
+            ? 336068859
+            : null;
+    }
 
     /// <summary>
     ///     The statements an <c>EXECUTE BLOCK</c> runs with <c>EXECUTE STATEMENT</c>, each as far as its

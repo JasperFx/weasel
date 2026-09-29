@@ -30,12 +30,14 @@ public class guarded_statements: IntegrationContext
     }
 
     /// <summary>
-    ///     A refusal like the one above is "unsuccessful metadata update" first, which every failed DDL
-    ///     statement is. It is not a race, so it surfaces at once instead of being run again: twenty
-    ///     attempts would wait at least 9.5 seconds between them.
+    ///     A refusal like the one above is "Index @1 already exists", which is also what a racing applier
+    ///     that created the index between the guard and the statement leaves. So it is run once more, at
+    ///     once -- after a race the guard would now see the index -- and the clash, failing the same way
+    ///     again, surfaces without waiting out the retries a lock conflict gets: twenty attempts would wait
+    ///     at least 9.5 seconds between them.
     /// </summary>
     [Fact]
-    public async Task a_guarded_statement_that_fails_for_good_surfaces_on_the_first_attempt()
+    public async Task a_guarded_statement_that_fails_for_good_surfaces_after_one_immediate_rerun()
     {
         var table = new Table("people");
         table.AddColumn<int>("id").AsPrimaryKey();
@@ -44,7 +46,16 @@ public class guarded_statements: IntegrationContext
 
         table.Indexes.Add(new IndexDefinition("pk_people") { Columns = ["age"] });
 
-        var migrator = new FirebirdMigrator { MaxGuardedStatementAttempts = 20 };
+        var waits = new List<TimeSpan>();
+        var migrator = new FirebirdMigrator
+        {
+            MaxGuardedStatementAttempts = 20,
+            Wait = (delay, _) =>
+            {
+                waits.Add(delay);
+                return Task.CompletedTask;
+            }
+        };
         var migration = await SchemaMigration.DetermineAsync(theConnection, migrator, CancellationToken.None, table);
 
         var stopwatch = Stopwatch.StartNew();
@@ -52,8 +63,9 @@ public class guarded_statements: IntegrationContext
             migrator.ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate));
         stopwatch.Stop();
 
-        FirebirdMigrator.HasErrorNumber(ex, 335544351).ShouldBeTrue(ex.Message);
+        FirebirdMigrator.HasErrorNumber(ex, 336068859).ShouldBeTrue(ex.Message);
         FirebirdMigrator.IsCatalogConflict(ex).ShouldBeFalse(ex.Message);
+        waits.ShouldBeEmpty("a failure that can only recur is run again at most once, and at once");
         stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5), "a failure that can only recur is not retried");
     }
 

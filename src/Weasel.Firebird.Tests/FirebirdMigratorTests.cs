@@ -256,9 +256,9 @@ public class FirebirdMigratorTests
     }
 
     /// <summary>
-    ///     A statement's own kind's "already exists" is a lost race -- another applier created the object
-    ///     while it ran -- and anything else is not: another kind's is a name clash that recurs, and bare
-    ///     "unsuccessful metadata update" heads every failed DDL statement.
+    ///     A statement's own kind's "already exists" -- a lost race, or a clash the statement does not look
+    ///     for -- earns one immediate re-run, and anything else does not: another kind's is a name clash
+    ///     that recurs, and bare "unsuccessful metadata update" heads every failed DDL statement.
     /// </summary>
     [Theory]
     [InlineData("CREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", 336068740, true)]
@@ -270,9 +270,9 @@ public class FirebirdMigratorTests
     [InlineData("CREATE OR ALTER TRIGGER t FOR x AS BEGIN END", 336068740, false)]
     [InlineData("CREATE OR ALTER VIEW v AS SELECT 1 AS x FROM RDB$DATABASE", 335544351, false)]
     [InlineData("CREATE TABLE t (id INTEGER)", 336068740, false)]
-    public void a_statements_own_kinds_already_exists_is_a_lost_race(string sql, int number, bool race)
+    public void a_statements_own_kinds_already_exists_is_recognised(string sql, int number, bool ownKind)
     {
-        FirebirdMigrator.IsCreatedConcurrently(sql, [335544351, number]).ShouldBe(race);
+        FirebirdMigrator.IsAlreadyExists(sql, [335544351, number]).ShouldBe(ownKind);
     }
 
     private static string[] createStatements(ISchemaObject schemaObject)
@@ -287,7 +287,7 @@ public class FirebirdMigratorTests
     ///     doubled and all, and whichever branch a sequence's block takes.
     /// </summary>
     [Fact]
-    public void a_guarded_create_counts_its_own_kinds_already_exists_as_a_lost_race()
+    public void a_guarded_create_recognises_its_own_kinds_already_exists()
     {
         var table = new Table("people");
         table.AddColumn<int>("id").AsPrimaryKey();
@@ -295,23 +295,35 @@ public class FirebirdMigratorTests
         table.AddColumn<int>("age").AddIndex();
 
         var statements = createStatements(table);
-        FirebirdMigrator.IsCreatedConcurrently(statements[0], [335544351, 336068740]).ShouldBeTrue();
-        FirebirdMigrator.IsCreatedConcurrently(statements[0], [335544351, 336068743])
+        FirebirdMigrator.AlreadyExistsNumber(statements[0]).ShouldBe(336068740);
+        FirebirdMigrator.IsAlreadyExists(statements[0], [335544351, 336068743])
             .ShouldBeFalse("a procedure holding the table's name is a clash that recurs");
-        FirebirdMigrator.IsCreatedConcurrently(statements[1], [335544351, 336068859])
-            .ShouldBeFalse("an index's name taken by a constraint's own index is a clash the guard cannot see");
+        FirebirdMigrator.AlreadyExistsNumber(statements[1]).ShouldBe(336068859);
 
-        FirebirdMigrator.IsCreatedConcurrently(createStatements(new Sequence("numbers")).Single(), [335544351, 336068862])
-            .ShouldBeTrue();
-        FirebirdMigrator.IsCreatedConcurrently(
-                createStatements(new Sequence(new FirebirdObjectName("numbers"), 100) { IncrementBy = 10 }).Single(),
-                [335544351, 336068862])
-            .ShouldBeTrue();
+        var descending = new Table("people");
+        descending.AddColumn<int>("id").AsPrimaryKey();
+        descending.AddColumn<int>("age").AddIndex(x =>
+        {
+            x.IsUnique = true;
+            x.SortOrder = SortOrder.Desc;
+        });
+        FirebirdMigrator.AlreadyExistsNumber(createStatements(descending)[1]).ShouldBe(336068859);
+
+        var orders = new Table("orders");
+        orders.AddColumn<int>("id").AsPrimaryKey();
+        orders.AddColumn<int>("person_id").ForeignKeyTo(table, "id");
+        var foreignKey = new StringWriter();
+        orders.ForeignKeys.Single().WriteAddStatement(orders, foreignKey);
+        FirebirdMigrator.AlreadyExistsNumber(FirebirdScript.Split(foreignKey.ToString()).Single()).ShouldBe(336068859);
+
+        FirebirdMigrator.AlreadyExistsNumber(createStatements(new Sequence("numbers")).Single()).ShouldBe(336068862);
+        FirebirdMigrator.AlreadyExistsNumber(
+                createStatements(new Sequence(new FirebirdObjectName("numbers"), 100) { IncrementBy = 10 }).Single())
+            .ShouldBe(336068862);
 
         var drop = new StringWriter();
         table.WriteDropStatement(new FirebirdMigrator(), drop);
-        FirebirdScript.Split(drop.ToString())
-            .ShouldAllBe(x => !FirebirdMigrator.IsCreatedConcurrently(x, new[] { 335544351, 336068740 }));
+        FirebirdScript.Split(drop.ToString()).ShouldAllBe(x => FirebirdMigrator.AlreadyExistsNumber(x) == null);
     }
 
     [Fact]
