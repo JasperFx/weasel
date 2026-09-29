@@ -150,6 +150,16 @@ public class FirebirdMigratorTests
             .Message.ShouldContain("64 characters");
     }
 
+    [Theory]
+    [InlineData("RDB$DB_KEY", true)]
+    [InlineData("rdb$record_version", true)]
+    [InlineData("id", false)]
+    [InlineData("RDB$SOMETHING", false)]
+    public void knows_the_pseudo_columns_every_table_has(string column, bool system)
+    {
+        theMigrator.IsSystemColumn(column).ShouldBe(system);
+    }
+
     [Fact]
     public void the_ddl_transaction_waits_for_locks()
     {

@@ -111,6 +111,17 @@ public abstract class
     public bool UseSchemaFingerprinting { get; set; }
 
     /// <summary>
+    ///     The name to use in SQL for one of the fingerprint tables <see cref="UseSchemaFingerprinting" />
+    ///     keeps, <c>{DefaultSchemaName}.{tableName}</c> by default.
+    /// </summary>
+    /// <remarks>
+    ///     A provider whose database has no schema to qualify a table with -- Firebird before 6 -- names
+    ///     the table alone. Every other provider keeps the default, and with it the SQL it has always
+    ///     sent.
+    /// </remarks>
+    protected internal virtual string FingerprintTableName(string tableName) => $"{DefaultSchemaName}.{tableName}";
+
+    /// <summary>
     ///     Read [name].table and [name].function files from the named directory
     ///     to serve as templates for extra DDL (GRANT's probably)
     /// </summary>

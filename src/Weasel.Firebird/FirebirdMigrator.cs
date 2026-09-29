@@ -146,6 +146,115 @@ public class FirebirdMigrator: Migrator
     public override DbCommandBuilder CreateCommandBuilder(DbConnection conn)
         => conn is FbConnection firebird ? new FirebirdDbCommandBuilder(firebird) : base.CreateCommandBuilder(conn);
 
+    /// <summary>
+    ///     The statements of rendered DDL, one per command, because Firebird executes one statement per
+    ///     command -- the default of one batch sends a whole rollback script as a single command, which
+    ///     fails on its second statement.
+    /// </summary>
+    public override IReadOnlyList<string> SplitIntoBatches(string sql) => FirebirdScript.Split(sql);
+
+    /// <summary>
+    ///     A rollback runs the way an apply does: one statement per command, each in its own <c>WAIT</c>
+    ///     transaction, rolled back if it fails.
+    /// </summary>
+    protected override async Task executeRollback(SchemaMigration migration, DbConnection conn, string sql,
+        CancellationToken ct = default)
+    {
+        if (conn is not FbConnection firebird)
+        {
+            throw new ArgumentException("Expected FbConnection", nameof(conn));
+        }
+
+        await ExecuteScriptAsync(firebird, sql, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    ///     Firebird before 6 has no schemas, so the fingerprint table is named alone rather than as
+    ///     <c>PUBLIC.weasel_schema_fingerprints</c>, which the server would read as a syntax error.
+    /// </summary>
+    protected override string FingerprintTableName(string tableName) => tableName;
+
+    /// <summary>
+    ///     <c>RDB$DB_KEY</c> and <c>RDB$RECORD_VERSION</c>, the pseudo-columns every Firebird table has
+    ///     and no <c>CREATE TABLE</c> may declare.
+    /// </summary>
+    public override bool IsSystemColumn(string columnName)
+        => columnName.Equals("RDB$DB_KEY", StringComparison.OrdinalIgnoreCase)
+           || columnName.Equals("RDB$RECORD_VERSION", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     The Firebird errors that mean a statement was refused for want of privilege:
+    ///     <c>no permission for … access</c> (335544352), which a denied read or write -- and an
+    ///     <c>ALTER</c> or <c>DROP</c> of somebody else's object -- carries, and the "no permission for
+    ///     CREATE" that a denied <c>CREATE</c> carries instead, numbered 335545094 on Firebird 3 and
+    ///     335545264 on 4 and 5.
+    /// </summary>
+    private static readonly int[] PermissionErrorNumbers = [335544352, 335545094, 335545264];
+
+    /// <summary>
+    ///     Is this Firebird error number a permission refusal? Public so the set can be asserted without
+    ///     having to manufacture an <see cref="FbException" />, which has no public constructor.
+    /// </summary>
+    public static bool IsPermissionErrorNumber(int errorNumber)
+        => Array.IndexOf(PermissionErrorNumbers, errorNumber) >= 0;
+
+    /// <summary>
+    ///     A permission refusal is rarely the exception's own code -- a denied <c>ALTER</c> is
+    ///     "unsuccessful metadata update" first -- so every number in <see cref="FbException.Errors" />
+    ///     is looked at.
+    /// </summary>
+    public override bool IsInsufficientPrivilege(Exception exception)
+        => exception is FbException firebird && HasErrorNumber(firebird, PermissionErrorNumbers);
+
+    /// <summary>
+    ///     The Firebird errors that mean the server could not be reached or dropped the attachment,
+    ///     and a retry after a backoff may well succeed: the network is unreachable (335544721), the
+    ///     connection was lost (335544727, with 335544726 read errors) -- which is also what a pooled
+    ///     connection to a restarted server reports -- or the attachment was shut down (335544856). A
+    ///     client-side <see cref="TimeoutException" /> counts too.
+    /// </summary>
+    /// <remarks>
+    ///     The SQLSTATE class is deliberately not used: a missing database file is <c>08001</c>, the
+    ///     same class as a server that is down, and retrying it only delays the real error.
+    /// </remarks>
+    public override bool IsTransientConnectionFailure(Exception exception)
+    {
+        foreach (var e in ExceptionChain.Flatten(exception))
+        {
+            if (e is TimeoutException)
+            {
+                return true;
+            }
+
+            if (e is FbException firebird && IsTransientConnectionError(firebird))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    internal static bool IsTransientConnectionError(FbException exception)
+        => HasErrorNumber(exception, TransientConnectionErrorNumbers);
+
+    private static readonly int[] TransientConnectionErrorNumbers = [335544721, 335544727, 335544726, 335544856];
+
+    /// <summary>
+    ///     Clear FirebirdClient's pool for this connection string. Firebird needs it more than most: a
+    ///     pooled connection is not validated when it is handed out, so after a server restart the pool is
+    ///     full of dead attachments, and an idle pooled attachment still holds the tables it touched.
+    /// </summary>
+    public override ValueTask ReleaseConnectionPoolAsync(DbConnection connection, CancellationToken ct = default)
+    {
+        if (connection is FbConnection firebird)
+        {
+            FbConnection.ClearPool(firebird);
+        }
+
+        return ValueTask.CompletedTask;
+    }
+
     public override ITable CreateTable(DbObjectName identifier)
     {
         return new Tables.Table(identifier);
