@@ -204,6 +204,22 @@ public class FirebirdScriptTests
         split(writer.ToString()).ShouldBe(["ALTER TABLE A ALTER S SET DEFAULT 'a;b'"]);
     }
 
+    /// <summary>
+    ///     A view's query can end in a line comment, and a terminator on the same line would be part of
+    ///     it: the statement would run into the next one, in isql and in the migrator alike.
+    /// </summary>
+    [Fact]
+    public void write_statement_ending_in_a_line_comment_puts_its_terminator_on_the_next_line()
+    {
+        var writer = new StringWriter();
+
+        FirebirdScript.WriteStatement(writer, "CREATE OR ALTER VIEW V AS SELECT 1 AS X FROM RDB$DATABASE -- one row");
+        FirebirdScript.WriteStatement(writer, "DROP TABLE A");
+
+        split(writer.ToString())
+            .ShouldBe(["CREATE OR ALTER VIEW V AS SELECT 1 AS X FROM RDB$DATABASE -- one row", "DROP TABLE A"]);
+    }
+
     [Fact]
     public void write_statement_refuses_a_semicolon_that_would_end_it_early()
     {

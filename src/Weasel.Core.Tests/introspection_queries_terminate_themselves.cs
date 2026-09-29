@@ -133,6 +133,7 @@ public class introspection_queries_terminate_themselves
     {
         yield return new Firebird.Tables.Table("thing");
         yield return new Firebird.Sequence("thing_seq");
+        yield return new Firebird.Views.View("v_thing", "select 1 as one from rdb$database");
     }
 
     private static DbCommand commandFor(string provider) => provider switch

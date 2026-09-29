@@ -83,7 +83,8 @@ public class object_type_support_matrix
         ("Sqlite", "Trigger", "Weasel.Sqlite.Triggers.Trigger"),
 
         ("Firebird", "Table", "Weasel.Firebird.Tables.Table"),
-        ("Firebird", "Sequence", "Weasel.Firebird.Sequence")
+        ("Firebird", "Sequence", "Weasel.Firebird.Sequence"),
+        ("Firebird", "View", "Weasel.Firebird.Views.View")
     ];
 
     public static TheoryData<string, string, string> Supported

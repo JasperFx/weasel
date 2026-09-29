@@ -80,6 +80,14 @@ public static class FirebirdScript
         }
 
         writer.Write(text);
+
+        // A statement ending in a line comment -- a view's query can -- would swallow a terminator
+        // written on the same line, and run into the statement after it.
+        if (FindOutsideLiterals(text + ";", ";") < 0)
+        {
+            writer.WriteLine();
+        }
+
         writer.WriteLine(";");
     }
 
@@ -286,6 +294,12 @@ public static class FirebirdScript
     ///     statement is -- once any leading whitespace and comments are passed over?
     /// </summary>
     internal static bool IsExecuteBlock(string statement) => skipWords(statement, 0, "EXECUTE", "BLOCK") >= 0;
+
+    /// <summary>
+    ///     Is <paramref name="statement" /> a <c>CREATE OR ALTER</c> -- how a view, routine or trigger is
+    ///     written -- once any leading whitespace and comments are passed over?
+    /// </summary>
+    internal static bool IsCreateOrAlter(string statement) => skipWords(statement, 0, "CREATE", "OR", "ALTER") >= 0;
 
     /// <summary>
     ///     Is <paramref name="statement" /> <c>COMMIT</c> or <c>COMMIT WORK</c> and nothing else, comments

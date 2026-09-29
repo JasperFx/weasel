@@ -489,8 +489,8 @@ public class FirebirdMigrator: Migrator
             return;
         }
 
-        // A hand-written script may put a comment before the block, and Split keeps it.
-        var guarded = FirebirdScript.IsExecuteBlock(sql);
+        // A hand-written script may put a comment before the statement, and Split keeps it.
+        var retryable = IsRetryable(sql);
         logger.SchemaChange(sql);
 
         for (var attempt = 1;; attempt++)
@@ -501,7 +501,7 @@ public class FirebirdMigrator: Migrator
                 return;
             }
 
-            if (guarded && attempt < MaxGuardedStatementAttempts && IsCatalogConflict(failure)
+            if (retryable && attempt < MaxGuardedStatementAttempts && IsCatalogConflict(failure)
                 && !IsInsufficientPrivilege(failure))
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt + Random.Shared.Next(50)), ct)
@@ -521,6 +521,16 @@ public class FirebirdMigrator: Migrator
             return;
         }
     }
+
+    /// <summary>
+    ///     Whether a statement that loses a catalog race can simply be run again: a guarded
+    ///     <c>EXECUTE BLOCK</c>, which is a no-op once the object exists, or a <c>CREATE OR ALTER</c>, which
+    ///     leaves the same view, routine or trigger however many times it runs. Racing appliers need both:
+    ///     four concurrent <c>CREATE OR ALTER</c>s of one view have three losers, with "update conflicts
+    ///     with concurrent update" or a unique key violation in the catalog.
+    /// </summary>
+    internal static bool IsRetryable(string sql)
+        => FirebirdScript.IsExecuteBlock(sql) || FirebirdScript.IsCreateOrAlter(sql);
 
     /// <summary>
     ///     Run rendered DDL the way a migration runs it: split into statements, each in a <c>WAIT</c>
@@ -589,8 +599,10 @@ public class FirebirdMigrator: Migrator
 
     /// <summary>
     ///     The Firebird errors a racing applier produces: a unique key violation in the catalog
-    ///     (335544665), a lock conflict at commit (SQLSTATE 40001, which carries 335544345) and a lock
-    ///     timeout under <c>WAIT</c> (335544510).
+    ///     (335544665), a lock conflict at commit (SQLSTATE 40001, which carries 335544345), a lock
+    ///     timeout under <c>WAIT</c> (335544510), and the "deadlock" (335544336) with "update conflicts
+    ///     with concurrent update" (335544451) a <c>CREATE OR ALTER</c> gets when another applier changed
+    ///     the same catalog row first.
     /// </summary>
     /// <remarks>
     ///     <c>unsuccessful metadata update</c> (335544351) is not one of them: it heads every failed DDL
@@ -606,7 +618,7 @@ public class FirebirdMigrator: Migrator
                 continue;
             }
 
-            if (firebird.SQLSTATE == "40001" || HasErrorNumber(firebird, 335544665, 335544510, 335544345))
+            if (firebird.SQLSTATE == "40001" || HasErrorNumber(firebird, 335544665, 335544510, 335544345, 335544336, 335544451))
             {
                 return true;
             }

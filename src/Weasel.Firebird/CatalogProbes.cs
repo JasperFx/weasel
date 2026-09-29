@@ -49,4 +49,8 @@ internal static class CatalogProbes
 
     public static string Sequence(string catalogName)
         => $"SELECT 1 FROM RDB$GENERATORS WHERE RDB$GENERATOR_NAME = {FirebirdScript.Literal(catalogName)}";
+
+    public static string View(string catalogName)
+        => $"SELECT 1 FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = {FirebirdScript.Literal(catalogName)} AND RDB$VIEW_BLR IS NOT NULL";
+
 }
