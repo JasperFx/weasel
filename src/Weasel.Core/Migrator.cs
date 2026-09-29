@@ -278,6 +278,16 @@ public abstract class
     }
 
     /// <summary>
+    ///     The order <see cref="SchemaMigration.WriteAllRollbacks" /> undoes a migration's deltas in, for
+    ///     <see cref="SchemaMigration.RollbackAllAsync" /> and a migration file's drop script alike. The
+    ///     base keeps the order they were applied in, which a database that cascades a drop, or leaves
+    ///     whatever used the dropped object invalid, is content with. A provider whose database refuses to
+    ///     drop an object another still uses overrides it.
+    /// </summary>
+    protected internal virtual IEnumerable<ISchemaObjectDelta> OrderRollbacks(IReadOnlyList<ISchemaObjectDelta> deltas)
+        => deltas;
+
+    /// <summary>
     ///     Does this exception mean the connection's role was refused for want of privilege,
     ///     rather than because the statement itself was wrong? Overridden by each provider with
     ///     its own error codes; the base returns false, so a provider that has not opted in keeps

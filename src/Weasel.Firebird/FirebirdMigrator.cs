@@ -170,6 +170,15 @@ public class FirebirdMigrator: Migrator
     }
 
     /// <summary>
+    ///     Last applied, first undone. Firebird refuses to drop a table, view or procedure that a view,
+    ///     procedure or trigger still uses, where PostgreSQL cascades and MySQL and Oracle leave the
+    ///     dependant invalid, so undoing a migration in the order it was applied could not drop a table
+    ///     before the view over it.
+    /// </summary>
+    protected override IEnumerable<ISchemaObjectDelta> OrderRollbacks(IReadOnlyList<ISchemaObjectDelta> deltas)
+        => Enumerable.Reverse(deltas);
+
+    /// <summary>
     ///     Firebird before 6 has no schemas, so the fingerprint table is named alone rather than as
     ///     <c>PUBLIC.weasel_schema_fingerprints</c>, which the server would read as a syntax error.
     /// </summary>

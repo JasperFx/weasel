@@ -434,7 +434,7 @@ public class SchemaMigration
     /// <param name="rules"></param>
     public void WriteAllRollbacks(TextWriter writer, Migrator rules)
     {
-        foreach (var delta in _deltas)
+        foreach (var delta in rules.OrderRollbacks(_deltas))
         {
             switch (delta.Difference)
             {

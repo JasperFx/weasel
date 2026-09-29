@@ -8,7 +8,7 @@ using Xunit;
 namespace Weasel.Core.Tests.Migrations;
 
 /// <summary>
-///     Two seams a provider whose scripts and schemas differ from the rest -- Firebird's -- needs, held
+///     The seams a provider whose scripts and schemas differ from the rest -- Firebird's -- needs, held
 ///     here so the other providers are seen to keep what they always wrote.
 /// </summary>
 public class schema_script_hooks
@@ -38,6 +38,61 @@ public class schema_script_hooks
         };
 
         migrator.FingerprintTableName("weasel_schema_fingerprints").ShouldBe(expected);
+    }
+
+    /// <summary>
+    ///     A rollback, and a migration file's drop script, undo the deltas in the order the migrator
+    ///     asks for. Every provider but Firebird keeps the order they were applied in; Firebird will not
+    ///     drop a table a view still uses, so it undoes them last to first.
+    /// </summary>
+    [Theory]
+    [InlineData("Postgresql", "DROP first;DROP second;")]
+    [InlineData("SqlServer", "DROP first;DROP second;")]
+    [InlineData("Sqlite", "DROP first;DROP second;")]
+    [InlineData("MySql", "DROP first;DROP second;")]
+    [InlineData("Oracle", "DROP first;DROP second;")]
+    [InlineData("Firebird", "DROP second;DROP first;")]
+    public void rollbacks_are_written_in_the_order_the_migrator_asks_for(string provider, string expected)
+    {
+        Migrator migrator = provider switch
+        {
+            "Postgresql" => new Postgresql.PostgresqlMigrator(),
+            "SqlServer" => new SqlServer.SqlServerMigrator(),
+            "Sqlite" => new Sqlite.SqliteMigrator(),
+            "MySql" => new MySql.MySqlMigrator(),
+            "Oracle" => new Oracle.OracleMigrator(),
+            "Firebird" => new Firebird.FirebirdMigrator(),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider))
+        };
+
+        var migration = new SchemaMigration([
+            new SchemaObjectDelta(new Dropped("first"), SchemaPatchDifference.Create),
+            new SchemaObjectDelta(new Dropped("second"), SchemaPatchDifference.Create)
+        ]);
+
+        var writer = new StringWriter();
+        migration.WriteAllRollbacks(writer, migrator);
+
+        writer.ToString().ShouldBe(expected);
+    }
+
+    /// <summary>
+    ///     An object whose drop statement names it, and nothing else.
+    /// </summary>
+    private sealed class Dropped(string name): ISchemaObject
+    {
+        public DbObjectName Identifier { get; } = new("public", name);
+
+        public void WriteCreateStatement(Migrator migrator, TextWriter writer) => writer.Write($"CREATE {name};");
+
+        public void WriteDropStatement(Migrator rules, TextWriter writer) => writer.Write($"DROP {name};");
+
+        public void ConfigureQueryCommand(DbCommandBuilder builder) => throw new NotSupportedException();
+
+        public Task<ISchemaObjectDelta> CreateDeltaAsync(System.Data.Common.DbDataReader reader,
+            CancellationToken ct = default) => throw new NotSupportedException();
+
+        public IEnumerable<DbObjectName> AllNames() => [Identifier];
     }
 
     /// <summary>
