@@ -1,4 +1,5 @@
 using Shouldly;
+using Weasel.Core;
 using Weasel.Oracle.Tables;
 using Xunit;
 
@@ -105,6 +106,226 @@ public class TableColumnTests
 
         column1.Equals(column2).ShouldBeTrue();
         column1.Equals(column3).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("NUMERIC(13,4)", "NUMBER(13,4)")]
+    [InlineData("DECIMAL(10,2)", "NUMBER(10,2)")]
+    [InlineData("INTEGER", "NUMBER")]
+    [InlineData("SMALLINT", "NUMBER")]
+    [InlineData("REAL", "FLOAT(63)")]
+    [InlineData("VARCHAR(50)", "VARCHAR2(50)")]
+    [InlineData("CHARACTER(10)", "CHAR(10)")]
+    [InlineData("NATIONAL CHARACTER VARYING(10)", "NVARCHAR2(10)")]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(100)")]
+    [InlineData("INTERVAL DAY TO SECOND", "INTERVAL DAY(2) TO SECOND(6)")]
+    [InlineData("INTERVAL YEAR TO MONTH", "INTERVAL YEAR(2) TO MONTH")]
+    public void a_declared_type_equals_the_type_oracle_stores_for_it(string declared, string stored)
+    {
+        new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("NUMERIC(13,4)", "VARCHAR2(13)")]
+    [InlineData("INTERVAL DAY TO SECOND", "INTERVAL YEAR(2) TO MONTH")]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(200 CHAR)")]
+    public void a_different_type_is_still_different(string declared, string stored)
+    {
+        new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("CHARACTER VARYING(200)", "VARCHAR2(100)")]
+    [InlineData("CHAR VARYING(200)", "VARCHAR2(100)")]
+    [InlineData("NATIONAL CHARACTER VARYING(20)", "NVARCHAR2(10)")]
+    [InlineData("NATIONAL CHAR VARYING(20)", "NVARCHAR2(10)")]
+    [InlineData("NCHAR VARYING(20)", "NVARCHAR2(10)")]
+    [InlineData("NATIONAL CHARACTER(20)", "NCHAR(10)")]
+    [InlineData("NATIONAL CHAR(20)", "NCHAR(10)")]
+    public void a_length_declared_through_a_multi_word_synonym_is_still_compared(string declared, string stored)
+    {
+        new TableColumn("value", declared).Equals(new TableColumn("value", stored)).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData("NUMERIC(13,4)", "NUMBER(13,4)")]
+    [InlineData("INTEGER", "NUMBER")]
+    [InlineData("VARCHAR(50)", "VARCHAR2(50)")]
+    [InlineData("CHARACTER VARYING(50)", "VARCHAR2(50)")]
+    [InlineData("VARCHAR2(100 CHAR)", "VARCHAR2(100)")]
+    [InlineData("INTERVAL DAY TO SECOND", "INTERVAL DAY(2) TO SECOND(6)")]
+    public void columns_that_are_equal_hash_alike(string declared, string stored)
+    {
+        var expected = new TableColumn("value", declared);
+        var actual = new TableColumn("value", stored);
+
+        expected.Equals(actual).ShouldBeTrue();
+        expected.GetHashCode().ShouldBe(actual.GetHashCode());
+    }
+
+    // Declared spellings for the two grids below: every synonym, sizes on both sides of the ones the
+    // catalog reports, and lengths in bytes and in characters.
+    private static readonly string[] DeclaredSpellings =
+    [
+        "NUMBER", "NUMBER(10)", "NUMBER(13,4)", "NUMERIC(13,4)", "DECIMAL", "DEC(10,2)", "INT", "INTEGER",
+        "SMALLINT", "BIGINT", "BOOLEAN", "FLOAT", "FLOAT(126)", "REAL", "DOUBLE", "DOUBLE PRECISION",
+        "BINARY_FLOAT", "BINARY_DOUBLE", "VARCHAR(100)", "VARCHAR(400)", "VARCHAR2(100)", "VARCHAR2(200)",
+        "VARCHAR2(400)", "VARCHAR2(100 CHAR)", "VARCHAR2(400 CHAR)", "VARCHAR2(400 BYTE)",
+        "CHARACTER VARYING(100)", "CHARACTER VARYING(400)", "CHAR VARYING(100)", "CHAR(10)", "CHAR(40)",
+        "CHAR(10 CHAR)", "CHARACTER(10)", "CHARACTER(40)", "NCHAR(10)", "NCHAR(20)", "NCHAR(1000)",
+        "NCHAR(2000)", "NATIONAL CHAR(10)", "NATIONAL CHAR(20)", "NVARCHAR2(100)", "NVARCHAR2(200)",
+        "NVARCHAR2(2000)", "NVARCHAR2(4000)", "NCHAR VARYING(100)", "NCHAR VARYING(200)",
+        "NATIONAL CHARACTER VARYING(200)", "NATIONAL CHARACTER(20)", "CHARACTER VARYING(400 CHAR)",
+        "VARCHAR(400 CHAR)", "TEXT", "CLOB",
+        "BLOB", "RAW(16)", "DATE", "TIMESTAMP", "TIMESTAMP(3)", "TIMESTAMP WITH TIME ZONE",
+        "TIMESTAMP(3) WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "TIMESTAMP(3) WITH LOCAL TIME ZONE",
+        "INTERVAL DAY TO SECOND", "INTERVAL DAY(3) TO SECOND(2)", "INTERVAL YEAR TO MONTH",
+        "INTERVAL YEAR(4) TO MONTH"
+    ];
+
+    /// <summary>
+    ///     Folding the declared spelling onto the stored one may only add matches. A declared type that
+    ///     matched a catalog type the way the comparison used to work must still match it, or a column
+    ///     that settled long ago starts migrating -- and changing the type of a populated column is
+    ///     ORA-01439. <c>DOUBLE PRECISION</c> against <c>BINARY_DOUBLE</c> and <c>TIMESTAMP(n) WITH TIME
+    ///     ZONE</c> against <c>TIMESTAMP</c> are the two pairs that would have broken.
+    /// </summary>
+    [Fact]
+    public void nothing_that_matched_before_stops_matching()
+    {
+        // What the reader builds from ALL_TAB_COLUMNS.
+        string[] stored =
+        [
+            "NUMBER", "NUMBER(10)", "NUMBER(13,4)", "FLOAT(126)", "FLOAT(63)", "BINARY_FLOAT", "BINARY_DOUBLE",
+            "VARCHAR2(100)", "VARCHAR2(100 CHAR)", "VARCHAR2(400)", "CHAR(10)", "CHAR(10 CHAR)", "NCHAR(10)",
+            "NVARCHAR2(100)", "CLOB", "BLOB", "RAW(16)", "DATE", "BOOLEAN", "TIMESTAMP",
+            "TIMESTAMP WITH TIME ZONE", "TIMESTAMP WITH LOCAL TIME ZONE", "INTERVAL DAY(2) TO SECOND(6)",
+            "INTERVAL DAY(3) TO SECOND(2)", "INTERVAL YEAR(2) TO MONTH"
+        ];
+
+        var stoppedMatching =
+            from d in DeclaredSpellings
+            from s in stored
+            where matchedBefore(d, s) && !new TableColumn("value", d).Equals(new TableColumn("value", s))
+            select $"{d} ~ {s}";
+
+        stoppedMatching.ShouldBeEmpty();
+    }
+
+    // ALL_TAB_COLUMNS rows in an AL32UTF8 database with an AL16UTF16 national character set:
+    // data_type, data_length, data_precision, data_scale, char_length, char_used.
+    private static readonly (string, int?, int?, int?, int?, string?)[] CatalogRows =
+    [
+        ("NUMBER", 22, null, null, 0, null), ("NUMBER", 22, 10, 0, 0, null), ("NUMBER", 22, 13, 4, 0, null),
+        ("NUMBER", 22, null, 0, 0, null), ("FLOAT", 22, 126, null, 0, null), ("FLOAT", 22, 63, null, 0, null),
+        ("BINARY_FLOAT", 4, null, null, 0, null), ("BINARY_DOUBLE", 8, null, null, 0, null),
+        ("VARCHAR2", 100, null, null, 100, "B"), ("VARCHAR2", 400, null, null, 100, "C"),
+        ("VARCHAR2", 400, null, null, 400, "B"), ("CHAR", 10, null, null, 10, "B"),
+        ("CHAR", 40, null, null, 10, "C"), ("NCHAR", 20, null, null, 10, "C"),
+        ("NCHAR", 2000, null, null, 1000, "C"), ("NVARCHAR2", 200, null, null, 100, "C"),
+        ("NVARCHAR2", 4000, null, null, 2000, "C"), ("RAW", 16, null, null, 0, null),
+        ("CLOB", 4000, null, null, 0, null), ("BLOB", 4000, null, null, 0, null),
+        ("DATE", 7, null, null, 0, null), ("BOOLEAN", 1, null, null, 0, null),
+        ("TIMESTAMP(6)", 11, null, 6, 0, null), ("TIMESTAMP(6) WITH TIME ZONE", 13, null, 6, 0, null),
+        ("TIMESTAMP(6) WITH LOCAL TIME ZONE", 11, null, 6, 0, null),
+        ("INTERVAL DAY(2) TO SECOND(6)", 11, 2, 6, 0, null), ("INTERVAL YEAR(2) TO MONTH", 5, 2, 0, 0, null)
+    ];
+
+    /// <summary>
+    ///     The same guarantee through the reader, which now reports a column sized in characters in
+    ///     characters. Before, it reported <c>DATA_LENGTH</c>, the size in bytes, and a model stating that
+    ///     matched. It still has to: <c>MODIFY</c>ing such a column to the byte size re-pads every stored
+    ///     <c>CHAR</c> value, and for an <c>NVARCHAR2(2000)</c> it is ORA-00910 on every migration.
+    /// </summary>
+    [Fact]
+    public void nothing_the_catalog_reported_that_matched_before_stops_matching()
+    {
+        var matchedBeforeCount = 0;
+        var stoppedMatching = new List<string>();
+
+        foreach (var (dataType, dataLength, precision, scale, charLength, charUsed) in CatalogRows)
+        {
+            var before = typeAsReadBefore(dataType, dataLength, precision, scale);
+            var now = Table.ReadColumn("value", dataType, dataLength, precision, scale, "Y", charLength, charUsed);
+
+            foreach (var declared in DeclaredSpellings.Where(d => matchedBefore(d, before)))
+            {
+                matchedBeforeCount++;
+                if (!new TableColumn("value", declared).Equals(now))
+                {
+                    stoppedMatching.Add($"{declared} ~ {now.Type} (read as {before} before)");
+                }
+            }
+        }
+
+        matchedBeforeCount.ShouldBeGreaterThan(50);
+        stoppedMatching.ShouldBeEmpty();
+    }
+
+    /// <summary>
+    ///     And the other way round: a match the reader gained must be a real one, on the size in
+    ///     characters. The byte size is excused only for a stored spelling, the one kind master could
+    ///     match; a synonym never matched on master, so master re-issued its MODIFY and the first one
+    ///     widened the column. Excusing <c>NCHAR VARYING(200)</c> against <c>NVARCHAR2(100)</c> because
+    ///     that column is 200 bytes would drop that widening.
+    /// </summary>
+    [Fact]
+    public void a_match_the_reader_gained_is_on_the_size_in_characters()
+    {
+        var spurious = new List<string>();
+
+        foreach (var (dataType, dataLength, precision, scale, charLength, charUsed) in CatalogRows)
+        {
+            var before = typeAsReadBefore(dataType, dataLength, precision, scale);
+            var now = Table.ReadColumn("value", dataType, dataLength, precision, scale, "Y", charLength, charUsed);
+
+            if (charLength is not > 0)
+            {
+                continue;
+            }
+
+            foreach (var declared in DeclaredSpellings.Where(d => !matchedBefore(d, before)))
+            {
+                var length = System.Text.RegularExpressions.Regex.Match(declared, @"\((\d+)");
+                if (length.Success && int.Parse(length.Groups[1].Value) != charLength
+                                   && new TableColumn("value", declared).Equals(now))
+                {
+                    spurious.Add($"{declared} ~ {now.Type}");
+                }
+            }
+        }
+
+        spurious.ShouldBeEmpty();
+    }
+
+    // The type the reader built from a catalog row before it read CHAR_LENGTH: DATA_LENGTH for every
+    // character and binary type.
+    private static string typeAsReadBefore(string dataType, int? dataLength, int? precision, int? scale)
+    {
+        switch (dataType)
+        {
+            case "VARCHAR2" or "NVARCHAR2" or "CHAR" or "NCHAR" or "RAW":
+                return dataLength.HasValue ? $"{dataType}({dataLength})" : dataType;
+            case "NUMBER":
+                if (precision.HasValue && scale is > 0) return $"NUMBER({precision},{scale})";
+                return precision.HasValue ? $"NUMBER({precision})" : "NUMBER";
+            case "FLOAT":
+                return precision.HasValue ? $"FLOAT({precision})" : "FLOAT";
+            default:
+                return dataType.StartsWith("TIMESTAMP", StringComparison.Ordinal)
+                    ? System.Text.RegularExpressions.Regex.Replace(dataType, @"\(\d+\)", "").Replace("  ", " ")
+                    : dataType;
+        }
+    }
+
+    // The type half of TableColumn.Equals as it was before the stored-name comparison.
+    private static bool matchedBefore(string declared, string stored)
+    {
+        static string rawType(string type) => type.ToUpperInvariant().Split('(')[0].Trim();
+
+        return !CharacterColumnLength.Differ(declared.ToUpperInvariant(), stored.ToUpperInvariant())
+               && string.Equals(OracleProvider.Instance.ConvertSynonyms(rawType(declared)),
+                   OracleProvider.Instance.ConvertSynonyms(rawType(stored)), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

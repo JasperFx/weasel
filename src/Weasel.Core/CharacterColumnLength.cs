@@ -71,7 +71,8 @@ public static class CharacterColumnLength
         var inner = type[(open + 1)..close].Trim();
 
         // Oracle spells the length semantics out: VARCHAR2(100 CHAR) and VARCHAR2(100 BYTE) are both
-        // 100 as far as a model is concerned, and the catalog reports the byte count either way.
+        // 100 as far as a model is concerned. The Oracle reader reports the count in the semantics the
+        // column was declared in, so the unit is dropped here rather than compared.
         var space = inner.IndexOf(' ');
         if (space > 0)
         {
