@@ -7,7 +7,7 @@ The `Table` class in `Weasel.MySql.Tables` provides a fluent API for defining My
 <!-- snippet: sample_mysql_define_table -->
 <a id='snippet-sample_mysql_define_table'></a>
 ```cs
-var table = new Table("users");
+var table = new Table("mydb.users");
 
 table.AddColumn<int>("id").AsPrimaryKey().AutoIncrement();
 table.AddColumn<string>("name").NotNull();
@@ -16,6 +16,10 @@ table.AddColumn<DateTime>("created_at");
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MySqlSamples.cs#L42-L49' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_mysql_define_table' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+The part before the dot is the MySQL **database**. A name without one is placed in the provider's default
+schema, `public` -- a database of that name, not the connection's database -- so name the database the
+table belongs in. See [Schemas are databases](/mysql/#schemas-are-databases).
 
 ## Table Options
 
