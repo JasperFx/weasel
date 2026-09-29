@@ -1,5 +1,6 @@
 using Shouldly;
 using Weasel.Core;
+using Weasel.Firebird.Tables;
 using Weasel.Firebird.Triggers;
 using Xunit;
 
@@ -25,6 +26,36 @@ public class TriggerTests
 
         writer.ToString().ShouldStartWith("SET TERM ^ ;");
         FirebirdScript.Split(writer.ToString()).Single().ShouldStartWith("CREATE OR ALTER TRIGGER");
+    }
+
+    /// <summary>
+    ///     A case-preserved table -- an EF Core model's -- is named exactly, as the table names itself;
+    ///     folded, the trigger would land on another table, or on none.
+    /// </summary>
+    [Fact]
+    public void a_trigger_on_a_case_preserved_table_names_it_exactly()
+    {
+        var blogs = new Table("Blogs") { PreserveIdentifierCase = true };
+
+        var subject = new Trigger("trg_blogs_stamp", blogs, "BEGIN END");
+
+        subject.PreserveTargetCase.ShouldBeTrue();
+        subject.CreateStatement().ShouldStartWith("CREATE OR ALTER TRIGGER trg_blogs_stamp FOR \"Blogs\" ACTIVE");
+    }
+
+    [Fact]
+    public void a_table_that_folds_its_name_is_named_as_it_folds()
+    {
+        new Trigger("trg_blogs_stamp", new Table("Blogs"), "BEGIN END").CreateStatement()
+            .ShouldStartWith("CREATE OR ALTER TRIGGER trg_blogs_stamp FOR Blogs ACTIVE");
+    }
+
+    [Fact]
+    public void preserving_the_target_case_by_hand_delimits_a_name_given_as_text()
+    {
+        var subject = new Trigger("trg_blogs_stamp", "Blogs", "BEGIN END") { PreserveTargetCase = true };
+
+        subject.CreateStatement().ShouldStartWith("CREATE OR ALTER TRIGGER trg_blogs_stamp FOR \"Blogs\" ACTIVE");
     }
 
     [Fact]

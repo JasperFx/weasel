@@ -42,6 +42,7 @@ A body that is neither a block nor starts with its declarations is wrapped in `B
 | `Events` | `Insert`, `Update`, `Delete`, any combination, written `INSERT OR UPDATE OR DELETE`. `Truncate` throws |
 | `Condition` | Throws: Firebird has no `WHEN` clause. Test the condition in the body |
 | `ForEachRow` | Not emitted: Firebird triggers are row-level |
+| `PreserveTargetCase` | Names the table exactly, delimited, for a case-preserved (EF Core) table. Copied from `PreserveIdentifierCase` when the constructor is given a `Table` |
 
 ## Triggers on Views
 

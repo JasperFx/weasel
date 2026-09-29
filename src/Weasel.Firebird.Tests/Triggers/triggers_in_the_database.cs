@@ -34,9 +34,9 @@ public class triggers_in_the_database: IntegrationContext
             Timing = TriggerTiming.Before, Events = TriggerEvents.Insert
         };
 
-    private async Task<string?> noteAsync(string table, int id)
+    private async Task<string?> noteAsync(string table, int id, string column = "note", string key = "id")
     {
-        await using var cmd = theConnection.CreateCommand($"SELECT note FROM {table} WHERE id = {id}");
+        await using var cmd = theConnection.CreateCommand($"SELECT {column} FROM {table} WHERE {key} = {id}");
         return await cmd.ExecuteScalarAsync() as string;
     }
 
@@ -209,6 +209,45 @@ public class triggers_in_the_database: IntegrationContext
 
         (await noteAsync("trg_orders", 6)).ShouldBe("through the view");
         (await noteAsync("trg_archive", 6)).ShouldBe("through the view");
+        (await trigger.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    /// <summary>
+    ///     An EF Core model's tables keep the case of their names. The trigger names its table the way
+    ///     the table names itself, and a trigger read back from the catalog names it exactly too, so a
+    ///     rollback lands on the same table.
+    /// </summary>
+    [Fact]
+    public async Task a_trigger_on_a_case_preserved_table_is_created_fires_and_reads_back_unchanged()
+    {
+        var blogs = new Table("Blogs") { PreserveIdentifierCase = true };
+        blogs.AddColumn<int>("Id").AsPrimaryKey();
+        blogs.AddColumn("Title", "VARCHAR(40)");
+        await ApplyAsync(blogs);
+
+        Trigger stampTitle(string title) => new("trg_blogs_title", blogs, $"NEW.\"Title\" = '{title}'")
+        {
+            Events = TriggerEvents.Insert
+        };
+
+        var trigger = stampTitle("stamped");
+        await ApplyAsync(trigger);
+
+        (await trigger.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+        (await DetermineAsync(stampTitle("stamped"))).Difference.ShouldBe(SchemaPatchDifference.None);
+        (await new Trigger("trg_blogs_title", "Blogs", "NEW.\"Title\" = 'stamped'") { PreserveTargetCase = true }
+            .FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
+
+        await ExecuteAsync("INSERT INTO \"Blogs\" (\"Id\") VALUES (1)");
+        (await noteAsync("\"Blogs\"", 1, "\"Title\"", "\"Id\"")).ShouldBe("stamped");
+
+        // Folded, the name is BLOGS: another table, so a trigger on it is a change.
+        (await new Trigger("trg_blogs_title", "Blogs", "NEW.\"Title\" = 'stamped'").FindDeltaAsync(theConnection))
+            .Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var migration = await ApplyAsync(stampTitle("changed"));
+        await migration.RollbackAllAsync(theConnection, new FirebirdMigrator());
+
         (await trigger.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
     }
 

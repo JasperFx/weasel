@@ -45,6 +45,42 @@ public class Trigger: TriggerBase
     }
 
     /// <summary>
+    ///     A trigger on <paramref name="target" />, named the way the table names itself: exactly as
+    ///     written when it has <see cref="ITable.PreserveIdentifierCase" />, as an EF Core model's table
+    ///     does.
+    /// </summary>
+    public Trigger(string name, Tables.Table target, string body)
+        : this(FirebirdProvider.Instance.Parse(name), target, body)
+    {
+    }
+
+    /// <inheritdoc cref="Trigger(string, Tables.Table, string)" />
+    public Trigger(DbObjectName identifier, Tables.Table target, string body)
+        : this(identifier, (target ?? throw new ArgumentNullException(nameof(target))).Identifier, body)
+    {
+        PreserveTargetCase = target.PreserveIdentifierCase;
+    }
+
+    /// <summary>
+    ///     When true, the table or view the trigger fires on is named exactly as written: delimited in
+    ///     the DDL and looked up in the catalog as it is, the way a table with
+    ///     <see cref="ITable.PreserveIdentifierCase" /> names itself. Otherwise Firebird's rule applies,
+    ///     and an undelimited name is folded to upper case. The constructors that take a
+    ///     <see cref="Tables.Table" /> copy it from the table.
+    /// </summary>
+    public bool PreserveTargetCase { get; set; }
+
+    /// <summary>
+    ///     The table or view the trigger fires on, as DDL writes it.
+    /// </summary>
+    internal string QuotedTargetName => SchemaUtils.QuoteName(Target.Name, PreserveTargetCase);
+
+    /// <summary>
+    ///     The table or view the trigger fires on, as Firebird's catalog stores it.
+    /// </summary>
+    internal string TargetCatalogName => SchemaUtils.CatalogName(Target.Name, PreserveTargetCase);
+
+    /// <summary>
     ///     The trigger's name as Firebird's catalog stores it.
     /// </summary>
     internal string CatalogName => SchemaUtils.CatalogName(Identifier.Name);
@@ -68,7 +104,7 @@ public class Trigger: TriggerBase
     ///     <c>ToBasicCreateViewSql</c>.
     /// </summary>
     public string CreateStatement()
-        => $"CREATE OR ALTER TRIGGER {SchemaUtils.QuoteName(Identifier.Name)} FOR {SchemaUtils.QuoteName(Target.Name)} "
+        => $"CREATE OR ALTER TRIGGER {SchemaUtils.QuoteName(Identifier.Name)} FOR {QuotedTargetName} "
            + $"ACTIVE {timing()} {events()} AS\n{ActionBody()}";
 
     /// <summary>
@@ -151,9 +187,9 @@ public class Trigger: TriggerBase
 
         var differences = new List<string>();
 
-        if (!string.Equals(SchemaUtils.CatalogName(Target.Name), actual.Target.Name, StringComparison.Ordinal))
+        if (!string.Equals(TargetCatalogName, actual.TargetCatalogName, StringComparison.Ordinal))
         {
-            differences.Add($"fires on {Target.Name} rather than {actual.Target.Name}");
+            differences.Add($"fires on {TargetCatalogName} rather than {actual.TargetCatalogName}");
         }
 
         if (Timing != actual.Timing || Events != actual.Events)
@@ -205,8 +241,10 @@ public class Trigger: TriggerBase
         var target = reader.IsDBNull(1) ? Target : new FirebirdObjectName(reader.GetString(1));
         var (timing, events) = Decode(Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture));
 
+        // The catalog's spelling is exact, so a trigger read from it writes its table back exactly.
         return new Trigger(Identifier, target, afterAs(source))
         {
+            PreserveTargetCase = !reader.IsDBNull(1) || PreserveTargetCase,
             Timing = timing,
             Events = events,
             IsInactive = Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture) == 1
