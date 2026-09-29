@@ -120,9 +120,10 @@ public class FirebirdMigrator: Migrator
     }
 
     /// <summary>
-    ///     Refuse a name longer than <see cref="MaxIdentifierLength" />, saying what to do about it.
+    ///     Refuse a name longer than <see cref="MaxIdentifierLength" />, saying what it names and what to
+    ///     do about it.
     /// </summary>
-    internal void AssertFits(string name, string? remedy)
+    internal void AssertFits(string name, string? remedy, string? names = null)
     {
         var inBytes = MaxIdentifierLength <= 31;
         var length = inBytes ? Encoding.UTF8.GetByteCount(name) : name.Length;
@@ -134,7 +135,7 @@ public class FirebirdMigrator: Migrator
 
         var unit = inBytes ? "bytes" : "characters";
         throw new InvalidOperationException(
-            $"Firebird identifier '{name}' is {length} {unit}, over the {MaxIdentifierLength}-{unit[..^1]} limit. "
+            $"Firebird identifier '{name}'{(names == null ? "" : $", {names},")} is {length} {unit}, over the {MaxIdentifierLength}-{unit[..^1]} limit. "
             + "Firebird refuses a longer name rather than truncating it, so Weasel does too. "
             + (remedy ?? $"Firebird 3 allows 31 bytes; for a database only Firebird 4 or later opens, set {nameof(FirebirdMigrator)}.{nameof(MaxIdentifierLength)} to 63."));
     }

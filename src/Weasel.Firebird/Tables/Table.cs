@@ -101,7 +101,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     internal void WriteCreateStatement(Migrator migrator, TextWriter writer, IReadOnlySet<string> deferredForeignKeys)
     {
         FirebirdObjectName.AssertDefaultSchema(Identifier.Schema, $"table {Identifier.Name}");
-        assertDerivedNamesFit(migrator);
+        AssertNamesFit(migrator, true, Columns, true, Indexes, ForeignKeys);
 
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
@@ -178,21 +178,51 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     }
 
     /// <summary>
-    ///     A name Weasel derived rather than one the model spelled out -- the default primary key name
-    ///     -- is refused when it is over the limit, rather than truncated: Firebird refuses an over-long
-    ///     name outright, and a truncation scheme could never change later without renaming the
-    ///     constraint. The refusal says which setting to use.
+    ///     Refuse a name this table's DDL would write when it is over <see cref="FirebirdMigrator.MaxIdentifierLength" />,
+    ///     before anything runs. Firebird refuses an over-long name outright, so a migration would
+    ///     otherwise stop at the first statement that carries one, with every statement before it
+    ///     committed. Weasel does not truncate either: a truncation scheme could never change later
+    ///     without renaming the object. A derived primary key name says which setting to use.
     /// </summary>
-    private void assertDerivedNamesFit(Migrator migrator)
+    /// <remarks>
+    ///     A create passes every name and an update the ones it adds. Only a
+    ///     <see cref="FirebirdMigrator" /> knows the limit, so another migrator checks nothing.
+    /// </remarks>
+    internal void AssertNamesFit(Migrator migrator, bool table, IEnumerable<TableColumn> columns, bool primaryKey,
+        IEnumerable<IndexDefinition> indexes, IEnumerable<ForeignKey> foreignKeys)
     {
-        if (migrator is not FirebirdMigrator firebird || !PrimaryKeyColumns.Any()
-                                                      || PrimaryKeyName != DefaultPrimaryKeyName())
+        if (migrator is not FirebirdMigrator firebird)
         {
             return;
         }
 
-        firebird.AssertFits(PrimaryKeyName,
-            $"The primary key name '{PrimaryKeyName}' is derived from the table name. Set {nameof(PrimaryKeyName)} on table {Identifier.Name} to a shorter name.");
+        if (table)
+        {
+            firebird.AssertFits(Identifier.Name, null, "the name of a table");
+        }
+
+        foreach (var column in columns)
+        {
+            firebird.AssertFits(column.Name, null, $"a column of table {Identifier.Name}");
+        }
+
+        if (primaryKey && PrimaryKeyColumns.Any())
+        {
+            var remedy = PrimaryKeyName == DefaultPrimaryKeyName()
+                ? $"The primary key name '{PrimaryKeyName}' is derived from the table name. Set {nameof(PrimaryKeyName)} on table {Identifier.Name} to a shorter name."
+                : null;
+            firebird.AssertFits(PrimaryKeyName, remedy, $"the primary key of table {Identifier.Name}");
+        }
+
+        foreach (var index in indexes)
+        {
+            firebird.AssertFits(index.Name, null, $"an index on table {Identifier.Name}");
+        }
+
+        foreach (var foreignKey in foreignKeys)
+        {
+            firebird.AssertFits(foreignKey.Name, null, $"a foreign key of table {Identifier.Name}");
+        }
     }
 
     /// <summary>

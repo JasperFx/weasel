@@ -241,6 +241,9 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         }
 
         FirebirdObjectName.AssertDefaultSchema(Expected.Identifier.Schema, $"table {Expected.Identifier.Name}");
+        Expected.AssertNamesFit(rules, false, Columns.Missing, PrimaryKeyDifference != SchemaPatchDifference.None,
+            Indexes.Missing.Concat(Indexes.Different.Select(x => x.Expected)),
+            ForeignKeys.Missing.Concat(ForeignKeys.Different.Select(x => x.Expected)));
 
         foreach (var foreignKey in ForeignKeys.Extras)
         {
