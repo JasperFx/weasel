@@ -165,6 +165,15 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         // Different indexes
         foreach (var change in Indexes.Different) writer.WriteDropIndex(Expected, change.Actual);
 
+        // A computed column is changed by dropping and re-adding it, and SQL Server refuses to drop a
+        // column anything depends on. An index or foreign key that matches the model is in neither set
+        // above, so nothing had dropped it and the migration failed on the dependency (weasel#638).
+        var recreatedIndexes = matchedIndexesOnRecomputedColumns();
+        var recreatedForeignKeys = matchedForeignKeysOnRecomputedColumns();
+
+        foreach (var index in recreatedIndexes) writer.WriteDropIndex(Expected, index);
+        foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteDropStatement(Expected, writer);
+
         var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate();
         if (primaryKeyDroppedBeforeColumnChanges)
         {
@@ -205,6 +214,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         // Different indexes
         foreach (var change in Indexes.Different) change.Expected.WriteCreateStatement(Expected, writer);
 
+        // ...and back, in the same order the table declares them
+        foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteAddStatement(Expected, writer);
+        foreach (var index in recreatedIndexes) index.WriteCreateStatement(Expected, writer);
+
 
         // Extra columns
         foreach (var column in Columns.Extras) writer.WriteLine(column.DropColumnSql(Expected));
@@ -240,6 +253,58 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 }
                 break;
         }
+    }
+
+    /// <summary>
+    ///     The columns this update changes by dropping and re-adding them, because their computed
+    ///     definition changed.
+    /// </summary>
+    private HashSet<string> recomputedColumnNames()
+    {
+        return Columns.Different
+            .Where(x => x.Expected.ComputedDefinitionChanged(x.Actual))
+            .Select(x => x.Expected.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>
+    ///     Indexes that match the model and sit on a column being recomputed, so they have to come down
+    ///     before the column is dropped and go back afterwards.
+    /// </summary>
+    /// <remarks>
+    ///     An index that is Extra or Different is already dropped by the passes above and, if
+    ///     Different, recreated by them, so taking it from Matched alone is what avoids dropping or
+    ///     creating anything twice. Derived from the model rather than from a catalog round trip: the
+    ///     delta already knows both sides' column names.
+    /// </remarks>
+    private IReadOnlyList<IndexDefinition> matchedIndexesOnRecomputedColumns()
+    {
+        var recomputed = recomputedColumnNames();
+        if (recomputed.Count == 0)
+        {
+            return [];
+        }
+
+        return Indexes.Matched
+            .Where(x => x.Columns.Concat(x.IncludedColumns).Any(c => recomputed.Contains(SchemaUtils.Unbracket(c))))
+            .ToList();
+    }
+
+    /// <summary>
+    ///     Foreign keys that match the model and sit on a column being recomputed. Nothing dropped these
+    ///     at any point before the column change, so the <c>DROP COLUMN</c> was refused.
+    /// </summary>
+    private IReadOnlyList<ForeignKey> matchedForeignKeysOnRecomputedColumns()
+    {
+        var recomputed = recomputedColumnNames();
+        if (recomputed.Count == 0)
+        {
+            return [];
+        }
+
+        return ForeignKeys.Matched
+            .Where(x => x.ColumnNames.Any(c => recomputed.Contains(SchemaUtils.Unbracket(c))))
+            .ToList();
     }
 
     private void writeForeignKeyUpdates(TextWriter writer)
