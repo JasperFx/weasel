@@ -4,7 +4,11 @@ using FirebirdSql.Data.FirebirdClient;
 using JasperFx;
 using Shouldly;
 using Weasel.Core;
+using Weasel.Firebird.Functions;
+using Weasel.Firebird.Procedures;
 using Weasel.Firebird.Tables;
+using Weasel.Firebird.Triggers;
+using Weasel.Firebird.Views;
 using Xunit;
 
 namespace Weasel.Firebird.Tests;
@@ -125,6 +129,62 @@ public class running_scripts_through_isql: IntegrationContext
         await isqlAsync(drop);
         (await ((Table)model()[0]).ExistsInDatabaseAsync(theConnection)).ShouldBeFalse();
         (await ((Table)model()[1]).ExistsInDatabaseAsync(theConnection)).ShouldBeFalse();
+    }
+
+    private static Table psqlOrders()
+    {
+        var orders = new Table("psql_orders");
+        orders.AddColumn<int>("id").AsPrimaryKey();
+        orders.AddColumn("note", "VARCHAR(40)");
+        return orders;
+    }
+
+    /// <summary>
+    ///     Views, routines and triggers: PSQL bodies full of semicolons, a literal with a caret and a
+    ///     semicolon in it, and a view whose query ends in a line comment. The table they use is applied
+    ///     first: a drop file drops in the order the patch created, and Firebird refuses to drop a table
+    ///     a view still uses.
+    /// </summary>
+    private static ISchemaObject[] psqlModel(string note = "it's; ^ touched")
+    {
+        return
+        [
+            new View("psql_view", "select id, note from psql_orders -- every order"),
+            new Function("psql_double",
+                "CREATE FUNCTION psql_double (n INTEGER) RETURNS INTEGER AS DECLARE VARIABLE twice INTEGER; BEGIN twice = n * 2; RETURN twice; END"),
+            new StoredProcedure("psql_touch",
+                "CREATE PROCEDURE psql_touch (id INTEGER) AS BEGIN INSERT INTO psql_orders (id) VALUES (:id); END"),
+            new Trigger("psql_stamp", "psql_orders", $"NEW.note = '{note.Replace("'", "''")}';")
+            {
+                Events = TriggerEvents.Insert
+            }
+        ];
+    }
+
+    [Fact]
+    public async Task a_patch_of_views_routines_and_triggers_runs_clean_through_isql_twice()
+    {
+        await ApplyAsync(psqlOrders());
+        var (update, drop) = await patchFilesAsync(psqlModel());
+
+        await isqlAsync(update);
+        (await DetermineAsync(psqlModel())).Difference.ShouldBe(SchemaPatchDifference.None);
+
+        await isqlAsync(update);
+
+        await ExecuteAsync("EXECUTE PROCEDURE psql_touch(1)");
+        (await ScalarAsync<string>("SELECT note FROM psql_view WHERE id = 1")).ShouldBe("it's; ^ touched");
+        (await ScalarAsync<int>("SELECT psql_double(21) FROM RDB$DATABASE")).ShouldBe(42);
+
+        var (changed, _) = await patchFilesAsync(psqlModel("changed"));
+        await isqlAsync(changed);
+        (await DetermineAsync(psqlModel("changed"))).Difference.ShouldBe(SchemaPatchDifference.None);
+
+        await isqlAsync(drop);
+        (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$TRIGGERS WHERE RDB$TRIGGER_NAME = 'PSQL_STAMP'")).ShouldBe(0);
+        (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$PROCEDURES WHERE RDB$PROCEDURE_NAME = 'PSQL_TOUCH'")).ShouldBe(0);
+        (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$FUNCTIONS WHERE RDB$FUNCTION_NAME = 'PSQL_DOUBLE'")).ShouldBe(0);
+        (await ScalarAsync<int>("SELECT COUNT(*) FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = 'PSQL_VIEW'")).ShouldBe(0);
     }
 
     [Fact]

@@ -134,6 +134,11 @@ public class introspection_queries_terminate_themselves
         yield return new Firebird.Tables.Table("thing");
         yield return new Firebird.Sequence("thing_seq");
         yield return new Firebird.Views.View("v_thing", "select 1 as one from rdb$database");
+        yield return new Firebird.Functions.Function("fn_thing",
+            "create function fn_thing returns integer as begin return 1; end");
+        yield return new Firebird.Procedures.StoredProcedure("p_thing",
+            "create procedure p_thing as begin end");
+        yield return new Firebird.Triggers.Trigger("trg_thing", "thing", "begin end");
     }
 
     private static DbCommand commandFor(string provider) => provider switch

@@ -84,7 +84,10 @@ public class object_type_support_matrix
 
         ("Firebird", "Table", "Weasel.Firebird.Tables.Table"),
         ("Firebird", "Sequence", "Weasel.Firebird.Sequence"),
-        ("Firebird", "View", "Weasel.Firebird.Views.View")
+        ("Firebird", "View", "Weasel.Firebird.Views.View"),
+        ("Firebird", "Function", "Weasel.Firebird.Functions.Function"),
+        ("Firebird", "StoredProcedure", "Weasel.Firebird.Procedures.StoredProcedure"),
+        ("Firebird", "Trigger", "Weasel.Firebird.Triggers.Trigger")
     ];
 
     public static TheoryData<string, string, string> Supported

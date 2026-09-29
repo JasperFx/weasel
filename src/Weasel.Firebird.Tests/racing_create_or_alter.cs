@@ -1,14 +1,17 @@
 using JasperFx;
 using Shouldly;
 using Weasel.Core;
+using Weasel.Firebird.Functions;
+using Weasel.Firebird.Procedures;
 using Weasel.Firebird.Tables;
+using Weasel.Firebird.Triggers;
 using Weasel.Firebird.Views;
 using Xunit;
 
 namespace Weasel.Firebird.Tests;
 
 /// <summary>
-///     Views are written <c>CREATE OR ALTER</c>, not guarded, and four concurrent
+///     Views, routines and triggers are written <c>CREATE OR ALTER</c>, not guarded, and four concurrent
 ///     <c>CREATE OR ALTER</c>s of one object measured three losers on Firebird 3, 4 and 5 -- "update
 ///     conflicts with concurrent update", or a unique key violation in the catalog. The statement leaves
 ///     the same object however often it runs, so the migrator runs a loser again, as it does a guarded
@@ -26,7 +29,10 @@ public class racing_create_or_alter: IntegrationContext
         [
             orders,
             new View("race_view", "select id, note from race_orders"),
-            new View("race_view_of_view", "select id from race_view")
+            new View("race_view_of_view", "select id from race_view"),
+            new Function("race_function", "CREATE FUNCTION race_function (n INTEGER) RETURNS INTEGER AS BEGIN RETURN n * 2; END"),
+            new StoredProcedure("race_procedure", "CREATE PROCEDURE race_procedure RETURNS (n INTEGER) AS BEGIN n = 1; SUSPEND; END"),
+            new Trigger("race_trigger", "race_orders", "NEW.note = 'raced'") { Events = TriggerEvents.Insert }
         ];
     }
 

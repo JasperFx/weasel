@@ -53,4 +53,18 @@ internal static class CatalogProbes
     public static string View(string catalogName)
         => $"SELECT 1 FROM RDB$RELATIONS WHERE RDB$RELATION_NAME = {FirebirdScript.Literal(catalogName)} AND RDB$VIEW_BLR IS NOT NULL";
 
+    /// <summary>
+    ///     A standalone function of that name; a packaged one is a different object.
+    /// </summary>
+    public static string Function(string catalogName)
+        => $"SELECT 1 FROM RDB$FUNCTIONS WHERE RDB$FUNCTION_NAME = {FirebirdScript.Literal(catalogName)} AND RDB$PACKAGE_NAME IS NULL";
+
+    /// <summary>
+    ///     A standalone procedure of that name; a packaged one is a different object.
+    /// </summary>
+    public static string Procedure(string catalogName)
+        => $"SELECT 1 FROM RDB$PROCEDURES WHERE RDB$PROCEDURE_NAME = {FirebirdScript.Literal(catalogName)} AND RDB$PACKAGE_NAME IS NULL";
+
+    public static string Trigger(string catalogName)
+        => $"SELECT 1 FROM RDB$TRIGGERS WHERE RDB$TRIGGER_NAME = {FirebirdScript.Literal(catalogName)}";
 }
