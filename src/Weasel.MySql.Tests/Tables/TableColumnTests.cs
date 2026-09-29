@@ -138,6 +138,90 @@ public class TableColumnTests
             .IsEquivalentTo(new TableColumn("amount", "DECIMAL(10,4)")).ShouldBeTrue();
     }
 
+    /// <summary>
+    ///     The declared spelling on the left, what <c>information_schema.COLUMNS.COLUMN_TYPE</c> reports
+    ///     for it on the right -- upper-cased, as the table reader stores it. The display-width forms
+    ///     (<c>int(11)</c>, <c>tinyint(4)</c>, <c>bigint(20) unsigned</c>) are MySQL 5.7's, and 8.0
+    ///     before 8.0.19.
+    /// </summary>
+    [Theory]
+    [InlineData("BOOLEAN", "TINYINT(1)")]
+    [InlineData("BOOL", "TINYINT(1)")]
+    [InlineData("boolean", "TINYINT(1)")]
+    [InlineData("INTEGER", "INT")]
+    [InlineData("INTEGER", "INT(11)")]
+    [InlineData("INT4", "INT")]
+    [InlineData("INT1", "TINYINT")]
+    [InlineData("INT2", "SMALLINT")]
+    [InlineData("INT3", "MEDIUMINT")]
+    [InlineData("MIDDLEINT", "MEDIUMINT")]
+    [InlineData("INT8", "BIGINT")]
+    [InlineData("SMALLINT(2)", "SMALLINT")]
+    [InlineData("BIGINT(19)", "BIGINT(20)")]
+    [InlineData("NUMERIC(13,4)", "DECIMAL(13,4)")]
+    [InlineData("NUMERIC", "DECIMAL(10,0)")]
+    [InlineData("DEC(10,2)", "DECIMAL(10,2)")]
+    [InlineData("FIXED(10,2)", "DECIMAL(10,2)")]
+    [InlineData("DOUBLE PRECISION", "DOUBLE")]
+    [InlineData("REAL", "DOUBLE")]
+    [InlineData("FLOAT8", "DOUBLE")]
+    [InlineData("FLOAT4", "FLOAT")]
+    [InlineData("FLOAT(53)", "DOUBLE")]
+    [InlineData("FLOAT(10)", "FLOAT")]
+    [InlineData("INT UNSIGNED", "INT UNSIGNED")]
+    [InlineData("INT(10) UNSIGNED", "INT UNSIGNED")]
+    [InlineData("INT UNSIGNED", "INT(10) UNSIGNED")]
+    [InlineData("INT SIGNED", "INT")]
+    [InlineData("INT ZEROFILL", "INT(10) UNSIGNED ZEROFILL")]
+    [InlineData("SERIAL", "BIGINT UNSIGNED")]
+    [InlineData("SERIAL", "BIGINT(20) UNSIGNED")]
+    [InlineData("CHARACTER(10)", "CHAR(10)")]
+    [InlineData("CHARACTER VARYING(100)", "VARCHAR(100)")]
+    [InlineData("CHAR VARYING(100)", "VARCHAR(100)")]
+    [InlineData("NATIONAL CHAR(3)", "CHAR(3)")]
+    [InlineData("NATIONAL CHARACTER(3)", "CHAR(3)")]
+    [InlineData("NCHAR(3)", "CHAR(3)")]
+    [InlineData("NATIONAL VARCHAR(20)", "VARCHAR(20)")]
+    [InlineData("NATIONAL CHARACTER VARYING(20)", "VARCHAR(20)")]
+    [InlineData("NVARCHAR(20)", "VARCHAR(20)")]
+    [InlineData("NCHAR VARCHAR(20)", "VARCHAR(20)")]
+    [InlineData("NCHAR VARYING(20)", "VARCHAR(20)")]
+    [InlineData("VARCHARACTER(20)", "VARCHAR(20)")]
+    [InlineData("LONG VARCHAR", "MEDIUMTEXT")]
+    [InlineData("LONG", "MEDIUMTEXT")]
+    [InlineData("LONG VARBINARY", "MEDIUMBLOB")]
+    [InlineData("VARCHAR(20) CHARACTER SET ascii", "VARCHAR(20)")]
+    [InlineData("TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin", "TEXT")]
+    [InlineData("longblob", "LONGBLOB")]
+    public void a_synonym_is_equivalent_to_the_type_the_catalog_reports(string declared, string reported)
+    {
+        new TableColumn("value", declared)
+            .IsEquivalentTo(new TableColumn("value", reported)).ShouldBeTrue();
+
+        new TableColumn("value", declared).GetHashCode()
+            .ShouldBe(new TableColumn("value", reported).GetHashCode());
+    }
+
+    [Theory]
+    [InlineData("INTEGER", "BIGINT")]
+    [InlineData("INTEGER", "INT UNSIGNED")]
+    [InlineData("INT(11)", "INT(10) UNSIGNED")]
+    [InlineData("BOOLEAN", "SMALLINT")]
+    [InlineData("NUMERIC(13,4)", "DOUBLE")]
+    [InlineData("REAL", "FLOAT")]
+    [InlineData("FLOAT(10)", "DOUBLE")]
+    [InlineData("TEXT", "VARCHAR(255)")]
+    [InlineData("LONG VARCHAR", "TEXT")]
+    [InlineData("CHARACTER VARYING(200)", "VARCHAR(100)")]
+    [InlineData("NATIONAL CHAR(3)", "CHAR(2)")]
+    [InlineData("NCHAR VARYING(20)", "CHAR(20)")]
+    [InlineData("VARCHARACTER(40)", "VARCHAR(20)")]
+    public void a_synonym_does_not_hide_a_real_difference(string declared, string reported)
+    {
+        new TableColumn("value", declared)
+            .IsEquivalentTo(new TableColumn("value", reported)).ShouldBeFalse();
+    }
+
     [Fact]
     public void is_equivalent_different_nullability()
     {

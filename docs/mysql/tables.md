@@ -93,6 +93,23 @@ var delta = await table.FindDeltaAsync(conn);
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MySqlSamples.cs#L81-L86' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_mysql_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+A column type is compared as `information_schema.COLUMNS.COLUMN_TYPE` reports it, so a synonym in the
+model is not drift:
+
+| Declared | Compared as |
+|---|---|
+| `BOOL`, `BOOLEAN` | `tinyint(1)` |
+| `INTEGER`, `INT1`–`INT8`, `MIDDLEINT` | `int`, `tinyint`, `smallint`, `mediumint`, `bigint` |
+| `NUMERIC`, `DEC`, `FIXED` | `decimal` |
+| `DOUBLE PRECISION`, `REAL`, `FLOAT8`, `FLOAT(25..53)` | `double` |
+| `CHARACTER`, `NCHAR`, `NATIONAL CHAR` | `char` |
+| `CHARACTER VARYING`, `VARCHARACTER`, `NVARCHAR`, `NCHAR VARYING`, `NATIONAL VARCHAR` | `varchar` |
+| `LONG`, `LONG VARCHAR` / `LONG VARBINARY` | `mediumtext` / `mediumblob` |
+
+`UNSIGNED`, `ZEROFILL` and a character length are compared. A display width (`int(11)`), a decimal's
+precision and scale, a character set and a collation are not. `REAL` is `double` unless the server runs
+with the `REAL_AS_FLOAT` SQL mode.
+
 ## Generating DDL
 
 <!-- snippet: sample_mysql_generate_ddl -->
