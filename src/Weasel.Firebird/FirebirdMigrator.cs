@@ -619,9 +619,10 @@ public class FirebirdMigrator: Migrator
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         Each table is looked up in the catalog ignoring case and deleted from by its exact name,
-    ///         so a table created with a case-preserved name -- an EF Core model's, say -- is found as
-    ///         surely as a folded one.
+    ///         Each table is looked up by its exact name, which is how a case-preserved one -- an EF Core
+    ///         model's, say -- is stored, and only when there is no such table by the upper-case name
+    ///         an undelimited one is folded to. It is never both: emptying <c>"Blogs"</c> leaves a
+    ///         <c>BLOGS</c> beside it alone.
     ///     </para>
     ///     <para>
     ///         Identity columns are restarted so the next value is 1. Firebird 3 makes the next value one
@@ -653,7 +654,7 @@ public class FirebirdMigrator: Migrator
             FirebirdObjectName.AssertDefaultSchema(table.Schema, $"table {table.Name}");
 
             builder.Append("  FOR SELECT RDB$RELATION_NAME FROM RDB$RELATIONS\n");
-            builder.Append($"      WHERE UPPER(TRIM(RDB$RELATION_NAME)) = {FirebirdScript.Literal(table.Name.ToUpperInvariant())} AND RDB$VIEW_BLR IS NULL\n");
+            builder.Append($"      WHERE {relationIs(table.Name)} AND RDB$VIEW_BLR IS NULL\n");
             builder.Append("      INTO :relation_name\n");
             builder.Append("  DO\n");
             builder.Append("    EXECUTE STATEMENT 'DELETE FROM \"' || REPLACE(TRIM(relation_name), '\"', '\"\"') || '\"';\n");
@@ -661,11 +662,11 @@ public class FirebirdMigrator: Migrator
 
         if (resetIdentity)
         {
-            var names = tables.Select(x => FirebirdScript.Literal(x.Name.ToUpperInvariant())).Join(", ");
+            var names = tables.Select(x => relationIs(x.Name)).Join(" OR ");
 
             builder.Append("  restart_with = IIF(rdb$get_context('SYSTEM', 'ENGINE_VERSION') STARTING WITH '3.', 0, 1);\n");
             builder.Append("  FOR SELECT RDB$RELATION_NAME, RDB$FIELD_NAME FROM RDB$RELATION_FIELDS\n");
-            builder.Append($"      WHERE RDB$GENERATOR_NAME IS NOT NULL AND UPPER(TRIM(RDB$RELATION_NAME)) IN ({names})\n");
+            builder.Append($"      WHERE RDB$GENERATOR_NAME IS NOT NULL AND ({names})\n");
             builder.Append("      INTO :relation_name, :field_name\n");
             builder.Append("  DO\n");
             builder.Append("    EXECUTE STATEMENT 'ALTER TABLE \"' || REPLACE(TRIM(relation_name), '\"', '\"\"') || '\" ALTER \"' || REPLACE(TRIM(field_name), '\"', '\"\"') || '\" RESTART WITH ' || restart_with;\n");
@@ -674,5 +675,22 @@ public class FirebirdMigrator: Migrator
         builder.Append("END");
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    ///     <c>RDB$RELATION_NAME</c> is the table <paramref name="name" /> means: the exact name, or failing
+    ///     a table by that name, the upper-case one an undelimited name is folded to.
+    /// </summary>
+    private static string relationIs(string name)
+    {
+        var exact = FirebirdScript.Literal(name);
+        var folded = SchemaUtils.CatalogName(name);
+        if (folded == name)
+        {
+            return $"RDB$RELATION_NAME = {exact}";
+        }
+
+        return $"(RDB$RELATION_NAME = {exact} OR (RDB$RELATION_NAME = {FirebirdScript.Literal(folded)} AND NOT EXISTS "
+               + $"(SELECT 1 FROM RDB$RELATIONS t WHERE t.RDB$RELATION_NAME = {exact} AND t.RDB$VIEW_BLR IS NULL)))";
     }
 }
