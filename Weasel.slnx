@@ -7,6 +7,7 @@
   <Folder Name="/Build/">
     <File Path=".editorconfig" />
     <File Path=".github/workflows/ci-build-efcore.yml" />
+    <File Path=".github/workflows/ci-build-firebird.yml" />
     <File Path=".github/workflows/ci-build-mssql.yml" />
     <File Path=".github/workflows/ci-build-mysql.yml" />
     <File Path=".github/workflows/ci-build-oracle.yml" />
