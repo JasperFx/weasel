@@ -67,6 +67,11 @@ public class primary_key_order_is_honoured_by_every_provider
         foreach (var name in new[] { "a", "b", "c" }) ora.AddColumn<int>(name).AsPrimaryKey();
         yield return new ProviderTable("Oracle", () => ora.PrimaryKeyColumns, ora.SetPrimaryKeyOrder,
             () => ora.HasExplicitPrimaryKeyOrder);
+
+        var fb = new Firebird.Tables.Table("thing");
+        foreach (var name in new[] { "a", "b", "c" }) fb.AddColumn<int>(name).AsPrimaryKey();
+        yield return new ProviderTable("Firebird", () => fb.PrimaryKeyColumns, fb.SetPrimaryKeyOrder,
+            () => fb.HasExplicitPrimaryKeyOrder);
     }
 
     private static ProviderTable tableFor(string provider)
@@ -141,6 +146,7 @@ public class primary_key_order_is_honoured_by_every_provider
         yield return ["SQLite"];
         yield return ["MySQL"];
         yield return ["Oracle"];
+        yield return ["Firebird"];
     }
 
     [Theory]

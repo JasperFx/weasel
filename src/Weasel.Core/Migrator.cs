@@ -111,6 +111,17 @@ public abstract class
     public bool UseSchemaFingerprinting { get; set; }
 
     /// <summary>
+    ///     The name to use in SQL for one of the fingerprint tables <see cref="UseSchemaFingerprinting" />
+    ///     keeps, <c>{DefaultSchemaName}.{tableName}</c> by default.
+    /// </summary>
+    /// <remarks>
+    ///     A provider whose database has no schema to qualify a table with -- Firebird before 6 -- names
+    ///     the table alone. Every other provider keeps the default, and with it the SQL it has always
+    ///     sent.
+    /// </remarks>
+    protected internal virtual string FingerprintTableName(string tableName) => $"{DefaultSchemaName}.{tableName}";
+
+    /// <summary>
     ///     Read [name].table and [name].function files from the named directory
     ///     to serve as templates for extra DDL (GRANT's probably)
     /// </summary>
@@ -265,6 +276,16 @@ public abstract class
                 .ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
     }
+
+    /// <summary>
+    ///     The order <see cref="SchemaMigration.WriteAllRollbacks" /> undoes a migration's deltas in, for
+    ///     <see cref="SchemaMigration.RollbackAllAsync" /> and a migration file's drop script alike. The
+    ///     base keeps the order they were applied in, which a database that cascades a drop, or leaves
+    ///     whatever used the dropped object invalid, is content with. A provider whose database refuses to
+    ///     drop an object another still uses overrides it.
+    /// </summary>
+    protected internal virtual IEnumerable<ISchemaObjectDelta> OrderRollbacks(IReadOnlyList<ISchemaObjectDelta> deltas)
+        => deltas;
 
     /// <summary>
     ///     Does this exception mean the connection's role was refused for want of privilege,

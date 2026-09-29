@@ -32,7 +32,8 @@ public class check_constraint_conformance
             { "Postgresql", () => new Postgresql.Tables.Table("public.orders"), true },
             { "MySql", () => new MySql.Tables.Table("weasel_testing.orders"), false },
             { "Oracle", () => new Oracle.Tables.Table("WEASEL.ORDERS"), false },
-            { "Sqlite", () => new Sqlite.Tables.Table("orders"), false }
+            { "Sqlite", () => new Sqlite.Tables.Table("orders"), false },
+            { "Firebird", () => new Firebird.Tables.Table("orders"), false }
         };
 
     private static ITable OrdersTable(Func<ITable> factory)
@@ -127,6 +128,7 @@ public class check_constraint_conformance
             MySql.Tables.Table t => t.CheckConstraints,
             Oracle.Tables.Table t => t.CheckConstraints,
             Sqlite.Tables.Table t => t.CheckConstraints,
+            Firebird.Tables.Table t => t.CheckConstraints,
             _ => throw new ArgumentOutOfRangeException(nameof(table))
         };
 

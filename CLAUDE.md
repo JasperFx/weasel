@@ -19,6 +19,7 @@ Weasel is a low-level database abstraction and schema migration library for .NET
 - **SQL Server:** Microsoft.Data.SqlClient
 - **Oracle:** Oracle.ManagedDataAccess.Core
 - **SQLite:** Microsoft.Data.Sqlite with JSON1 extension support
+- **Firebird:** FirebirdSql.Data.FirebirdClient, for Firebird 3, 4 and 5
 - **Testing:** xUnit v3, Shouldly, NSubstitute. Test projects import
   `Tests.Build.props` for the shared runner packages and `OutputType=Exe`
   (required by v3), rather than declaring them individually.
@@ -44,6 +45,12 @@ src/
 │   └── Tables/               # Table handling with Oracle-specific features
 ├── Weasel.Sqlite/            # SQLite implementation (NEW!)
 │   └── Tables/               # Table handling with JSON support
+├── Weasel.Firebird/          # Firebird 3, 4 and 5 implementation
+│   ├── Tables/               # Guarded table DDL, computed columns
+│   ├── Views/                # CREATE OR ALTER views
+│   ├── Functions/            # PSQL functions
+│   ├── Procedures/           # PSQL stored procedures
+│   └── Triggers/             # PSQL triggers
 ├── Weasel.EntityFrameworkCore/ # EF Core bridge: DbContext -> Weasel mapping,
 │   │                         #   EF migration file generation (translation layer,
 │   │                         #   emitter, snapshot differ, db-ef-migration CLI)
@@ -91,6 +98,9 @@ docker compose up  # For PostgreSQL, SQL Server, Oracle
 **Connection Strings (environment variables):**
 - `weasel_postgresql_testing_database` - PostgreSQL connection
 - `weasel_sqlserver_testing_database` - SQL Server connection
+- `weasel_firebird_testing_database` - Firebird connection; the database file it names is only a
+  directory, since each test class creates a file of its own beside it. docker-compose publishes
+  Firebird 3, 4 and 5 on ports 3063, 3064 and 3065, and the default is 3065
 - SQLite tests don't require environment variables
 
 ## Key Abstractions
@@ -121,25 +131,27 @@ Schema teardown splits two ways, and only one of them is safe against additions:
 | SQLite | enumerates `sqlite_master` |
 | SQL Server | enumerates `information_schema` / `sys` |
 | Oracle | enumerates `all_*` |
+| Firebird | enumerates `RDB$*` where `RDB$SYSTEM_FLAG = 0`, repeating until a pass drops nothing |
 
-**Whenever a new object type becomes creatable, the three enumerating teardowns have to learn
+**Whenever a new object type becomes creatable, the four enumerating teardowns have to learn
 about it too.** They will not fail loudly — the object simply survives, and the next thing that
 depends on an empty schema breaks instead. SQL Server's teardown was silently broken for views for
 as long as nothing could create one (weasel#464); Oracle's was the same trap, found before it was
 armed (weasel#465).
 
-So: adding an `ISchemaObject` is not done until `DropSchemaAsync` on SQLite, SQL Server and Oracle
-drops it, with a test that creates one and asserts the schema is empty afterwards. Note also that
-Oracle's `DropSchemaAsync` empties the schema rather than dropping it — a session cannot drop its
-own user — and that a materialized view's container table appears in `all_tables` under the same
-name.
+So: adding an `ISchemaObject` is not done until `DropSchemaAsync` on SQLite, SQL Server, Oracle and
+Firebird drops it, with a test that creates one and asserts the schema is empty afterwards. Note
+also that Oracle's `DropSchemaAsync` empties the schema rather than dropping it — a session cannot
+drop its own user — and that a materialized view's container table appears in `all_tables` under
+the same name. Firebird's empties the database: it has no schemas, and the connection doing the
+work is attached to the database.
 
 #### The introspection query has to terminate itself
 
 The same shape of trap, one layer down. `SchemaMigration` concatenates every object of a migration
 into a single command, separated by `StartNewCommand()` — which is a **no-op on every provider
-except Oracle**. So each object's `ConfigureQueryCommand` output must end in `;`, or it runs
-straight into the next object's query:
+except Oracle and Firebird**. So each object's `ConfigureQueryCommand` output must end in `;`, or
+it runs straight into the next object's query:
 
 ```
 Npgsql.PostgresException : 42601: syntax error at or near "select"
@@ -155,11 +167,17 @@ statements from one command, so `OracleDbCommandBuilder` overrides `StartNewComm
 batch and hand back one command per statement. A `;` there is a syntax error, not a fix — so do not
 "tidy up" Oracle to match the others.
 
+**Firebird is the same exception.** It executes one statement per command too, so
+`FirebirdDbCommandBuilder` splits on `StartNewCommand` as Oracle's builder does, and its queries
+stay unterminated. Firebird would accept one trailing `;`, but the builder strips it rather than
+relying on it, and the test holds Firebird's queries unterminated alongside Oracle's.
+
 `Weasel.Core.Tests/introspection_queries_terminate_themselves.cs` enforces all of this, including
-Oracle's exemption. It also asserts that every `ISchemaObject` type in every provider assembly has
-an instance registered in it, so **a new schema object type fails the build until it is added
-there**. That is deliberate: adding the instance is what gets the query checked. Do not satisfy the
-failure by narrowing the reflection scan.
+Oracle's and Firebird's exemptions. It also asserts that every `ISchemaObject` type in every
+provider assembly has an instance registered in it — a Firebird type in `firebirdObjects()` — so
+**a new schema object type fails the build until it is added there**. That is deliberate: adding
+the instance is what gets the query checked. Do not satisfy the failure by narrowing the reflection
+scan.
 
 ### CreationStyle Enum
 - `CreateIfNotExists` - Safe creation (default)
@@ -208,6 +226,7 @@ GitHub Actions workflows:
 - `ci-build-mssql.yml` - SQL Server CI (Ubuntu)
 - `ci-build-oracle.yml` - Oracle CI (Ubuntu)
 - `ci-build-sqlite.yml` - SQLite CI (Ubuntu, Windows, macOS - multi-platform)
+- `ci-build-firebird.yml` - Firebird CI (Ubuntu, Firebird 3, 4 and 5)
 - `publish_nuget.yml` - NuGet publishing
 
 **SQLite CI Workflow:**

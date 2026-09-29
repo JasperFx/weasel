@@ -22,7 +22,7 @@ public class rebuildable_invalid_deltas_roll_back_in_place
     private static string rollbackOf(ISchemaObjectDelta delta)
     {
         var writer = new StringWriter();
-        new SchemaMigration(delta).WriteAllRollbacks(writer, null!);
+        new SchemaMigration(delta).WriteAllRollbacks(writer, new Sqlite.SqliteMigrator());
         return writer.ToString();
     }
 

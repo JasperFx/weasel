@@ -169,6 +169,7 @@ Each database provider has a `Migrator` subclass that knows how to format SQL fo
 - `SqlServerMigrator` -- uses `GO` batch separators, handles `dbo` schema conventions
 - `OracleMigrator` -- Oracle-specific DDL formatting
 - `SqliteMigrator` -- simplified DDL without schema creation SQL (SQLite schemas are fixed)
+- `FirebirdMigrator` -- one statement per `WAIT` transaction, every `CREATE` and `ADD` guarded, isql scripts
 
 ### Privileges needed to apply a migration
 
@@ -251,7 +252,8 @@ A migration is refused by the database far more often for want of privilege than
 wrong with the DDL. Weasel translates the providers' own permission errors into
 `InsufficientDatabasePrivilegeException`, which names the role, the database, the statement that
 was refused, and the two remedies. The provider exception -- `PostgresException` 42501,
-`SqlException` 262/229/297, `MySqlException` 1142/1044, `OracleException` ORA-01031 -- is kept as
+`SqlException` 262/229/297, `MySqlException` 1142/1044, `OracleException` ORA-01031,
+`FbException` 335544352/335545094/335545264 -- is kept as
 the `InnerException`, so nothing is hidden.
 
 <!-- snippet: sample_catch_insufficient_privilege -->
@@ -335,7 +337,8 @@ migrator.UseSchemaFingerprinting = true;
 ```
 
 With the flag enabled, a successful **full** apply stamps a SHA-256 fingerprint of the configured
-schema's expected DDL into `{DefaultSchemaName}.weasel_schema_fingerprints`. The next full apply
+schema's expected DDL into `{DefaultSchemaName}.weasel_schema_fingerprints` -- on Firebird, which has no schemas,
+`weasel_schema_fingerprints` alone. The next full apply
 recomputes the fingerprint in memory and, when that exact fingerprint is present, returns immediately —
 no global lock, no catalog introspection. Any configuration change (a new table, column, index, or
 managed partition) changes the fingerprint and re-enables the real apply, which then adds a new stamp.

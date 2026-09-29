@@ -23,6 +23,7 @@
         <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
         <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" />
         <ProjectReference Include="..\Weasel.Sqlite\Weasel.Sqlite.csproj" />
+        <ProjectReference Include="..\Weasel.Firebird\Weasel.Firebird.csproj" />
         <ProjectReference Include="..\Weasel.EntityFrameworkCore\Weasel.EntityFrameworkCore.csproj" />
     </ItemGroup>
 

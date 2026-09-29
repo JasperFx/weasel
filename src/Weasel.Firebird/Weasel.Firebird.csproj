@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+        <Description>Firebird 3, 4 and 5 Support and Schema Migration for Weasel</Description>
+        <PackageTags>firebird;ddl;schema;migration</PackageTags>
+        <GenerateAssemblyTitleAttribute>true</GenerateAssemblyTitleAttribute>
+        <GenerateAssemblyDescriptionAttribute>true</GenerateAssemblyDescriptionAttribute>
+        <GenerateAssemblyProductAttribute>true</GenerateAssemblyProductAttribute>
+        <GenerateAssemblyCopyrightAttribute>false</GenerateAssemblyCopyrightAttribute>
+        <GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
+        <GenerateAssemblyFileVersionAttribute>true</GenerateAssemblyFileVersionAttribute>
+        <GenerateAssemblyInformationalVersionAttribute>true</GenerateAssemblyInformationalVersionAttribute>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
+        <!-- AOT readiness per Critter Stack 2026 pillar JasperFx/jasperfx#213. -->
+        <IsAotCompatible>true</IsAotCompatible>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Weasel.Core\Weasel.Core.csproj" />
+    </ItemGroup>
+    <Import Project="../../Analysis.Build.props" />
+</Project>

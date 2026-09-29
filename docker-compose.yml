@@ -37,3 +37,48 @@ services:
           - "MYSQL_USER=weasel"
           - "MYSQL_PASSWORD=P@55w0rd"
 
+  # One service per supported Firebird major. The official images run as SYSDBA with the root
+  # password below, allow a database at any path, and create none on their own: the tests create
+  # a database file per class under /var/lib/firebird/data. The healthcheck talks to the service
+  # manager, which needs no database, with the credentials fbsvcmgr reads from ISC_USER and
+  # ISC_PASSWORD, as the CI workflows do. The first connection right after start fails for about
+  # half a second -- so gate on health, not on the port.
+  firebird3:
+      image: "firebirdsql/firebird:3"
+      ports:
+          - "3063:3050"
+      environment:
+          - "FIREBIRD_ROOT_PASSWORD=P@55w0rd"
+          - "ISC_USER=SYSDBA"
+          - "ISC_PASSWORD=P@55w0rd"
+      healthcheck:
+          test: ["CMD", "/opt/firebird/bin/fbsvcmgr", "localhost:service_mgr", "info_server_version"]
+          interval: 2s
+          timeout: 5s
+          retries: 30
+  firebird4:
+      image: "firebirdsql/firebird:4"
+      ports:
+          - "3064:3050"
+      environment:
+          - "FIREBIRD_ROOT_PASSWORD=P@55w0rd"
+          - "ISC_USER=SYSDBA"
+          - "ISC_PASSWORD=P@55w0rd"
+      healthcheck:
+          test: ["CMD", "/opt/firebird/bin/fbsvcmgr", "localhost:service_mgr", "info_server_version"]
+          interval: 2s
+          timeout: 5s
+          retries: 30
+  firebird5:
+      image: "firebirdsql/firebird:5"
+      ports:
+          - "3065:3050"
+      environment:
+          - "FIREBIRD_ROOT_PASSWORD=P@55w0rd"
+          - "ISC_USER=SYSDBA"
+          - "ISC_PASSWORD=P@55w0rd"
+      healthcheck:
+          test: ["CMD", "/opt/firebird/bin/fbsvcmgr", "localhost:service_mgr", "info_server_version"]
+          interval: 2s
+          timeout: 5s
+          retries: 30

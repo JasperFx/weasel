@@ -161,7 +161,11 @@ public static class DbContextExtensions
 
         try
         {
-            var migration = await SchemaMigration.DetermineAsync(conn, cancellation, schemaObjects).ConfigureAwait(false);
+            // Through the migrator, as the migration path does: its command builder is what splits the
+            // introspection batch on a provider that runs one statement per command -- Oracle and
+            // Firebird -- and its parameter limit is what batches a large model over several round trips.
+            var migration = await SchemaMigration.DetermineAsync(conn, migrator!, cancellation, schemaObjects)
+                .ConfigureAwait(false);
             return new DbContextMigration(conn, migrator, migration);
         }
         finally

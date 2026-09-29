@@ -31,8 +31,8 @@ a hostile name safe, and rejecting it would only mean you could not use Weasel a
 | a line break or a tab | can introduce a `--` comment into an unquoted name |
 | `;` | ends the statement and starts another |
 | `'` | closes a string literal, and names do reach literals — `IF OBJECT_ID('…')`, `pragma_table_info('…')`, `DEFAULT nextval('…')` |
-| the provider's own delimiters | `"` everywhere, `[` and `]` on SQL Server, a backtick on MySQL, a backslash on MySQL |
-| longer than the engine's limit | per-provider, see below |
+| the provider's own delimiters | `"` everywhere, `[` and `]` on SQL Server, a backtick on MySQL, a backslash on MySQL, `^` on Firebird (isql's PSQL terminator) |
+| longer than the engine's limit | per-provider, see below; Firebird checks column and constraint names too |
 
 ::: tip A plain interior space is allowed
 `unit price` is somebody's real legacy column. It cannot smuggle a comment in the way a newline
@@ -62,6 +62,7 @@ per-dialect is the delimiter pair, what counts as a regular identifier, and the 
 | Oracle | `"NAME"` | doubling `"` | not a regular identifier, or a keyword |
 | MySQL | `` `name` `` | doubling the backtick | **always** |
 | SQLite | `"name"` | doubling `"` | not a regular identifier, or a keyword |
+| Firebird | `"NAME"` | doubling `"` | not a regular identifier, or a keyword |
 
 Two of those are worth stating outright:
 
@@ -79,6 +80,7 @@ Two of those are worth stating outright:
 | SQLite | nothing (case-insensitive) | lowercase, unless `PreserveIdentifierCase` |
 | SQL Server | nothing (case-insensitive) | exactly what you wrote |
 | MySQL | nothing | exactly what you wrote |
+| Firebird | UPPERCASE | exactly what you wrote; the catalog holds it upper-cased unless `PreserveIdentifierCase` |
 
 `PreserveIdentifierCase` controls case folding **and nothing else**. Until 9.25 it also switched
 off a space-to-underscore rewrite as a side effect, which meant two unrelated decisions rode on
@@ -95,13 +97,16 @@ that a name genuinely containing its own delimiters cannot be expressed — `[x]
 
 ### Length limits
 
-| PostgreSQL | SQL Server | Oracle | MySQL | SQLite |
-| --- | --- | --- | --- | --- |
-| 64 (`NameDataLength`) | 128 | 128 | 64 | 255 (practical cap) |
+| PostgreSQL | SQL Server | Oracle | MySQL | SQLite | Firebird |
+| --- | --- | --- | --- | --- | --- |
+| 64 (`NameDataLength`) | 128 | 128 | 64 | 255 (practical cap) | 31 bytes (`MaxIdentifierLength`) |
 
 SQLite has no real limit; 255 is a cap Weasel applies so an accidentally generated name fails
 loudly rather than becoming unmanageable. PostgreSQL's is settable via
 `PostgresqlMigrator.NameDataLength`, for a server built with a non-default `NAMEDATALEN`.
+Firebird's is Firebird 3's limit, in UTF-8 bytes; `FirebirdMigrator.MaxIdentifierLength = 63` allows
+63 characters for a database only Firebird 4 or later opens. Firebird refuses a longer name rather than
+truncating it, so Weasel refuses it too.
 
 ## Names are never rewritten
 
@@ -134,4 +139,4 @@ per provider and hoped for:
 - `table_identifier_coverage_conformance` — the union of `AllNames()` and `LocalIdentifiers()` covers every name a table writes.
 - `column_name_conformance` — the caller's column name is the column that gets created, and the index, foreign key and primary key lists agree with it.
 
-A sixth provider joins each suite with one entry in its `Providers` table.
+A new provider joins each suite with one entry in its `Providers` table.

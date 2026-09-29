@@ -131,7 +131,9 @@ public class end_to_end : IAsyncLifetime
         retrieved.NullableCascadeActionValue.ShouldBe(CascadeAction.SetNull);
     }
 
-    [Fact(Skip = "Skipped due to pre-existing bug in Weasel.Oracle schema detection SQL (ORA-03048)")]
+    // Skipped until CreateMigrationAsync introspected through the migrator's command builder: the
+    // plain one sent every Oracle query as one command, which ODP.NET refuses (ORA-03048).
+    [Fact]
     public async Task can_create_migration_and_apply()
     {
         using var scope = _host.Services.CreateScope();

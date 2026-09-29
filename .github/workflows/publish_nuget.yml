@@ -5,7 +5,7 @@ on:
 
 # No concurrency group here, deliberately (weasel#611). This workflow is workflow_dispatch only,
 # each dispatch publishes once, and a cancelled publish -- packages half pushed, the run gone -- is
-# far worse than a duplicated queue slot. The seven ci-build-* workflows do have one.
+# far worse than a duplicated queue slot. The eight ci-build-* workflows do have one.
 
 jobs:
   build:
@@ -47,6 +47,9 @@ jobs:
 
     - name: Pack Weasel.Sqlite
       run: dotnet pack ./src/Weasel.Sqlite/Weasel.Sqlite.csproj -o ./artifacts --configuration Release --no-build
+
+    - name: Pack Weasel.Firebird
+      run: dotnet pack ./src/Weasel.Firebird/Weasel.Firebird.csproj -o ./artifacts --configuration Release --no-build
 
     - name: Pack Weasel.EntityFrameworkCore
       run: dotnet pack ./src/Weasel.EntityFrameworkCore/Weasel.EntityFrameworkCore.csproj -o ./artifacts --configuration Release --no-build

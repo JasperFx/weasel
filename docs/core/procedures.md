@@ -1,6 +1,6 @@
 # Stored Procedures and Functions
 
-Stored procedures and functions work on the four engines that have them. SQLite does not — it has
+Stored procedures and functions work on the five engines that have them. SQLite does not — it has
 no such concept, and `Weasel.Sqlite.Functions` registers connection-scoped functions rather than
 modelling a schema object.
 
@@ -36,6 +36,7 @@ This is where the engines differ, and where a careless implementation reports dr
 | SQL Server | `sys.sql_modules.definition` | the statement verbatim |
 | Oracle | `all_source`, joined by line | the source from `PROCEDURE` onward, without the schema qualifier |
 | MySQL | `information_schema.ROUTINES.action_statement` | the body from `BEGIN` onward |
+| Firebird | `RDB$PROCEDURE_SOURCE`, and `RDB$PROCEDURE_PARAMETERS` for the header | the body after `AS`; the header as parameter rows |
 
 Two of those needed measuring rather than assuming:
 
@@ -63,6 +64,7 @@ procedure is still there and still yours to drop.
 | Oracle | `CREATE OR REPLACE PROCEDURE` |
 | SQL Server | `CREATE OR ALTER PROCEDURE` on both create and update, wrapped in `GO` |
 | MySQL | drop, then create — it has no replace form |
+| Firebird | `CREATE OR ALTER PROCEDURE`, which keeps whatever calls the procedure |
 
 Oracle's delta emits only the `CREATE OR REPLACE`, because its drop has to be an anonymous PL/SQL
 block and ODP.NET cannot execute a block and a DDL statement as one command.
@@ -98,9 +100,12 @@ The catalogs store the same things they store for a procedure, so comparison wor
 | SQL Server | `sys.sql_modules` | verbatim |
 | MySQL | `information_schema.ROUTINES` | the body from `BEGIN`, without the header |
 | Oracle | `all_source` | from `FUNCTION` onwards, without `CREATE OR REPLACE` and without the schema qualifier |
+| Firebird | `RDB$FUNCTION_SOURCE`, and `RDB$FUNCTION_ARGUMENTS` for the header | the body after `AS`; the header as argument rows |
 
-Only Oracle has `CREATE OR REPLACE FUNCTION`. The other three drop and recreate, which their
-`WriteCreateStatement` does in one go, so applying a function is idempotent everywhere.
+Only Oracle has `CREATE OR REPLACE FUNCTION`, and Firebird `CREATE OR ALTER FUNCTION`. The other
+three drop and recreate, which their `WriteCreateStatement` does in one go, so applying a function
+is idempotent everywhere. See [Firebird functions](/firebird/functions) and
+[procedures](/firebird/procedures) for what Firebird compares.
 
 `Function.ForRemoval(name)` declares a function that should not exist: the migration drops it and
 creates nothing.
