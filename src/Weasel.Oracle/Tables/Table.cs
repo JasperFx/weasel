@@ -82,6 +82,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
 
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
+        var createTable = new StringWriter { NewLine = writer.NewLine };
+        writeCreateTable(migrator, createTable);
+
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
             writer.WriteLine($@"
@@ -95,7 +98,8 @@ BEGIN
 END;
 /
 ");
-            writer.WriteLine($"CREATE TABLE {Identifier} (");
+            writer.Write(createTable.ToString());
+            writer.WriteLine("/");
         }
         else
         {
@@ -106,8 +110,40 @@ BEGIN
     SELECT COUNT(*) INTO v_count FROM all_tables WHERE table_name = '{SchemaUtils.EscapeLiteral(Identifier.Name.ToUpperInvariant())}' AND owner = '{SchemaUtils.EscapeLiteral(Identifier.Schema.ToUpperInvariant())}';
     IF v_count = 0 THEN
         EXECUTE IMMEDIATE '");
-            writer.WriteLine($"CREATE TABLE {Identifier} (");
+
+            // Here the statement is the text of a PL/SQL string literal, so every quote inside it has
+            // to be doubled. A column default is where one turns up: DEFAULT '0' used to end the
+            // literal early and fail the whole block with PLS-00103.
+            writer.Write(SchemaUtils.EscapeLiteral(createTable.ToString()));
+
+            writer.WriteLine("';");
+            writer.WriteLine("    END IF;");
+            writer.WriteLine("END;");
+            writer.WriteLine("/");
         }
+
+        foreach (var foreignKey in ForeignKeys)
+        {
+            writer.WriteLine();
+            writer.WriteLine(foreignKey.ToDDL(this));
+            writer.WriteLine("/");
+        }
+
+        foreach (var index in Indexes)
+        {
+            writer.WriteLine();
+            writer.WriteLine(index.ToDDL(this));
+            writer.WriteLine("/");
+        }
+    }
+
+    /// <summary>
+    ///     The bare <c>CREATE TABLE</c> statement: no guard block around it, no statement separator,
+    ///     and no escaping for wherever the caller puts it.
+    /// </summary>
+    private void writeCreateTable(Migrator migrator, TextWriter writer)
+    {
+        writer.WriteLine($"CREATE TABLE {Identifier} (");
 
         if (migrator.Formatting == SqlFormatting.Pretty)
         {
@@ -165,32 +201,6 @@ BEGIN
             case PartitionStrategy.List:
                 writer.WriteLine($") PARTITION BY LIST ({PartitionExpressions.Join(", ")})");
                 break;
-        }
-
-        if (migrator.TableCreation != CreationStyle.DropThenCreate)
-        {
-            writer.WriteLine("';");
-            writer.WriteLine("    END IF;");
-            writer.WriteLine("END;");
-            writer.WriteLine("/");
-        }
-        else
-        {
-            writer.WriteLine("/");
-        }
-
-        foreach (var foreignKey in ForeignKeys)
-        {
-            writer.WriteLine();
-            writer.WriteLine(foreignKey.ToDDL(this));
-            writer.WriteLine("/");
-        }
-
-        foreach (var index in Indexes)
-        {
-            writer.WriteLine();
-            writer.WriteLine(index.ToDDL(this));
-            writer.WriteLine("/");
         }
     }
 
