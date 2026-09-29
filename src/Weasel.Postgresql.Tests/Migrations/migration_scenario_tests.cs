@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using JasperFx;
@@ -97,6 +98,36 @@ public class SchemaMigrationTests : IntegrationContext, IAsyncLifetime
         connectionGlobalLock.Retried.ShouldBeTrue();
     }
 
+
+    [Fact]
+    public async Task reconnecting_disposes_the_connection_it_abandons()
+    {
+        // weasel#664: the reconnection loop replaced `conn` without disposing what it overwrote, and
+        // the finally at the end of the apply only ever sees the last one -- so every reconnection
+        // attempt left a live connection for the finalizer to find, holding a socket and a pool slot
+        // against a server that had just terminated or refused a connection.
+        var connectionGlobalLock = new FlakyConnectionGlobalLock();
+
+        theDatabase.Features["One"].AddTable(SchemaName, "one");
+        await theDatabase.ApplyAllConfiguredChangesToDatabaseAsync(connectionGlobalLock);
+
+        // One attempt that terminated its own backend and asked to reconnect, then the retry that
+        // succeeded -- so exactly one connection was abandoned along the way.
+        connectionGlobalLock.Retried.ShouldBeTrue();
+        connectionGlobalLock.ConnectionsSeen.Count.ShouldBe(2);
+
+        var abandoned = connectionGlobalLock.ConnectionsSeen[0];
+        abandoned.ShouldNotBeSameAs(connectionGlobalLock.ConnectionsSeen[1]);
+
+        // The leak and the fix are not distinguishable by State: both read Closed. FullState tells
+        // them apart, because a connection whose backend was terminated sits at Broken until
+        // something disposes it.
+        abandoned.FullState.ShouldBe(ConnectionState.Closed);
+
+        // And this is the real proof rather than a proxy for it: a disposed NpgsqlConnection refuses
+        // to reopen, where the abandoned-but-undisposed one reopens quite happily.
+        await Should.ThrowAsync<ObjectDisposedException>(() => abandoned.OpenAsync());
+    }
 
     [Fact]
     public async Task assert_fails_with_InvalidOperationException_on_database_not_available_with_no_retries()
@@ -220,8 +251,16 @@ public class FlakyConnectionGlobalLock: IGlobalLock<NpgsqlConnection>
     public bool Failed { get; private set; } = false;
     private const int ApplyChangesLockId = 4004;
 
+    /// <summary>
+    /// Every connection this lock was handed, in order -- so a test can say something about the one
+    /// the reconnection loop walked away from (weasel#664).
+    /// </summary>
+    public List<NpgsqlConnection> ConnectionsSeen { get; } = new();
+
     public async Task<AttainLockResult> TryAttainLock(NpgsqlConnection conn, CancellationToken ct = default)
     {
+        ConnectionsSeen.Add(conn);
+
         if (!Failed)
         {
             try
