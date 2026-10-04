@@ -125,7 +125,10 @@ BEGIN
         foreach (var foreignKey in ForeignKeys)
         {
             writer.WriteLine();
-            writer.WriteLine(foreignKey.ToDDL(this));
+
+            // Guarded, so the script re-runs: the CREATE TABLE above is already behind an
+            // all_tables check, so a second run reaches this and would fail ORA-02275 (weasel#681)
+            foreignKey.WriteGuardedAddStatement(this, writer);
             writer.WriteLine("/");
         }
 

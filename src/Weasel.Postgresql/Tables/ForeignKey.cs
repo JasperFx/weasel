@@ -115,6 +115,50 @@ public class ForeignKey: ForeignKeyBase
         writer.WriteLine();
     }
 
+    /// <summary>
+    ///     The same <c>ADD CONSTRAINT</c>, wrapped so that running it a second time does nothing
+    ///     instead of failing.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         weasel#681. A rendered creation script creates its tables with
+    ///         <c>CREATE TABLE IF NOT EXISTS</c>, so a second run sails past them and reaches this
+    ///         statement — which had no guard of its own, and failed the whole script with
+    ///         <c>42710: constraint "…" for relation "…" already exists</c>. A model with no foreign
+    ///         keys re-ran fine, which is why it went unnoticed. SQL Server already guarded its
+    ///         equivalent with <c>IF OBJECT_ID(…, N'F') IS NULL</c> and Firebird with a catalog probe,
+    ///         so PostgreSQL was the outlier.
+    ///     </para>
+    ///     <para>
+    ///         The guard catches <c>duplicate_object</c> rather than testing <c>pg_constraint</c>
+    ///         first, for the same reason the schema-creation guard in <c>PostgresqlMigrator</c>
+    ///         keeps its <c>EXCEPTION</c> block: no existence check is concurrent-safe, since two
+    ///         sessions can both pass it and then race on the catalog. Catching the error is the
+    ///         check, and it needs no second statement.
+    ///     </para>
+    ///     <para>
+    ///         Like the <c>IF NOT EXISTS</c> around the table itself, this is "create if absent" and
+    ///         not "reconcile": a constraint of this name that differs from the model is left alone
+    ///         rather than replaced. Reconciling is the migration path's job, and
+    ///         <see cref="WriteAddStatement" /> is deliberately left unguarded for it — a delta only
+    ///         ever adds a key it has determined is missing, and leaving that output untouched means
+    ///         no rendered migration changes.
+    ///     </para>
+    /// </remarks>
+    public void WriteGuardedAddStatement(Table parent, TextWriter writer)
+    {
+        var inner = new StringWriter();
+        WriteAddStatement(parent, inner);
+
+        writer.WriteLine("DO $do$");
+        writer.WriteLine("BEGIN");
+        writer.Write(inner.ToString());
+        writer.WriteLine("EXCEPTION");
+        writer.WriteLine("    WHEN duplicate_object THEN NULL;");
+        writer.WriteLine("END");
+        writer.WriteLine("$do$;");
+    }
+
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT IF EXISTS {SchemaUtils.QuoteName(Name)};");
