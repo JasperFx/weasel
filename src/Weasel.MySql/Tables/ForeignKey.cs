@@ -94,6 +94,65 @@ public class ForeignKey: ForeignKeyBase
     protected override DbObjectName ParseLinkedTable(string tableName)
         => DbObjectName.Parse(MySqlProvider.Instance, tableName);
 
+    /// <summary>
+    ///     The foreign key as a table-level constraint for inside <c>CREATE TABLE</c>, rather than as
+    ///     a following <c>ALTER TABLE</c>.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         weasel#686. Declared inline, the key is covered by the table's own
+    ///         <c>CREATE TABLE IF NOT EXISTS</c>, which is what makes a rendered creation script
+    ///         re-runnable. A trailing <c>ALTER TABLE … ADD CONSTRAINT</c> has no guard available on
+    ///         MySQL — there is no <c>IF NOT EXISTS</c> for a constraint and no anonymous block to
+    ///         catch the duplicate with, the way PostgreSQL and Oracle have (weasel#681) — so a
+    ///         second run of the script failed with <c>1826, Duplicate foreign key constraint
+    ///         name</c>.
+    ///     </para>
+    ///     <para>
+    ///         InnoDB resolves an inline foreign key at <c>CREATE TABLE</c> time, so the referenced
+    ///         table has to exist already. That is why this became available only once weasel#677
+    ///         made the script order its tables by dependency; before that it would have swapped one
+    ///         failure for another.
+    ///     </para>
+    ///     <para>
+    ///         <see cref="ToDDL" /> is unchanged and still the migration path's statement: a delta
+    ///         adds a key to a table that already exists, where an <c>ALTER</c> is the only option.
+    ///     </para>
+    /// </remarks>
+    public void WriteInlineDefinition(TextWriter writer)
+    {
+        if (LinkedTable == null)
+        {
+            throw new InvalidOperationException("LinkedTable must be set before generating DDL");
+        }
+
+        writer.Write(
+            $"CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY ({_columnNames.Select(SchemaUtils.QuoteName).Join(", ")})");
+        writer.Write(
+            $" REFERENCES {LinkedTable.QualifiedName} ({_linkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
+
+        if (OnDelete != CascadeAction.NoAction)
+        {
+            writer.Write($" ON DELETE {GetCascadeActionSql(OnDelete)}");
+        }
+
+        if (OnUpdate != CascadeAction.NoAction)
+        {
+            writer.Write($" ON UPDATE {GetCascadeActionSql(OnUpdate)}");
+        }
+    }
+
+    /// <summary>
+    ///     The inline declaration as a string. See <see cref="WriteInlineDefinition" />.
+    /// </summary>
+    public string ToInlineDefinition()
+    {
+        var writer = new StringWriter();
+        WriteInlineDefinition(writer);
+
+        return writer.ToString();
+    }
+
     public string ToDDL(Table parent)
     {
         if (LinkedTable == null)

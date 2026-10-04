@@ -141,6 +141,10 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
                 lines.Add($"    UNIQUE KEY {SchemaUtils.QuoteName(index.Name)} ({SchemaUtils.QuoteName(index.Columns[0])})");
             }
 
+            // Inline rather than a trailing ALTER, so the table's own IF NOT EXISTS covers them and
+            // the script re-runs -- MySQL has no guard available for ADD CONSTRAINT (weasel#686)
+            lines.AddRange(ForeignKeys.Select(fk => $"    {fk.ToInlineDefinition()}"));
+
             for (var i = 0; i < lines.Count - 1; i++)
             {
                 writer.WriteLine(lines[i] + ",");
@@ -164,6 +168,10 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             {
                 lines.Add($"UNIQUE KEY {SchemaUtils.QuoteName(index.Name)} ({SchemaUtils.QuoteName(index.Columns[0])})");
             }
+
+            // Inline rather than a trailing ALTER, so the table's own IF NOT EXISTS covers them and
+            // the script re-runs -- MySQL has no guard available for ADD CONSTRAINT (weasel#686)
+            lines.AddRange(ForeignKeys.Select(fk => fk.ToInlineDefinition()));
 
             for (var i = 0; i < lines.Count - 1; i++)
             {
@@ -222,12 +230,6 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         }
 
         writer.WriteLine(";");
-
-        foreach (var foreignKey in ForeignKeys)
-        {
-            writer.WriteLine();
-            writer.WriteLine(foreignKey.ToDDL(this));
-        }
 
         // Skip indexes that were already written inline (AUTO_INCREMENT unique indexes)
         var autoIncrementIndexNames = Indexes
