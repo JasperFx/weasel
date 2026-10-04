@@ -207,6 +207,43 @@ This one is SQL Server's alone. PostgreSQL analyzes each statement of a multi-st
 it reaches it, Oracle already sends one statement per command, and MySQL and SQLite parse per
 statement.
 
+### A `Type`-keyed seam cannot be a generic, because of Native AOT
+
+`MakeGenericType` closes an instantiation whose type arguments are all **reference** types — they
+share one canonical body — and fails when any argument is a **value** type, because that needs code
+ILC never generated. So any API whose only entry point is a generic is unreachable from a consumer
+that holds `Type`s, which is what Marten's `ProviderGraph` and Polecat's `DocumentMapping` do:
+
+```
+System.NotSupportedException: 'Weasel.Core.Identity.ValueTypeIdentification`3[Doc,FooId,System.Guid]'
+is missing native code or metadata.
+```
+
+**Reflection is not the way out, and this is the part that keeps being rediscovered.** Holding the
+instance as `object` and invoking through `MethodInfo` fails differently — `GetMethods()` comes back
+empty and you get `Sequence contains no matching element`, because nothing statically references
+those members and the trimmer took their metadata too. The seam has to be something referenced: a
+**non-generic interface** the generic one satisfies (weasel#689), and a **non-generic factory** that
+builds the implementation (weasel#690).
+
+Two things that are easy to get wrong:
+
+- **Default-implement every member of the non-generic facade on the generic interface.** Adding a
+  base interface is only non-breaking because the runtime finds those bodies for types compiled
+  before it existed — otherwise it is the `TypeLoadException` of the section below.
+- **Branch on `RuntimeFeature.IsDynamicCodeSupported`, not on a caught `NotSupportedException`.** It
+  is a published feature switch: ILC substitutes it to `false` and trims the dead branch, so the AOT
+  build neither warns about the `MakeGenericType` it will never reach nor carries it. A `catch`
+  would do neither, and would swallow real failures. Keep the generic path for hosts that have
+  dynamic code — the reflected fallback is slower, and most processes are not natively published.
+
+Note what is *not* broken: a strategy generic in the document type alone constructs fine under AOT,
+because a document type is a class. That is why this arrives looking narrow. `Weasel.Core.AotSmoke`
+builds with `IsAotCompatible`, `TrimMode=full` and the IL codes as errors, so a new call site that
+loses the guard fails CI — but the analyzer cannot prove the runtime half, so **publish it natively
+and run it** (`dotnet publish src/Weasel.Core.AotSmoke -r <rid> -p:PublishAot=true`) before believing
+an AOT claim.
+
 ### Every new interface member needs a default implementation
 
 **Weasel does not ship breaking changes.** Adding a member to a public interface without a default
