@@ -40,6 +40,12 @@ public class BatchBuilder: ICommandBuilder
         ? null
         : _current!.Parameters[^1].ParameterName;
 
+    /// <summary>
+    ///     How many parameters the command being filled right now already carries — reset at each
+    ///     <see cref="StartNewCommand" />. See <see cref="Weasel.Core.ICommandBuilder.ParameterCount" />.
+    /// </summary>
+    public int ParameterCount => _current?.Parameters.Count ?? 0;
+
     public void Append(string sql)
     {
         _current ??= appendCommand();

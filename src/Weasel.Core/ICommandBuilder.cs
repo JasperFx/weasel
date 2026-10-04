@@ -29,6 +29,35 @@ public interface ICommandBuilder
     /// </summary>
     string? LastParameterName { get; }
 
+    /// <summary>
+    ///     How many parameters the command currently being built already carries, so a caller
+    ///     rendering a value list can decide against the provider's per-command limit —
+    ///     <see cref="Migrator.MaxParametersPerCommand" />.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This is the count for the <b>current command</b>, not a batch-wide total, because the
+    ///         limit it exists to be compared against is itself per command. Every builder that
+    ///         spreads work over several commands — the PostgreSQL and SQL Server <c>BatchBuilder</c>s,
+    ///         and the Oracle and Firebird <c>DbCommandBuilder</c>s, which split a batch because their
+    ///         driver executes one statement per command — counts from the command it is filling now
+    ///         and resets at each <see cref="StartNewCommand" />. On the providers that concatenate
+    ///         into one command, <see cref="StartNewCommand" /> is a no-op and the count simply keeps
+    ///         rising, which is correct: there is only ever one command to compare against the limit.
+    ///     </para>
+    ///     <para>
+    ///         Read this rather than parsing an index back out of <see cref="LastParameterName" />:
+    ///         that assumes the naming scheme stays positional, and it is simply wrong for parameters
+    ///         added through <c>AddParameters(IDictionary&lt;,&gt;)</c> or <c>AppendWithParameters</c>,
+    ///         which do not go through <see cref="ParameterNames.ForPosition" />.
+    ///     </para>
+    ///     <para>
+    ///         A builder that renders values as literals rather than binding them has no parameters
+    ///         to count and answers 0.
+    ///     </para>
+    /// </remarks>
+    int ParameterCount { get; }
+
     void Append(string sql);
     void Append(char character);
 
