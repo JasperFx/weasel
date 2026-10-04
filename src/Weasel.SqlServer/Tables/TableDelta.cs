@@ -187,8 +187,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         }
 
         // Missing columns
-        foreach (var column in Columns.Missing) writer.WriteLine(column.AddColumnSql(Expected));
-
+        foreach (var column in Columns.Missing)
+        {
+            writer.WriteLine(column.AddColumnSql(Expected));
+            endBatch(writer);
+        }
 
         // Different columns
         foreach (var change1 in Columns.Different)
@@ -209,6 +212,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             {
                 writer.WriteLine(change1.Expected.AlterColumnTypeSql(Expected, change1.Actual));
             }
+
+            endBatch(writer);
         }
 
         writeForeignKeyUpdates(writer);
@@ -361,7 +366,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         }
 
         // Extra columns
-        foreach (var column in Columns.Extras) writer.WriteLine(column.AddColumnSql(Expected));
+        foreach (var column in Columns.Extras)
+        {
+            writer.WriteLine(column.AddColumnSql(Expected));
+            endBatch(writer);
+        }
 
         // Different columns
         foreach (var change1 in Columns.Different)
@@ -380,6 +389,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             {
                 writer.WriteLine(change1.Actual.AlterColumnTypeSql(Actual, change1.Expected));
             }
+
+            endBatch(writer);
         }
 
         foreach (var change in ForeignKeys.Different) change.Actual.WriteAddStatement(Expected, writer);
@@ -426,6 +437,38 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 break;
         }
     }
+
+    /// <summary>
+    ///     Ends the batch after a statement that adds, re-adds or retypes a column (weasel#668).
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     SQL Server compiles a whole batch before running any of it, and binds column names
+    ///     against tables that already exist at compile time -- deferred name resolution covers
+    ///     only tables that do not exist yet. So anything in the same batch whose <b>expression</b>
+    ///     names a column this delta is adding fails to compile with error 207, "Invalid column
+    ///     name", and the <c>ALTER TABLE ... ADD</c> never runs either, because nothing in a batch
+    ///     that did not compile does. A filtered index's predicate, a check constraint and a
+    ///     computed definition are all compiled and all fail this way. A <c>CREATE INDEX</c> key
+    ///     list, an <c>INCLUDE</c> list and a foreign key's columns are metadata references that
+    ///     resolve when the statement runs, and they were never affected -- which is exactly why
+    ///     the report arrived as a filtered index: a plain one on the same new column works.
+    ///     </para>
+    ///     <para>
+    ///     Separating after <i>every</i> column statement rather than once after the pass is not
+    ///     belt-and-braces: two statements inside the missing-columns pass alone are enough, since
+    ///     a computed column can be derived from another column the same delta is adding. One
+    ///     batch per changed column is the cost, and only on a delta that changes a column.
+    ///     </para>
+    ///     <para>
+    ///     A separator in the rendered text is what fixes both paths at once. Every runtime path
+    ///     splits on it already -- <c>SqlServerMigrator.executeCommand</c>,
+    ///     <c>Migrator.executeRollback</c> and <c>SchemaObjectsExtensions</c> -- and so do sqlcmd
+    ///     and SSMS, which is what a generated migration script is run by. Nothing would help the
+    ///     script path except text.
+    ///     </para>
+    /// </remarks>
+    private static void endBatch(TextWriter writer) => writer.WriteLine(SqlServerBatchSplitter.Separator);
 
     private void rollbackIndexes(TextWriter writer)
     {

@@ -18,6 +18,14 @@ namespace Weasel.SqlServer;
 public static class SqlServerBatchSplitter
 {
     /// <summary>
+    ///     What <see cref="Split" /> splits on, for the DDL writers that have to end a batch
+    ///     deliberately. Emitted on a line of its own; the splitter recognizes rather more than
+    ///     this (a repeat count, a trailing semicolon, either case), but there is no reason for
+    ///     Weasel to write anything but the plain word.
+    /// </summary>
+    public const string Separator = "GO";
+
+    /// <summary>
     ///     A batch separator: a line whose entire content is <c>GO</c>, optionally followed by a repeat
     ///     count and/or a semicolon. Case insensitive because <c>go</c> is equally valid, and multiline
     ///     so that <c>^</c> and <c>$</c> mean line boundaries. The group around the count is
