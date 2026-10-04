@@ -239,6 +239,74 @@ public class parameter_count_reports_the_current_command
     }
 
     /// <summary>
+    ///     <see cref="ICommandBuilder.ParameterCount" /> must keep its default implementation, because
+    ///     without one it is a <b>runtime</b> break for every builder already compiled against an
+    ///     older Weasel.
+    /// </summary>
+    /// <remarks>
+    ///     weasel#682. Adding this member with no default shipped a hole that no amount of Weasel CI
+    ///     could see — Weasel builds, Weasel's tests pass, downstream restores and compiles — and
+    ///     then the CLR refuses the type the first time a host loads it:
+    ///     <code>
+    ///     System.TypeLoadException: Method 'get_ParameterCount' in type
+    ///     'Marten.Internal.CompiledQueries.CompiledQueryPlan' from assembly
+    ///     'Marten, Version=9.45.0.0' does not have an implementation.
+    ///     </code>
+    ///     Measured against the published Marten 9.45.0 with Weasel.Core resolved up, which is what
+    ///     NuGet does to anyone who upgrades Weasel without also upgrading Marten. Same shape as
+    ///     weasel#616, one level deeper: that one was a defaulted parameter, this one a new interface
+    ///     member. A reflected interface method is non-abstract exactly when it has a default body,
+    ///     so that is what this asserts.
+    /// </remarks>
+    [Fact]
+    public void the_parameter_count_member_has_a_default_implementation()
+    {
+        var getter = typeof(ICommandBuilder).GetMethod("get_ParameterCount");
+
+        getter.ShouldNotBeNull();
+        getter.IsAbstract.ShouldBeFalse(
+            "ParameterCount needs a default interface member, or every ICommandBuilder compiled against an earlier Weasel fails to load with TypeLoadException");
+    }
+
+    /// <summary>
+    ///     And the default has to be the one that cannot be mistaken for a real answer. A stale
+    ///     builder reporting 0 would tell a caller the command's whole budget is free, which is the
+    ///     dangerous direction to be wrong in; a negative sentinel forces the caller to notice.
+    /// </summary>
+    [Fact]
+    public void the_default_reports_an_unknown_count_rather_than_zero()
+    {
+        ICommandBuilder stale = new BuilderFromAnEarlierWeasel();
+
+        stale.ParameterCount.ShouldBe(ICommandBuilder.UnknownParameterCount);
+        stale.ParameterCount.ShouldBeNegative();
+    }
+
+    /// <summary>
+    ///     Stands in for a builder compiled before <see cref="ICommandBuilder.ParameterCount" />
+    ///     existed: it implements every other member and leaves that one to the default.
+    /// </summary>
+    private class BuilderFromAnEarlierWeasel: ICommandBuilder
+    {
+        public string TenantId { get; set; } = string.Empty;
+        public string? LastParameterName => null;
+        public void Append(string sql) { }
+        public void Append(char character) { }
+        public void AppendParameters(params object[] parameters) { }
+        public DbParameter AppendParameter(object value) => throw new NotSupportedException();
+
+        public IGroupedParameterBuilder CreateGroupedParameterBuilder(char? separator = null) =>
+            throw new NotSupportedException();
+
+        public DbParameter[] AppendWithDbParameters(string text) => [];
+        public DbParameter[] AppendWithDbParameters(string text, char placeholder) => [];
+        public void StartNewCommand() { }
+        public void AddParameters(object parameters) { }
+        public void AddParameters(IDictionary<string, object?> parameters) { }
+        public void AddParameters<T>(IDictionary<string, T> parameters) { }
+    }
+
+    /// <summary>
     ///     Nothing hand-rolls the count: every builder a consumer can reach has to answer, so a new
     ///     one that forgets and inherits a wrong answer fails here rather than silently over-reporting
     ///     a budget to a caller that is trying to stay under it.

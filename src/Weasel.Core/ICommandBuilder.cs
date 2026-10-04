@@ -55,8 +55,28 @@ public interface ICommandBuilder
     ///         A builder that renders values as literals rather than binding them has no parameters
     ///         to count and answers 0.
     ///     </para>
+    ///     <para>
+    ///         <b>Returns <see cref="UnknownParameterCount" /> (-1) from a builder compiled against a
+    ///         Weasel older than 9.40.</b> The default implementation exists only so such a builder
+    ///         still loads: adding a member to this interface without one is a <b>runtime</b> break,
+    ///         not a compile-time one — the CLR refuses the type with
+    ///         <c>TypeLoadException: … does not have an implementation</c> the first time it is
+    ///         loaded, which is how every published Marten, Polecat and Fisher would have failed
+    ///         against 9.40 (weasel#682, and the same shape as weasel#616). A caller must therefore
+    ///         treat a negative answer as "no information" and take whatever conservative path it
+    ///         would have taken before this member existed, rather than reading it as a count.
+    ///         Every builder in Weasel itself overrides it, so -1 only ever comes from outside.
+    ///     </para>
     /// </remarks>
-    int ParameterCount { get; }
+    int ParameterCount => UnknownParameterCount;
+
+    /// <summary>
+    ///     What <see cref="ParameterCount" /> answers when the builder cannot report one — see the
+    ///     remarks there. Negative rather than 0 on purpose: 0 is a real count and would tell a
+    ///     caller the command's whole budget is still free, which is the dangerous direction to be
+    ///     wrong in.
+    /// </summary>
+    public const int UnknownParameterCount = -1;
 
     void Append(string sql);
     void Append(char character);

@@ -207,6 +207,64 @@ This one is SQL Server's alone. PostgreSQL analyzes each statement of a multi-st
 it reaches it, Oracle already sends one statement per command, and MySQL and SQLite parse per
 statement.
 
+### Every new interface member needs a default implementation
+
+**Weasel does not ship breaking changes.** Adding a member to a public interface without a default
+implementation is one, even though nothing in this repository can tell you so:
+
+- Weasel builds. Weasel's own tests pass — every in-tree implementer gets the new member.
+- Downstream **restores**, and downstream **compiles** if you rebuild it from source.
+- The CLR then refuses the type the first time a host loads it.
+
+```
+System.TypeLoadException: Method 'get_ParameterCount' in type
+'Marten.Internal.CompiledQueries.CompiledQueryPlan' from assembly
+'Marten, Version=9.45.0.0' does not have an implementation.
+```
+
+That is weasel#682: `ParameterCount` went onto `Weasel.Core.ICommandBuilder` abstract, and every
+**already-published** Marten, Polecat and Fisher stopped loading against it. NuGet resolves Weasel up
+on its own, so upgrading Weasel alone was enough to break a working application. It reached master
+with 22/22 green CI.
+
+So: **a new member on a public interface gets `=> default-expression`, always.** `ICommandBuilder`,
+`ISchemaObject`, `ISchemaObjectDelta`, `IDatabase` and friends all have implementers outside this
+repository — `Marten.Internal.CompiledQueries.CompiledQueryPlan`, `Polecat.Linq.Joins.AliasingCommandBuilder`
+and `Fisher.Linq.SqlGeneration.LiteralRenderingCommandBuilder` are the known ones, and there will be
+others nobody has told us about.
+
+**Choose the default so a stale implementer's answer cannot be mistaken for a real one.** The
+temptation is a neutral-looking zero or empty; that is usually the wrong direction to be wrong in.
+`ParameterCount` defaults to `UnknownParameterCount` (`-1`) rather than `0` precisely because `0` is
+a legitimate count that would tell a caller the command's whole parameter budget was free, which is
+the opposite of safe for a member that exists to keep callers under a limit. Document the sentinel on
+the member and say what a caller must do when it sees one.
+
+When there is genuinely no safe default, the answer is a **separate capability interface** a builder
+may also implement, with callers type-testing — not an abstract member on the existing one, and not a
+major-version break scheduled for later.
+
+`Weasel.Core.Tests/parameter_count_reports_the_current_command.cs` holds the two guards for this:
+a reflected interface method is non-abstract exactly when it carries a default body, and a stand-in
+implementer pins the sentinel's value and sign.
+
+**None of that is a substitute for the only check that actually catches this class of defect:** boot
+a host against a **published** downstream package, not one you rebuilt from source. Rebuilding
+Marten and Polecat from source is what hid weasel#682 through a full local verification pass. The
+cheap version is a throwaway console project referencing the downstream package plus the local Weasel
+build, forcing the interface map:
+
+```csharp
+var t = typeof(Marten.IDocumentStore).Assembly
+    .GetType("Marten.Internal.CompiledQueries.CompiledQueryPlan");
+var map = t.GetInterfaceMap(typeof(Weasel.Core.ICommandBuilder));   // throws if the type is unloadable
+```
+
+weasel#616 is the same category one level shallower: defaulting a parameter on a public method
+changed its signature, so `WolverineFx.SqlServer` threw `MissingMethodException` against
+Weasel.SqlServer 9.33.0. That one reached NuGet and needed 9.34.0 to repair it. Restore was clean,
+compile was clean, and it only failed when a host booted.
+
 ### CreationStyle Enum
 - `CreateIfNotExists` - Safe creation (default)
 - `DropThenCreate` - Drop existing first
