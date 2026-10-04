@@ -123,6 +123,61 @@ public class generated_script_runs_in_dependency_order: IntegrationContext
     }
 
     /// <summary>
+    ///     weasel#681. The script has to be re-runnable, which is the other half of being usable: a
+    ///     creation script that only works against a virgin schema is a trap, and the natural thing
+    ///     an operator does after a partial failure is run it again.
+    /// </summary>
+    /// <remarks>
+    ///     The table creations carry <c>IF NOT EXISTS</c>, so a second run sails past them and
+    ///     reaches the trailing <c>ALTER TABLE … ADD CONSTRAINT</c>, which had no guard of its own:
+    ///     <c>42710: constraint "…" for relation "…" already exists</c>. A model with no foreign keys
+    ///     re-ran fine, which is why this went unnoticed. SQL Server already guarded its equivalent
+    ///     with <c>IF OBJECT_ID(…, N'F') IS NULL</c>, and Firebird with its <c>WriteGuarded</c>
+    ///     probe, so PostgreSQL was the outlier among the providers that emit a trailing ALTER.
+    /// </remarks>
+    [Fact]
+    public async Task the_script_re_runs()
+    {
+        await ResetSchema();
+
+        var db = new DatabaseWithTables("scriptorder", theDataSource);
+        db.AddTable(table("so_rerun_child", "so_rerun_parent"));
+        db.AddTable(table("so_rerun_parent"));
+
+        var script = db.ToDatabaseScript();
+
+        await executeAsync(script);
+        await executeAsync(script);
+
+        (await constraintCountAsync()).ShouldBe(1);
+        await db.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    /// <summary>
+    ///     And a third run, because the guard has to be the kind that keeps working rather than the
+    ///     kind that papers over one repeat.
+    /// </summary>
+    [Fact]
+    public async Task the_script_re_runs_repeatedly()
+    {
+        await ResetSchema();
+
+        var db = new DatabaseWithTables("scriptorder", theDataSource);
+        db.AddTable(table("so_thrice_child", "so_thrice_parent"));
+        db.AddTable(table("so_thrice_parent"));
+
+        var script = db.ToDatabaseScript();
+
+        for (var i = 0; i < 3; i++)
+        {
+            await executeAsync(script);
+        }
+
+        (await constraintCountAsync()).ShouldBe(1);
+        await db.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    /// <summary>
     ///     A mutual reference has no valid creation order, so the script cannot be made to run and
     ///     the sort deliberately does not pretend otherwise — see <see cref="SchemaObjectOrdering" />.
     ///     Pinned so that the limit is a decision on record rather than a surprise, and so that the

@@ -144,7 +144,10 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
             }
 
             writer.WriteLine();
-            writer.WriteLine(foreignKey.ToDDL(this));
+
+            // Guarded, so the script re-runs: the tables above are IF NOT EXISTS, so a second run
+            // reaches this and would fail 42710 without it (weasel#681)
+            foreignKey.WriteGuardedAddStatement(this, writer);
         }
 
         if (Partitioning != null)
