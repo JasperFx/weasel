@@ -166,7 +166,10 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
         {
             m.WriteSchemaCreationSql(schemaNames, w);
 
-            foreach (var group in BuildFeatureSchemas()) group.WriteFeatureCreation(m, w);
+            // In dependency order, not BuildFeatureSchemas order: a table's referenced table may
+            // belong to another feature, and sorting inside a feature cannot reach that (weasel#677)
+            foreach (var group in SchemaObjectOrdering.InDependencyOrder(BuildFeatureSchemas()))
+                group.WriteFeatureCreation(m, w);
         });
 
         return writer.ToString();
@@ -234,7 +237,9 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             }, ct).ConfigureAwait(false);
         }
 
-        foreach (var feature in BuildFeatureSchemas())
+        // all.sql executes these in the order they are written here, so the feature order is the
+        // script order -- and each feature is its own file, so only this can order across them
+        foreach (var feature in SchemaObjectOrdering.InDependencyOrder(BuildFeatureSchemas()))
         {
             var scriptName = $"{feature.Identifier}.sql";
             scriptNames.Add(scriptName);
