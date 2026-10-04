@@ -25,9 +25,14 @@
 //     caller-facing contract).
 
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using JasperFx;
+using JasperFx.Core.Reflection;
 using Weasel.Core;
+using Weasel.Core.Identity;
 using Weasel.Core.Migrations;
+using Weasel.Core.Sequences;
 using DbCommandBuilder = Weasel.Core.DbCommandBuilder;
 
 // --- DbObjectName --------------------------------------------------------
@@ -150,9 +155,31 @@ if (syntax.QuoteIdentifier("x") != "\"x\"" ||
     return 1;
 }
 
+// --- Identifications.ForValueType ---------------------------------------
+// weasel#690. A strong-typed id is the one identity shape whose strategy
+// cannot be built by closing a generic under AOT: TInner is the wrapped
+// primitive and TOuter is usually a readonly record struct, so two of the
+// three type arguments are value types and the instantiation has no native
+// code. Identifications.ForValueType branches on
+// RuntimeFeature.IsDynamicCodeSupported, which ILC substitutes to false and
+// then trims — so this call site must produce NO IL3050, even though the
+// branch it does not take calls MakeGenericType. That is what this section
+// holds: IL3050 is an error in this project.
+//
+// IL2026 is suppressed rather than avoided, because it is accurate and not
+// what is under test here: the strategy really does read the id member and
+// the wrapper's value property reflectively, and a consumer keeps both
+// rooted. The AOT dimension is the one weasel#690 is about.
+
+if (!IdentitySmoke.StrongTypedIdRoundTrips())
+{
+    Console.Error.WriteLine("Identifications.ForValueType regression.");
+    return 1;
+}
+
 Console.WriteLine($"Weasel.Core AOT smoke OK — exercised {nameof(DbObjectName)}, " +
                   $"{nameof(ForeignKeyBase)}.Parse, {nameof(TableBase<SmokeColumn, SmokeIndex, SmokeForeignKey>)}, " +
-                  $"{nameof(IDdlSyntaxStrategy)}.");
+                  $"{nameof(IDdlSyntaxStrategy)}, {nameof(Identifications)}.{nameof(Identifications.ForValueType)}.");
 return 0;
 
 
@@ -310,3 +337,45 @@ internal sealed class SmokeSyntax: IDdlSyntaxStrategy
     public string StatementTerminator => ";";
 }
 
+
+
+/// <summary>
+///     weasel#690's shape: a document whose id is a wrapper struct over a Guid.
+/// </summary>
+internal readonly record struct SmokeId(Guid Value);
+
+internal sealed class SmokeDocument
+{
+    public SmokeId Id { get; set; }
+}
+
+internal static class IdentitySmoke
+{
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification =
+            "The strong-typed id strategy reads the id member and the wrapper's value property reflectively by design; both are rooted by this project. The AOT dimension (IL3050) is what this smoke test holds, and it is not suppressed.")]
+    public static bool StrongTypedIdRoundTrips()
+    {
+        var idMember = typeof(SmokeDocument).GetProperty(nameof(SmokeDocument.Id))!;
+        var valueType = ValueTypeInfo.ForType(typeof(SmokeId));
+
+        var identification = Identifications.ForValueType(typeof(SmokeDocument), idMember, valueType,
+            typeof(SmokeDocument));
+
+        var document = new SmokeDocument();
+        var assigned = identification.AssignIfMissing(document, new SmokeSequenceSource());
+
+        return assigned is SmokeId { Value: var value }
+               && value != Guid.Empty
+               && document.Id.Value == value
+               && identification.AssignIfMissing(document, new SmokeSequenceSource()).Equals(assigned)
+               && identification.RawSqlType == typeof(Guid)
+               && identification.ToRawSqlValue(assigned).Equals(value);
+    }
+}
+
+internal sealed class SmokeSequenceSource: ISequenceSource
+{
+    public ISequence SequenceFor(Type documentType)
+        => throw new NotSupportedException("The smoke document's id is a Guid, so no sequence is needed.");
+}
