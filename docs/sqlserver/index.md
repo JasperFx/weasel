@@ -91,6 +91,27 @@ AS
 GO
 ```
 
+A table update that adds, re-adds or retypes a column ends the batch after each such statement as
+well:
+
+```sql
+alter table myschema.docs add expires datetimeoffset NULL;
+GO
+
+CREATE INDEX idx_docs_expires ON myschema.docs (expires) WHERE ([expires] IS NOT NULL);
+```
+
+SQL Server compiles a whole batch before running any of it, and binds column names against tables
+that already exist at compile time — deferred name resolution covers only tables that do not exist
+yet. Anything in the same batch whose *expression* names the new column therefore fails to compile
+with error 207, `Invalid column name`, and the `ALTER TABLE ... ADD` does not run either, because
+nothing in a batch that did not compile does. A filtered index's predicate, a check constraint and a
+computed column's definition are all compiled this way; an index's key columns, its `INCLUDE` list
+and a foreign key's columns are metadata references that resolve when the statement runs and were
+never affected. The separator covers all of them (weasel#668), on the rollback as much as on the
+update. A table being created for the first time was never affected either way, since the column is
+created with the table.
+
 `sqlcmd -i` and SQL Server Management Studio both understand `GO`, so a script file written out by
 `WriteMigrationFileAsync` (which is what `db-patch` uses), `WriteTemplatedFile` or `ToDatabaseScript`
 runs as it stands. A bare `WriteAllUpdates` render is the DDL on its own: it has the `GO` lines but

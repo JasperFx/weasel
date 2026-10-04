@@ -161,6 +161,34 @@ an instance registered in it, so **a new schema object type fails the build unti
 there**. That is deliberate: adding the instance is what gets the query checked. Do not satisfy the
 failure by narrowing the reflection scan.
 
+### SQL Server binds column names when it compiles the batch
+
+SQL Server compiles a whole batch before running any of it, and resolves column names against
+tables that already exist at that point — deferred name resolution covers only tables that do not
+exist yet. So a delta that adds a column and, in the same batch, anything whose **expression** names
+that column fails with error 207, `Invalid column name`, and the `ALTER TABLE ... ADD` never runs
+either (weasel#668).
+
+The line is expression vs. name list, which is why this arrived as a bug report about a *filtered*
+index rather than about indexes:
+
+| In the same batch as the column add | |
+|---|---|
+| filtered index predicate, check constraint, computed column definition | compiled → error 207 |
+| index key columns, index `INCLUDE` list, foreign key columns | resolved at execution → fine |
+
+`TableDelta.WriteUpdate` and `WriteRollback` (Weasel.SqlServer) therefore end the batch after
+*every* column statement, not once after the pass: a computed column can be derived from another
+column the same delta is adding, so two statements inside the missing-columns pass alone are enough
+to hit it. **Anything new emitted after a column change in those two methods needs to assume the
+column is not visible until the separator.** `Weasel.SqlServer.Tests/Tables/adding_a_column_and_something_that_references_it.cs`
+covers both sides of the table above, including the three shapes that work, so a reordering cannot
+quietly break them.
+
+This one is SQL Server's alone. PostgreSQL analyzes each statement of a multi-statement command as
+it reaches it, Oracle already sends one statement per command, and MySQL and SQLite parse per
+statement.
+
 ### CreationStyle Enum
 - `CreateIfNotExists` - Safe creation (default)
 - `DropThenCreate` - Drop existing first

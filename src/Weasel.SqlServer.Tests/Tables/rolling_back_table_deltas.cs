@@ -65,6 +65,24 @@ public class rolling_back_table_deltas: IntegrationContext
         await AssertRollbackIsSuccessful();
     }
 
+    /// <summary>
+    ///     weasel#668 on the way back. Rolling the drop out re-adds the column and then recreates
+    ///     the filtered index on it; a predicate is an expression, so SQL Server binds it when it
+    ///     compiles the batch, and without a separator after the column the whole rollback failed
+    ///     to compile with "Invalid column name" -- leaving neither the column nor the index.
+    /// </summary>
+    [Fact]
+    public async Task a_filtered_index_on_a_dropped_column_comes_back()
+    {
+        initial.AddColumn<DateTimeOffset>("expires");
+
+        var index = new IndexDefinition("idx_people_expires") { Predicate = "[expires] IS NOT NULL" };
+        index.AgainstColumns("expires");
+        initial.Indexes.Add(index);
+
+        await AssertRollbackIsSuccessful();
+    }
+
     [Fact]
     public async Task indexes_forward_and_backwards()
     {
