@@ -70,6 +70,20 @@ public class OracleDbCommandBuilder: DbCommandBuilder
         _boundary = end;
     }
 
+    /// <summary>
+    ///     Only the parameters bound by the statement currently being built, not every parameter on
+    ///     the underlying command.
+    /// </summary>
+    /// <remarks>
+    ///     <see cref="CommandBuilderBase{TCommand,TParameter,TParameterType}.ParameterCount" /> answers
+    ///     from the underlying command, which is right for every provider that concatenates into one
+    ///     command. This one splits, so each statement becomes its own command with its own slice of the
+    ///     parameter collection — and the per-command limit a caller is checking against applies to that
+    ///     slice. Reporting the whole collection here would over-count by everything the earlier
+    ///     statements bound.
+    /// </remarks>
+    public override int ParameterCount => _oracleCommand.Parameters.Count - _boundary;
+
     /// <inheritdoc />
     public override int CommandCount => _statements.Count + (trim(ToString()).IsNotEmpty() ? 1 : 0);
 
