@@ -102,6 +102,49 @@ public class ForeignKey: ForeignKeyBase
         writer.WriteLine();
     }
 
+    /// <summary>
+    ///     The same <c>ADD CONSTRAINT</c>, wrapped so that running it a second time does nothing
+    ///     instead of failing.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         weasel#681. The <c>CREATE TABLE</c> above this in a rendered creation script is
+    ///         already wrapped in an <c>all_tables</c> existence check, so a second run skips it and
+    ///         reaches this statement — which had no guard, and failed the script with
+    ///         <c>ORA-02275: such a referential constraint already exists in the table</c>. This uses
+    ///         the same shape as the table's own guard in <see cref="Table.WriteCreateStatement" />,
+    ///         against <c>all_constraints</c>.
+    ///     </para>
+    ///     <para>
+    ///         As with the table guard, the statement becomes the text of a PL/SQL string literal, so
+    ///         every quote inside it has to be doubled — a cascade clause or a quoted identifier is
+    ///         where one turns up. And the name is matched the way Oracle stores it: folded to upper
+    ///         case unless the table preserves identifier case, in which case
+    ///         <see cref="WriteAddStatement" /> quoted it and the catalog holds it as written.
+    ///     </para>
+    ///     <para>
+    ///         <see cref="WriteAddStatement" /> stays unguarded for the migration path, which only
+    ///         ever adds a key it has determined is missing. No rendered migration changes.
+    ///     </para>
+    /// </remarks>
+    public void WriteGuardedAddStatement(Table parent, TextWriter writer)
+    {
+        var inner = new StringWriter();
+        WriteAddStatement(parent, inner);
+
+        var constraintName = parent.PreserveIdentifierCase ? Name : Name.ToUpperInvariant();
+
+        writer.WriteLine("DECLARE");
+        writer.WriteLine("    v_count NUMBER;");
+        writer.WriteLine("BEGIN");
+        writer.WriteLine(
+            $"    SELECT COUNT(*) INTO v_count FROM all_constraints WHERE constraint_name = '{SchemaUtils.EscapeLiteral(constraintName)}' AND owner = '{SchemaUtils.EscapeLiteral(parent.Identifier.Schema.ToUpperInvariant())}';");
+        writer.WriteLine("    IF v_count = 0 THEN");
+        writer.WriteLine($"        EXECUTE IMMEDIATE '{SchemaUtils.EscapeLiteral(inner.ToString().Trim())}';");
+        writer.WriteLine("    END IF;");
+        writer.WriteLine("END;");
+    }
+
     public void WriteDropStatement(Table parent, TextWriter writer)
     {
         writer.WriteLine($"ALTER TABLE {parent.Identifier} DROP CONSTRAINT {Name}");
