@@ -365,6 +365,15 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 $"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
         }
 
+        // Check constraints this update added or replaced come off first, before any column
+        // changes: a check constraint is what SQL Server refuses to drop a column for, and the
+        // replaced ones have to be gone before the actual expression can be put back (weasel#670).
+        foreach (var check in checkConstraintsThisUpdateWrote())
+        {
+            writer.WriteLine(
+                $"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.BracketName(check.Name)};");
+        }
+
         // Extra columns
         foreach (var column in Columns.Extras)
         {
@@ -391,6 +400,14 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             }
 
             endBatch(writer);
+        }
+
+        // ...and the expressions the update replaced go back on, after the columns are restored:
+        // an actual expression may name a column only the actual table has, and the separator the
+        // column pass just wrote is what makes that column visible to this batch (weasel#668).
+        foreach (var change in CheckConstraints.Different)
+        {
+            writer.WriteLine($"alter table {Expected.Identifier} add {Table.CheckConstraintDeclaration(change.Actual)};");
         }
 
         foreach (var change in ForeignKeys.Different) change.Actual.WriteAddStatement(Expected, writer);
@@ -468,6 +485,20 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     ///     script path except text.
     ///     </para>
     /// </remarks>
+    /// <summary>
+    ///     The check constraints <see cref="writeCheckConstraintUpdates" /> writes, which are
+    ///     therefore the ones a rollback has to take off again: the ones it adds, and the ones whose
+    ///     expression it replaces.
+    /// </summary>
+    /// <remarks>
+    ///     Extras are not among them, and cannot be: an actual check constraint the expected table
+    ///     does not declare is filtered out of the comparison entirely, so the update never touches
+    ///     one. That filter is also why this gap stayed hidden -- a constraint the rollback left
+    ///     behind is undeclared by definition, so no later delta reports it either.
+    /// </remarks>
+    private IEnumerable<TableCheckConstraint> checkConstraintsThisUpdateWrote()
+        => CheckConstraints.Missing.Concat(CheckConstraints.Different.Select(x => x.Expected));
+
     private static void endBatch(TextWriter writer) => writer.WriteLine(SqlServerBatchSplitter.Separator);
 
     private void rollbackIndexes(TextWriter writer)
