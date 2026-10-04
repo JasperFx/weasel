@@ -1,0 +1,98 @@
+name: Firebird CI build
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+# A re-pushed pull request branch supersedes its predecessor, so cancel the older run instead of
+# letting it hold a slot (weasel#611). JasperFx is on the Free org plan, where the concurrent-job
+# ceiling is shared across every repo, so a superseded weasel run is a slot marten, wolverine or
+# fisher does not get -- and one commit here is 22 jobs across the eight workflows.
+#
+# Two deliberate choices, neither of them boilerplate:
+#   - cancel-in-progress is conditional rather than true. On a pull request the older run really is
+#     superseded. On a push to master it is not: each commit's result is the record for that commit
+#     and a release is cut from one, so cancelling an in-flight master run destroys the only
+#     evidence the commit was green.
+#   - github.workflow is part of the group key. Grouping by branch alone would make the eight
+#     workflows cancel EACH OTHER on the same branch, which is the opposite of the point -- they
+#     are eight different test matrices, not eight attempts at one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  config: Release
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  db_pwd: P@55w0rd
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # Every supported Firebird major on net10.0, and net9.0 on the newest only: four jobs rather than
+    # six, because each one is a slot out of the org-wide ceiling (weasel#611). The provider's code
+    # does not differ by target framework; what differs by server is the catalog it reads.
+    strategy:
+        matrix:
+            include:
+                - firebird-image: firebirdsql/firebird:3
+                  framework: net10.0
+                - firebird-image: firebirdsql/firebird:4
+                  framework: net10.0
+                - firebird-image: firebirdsql/firebird:5
+                  framework: net10.0
+                - firebird-image: firebirdsql/firebird:5
+                  framework: net9.0
+
+    name: Firebird ${{ matrix.firebird-image }} ${{ matrix.framework }}
+
+    # The official image sets the SYSDBA password from FIREBIRD_ROOT_PASSWORD and allows a database
+    # at any path; the tests create a database file per class under /var/lib/firebird/data. The
+    # health check asks the service manager, which needs no database -- the image has no nc or curl,
+    # and the first connection right after start fails for about half a second, so gate on health,
+    # not on the port. fbsvcmgr reads its credentials from ISC_USER and ISC_PASSWORD, because the env
+    # context is not available in `options`.
+    services:
+      firebird:
+        image: ${{ matrix.firebird-image }}
+        ports:
+          - 3050:3050
+        env:
+          FIREBIRD_ROOT_PASSWORD: ${{ env.db_pwd }}
+          ISC_USER: SYSDBA
+          ISC_PASSWORD: ${{ env.db_pwd }}
+        options: >-
+          --health-cmd="/opt/firebird/bin/fbsvcmgr localhost:service_mgr info_server_version"
+          --health-interval=2s
+          --health-timeout=5s
+          --health-retries=30
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install .NET
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: |
+            9.0.x
+            10.0.x
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore
+
+    # The database file named here is only a directory to the suite: each test class creates a file
+    # of its own beside it. The path is absolute because Firebird does not resolve a relative name
+    # against its data directory.
+    - name: Test
+      env:
+        weasel_firebird_testing_database: "DataSource=localhost;Port=3050;Database=/var/lib/firebird/data/weasel_testing.fdb;User=SYSDBA;Password=${{ env.db_pwd }};Charset=UTF8"
+      run: dotnet test src/Weasel.Firebird.Tests/Weasel.Firebird.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }}

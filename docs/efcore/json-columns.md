@@ -7,7 +7,7 @@ Starting with Weasel 8.11.1, the EF Core integration supports JSON column mappin
 When EF Core maps a complex property to a JSON column using `ToJson()`, Weasel detects this during table mapping by iterating each entity type's navigations. For each navigation whose target entity type returns `true` from `IsMappedToJson()`, Weasel:
 
 1. Reads the column name via `GetContainerColumnName()`.
-2. Reads the column type via `GetContainerColumnType()`, falling back to the provider's own JSON store type when the model does not name one -- `jsonb` on PostgreSQL, `nvarchar(max)` on SQL Server, `TEXT` on MySQL and SQLite, `CLOB` on Oracle (`Migrator.DefaultJsonColumnType`). The fallback used to be the literal `jsonb` on every provider, which produced invalid DDL anywhere but PostgreSQL ([weasel#628](https://github.com/JasperFx/weasel/issues/628)).
+2. Reads the column type via `GetContainerColumnType()`, falling back to the provider's own JSON store type when the model does not name one -- `jsonb` on PostgreSQL, `nvarchar(max)` on SQL Server, `TEXT` on MySQL and SQLite, `CLOB` on Oracle, `BLOB SUB_TYPE TEXT` on Firebird (`Migrator.DefaultJsonColumnType`). The fallback used to be the literal `jsonb` on every provider, which produced invalid DDL anywhere but PostgreSQL ([weasel#628](https://github.com/JasperFx/weasel/issues/628)).
 3. Sets nullability based on whether the navigation's foreign key is marked as required.
 
 ## Complex Properties Without `ToJson()`

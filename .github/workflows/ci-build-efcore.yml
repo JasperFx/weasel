@@ -9,16 +9,16 @@ on:
 # A re-pushed pull request branch supersedes its predecessor, so cancel the older run instead of
 # letting it hold a slot (weasel#611). JasperFx is on the Free org plan, where the concurrent-job
 # ceiling is shared across every repo, so a superseded weasel run is a slot marten, wolverine or
-# fisher does not get -- and one commit here is 18 jobs across the seven workflows.
+# fisher does not get -- and one commit here is 22 jobs across the eight workflows.
 #
 # Two deliberate choices, neither of them boilerplate:
 #   - cancel-in-progress is conditional rather than true. On a pull request the older run really is
 #     superseded. On a push to master it is not: each commit's result is the record for that commit
 #     and a release is cut from one, so cancelling an in-flight master run destroys the only
 #     evidence the commit was green.
-#   - github.workflow is part of the group key. Grouping by branch alone would make the seven
+#   - github.workflow is part of the group key. Grouping by branch alone would make the eight
 #     workflows cancel EACH OTHER on the same branch, which is the opposite of the point -- they
-#     are seven different test matrices, not seven attempts at one.
+#     are eight different test matrices, not eight attempts at one.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -75,6 +75,22 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      # Both frameworks: the Firebird EF provider has a release for EF Core 9 and for EF Core 10.
+      # The suite connects to localhost:3065 (docker-compose's firebird5) and creates its own
+      # database file; see ci-build-firebird.yml for the health check.
+      firebird:
+        image: firebirdsql/firebird:5
+        ports:
+          - 3065:3050
+        env:
+          FIREBIRD_ROOT_PASSWORD: ${{ env.db_pwd }}
+          ISC_USER: SYSDBA
+          ISC_PASSWORD: ${{ env.db_pwd }}
+        options: >-
+          --health-cmd="/opt/firebird/bin/fbsvcmgr localhost:service_mgr info_server_version"
+          --health-interval=2s
+          --health-timeout=5s
+          --health-retries=30
 
     steps:
     - uses: actions/checkout@v6

@@ -33,7 +33,8 @@ public class column_name_conformance
             { "MySql", () => new MySql.Tables.Table("weasel_testing.orders") },
             { "Sqlite", () => new Sqlite.Tables.Table("orders") },
             { "Postgresql", () => new Postgresql.Tables.Table("public.orders") },
-            { "Oracle", () => new Oracle.Tables.Table("WEASEL.ORDERS") }
+            { "Oracle", () => new Oracle.Tables.Table("WEASEL.ORDERS") },
+            { "Firebird", () => new Firebird.Tables.Table("orders") }
         };
 
     [Theory]
@@ -127,6 +128,7 @@ public class column_name_conformance
             "Sqlite" => new Sqlite.SqliteMigrator { Formatting = SqlFormatting.Concise },
             "Postgresql" => new Postgresql.PostgresqlMigrator { Formatting = SqlFormatting.Concise },
             "Oracle" => new Oracle.OracleMigrator { Formatting = SqlFormatting.Concise },
+            "Firebird" => new Firebird.FirebirdMigrator { Formatting = SqlFormatting.Concise },
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, null)
         };
 }

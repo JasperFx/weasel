@@ -158,11 +158,15 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
 
         applyPostProcessingIfAny();
 
+        // Into the writer WriteScript hands the step, not the outer one: a migrator that shapes its
+        // script -- Firebird puts a COMMIT after every statement -- does it to what the step writes.
+        // Every other in-tree migrator passes the outer writer straight through, so their scripts
+        // are unchanged.
         Migrator.WriteScript(writer, (m, w) =>
         {
-            m.WriteSchemaCreationSql(schemaNames, writer);
+            m.WriteSchemaCreationSql(schemaNames, w);
 
-            foreach (var group in BuildFeatureSchemas()) group.WriteFeatureCreation(Migrator, writer);
+            foreach (var group in BuildFeatureSchemas()) group.WriteFeatureCreation(m, w);
         });
 
         return writer.ToString();
@@ -455,7 +459,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
             if (fingerprint != null)
             {
                 var stamped = await SchemaFingerprint
-                    .HasStampAsync(conn, Migrator.DefaultSchemaName, fingerprint, ct).ConfigureAwait(false);
+                    .HasStampAsync(conn, Migrator, fingerprint, ct).ConfigureAwait(false);
                 if (stamped)
                 {
                     MarkAllFeaturesAsChecked();
@@ -498,7 +502,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                 if (fingerprint != null)
                 {
                     var stamped = await SchemaFingerprint
-                        .HasStampAsync(conn, Migrator.DefaultSchemaName, fingerprint, ct).ConfigureAwait(false);
+                        .HasStampAsync(conn, Migrator, fingerprint, ct).ConfigureAwait(false);
                     if (stamped)
                     {
                         MarkAllFeaturesAsChecked();
@@ -519,7 +523,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
                 if (fingerprint != null)
                 {
                     // Stamp only after the apply succeeded, still under the global lock.
-                    await SchemaFingerprint.RecordAsync(conn, Migrator.DefaultSchemaName, fingerprint, ct)
+                    await SchemaFingerprint.RecordAsync(conn, Migrator, fingerprint, ct)
                         .ConfigureAwait(false);
                 }
 

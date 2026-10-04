@@ -61,7 +61,7 @@ var schemaObjects = DbContextExtensions.GetSchemaObjectsForMigration(context, mi
 
 ## Identifier Casing
 
-EF Core migrations emit quoted, case-sensitive identifiers (`"BlogId"`, `PK_Blogs`, `IX_Posts_BlogId`). The mapper preserves that exact casing by setting `ITable.PreserveIdentifierCase`, and the case-folding providers (PostgreSQL, Oracle) quote identifiers in generated DDL so a Weasel-created schema is byte-for-byte usable by the EF Core runtime. Delta detection compares identifiers case-insensitively in both directions, so it makes no difference whether a schema was created by EF Core (quoted PascalCase) or by an older Weasel version (folded lowercase).
+EF Core migrations emit quoted, case-sensitive identifiers (`"BlogId"`, `PK_Blogs`, `IX_Posts_BlogId`). The mapper preserves that exact casing by setting `ITable.PreserveIdentifierCase`, and the case-folding providers (PostgreSQL, Oracle, Firebird) quote identifiers in generated DDL so a Weasel-created schema is byte-for-byte usable by the EF Core runtime. Delta detection compares identifiers case-insensitively in both directions, so it makes no difference whether a schema was created by EF Core (quoted PascalCase) or by an older Weasel version (folded lowercase).
 
 ## Entity Type Filtering
 

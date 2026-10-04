@@ -22,7 +22,8 @@ export default withMermaid(
             { text: 'SQL Server', link: '/sqlserver/' },
             { text: 'Oracle', link: '/oracle/' },
             { text: 'MySQL', link: '/mysql/' },
-            { text: 'SQLite', link: '/sqlite/' }
+            { text: 'SQLite', link: '/sqlite/' },
+            { text: 'Firebird', link: '/firebird/' }
           ]
         },
         { text: 'EF Core', link: '/efcore/' },
@@ -145,6 +146,19 @@ export default withMermaid(
             { text: 'PRAGMA Settings', link: '/sqlite/pragmas' },
             { text: 'Functions and Extensions', link: '/sqlite/functions' },
             { text: 'SqliteHelper', link: '/sqlite/helper' }
+          ]
+        },
+        {
+          text: 'Firebird',
+          collapsed: true,
+          items: [
+            { text: 'Overview', link: '/firebird/' },
+            { text: 'Tables', link: '/firebird/tables' },
+            { text: 'Sequences', link: '/firebird/sequences' },
+            { text: 'Views', link: '/firebird/views' },
+            { text: 'Functions', link: '/firebird/functions' },
+            { text: 'Stored Procedures', link: '/firebird/procedures' },
+            { text: 'Triggers', link: '/firebird/triggers' }
           ]
         },
         {

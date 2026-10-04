@@ -49,6 +49,7 @@ Behind the scenes, the cleaner generates provider-specific SQL:
 - **PostgreSQL**: `TRUNCATE TABLE t1, t2, t3 RESTART IDENTITY CASCADE;`
 - **SQL Server**: `DELETE FROM` each table in dependency order, then `DBCC CHECKIDENT` to reseed
 - **SQLite**: `DELETE FROM` each table in dependency order, then clears `sqlite_sequence`
+- **Firebird**: one `EXECUTE BLOCK` that deletes from each table in dependency order, then restarts identity columns
 
 ## Reset with Seed Data
 
@@ -153,3 +154,4 @@ The cleaner **memoizes** the table dependency graph and generated SQL on first u
 | SQLite | `DELETE FROM` in FK order | Clears `sqlite_sequence` |
 | MySQL | `TRUNCATE TABLE` with `FOREIGN_KEY_CHECKS=0` | Automatic |
 | Oracle | `DELETE FROM` in FK order | N/A (uses sequences) |
+| Firebird | `DELETE FROM` in FK order, in one `EXECUTE BLOCK` | `ALTER … RESTART WITH` |

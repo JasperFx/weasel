@@ -7,6 +7,7 @@
   <Folder Name="/Build/">
     <File Path=".editorconfig" />
     <File Path=".github/workflows/ci-build-efcore.yml" />
+    <File Path=".github/workflows/ci-build-firebird.yml" />
     <File Path=".github/workflows/ci-build-mssql.yml" />
     <File Path=".github/workflows/ci-build-mysql.yml" />
     <File Path=".github/workflows/ci-build-oracle.yml" />
@@ -36,6 +37,10 @@
     <Project Path="src/DocSamples/DocSamples.csproj" />
     <Project Path="src/Weasel.EntityFrameworkCore.Tests/Weasel.EntityFrameworkCore.Tests.csproj" />
     <Project Path="src/Weasel.EntityFrameworkCore/Weasel.EntityFrameworkCore.csproj" />
+  </Folder>
+  <Folder Name="/Firebird/">
+    <Project Path="src/Weasel.Firebird.Tests/Weasel.Firebird.Tests.csproj" />
+    <Project Path="src/Weasel.Firebird/Weasel.Firebird.csproj" />
   </Folder>
   <Folder Name="/MySQL/">
     <Project Path="src/Weasel.MySql.Tests/Weasel.MySql.Tests.csproj" />

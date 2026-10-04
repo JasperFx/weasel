@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="Shouldly" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Weasel.Firebird\Weasel.Firebird.csproj" />
+        <ProjectReference Include="..\Weasel.Testing\Weasel.Testing.csproj" />
+    </ItemGroup>
+
+    <Import Project="../../Tests.Build.props" />
+</Project>

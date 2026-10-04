@@ -13,6 +13,7 @@
         <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
+        <PackageReference Include="FirebirdSql.EntityFrameworkCore.Firebird" />
         <PackageReference Include="Oracle.EntityFrameworkCore" Condition="'$(TargetFramework)' != 'net10.0'" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Condition="'$(TargetFramework)' != 'net10.0'" />
         <PackageReference Include="Shouldly" />
@@ -28,6 +29,7 @@
         <ProjectReference Include="..\Weasel.EntityFrameworkCore\Weasel.EntityFrameworkCore.csproj" />
         <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
         <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
+        <ProjectReference Include="..\Weasel.Firebird\Weasel.Firebird.csproj" />
         <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" Condition="'$(TargetFramework)' != 'net10.0'" />
         <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" Condition="'$(TargetFramework)' != 'net10.0'" />
     </ItemGroup>

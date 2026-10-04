@@ -1,5 +1,6 @@
 using Shouldly;
 using Weasel.Core;
+using Weasel.Firebird;
 using Weasel.MySql;
 using Weasel.Oracle;
 using Weasel.Postgresql;
@@ -53,7 +54,8 @@ public class object_name_normalization_conformance
             { "MySql", MySqlProvider.Instance, MySqlIdentifierRules.Instance },
             { "Sqlite", SqliteProvider.Instance, SqliteIdentifierRules.Instance },
             { "Postgresql", PostgresqlProvider.Instance, PostgresqlIdentifierRules.General },
-            { "Oracle", OracleProvider.Instance, OracleIdentifierRules.Instance }
+            { "Oracle", OracleProvider.Instance, OracleIdentifierRules.Instance },
+            { "Firebird", FirebirdProvider.Instance, FirebirdIdentifierRules.Instance }
         };
 
     /// <summary>

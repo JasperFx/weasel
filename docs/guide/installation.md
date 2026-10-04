@@ -34,6 +34,12 @@ dotnet add package Weasel.MySql
 dotnet add package Weasel.Sqlite
 ```
 
+**Firebird:**
+
+```bash
+dotnet add package Weasel.Firebird
+```
+
 **EF Core Integration:**
 
 ```bash
@@ -55,5 +61,6 @@ Each provider package brings in the appropriate ADO.NET driver as a transitive d
 | `Weasel.Oracle`      | Oracle.ManagedDataAccess.Core     |
 | `Weasel.MySql`       | MySqlConnector                    |
 | `Weasel.Sqlite`      | Microsoft.Data.Sqlite             |
+| `Weasel.Firebird`    | FirebirdSql.Data.FirebirdClient   |
 
 You do not need to install these drivers separately unless you need a specific version.
