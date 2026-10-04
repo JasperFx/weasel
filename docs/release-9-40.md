@@ -1,9 +1,9 @@
 # Upgrading to 9.40
 
 9.40 fixes a shutdown that could stall a host for two minutes in silence, and makes a generated
-creation script runnable without the caller having to get its own yield order right. It also adds a
-way for a query builder to ask how much of the provider's per-command parameter budget is already
-spent.
+creation script both runnable and **re**-runnable — without the caller having to get its own yield
+order right, and without the second run failing on a foreign key. It also adds a way for a query
+builder to ask how much of the provider's per-command parameter budget is already spent.
 
 **Nothing in this release is a breaking change.** Every addition is additive, nothing public was
 removed, and the one new interface member carries a default implementation — see
@@ -124,6 +124,71 @@ by inserting rows with `PRAGMA foreign_keys = ON`. Only PostgreSQL and SQL Serve
 The SQLite ordering still changed, because a script that is correct only because SQLite is forgiving
 is not much use to any other tool reading it.
 
+## …and it can be run twice
+
+[#685](https://github.com/JasperFx/weasel/pull/685) from
+[#681](https://github.com/JasperFx/weasel/issues/681), and
+[#687](https://github.com/JasperFx/weasel/pull/687) from
+[#686](https://github.com/JasperFx/weasel/issues/686).
+
+The other half of a script being usable. A rendered creation script creates its tables behind an
+existence check, so a second run sailed past them and died on the trailing foreign key, which had no
+guard of its own:
+
+```
+-- PostgreSQL
+42710: constraint "fk_child_to_parent" for relation "child" already exists
+
+-- Oracle
+ORA-02275: such a referential constraint already exists in the table
+
+-- MySQL
+1826: Duplicate foreign key constraint name 'fk_child_to_parent'
+```
+
+A model with no foreign keys re-ran fine, which is why this lasted. 9.35 made rendered DDL carry
+existence guards on the reasoning that a script which only works against a virgin schema is a trap;
+this was the same trap, still open.
+
+Measured on all six providers rather than assumed, which is worth recording because three of them
+were already right:
+
+| Provider | Before | |
+|---|---|---|
+| PostgreSQL | ❌ `42710` | now catches `duplicate_object` |
+| Oracle | ❌ `ORA-02275` | now checks `all_constraints` |
+| MySQL | ❌ `1826` | now declares the key inline |
+| SQL Server | ✅ | already guarded with `IF OBJECT_ID(…, N'F') IS NULL` |
+| Firebird | ✅ | already guarded by a catalog probe |
+| SQLite | ✅ | already declares foreign keys inline |
+
+PostgreSQL catches the error rather than testing `pg_constraint` first, for the same reason the
+schema-creation guard has always kept its `EXCEPTION` block: no existence check is concurrent-safe,
+because two sessions can both pass it and then race on the catalog. Catching the error *is* the
+check. Oracle reuses the `all_tables` shape its own `CREATE TABLE` guard already uses.
+
+::: tip MySQL's rendered `CREATE TABLE` changes shape
+MySQL has neither `IF NOT EXISTS` for a constraint nor an anonymous block to catch a duplicate in,
+so it could not take either of those guards. Its foreign keys are now declared **inline** in
+`CREATE TABLE` instead — the way SQLite's always have been — which puts them behind the table's own
+`IF NOT EXISTS`, with no probe, no string escaping and no race.
+
+So a MySQL table's rendered creation DDL now carries its `CONSTRAINT … FOREIGN KEY` lines inside the
+parentheses and no longer emits a following `ALTER TABLE … ADD CONSTRAINT`. Nothing about the
+resulting schema differs, and delta detection is indifferent: MySQL reads foreign keys back out of
+`information_schema`, which records them identically however they were declared. If you assert on
+that rendered text, it moved.
+
+This was only possible because of the ordering change above — InnoDB resolves an inline foreign key
+at `CREATE TABLE` time, so the referenced table has to exist already.
+:::
+
+All of this is the **creation** path only. Every provider's `WriteAddStatement` is deliberately
+untouched, because a migration adds a key to a table that already exists and only ever adds one it
+determined was missing. **No rendered migration changes.**
+
+A mutual reference is still beyond a script on every provider, for the reason given above.
+
 ## `ICommandBuilder.ParameterCount` {#icommandbuilder-parametercount}
 
 [#679](https://github.com/JasperFx/weasel/pull/679), from
@@ -177,19 +242,6 @@ negative rather than `0`. Zero is a legitimate count, and a stale builder report
 caller the command's whole budget was still free, the dangerous direction to be wrong in for a member
 that exists to keep callers under a limit.
 
-## Known issue
-
-[#681](https://github.com/JasperFx/weasel/issues/681) — on PostgreSQL, a generated creation script
-for a model with foreign keys **cannot be re-run**. The table creations carry `IF NOT EXISTS` guards
-but the trailing `ALTER TABLE … ADD CONSTRAINT` does not, so a second run reaches it and fails:
-
-```
-42710: constraint "fk_child_to_parent" for relation "child" already exists
-```
-
-This predates 9.40 and is not caused by the ordering change above; it is simply what that change made
-easy to notice. A model with no foreign keys re-runs fine, as does the migration path in every case.
-
 ## New public API
 
 - `Weasel.Postgresql.AdvisoryLockOptions.ReleaseTimeout` — the bound on a shutdown release, described
@@ -200,3 +252,9 @@ easy to notice. A model with no foreign keys re-runs fine, as does the migration
   not a foreign key.
 - `Weasel.Core.Migrations.SchemaObjectOrdering` — `InDependencyOrder` for both `ISchemaObject` and
   `IFeatureSchema` collections, should you want the same ordering for a script you assemble yourself.
+- `Weasel.Postgresql.Tables.ForeignKey.WriteGuardedAddStatement` and
+  `Weasel.Oracle.Tables.ForeignKey.WriteGuardedAddStatement` — the re-runnable form of
+  `WriteAddStatement`, for a creation script you assemble yourself. `WriteAddStatement` is still the
+  plain one, for a migration.
+- `Weasel.MySql.Tables.ForeignKey.WriteInlineDefinition` / `ToInlineDefinition` — the key as a
+  table-level constraint for inside `CREATE TABLE`, matching what SQLite has always had.
