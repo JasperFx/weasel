@@ -18,6 +18,18 @@ public sealed class AdvisoryLockOptions
     ///     session-scoped and multiplexed so that several held locks share one connection.
     /// </summary>
     public bool TransactionalLockEnabled { get; set; }
+
+    /// <summary>
+    ///     How long <see cref="AdvisoryLock.DisposeAsync" /> will wait for the held locks to be released before it
+    ///     gives up waiting and leaves the releases running in the background. See the remarks on
+    ///     <see cref="AdvisoryLock.DisposeAsync" /> for why a shutdown release needs a bound at all (weasel#676).
+    ///     <para>
+    ///     A non-positive value or <see cref="Timeout.InfiniteTimeSpan" /> opts out of the bound and waits
+    ///     for every release, matching how JasperFx reads <c>DaemonSettings.StopAndDrainTimeout</c>, which is
+    ///     what a daemon host would feed this from.
+    ///     </para>
+    /// </summary>
+    public TimeSpan ReleaseTimeout { get; set; } = 5.Seconds();
 }
 
 /// <summary>
@@ -257,6 +269,37 @@ public class AdvisoryLock : IAdvisoryLock
         }
     }
 
+    /// <summary>
+    ///     Release every held lock. Best-effort and time-bounded: see the remarks.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         weasel#676. A session-scoped lock multiplexes several held locks onto one connection, and Medallion's
+    ///         connection monitor — which <see cref="HasLock" /> activates when
+    ///         <see cref="AdvisoryLockOptions.LockMonitoringEnabled" /> is on — parks that connection in a
+    ///         one-minute wait between checks. Releasing a lock has to take the connection away from the
+    ///         monitor, which it does by firing the monitor's state-changed token, but
+    ///         <c>ConnectionMonitor.AcquireConnectionLockAsync</c> only fires it while monitoring handles are
+    ///         still registered, and a handle drops its monitoring registration BEFORE it runs its
+    ///         <c>pg_advisory_unlock</c>. So the last release on a given connection can find the count already
+    ///         at zero, fire nothing, and sit in its own two-second retry loop — re-evaluating that same false
+    ///         condition — until the monitor's window expires on its own. With two such connections a host stop
+    ///         took 120 seconds.
+    ///     </para>
+    ///     <para>
+    ///         Two things follow, and both are implemented here. The releases run concurrently, so a stop pays
+    ///         at most one stalled window rather than one per connection. And the wait is bounded by
+    ///         <see cref="AdvisoryLockOptions.ReleaseTimeout" />, after which the remaining releases are left to
+    ///         finish in the background: the unlock still goes through when the monitor's window ends, and the
+    ///         process is usually exiting anyway, which closes the connections and drops the session-scoped
+    ///         locks regardless. Abandoning the wait delays leadership handover for the rest of that window; it
+    ///         does not leak a lock.
+    ///     </para>
+    ///     <para>
+    ///         A release that overruns is logged. It used to be entirely silent — nothing on this path logs
+    ///         unless it throws — which is why a minute-long host stop came with no explanation at all.
+    ///     </para>
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
         PostgresDistributedLockHandle[] handles;
@@ -269,10 +312,47 @@ public class AdvisoryLock : IAdvisoryLock
             _handles.Clear();
         }
 
-        foreach (var handle in handles)
+        if (handles.Length == 0) return;
+
+        var releases = new Task[handles.Length];
+        for (var i = 0; i < handles.Length; i++)
         {
-            await disposeHandleSafelyAsync(handle).ConfigureAwait(false);
+            releases[i] = disposeHandleSafelyAsync(handles[i]);
         }
+
+        var all = Task.WhenAll(releases);
+
+        // Same convention as JasperFx's DaemonSettings.StopAndDrainTimeout, which is what a daemon host
+        // feeds this from: a non-positive or infinite value opts out of the separate bound rather than
+        // meaning "give up immediately".
+        if (_options.ReleaseTimeout <= TimeSpan.Zero || _options.ReleaseTimeout == Timeout.InfiniteTimeSpan)
+        {
+            await all.ConfigureAwait(false);
+            return;
+        }
+
+        // The token only stops the timer once the releases have won the race -- it never cancels a
+        // release, which has to run to completion for the lock to actually come off the session.
+        using var timer = new CancellationTokenSource();
+        var finished = await Task.WhenAny(all, Task.Delay(_options.ReleaseTimeout, timer.Token))
+            .ConfigureAwait(false);
+
+        if (ReferenceEquals(finished, all))
+        {
+            await timer.CancelAsync().ConfigureAwait(false);
+
+            // Observe the faults -- disposeHandleSafelyAsync already swallows them, so this only unwraps
+            await all.ConfigureAwait(false);
+            return;
+        }
+
+        var outstanding = releases.Count(x => !x.IsCompleted);
+        _logger.LogWarning(
+            "Timed out after {Timeout} waiting to release {Outstanding} of {Total} advisory locks for database {Identifier}. The releases are still running and the locks will be released when they complete, but leadership of those locks cannot move to another node until then. See https://github.com/JasperFx/weasel/issues/676",
+            _options.ReleaseTimeout, outstanding, handles.Length, _databaseName);
+
+        // Don't leave the abandoned releases as unobserved faulted tasks
+        _ = all.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
     }
 
     private async Task disposeHandleSafelyAsync(PostgresDistributedLockHandle handle)

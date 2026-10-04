@@ -272,10 +272,20 @@ internal static class AdvisoryLockTesting
 
     public static int NextLockId() => Interlocked.Increment(ref _lastLockId);
 
-    public static AdvisoryLock CreateLock(NpgsqlDataSource source, bool transactional, bool monitored = false)
+    public static AdvisoryLock CreateLock(NpgsqlDataSource source, bool transactional, bool monitored = false,
+        TimeSpan? releaseTimeout = null)
     {
-        return new AdvisoryLock(source, NullLogger.Instance, "localhost",
-            new AdvisoryLockOptions { TransactionalLockEnabled = transactional, LockMonitoringEnabled = monitored });
+        var options = new AdvisoryLockOptions
+        {
+            TransactionalLockEnabled = transactional, LockMonitoringEnabled = monitored
+        };
+
+        if (releaseTimeout.HasValue)
+        {
+            options.ReleaseTimeout = releaseTimeout.Value;
+        }
+
+        return new AdvisoryLock(source, NullLogger.Instance, "localhost", options);
     }
 
     /// <summary>
