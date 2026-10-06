@@ -104,6 +104,21 @@ WHERE
 	tbl.relname = :{nameParam}
 GROUP BY constraint_name, constraint_type, schema_name, table_name, definition;
 
+-- Table storage parameters (reloptions), then those of each direct partition. Kept ahead of SHOW
+-- so the tail of the batch, which readPartitionsAsync leaves positioned, is unchanged.
+select c.reloptions
+from pg_class c
+         join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = :{schemaParam} and c.relname = :{nameParam};
+
+select pn.nspname as partition_schema, pt.relname as partition_name, pt.reloptions
+from pg_class base_tb
+         join pg_namespace ns on ns.oid = base_tb.relnamespace
+         join pg_inherits i on i.inhparent = base_tb.oid
+         join pg_class pt on pt.oid = i.inhrelid
+         join pg_namespace pn on pn.oid = pt.relnamespace
+where base_tb.relname = :{nameParam} and ns.nspname = :{schemaParam} and base_tb.relkind = 'p';
+
 SHOW max_identifier_length;
 
 
@@ -183,6 +198,7 @@ order by column_index;
 
         await readIndexesAsync(reader, existing, ct).ConfigureAwait(false);
         await readConstraintsAsync(reader, existing, ct).ConfigureAwait(false);
+        await readStorageParametersAsync(reader, existing, ct).ConfigureAwait(false);
 
         markPrimaryKeyColumns(existing, pks);
 
@@ -210,6 +226,29 @@ order by column_index;
             }
         }
     }
+
+    private static async Task readStorageParametersAsync(DbDataReader reader, Table existing, CancellationToken ct)
+    {
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            existing.StorageParameters = ParseReloptions(await readReloptionsAsync(reader, 0, ct).ConfigureAwait(false));
+        }
+
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var schema = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            var name = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+            existing.PartitionStorageParameters[PostgresqlObjectName.From(new DbObjectName(schema, name))] =
+                ParseReloptions(await readReloptionsAsync(reader, 2, ct).ConfigureAwait(false));
+        }
+    }
+
+    private static async Task<string[]?> readReloptionsAsync(DbDataReader reader, int ordinal, CancellationToken ct)
+        => await reader.IsDBNullAsync(ordinal, ct).ConfigureAwait(false)
+            ? null
+            : await reader.GetFieldValueAsync<string[]>(ordinal, ct).ConfigureAwait(false);
 
     private static async Task readMaxIdentifierLength(
         DbDataReader reader,

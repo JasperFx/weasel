@@ -54,7 +54,7 @@ public class ListPartition : IPartition
         var parentName = PostgresqlObjectName.From(parent.Identifier);
         // IF NOT EXISTS: concurrent schema appliers (e.g. tenant provisioning racing an async daemon's
         // storage check) may both compute the same missing partition; creation must be idempotent.
-        writer.WriteLine($"CREATE TABLE IF NOT EXISTS {partitionName} partition of {parentName} for values in ({Values.Join(", ")});");
+        writer.WriteLine($"CREATE TABLE IF NOT EXISTS {partitionName} partition of {parentName} for values in ({Values.Join(", ")}){parent.StorageParametersClause()};");
     }
 
     internal static ListPartition Parse(DbObjectName dbObjectName, string partitionTableName, string postgresExpression)

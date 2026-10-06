@@ -244,7 +244,7 @@ public class ManagedRangePartitions: IRangePartitionManager
         // The DEFAULT partition goes first so a row outside the provisioned window is never rejected,
         // even in the sliver of time before the window partitions land.
         var defaultWriter = new StringWriter();
-        defaultWriter.WriteDefaultPartition(table.Identifier);
+        defaultWriter.WriteDefaultPartition(table);
         await executeIdempotentCreateAsync(conn, defaultWriter.ToString(), token).ConfigureAwait(false);
 
         var existing = await fetchPartitionNamesAsync(conn, table, token).ConfigureAwait(false);

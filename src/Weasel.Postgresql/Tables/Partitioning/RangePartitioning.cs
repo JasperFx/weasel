@@ -176,7 +176,7 @@ public class RangePartitioning: IPartitionStrategy
             writer.WriteLine();
         }
 
-        writer.WriteDefaultPartition(parent.Identifier);
+        writer.WriteDefaultPartition(parent);
     }
 
     internal async Task ReadPartitionsAsync(DbObjectName identifier, DbDataReader reader, CancellationToken ct)
