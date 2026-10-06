@@ -45,6 +45,7 @@ public static class Identifications
     /// </summary>
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes SequentialGuidIdentification<TDoc> over the document type.")]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(SequentialGuidIdentification<>))]
     public static IIdentification ForSequentialGuid(Type documentType, MemberInfo idMember)
         => Close(typeof(SequentialGuidIdentification<>), documentType, idMember);
 
@@ -54,6 +55,7 @@ public static class Identifications
     /// </summary>
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes GuidIdentification<TDoc> over the document type.")]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(GuidIdentification<>))]
     public static IIdentification ForRandomGuid(Type documentType, MemberInfo idMember)
         => Close(typeof(GuidIdentification<>), documentType, idMember);
 
@@ -63,6 +65,7 @@ public static class Identifications
     /// </summary>
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes HiloIntIdentification<TDoc> over the document type.")]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(HiloIntIdentification<>))]
     public static IIdentification ForHiloInt(Type documentType, MemberInfo idMember, Type sequenceKey)
         => Close(typeof(HiloIntIdentification<>), documentType, idMember, sequenceKey);
 
@@ -72,6 +75,7 @@ public static class Identifications
     /// </summary>
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes HiloLongIdentification<TDoc> over the document type.")]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(HiloLongIdentification<>))]
     public static IIdentification ForHiloLong(Type documentType, MemberInfo idMember, Type sequenceKey)
         => Close(typeof(HiloLongIdentification<>), documentType, idMember, sequenceKey);
 
@@ -81,6 +85,7 @@ public static class Identifications
     /// </summary>
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes IdentityKeyIdentification<TDoc> over the document type.")]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(IdentityKeyIdentification<>))]
     public static IIdentification ForIdentityKey(Type documentType, MemberInfo idMember, string mappingAlias,
         Type sequenceKey)
         => Close(typeof(IdentityKeyIdentification<>), documentType, idMember, mappingAlias, sequenceKey);
@@ -91,6 +96,7 @@ public static class Identifications
     /// </summary>
     [RequiresUnreferencedCode("Builds an FEC-compiled accessor delegate over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes StringIdentification<TDoc> over the document type.")]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(StringIdentification<>))]
     public static IIdentification ForExternallyAssignedString(Type documentType, MemberInfo idMember)
         => Close(typeof(StringIdentification<>), documentType, idMember);
 
