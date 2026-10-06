@@ -133,7 +133,8 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
         }
         else
         {
-            writer.WriteLine(");");
+            // A partitioned parent rejects storage parameters; they go on the partitions instead
+            writer.WriteLine($"){StorageParametersClause()};");
         }
 
         foreach (var foreignKey in ForeignKeys)

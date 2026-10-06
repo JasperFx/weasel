@@ -119,7 +119,7 @@ public class ListPartitioning: IPartitionStrategy
 
         if (EnableDefaultPartition)
         {
-            writer.WriteDefaultPartition(parent.Identifier);
+            writer.WriteDefaultPartition(parent);
         }
     }
 

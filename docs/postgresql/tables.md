@@ -202,6 +202,34 @@ table.AddColumn("full_name", "text")
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L51-L62' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_generated_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Storage Parameters
+
+Table level storage parameters (`WITH (...)`) are set through `Table.StorageParameters`, an ordered
+name/value collection shaped like `IndexDefinition.StorageParameters`. `FillFactor` is a shortcut for the
+`fillfactor` entry. Names are the lower case PostgreSQL reloption names:
+
+```cs
+var table = new Table("public.events");
+table.AddColumn<Guid>("id").AsPrimaryKey();
+
+table.FillFactor = 70;
+table.StorageParameters["autovacuum_vacuum_scale_factor"] = "0.05";
+table.StorageParameters["autovacuum_vacuum_insert_scale_factor"] = "0.02";
+```
+
+which creates the table with `) WITH (fillfactor = 70, autovacuum_vacuum_scale_factor = 0.05, ...);`.
+
+Delta detection reads `pg_class.reloptions` and compares **only the parameters the table declares**: a parameter
+that exists in the database but is not declared is never reset, because someone else may have set it. Values compare
+case-insensitively and numerically when both are numbers (`0.05` equals `0.050`). A difference is an in-place update,
+written as `ALTER TABLE ... SET (...)`; the rollback restores the previous values, or `RESET`s a parameter that was not set.
+
+`toast.*` parameters are not supported and are rejected with an exception.
+
+For a partitioned table PostgreSQL rejects storage parameters on the parent, so Weasel writes them on every partition
+it creates (declared partitions and the default partition) and applies `ALTER TABLE` to each existing partition when
+they change. Only the direct partitions of the table are inspected.
+
 ## Delta Detection and Migration
 
 Weasel compares the expected table definition against the actual database state and generates incremental DDL.

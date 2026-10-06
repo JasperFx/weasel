@@ -13,12 +13,21 @@ public static class PartitionExtensions
     /// <param name="writer"></param>
     /// <param name="identifier"></param>
     public static void WriteDefaultPartition(this TextWriter writer, DbObjectName identifier)
+        => writer.WriteDefaultPartition(identifier, string.Empty);
+
+    /// <summary>
+    /// Write the SQL for the default partition of the given table, carrying the table's storage parameters
+    /// </summary>
+    public static void WriteDefaultPartition(this TextWriter writer, Table parent)
+        => writer.WriteDefaultPartition(parent.Identifier, parent.StorageParametersClause());
+
+    private static void WriteDefaultPartition(this TextWriter writer, DbObjectName identifier, string withClause)
     {
         var partitionName = PostgresqlObjectName.From(
             new DbObjectName(identifier.Schema, identifier.Name + "_default"));
         var parentName = PostgresqlObjectName.From(identifier);
         // IF NOT EXISTS: keep partition creation idempotent under concurrent schema application.
-        writer.WriteLine($"CREATE TABLE IF NOT EXISTS {partitionName} PARTITION OF {parentName} DEFAULT;");
+        writer.WriteLine($"CREATE TABLE IF NOT EXISTS {partitionName} PARTITION OF {parentName} DEFAULT{withClause};");
     }
 
     /// <summary>

@@ -71,6 +71,18 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
     internal ItemDelta<TableCheckConstraint> CheckConstraints { get; private set; } = null!;
 
     /// <summary>
+    ///     Storage parameters the expected table declares whose value in the database differs or is absent,
+    ///     one entry per relation to alter: the table itself, or each existing partition when the table is
+    ///     partitioned (PostgreSQL rejects storage parameters on a partitioned parent). Only declared
+    ///     parameters are compared; one that exists in the database but is not declared is left alone.
+    /// </summary>
+    internal StorageParameterChange[] StorageParameterChanges { get; private set; } = [];
+
+    internal record StorageParameterChange(
+        DbObjectName Target,
+        (string Name, string Value, string? ActualValue)[] Parameters);
+
+    /// <summary>
     ///     Foreign keys from OTHER tables that reference this table's primary key.
     ///     When the PK changes, these must be dropped and recreated.
     ///     Populated during <see cref="PostProcess" />.
@@ -145,6 +157,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
+
+        StorageParameterChanges = compareStorageParameters(expected, actual);
 
         if (expected.Partitioning == null)
         {
@@ -224,6 +238,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
 
         writeForeignKeyUpdates(writer);
         writeCheckConstraintUpdates(writer);
+        writeStorageParameterUpdates(writer);
 
         // Missing and changed indexes. This table exists, so every index written here is built against
         // rows -- which is the whole difference between a migration that blocks writes and one that does
@@ -372,6 +387,69 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         }
     }
 
+    private StorageParameterChange[] compareStorageParameters(Table expected, Table actual)
+    {
+        if (!expected.HasStorageParameters)
+        {
+            return [];
+        }
+
+        var declared = expected.DeclaredStorageParameters();
+
+        // A partition mismatch (or a partitioned table that is not partitioned yet) is rebuilt, and the
+        // rebuild creates everything with the declared parameters, so there is nothing to alter
+        if ((expected.Partitioning == null) != (actual.Partitioning == null))
+        {
+            return [];
+        }
+
+        var targets = actual.Partitioning == null
+            ? [(actual.Identifier, actual.StorageParameters)]
+            : actual.PartitionStorageParameters.Select(x => (x.Key, x.Value)).ToArray();
+
+        var changes = new List<StorageParameterChange>();
+        foreach (var (target, existing) in targets)
+        {
+            var different = declared
+                .Select(x => (x.Name, x.Value, ActualValue: existing[x.Name] as string))
+                .Where(x => x.ActualValue == null || !Table.StorageValuesEqual(x.Value, x.ActualValue))
+                .ToArray();
+
+            if (different.Length > 0)
+            {
+                changes.Add(new StorageParameterChange(target, different));
+            }
+        }
+
+        return changes.ToArray();
+    }
+
+    private void writeStorageParameterUpdates(TextWriter writer)
+    {
+        foreach (var change in StorageParameterChanges)
+        {
+            writer.WriteLine(Table.RenderAlterSet(change.Target, change.Parameters.Select(x => (x.Name, x.Value))));
+        }
+    }
+
+    private void rollbackStorageParameters(TextWriter writer)
+    {
+        foreach (var change in StorageParameterChanges)
+        {
+            var restore = change.Parameters.Where(x => x.ActualValue != null).ToArray();
+            if (restore.Length > 0)
+            {
+                writer.WriteLine(Table.RenderAlterSet(change.Target, restore.Select(x => (x.Name, x.ActualValue!))));
+            }
+
+            var reset = change.Parameters.Where(x => x.ActualValue == null).Select(x => x.Name).ToArray();
+            if (reset.Length > 0)
+            {
+                writer.WriteLine(Table.RenderAlterReset(change.Target, reset));
+            }
+        }
+    }
+
     private void writeCheckConstraintUpdates(TextWriter writer)
     {
         // Extras never appear here — unknown actual checks are filtered out of
@@ -393,6 +471,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             Expected.WriteDropStatement(rules, writer);
             return;
         }
+
+        rollbackStorageParameters(writer);
 
         foreach (var foreignKey in ForeignKeys.Missing) foreignKey.WriteDropStatement(Expected, writer);
 
@@ -555,6 +635,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             (ForeignKeys.Difference(), "a foreign key change cannot be applied incrementally"),
             (Indexes.Difference(), "an index change cannot be applied incrementally"),
             (CheckConstraints.Difference(), "a check constraint change cannot be applied incrementally"),
+            (StorageParameterChanges.Length > 0 ? SchemaPatchDifference.Update : SchemaPatchDifference.None,
+                "a storage parameter change"),
             (PrimaryKeyDifference, "the primary key cannot be changed in place"),
             (partitionDifference(), "the table's partitioning cannot be changed in place")
         };
@@ -596,6 +678,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)));
         ForeignKeys = ItemDelta<ForeignKey>.AllMissing(expected.ForeignKeys);
         CheckConstraints = ItemDelta<TableCheckConstraint>.AllMissing(expected.CheckConstraints);
+        StorageParameterChanges = [];
     }
 
     public bool HasChanges()
@@ -605,6 +688,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
 
         return Columns.HasChanges() || Indexes.HasChanges() || ForeignKeys.HasChanges() ||
                CheckConstraints.HasChanges() ||
+               StorageParameterChanges.Length > 0 ||
                PrimaryKeyDifference != SchemaPatchDifference.None || PartitionDelta != PartitionDelta.None;
     }
 
