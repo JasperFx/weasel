@@ -177,9 +177,34 @@ if (!IdentitySmoke.StrongTypedIdRoundTrips())
     return 1;
 }
 
+// --- The other six Identifications factories ----------------------------
+// weasel#694. These are the shapes that look safe and are not. Each closes a
+// generic over the document type alone, and a document type is a class, so
+// MakeGenericType has a canonical body to share -- IF ILC generated one.
+// Nothing statically references SequentialGuidIdentification<anything>, so
+// without a [DynamicDependency] rooting the strategy there is no canonical
+// instantiation to share and MakeGenericType throws:
+//
+//   NotSupportedException: 'Weasel.Core.Identity.SequentialGuidIdentification`1[Doc]'
+//     is missing native code or metadata.
+//
+// A consumer that happens to construct the same strategy itself roots it by
+// accident, which is why this arrived from Polecat as the SECOND failure --
+// MissingMethodException from Activator, the canonical body present and only
+// the ctor metadata trimmed. Both layers are the same missing root.
+//
+// None of that is reachable by the analyzer: it is a runtime property of the
+// native image, so only a native publish of this project proves it. Build
+// warnings are necessary and not sufficient here -- see CLAUDE.md.
+if (!IdentitySmoke.EveryFactoryConstructsAndRuns(out var failure))
+{
+    Console.Error.WriteLine($"Identifications regression (weasel#694): {failure}");
+    return 1;
+}
+
 Console.WriteLine($"Weasel.Core AOT smoke OK — exercised {nameof(DbObjectName)}, " +
                   $"{nameof(ForeignKeyBase)}.Parse, {nameof(TableBase<SmokeColumn, SmokeIndex, SmokeForeignKey>)}, " +
-                  $"{nameof(IDdlSyntaxStrategy)}, {nameof(Identifications)}.{nameof(Identifications.ForValueType)}.");
+                  $"{nameof(IDdlSyntaxStrategy)}, every {nameof(Identifications)} factory.");
 return 0;
 
 
@@ -372,10 +397,135 @@ internal static class IdentitySmoke
                && identification.RawSqlType == typeof(Guid)
                && identification.ToRawSqlValue(assigned).Equals(value);
     }
+
+    /// <summary>
+    ///     weasel#694. Constructs every remaining strategy through its factory and then uses it, because
+    ///     construction succeeding is not the same as working: the ctors build FEC-compiled accessor
+    ///     delegates, which is the other thing a native image does not have.
+    /// </summary>
+    [UnconditionalSuppressMessage("Trimming", "IL2026",
+        Justification =
+            "Each strategy reads its document's id member reflectively by design, and this project roots every document type it passes. The AOT dimension (IL3050) is what this smoke test holds.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050",
+        Justification =
+            "weasel#694: the strategies are rooted by [DynamicDependency] on the factories, so the MakeGenericType inside Close has a canonical instantiation to share. The analyzer cannot see that, and the native run below is what proves it.")]
+    public static bool EveryFactoryConstructsAndRuns(out string failure)
+    {
+        var guidMember = typeof(GuidIdDocument).GetProperty(nameof(GuidIdDocument.Id))!;
+        var intMember = typeof(IntIdDocument).GetProperty(nameof(IntIdDocument.Id))!;
+        var longMember = typeof(LongIdDocument).GetProperty(nameof(LongIdDocument.Id))!;
+        var stringMember = typeof(StringIdDocument).GetProperty(nameof(StringIdDocument.Id))!;
+
+        var cases = new (string Name, Func<IIdentification> Build, Func<object> Document, object Expected)[]
+        {
+            (nameof(Identifications.ForSequentialGuid),
+                () => Identifications.ForSequentialGuid(typeof(GuidIdDocument), guidMember),
+                () => new GuidIdDocument(), null!),
+            (nameof(Identifications.ForRandomGuid),
+                () => Identifications.ForRandomGuid(typeof(GuidIdDocument), guidMember),
+                () => new GuidIdDocument(), null!),
+            (nameof(Identifications.ForHiloInt),
+                () => Identifications.ForHiloInt(typeof(IntIdDocument), intMember, typeof(IntIdDocument)),
+                () => new IntIdDocument(), 42),
+            (nameof(Identifications.ForHiloLong),
+                () => Identifications.ForHiloLong(typeof(LongIdDocument), longMember, typeof(LongIdDocument)),
+                () => new LongIdDocument(), 42L),
+            (nameof(Identifications.ForIdentityKey),
+                () => Identifications.ForIdentityKey(typeof(StringIdDocument), stringMember, "docs",
+                    typeof(StringIdDocument)),
+                () => new StringIdDocument(), "docs/42"),
+            (nameof(Identifications.ForExternallyAssignedString),
+                () => Identifications.ForExternallyAssignedString(typeof(StringIdDocument), stringMember),
+                () => new StringIdDocument { Id = "assigned-outside" }, "assigned-outside")
+        };
+
+        foreach (var (name, build, document, expected) in cases)
+        {
+            IIdentification identification;
+            try
+            {
+                identification = build();
+            }
+            catch (Exception e)
+            {
+                failure = $"{name} could not build its strategy: {e.GetType().Name}: {e.Message}";
+                return false;
+            }
+
+            var target = document();
+            var assigned = identification.AssignIfMissing(target, new FixedSequenceSource());
+
+            // A Guid strategy generates its own value, so only assert that it produced one and that the
+            // strategy reads back what it wrote. The rest have a known answer.
+            if (expected is null)
+            {
+                if (assigned is not Guid { } guid || guid == Guid.Empty)
+                {
+                    failure = $"{name} assigned {assigned ?? "null"} rather than a generated Guid";
+                    return false;
+                }
+            }
+            else if (!expected.Equals(assigned))
+            {
+                failure = $"{name} assigned {assigned ?? "null"} rather than {expected}";
+                return false;
+            }
+
+            if (!Equals(identification.Identity(target), assigned))
+            {
+                failure = $"{name} read back {identification.Identity(target)} after assigning {assigned}";
+                return false;
+            }
+        }
+
+        failure = string.Empty;
+        return true;
+    }
 }
 
 internal sealed class SmokeSequenceSource: ISequenceSource
 {
     public ISequence SequenceFor(Type documentType)
         => throw new NotSupportedException("The smoke document's id is a Guid, so no sequence is needed.");
+}
+
+/// <summary>
+///     weasel#694's shapes: documents whose id is a plain primitive, so the strategy closes a generic
+///     over the document type alone.
+/// </summary>
+internal sealed class GuidIdDocument
+{
+    public Guid Id { get; set; }
+}
+
+internal sealed class IntIdDocument
+{
+    public int Id { get; set; }
+}
+
+internal sealed class LongIdDocument
+{
+    public long Id { get; set; }
+}
+
+internal sealed class StringIdDocument
+{
+    public string Id { get; set; } = string.Empty;
+}
+
+/// <summary>
+///     A sequence that hands back a fixed value, so the Hi-Lo and identity-key strategies can be run
+///     without a database.
+/// </summary>
+internal sealed class FixedSequenceSource: ISequenceSource
+{
+    public ISequence SequenceFor(Type documentType) => new FixedSequence();
+
+    private sealed class FixedSequence: ISequence
+    {
+        public int MaxLo => 1;
+        public int NextInt() => 42;
+        public long NextLong() => 42L;
+        public Task SetFloor(long floor) => Task.CompletedTask;
+    }
 }
