@@ -1,3 +1,4 @@
+using JasperFx.Core;
 using Npgsql;
 using Weasel.Postgresql;
 using Weasel.Postgresql.Tables;
@@ -59,6 +60,38 @@ public class PostgresqlTableSamples
         // database catalog and participates in delta detection.
         table.AddColumn("full_name", "text")
             .GeneratedAs("first_name || ' ' || last_name");
+        #endregion
+    }
+
+    public void storage_parameters()
+    {
+        #region sample_pg_storage_parameters
+        var table = new Table("public.events");
+        table.AddColumn<Guid>("id").AsPrimaryKey();
+
+        // The names are case sensitive as dictionary keys but are normalized to lower case when
+        // written, so two spellings of one parameter would render as one duplicated setting.
+        // StorageParameterNames is what keeps that from being possible.
+        table.StorageParameters[StorageParameterNames.FillFactor] = 70;
+        table.StorageParameters[StorageParameterNames.AutovacuumVacuumScaleFactor] = 0.05;
+        #endregion
+    }
+
+    public void storage_parameters_fluent()
+    {
+        #region sample_pg_storage_parameters_fluent
+        var table = new Table("public.events");
+        table.AddColumn<Guid>("id").AsPrimaryKey();
+
+        table.WithFillFactor(70)
+            // Only the arguments supplied are declared, so a hot table can be given just the
+            // thresholds that matter to it
+            .WithAutovacuum(vacuumScaleFactor: 0.01, insertScaleFactor: 0.02)
+            .WithParallelWorkers(4)
+            .WithAutovacuumLogging(250.Milliseconds())
+
+            // ...and anything without its own method still goes through the constants
+            .WithStorageParameter(StorageParameterNames.VacuumTruncate, false);
         #endregion
     }
 

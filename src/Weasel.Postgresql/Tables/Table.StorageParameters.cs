@@ -29,21 +29,142 @@ public partial class Table
     /// </summary>
     public int? FillFactor
     {
-        get => StorageParameters["fillfactor"] is { } value
+        get => StorageParameters[StorageParameterNames.FillFactor] is { } value
             ? Convert.ToInt32(value, CultureInfo.InvariantCulture)
             : null;
         set
         {
             if (value.HasValue)
             {
-                StorageParameters["fillfactor"] = value.Value;
+                StorageParameters[StorageParameterNames.FillFactor] = value.Value;
             }
             else
             {
-                StorageParameters.Remove("fillfactor");
+                StorageParameters.Remove(StorageParameterNames.FillFactor);
             }
         }
     }
+
+    /// <summary>
+    ///     Set a storage parameter, replacing any value already declared for it. Prefer a name from
+    ///     <see cref="StorageParameterNames" /> over a literal, which is what every overload below
+    ///     does: <see cref="StorageParameters" /> has case-sensitive keys, so two spellings of one
+    ///     parameter render as one duplicated setting and PostgreSQL rejects the DDL with 22023.
+    /// </summary>
+    /// <param name="name">The reloption name, lower case.</param>
+    /// <param name="value">
+    ///     The value, rendered with <see cref="CultureInfo.InvariantCulture" />. Null removes the
+    ///     parameter, which is NOT the same as resetting it on an existing table -- an undeclared
+    ///     parameter is left alone by the delta rather than reset, since a DBA may have set it.
+    /// </param>
+    public Table WithStorageParameter(string name, object? value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+
+        var key = name.Trim().ToLowerInvariant();
+        if (value is null)
+        {
+            StorageParameters.Remove(key);
+        }
+        else
+        {
+            StorageParameters[key] = value;
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    ///     Set this table's fill factor (10-100): how full PostgreSQL packs a page on insert.
+    ///     Lowering it leaves room for HOT updates in place. Null removes the declaration.
+    /// </summary>
+    public Table WithFillFactor(int? fillFactor)
+        => WithStorageParameter(StorageParameterNames.FillFactor, fillFactor);
+
+    /// <summary>
+    ///     Set this table's autovacuum thresholds. Every parameter is optional and only the ones
+    ///     supplied are declared, so this can be called more than once to build the set up.
+    /// </summary>
+    /// <param name="enabled">
+    ///     Whether autovacuum and autoanalyze run on this table at all. Note that turning it off
+    ///     does not stop an anti-wraparound vacuum.
+    /// </param>
+    /// <param name="vacuumThreshold">Minimum dead tuples before a vacuum.</param>
+    /// <param name="vacuumScaleFactor">Fraction of the table size added to the vacuum threshold.</param>
+    /// <param name="analyzeThreshold">Minimum changed tuples before an analyze.</param>
+    /// <param name="analyzeScaleFactor">Fraction of the table size added to the analyze threshold.</param>
+    /// <param name="insertThreshold">Minimum inserted tuples before a vacuum. PostgreSQL 13+.</param>
+    /// <param name="insertScaleFactor">
+    ///     Fraction of the table size added to the insert vacuum threshold. PostgreSQL 13+.
+    /// </param>
+    public Table WithAutovacuum(
+        bool? enabled = null,
+        int? vacuumThreshold = null,
+        double? vacuumScaleFactor = null,
+        int? analyzeThreshold = null,
+        double? analyzeScaleFactor = null,
+        int? insertThreshold = null,
+        double? insertScaleFactor = null)
+    {
+        // Only the arguments actually supplied are declared. A null here means "say nothing about
+        // this one", not "reset it": the delta never resets a parameter the table does not declare.
+        if (enabled.HasValue)
+        {
+            WithStorageParameter(StorageParameterNames.AutovacuumEnabled, enabled.Value);
+        }
+
+        if (vacuumThreshold.HasValue)
+        {
+            WithStorageParameter(StorageParameterNames.AutovacuumVacuumThreshold, vacuumThreshold.Value);
+        }
+
+        if (vacuumScaleFactor.HasValue)
+        {
+            WithStorageParameter(StorageParameterNames.AutovacuumVacuumScaleFactor, vacuumScaleFactor.Value);
+        }
+
+        if (analyzeThreshold.HasValue)
+        {
+            WithStorageParameter(StorageParameterNames.AutovacuumAnalyzeThreshold, analyzeThreshold.Value);
+        }
+
+        if (analyzeScaleFactor.HasValue)
+        {
+            WithStorageParameter(StorageParameterNames.AutovacuumAnalyzeScaleFactor, analyzeScaleFactor.Value);
+        }
+
+        if (insertThreshold.HasValue)
+        {
+            WithStorageParameter(StorageParameterNames.AutovacuumVacuumInsertThreshold, insertThreshold.Value);
+        }
+
+        if (insertScaleFactor.HasValue)
+        {
+            WithStorageParameter(StorageParameterNames.AutovacuumVacuumInsertScaleFactor, insertScaleFactor.Value);
+        }
+
+        return this;
+    }
+
+    /// <summary>
+    ///     Set the number of parallel workers a parallel scan of this table may use, overriding the
+    ///     estimate PostgreSQL makes from the table's size. Null removes the declaration.
+    /// </summary>
+    public Table WithParallelWorkers(int? workers)
+        => WithStorageParameter(StorageParameterNames.ParallelWorkers, workers);
+
+    /// <summary>
+    ///     Log any autovacuum of this table that runs longer than <paramref name="duration" />.
+    ///     <see cref="TimeSpan.Zero" /> logs every one; null removes the declaration. PostgreSQL
+    ///     takes -1 for "none", which <see cref="Timeout.InfiniteTimeSpan" /> maps to.
+    /// </summary>
+    public Table WithAutovacuumLogging(TimeSpan? duration)
+        => WithStorageParameter(StorageParameterNames.LogAutovacuumMinDuration,
+            duration is null
+                ? null
+                : duration == Timeout.InfiniteTimeSpan
+                    ? -1
+                    : (int)duration.Value.TotalMilliseconds);
 
     /// <summary>
     ///     The storage parameters of each existing partition, read from the database. Keyed by the
@@ -82,6 +203,12 @@ public partial class Table
             {
                 throw new InvalidOperationException(
                     $"Table '{Identifier}' declares the storage parameter '{name}' without a value.");
+            }
+
+            if (list.Any(x => x.Item1 == name))
+            {
+                throw new InvalidOperationException(
+                    $"Table '{Identifier}' declares the storage parameter '{name}' more than once. {nameof(StorageParameters)} keys are case sensitive but are normalized to lower case when written, so two spellings collapse into one duplicated setting that PostgreSQL rejects. Use the names on {nameof(StorageParameterNames)}.");
             }
 
             list.Add((name, value.Trim()));

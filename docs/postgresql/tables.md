@@ -13,7 +13,7 @@ var table = new Table("users");
 // Create a table in a specific schema
 var schemaTable = new Table("myschema.users");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L12-L18' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_create_a_table' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L13-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_create_a_table' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Adding Columns
@@ -31,7 +31,7 @@ table.AddColumn<string>("email").NotNull();
 table.AddColumn<DateTime>("created_at").NotNull();
 table.AddColumn("metadata", "jsonb");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L23-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_add_columns' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L24-L32' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_add_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The fluent `ColumnExpression` returned by `AddColumn` supports:
@@ -63,7 +63,7 @@ var compositeTable = new Table("tenant_orders");
 compositeTable.AddColumn<int>("tenant_id").AsPrimaryKey();
 compositeTable.AddColumn<int>("order_id").AsPrimaryKey();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L36-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_primary_keys' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L37-L47' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_primary_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 You can customize the primary key constraint name via `table.PrimaryKeyName`.
@@ -79,7 +79,7 @@ table.AddColumn<int>("company_id")
     .ForeignKeyTo("companies", "id",
         onDelete: CascadeAction.Cascade);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L67-L73' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_foreign_keys' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L100-L106' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_foreign_keys' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Or add foreign keys directly to the `ForeignKeys` collection for multi-column keys.
@@ -100,7 +100,7 @@ var index = new IndexDefinition("idx_users_email")
 index.Columns = new[] { "email" };
 table.Indexes.Add(index);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L78-L89' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_indexes' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L111-L122' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_indexes' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Indexes support GIN, GiST, BRIN, and hash methods via the `IndexMethod` enum. Expression-based indexes and sort order (`SortOrder`, `NullsSortOrder`) are also available.
@@ -118,7 +118,7 @@ var table = new Table("articles");
 // Weasel converts the text for you: to_tsvector('english', data)
 table.ModifyColumn("data").AddFullTextIndex();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L94-L99' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_full_text_index' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L127-L132' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_full_text_index' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 #### Weighting with setweight
@@ -154,7 +154,7 @@ table.Indexes.Add(index);
 // over a different vector than the one @@ filtered on is silently wrong, not just slow.
 var where = $"{index.IndexedTsVector} @@ plainto_tsquery('english', :term)";
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L104-L123' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_weighted_full_text_index' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L137-L156' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_weighted_full_text_index' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Read `IndexedTsVector` — never `DocumentConfig` or `TsVectorExpression` directly — when you build the
@@ -178,7 +178,7 @@ table.AddColumn<string>("status").DefaultValueByString("pending");
 table.AddColumn<DateTimeOffset>("created_at")
     .DefaultValueByExpression("now()");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L130-L138' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_default_values' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L163-L171' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_default_values' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generated Columns
@@ -199,36 +199,103 @@ table.AddColumn<string>("last_name");
 table.AddColumn("full_name", "text")
     .GeneratedAs("first_name || ' ' || last_name");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L51-L62' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_generated_columns' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L52-L63' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_generated_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Storage Parameters
 
-Table level storage parameters (`WITH (...)`) are set through `Table.StorageParameters`, an ordered
-name/value collection shaped like `IndexDefinition.StorageParameters`. `FillFactor` is a shortcut for the
-`fillfactor` entry. Names are the lower case PostgreSQL reloption names:
+Table level storage parameters -- PostgreSQL's `reloptions`, written as `CREATE TABLE ... WITH (...)` --
+let a single table be tuned without touching the server's own defaults. The usual reasons are a lower
+`fillfactor` on a table whose rows are updated in place, and tighter autovacuum thresholds on a table
+that churns far faster than the rest of the database.
 
+Weasel keeps them in step like any other part of the table: they are written on create, read back from
+the catalog, and compared by the delta.
+
+### Setting them
+
+`Table.StorageParameters` is an ordered name/value collection, the same shape as
+`IndexDefinition.StorageParameters`. Use the names on `StorageParameterNames` rather than literals:
+
+<!-- snippet: sample_pg_storage_parameters -->
+<a id='snippet-sample_pg_storage_parameters'></a>
 ```cs
 var table = new Table("public.events");
 table.AddColumn<Guid>("id").AsPrimaryKey();
 
-table.FillFactor = 70;
-table.StorageParameters["autovacuum_vacuum_scale_factor"] = "0.05";
-table.StorageParameters["autovacuum_vacuum_insert_scale_factor"] = "0.02";
+// The names are case sensitive as dictionary keys but are normalized to lower case when
+// written, so two spellings of one parameter would render as one duplicated setting.
+// StorageParameterNames is what keeps that from being possible.
+table.StorageParameters[StorageParameterNames.FillFactor] = 70;
+table.StorageParameters[StorageParameterNames.AutovacuumVacuumScaleFactor] = 0.05;
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L68-L77' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_storage_parameters' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+The constants are not only convenience. `StorageParameters` keys are case **sensitive**, while the DDL
+writer and the catalog reader both normalize to lower case -- so `"FILLFACTOR"` and `"fillfactor"` are two
+entries that render as one duplicated setting. Weasel refuses that with a clear message rather than letting
+PostgreSQL fail with 22023, but the constants make it unreachable.
+
+There is also a fluent form, which routes through the same constants:
+
+<!-- snippet: sample_pg_storage_parameters_fluent -->
+<a id='snippet-sample_pg_storage_parameters_fluent'></a>
+```cs
+var table = new Table("public.events");
+table.AddColumn<Guid>("id").AsPrimaryKey();
+
+table.WithFillFactor(70)
+    // Only the arguments supplied are declared, so a hot table can be given just the
+    // thresholds that matter to it
+    .WithAutovacuum(vacuumScaleFactor: 0.01, insertScaleFactor: 0.02)
+    .WithParallelWorkers(4)
+    .WithAutovacuumLogging(250.Milliseconds())
+
+    // ...and anything without its own method still goes through the constants
+    .WithStorageParameter(StorageParameterNames.VacuumTruncate, false);
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L82-L95' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_storage_parameters_fluent' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+`WithAutovacuum` declares only the arguments actually supplied. That matters because of how the delta
+treats absence -- see below -- so leaving a parameter out is "say nothing about this one", not "reset it".
+
+Either way the table is created with:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.events (
+    id uuid NOT NULL,
+    CONSTRAINT pkey_events_id PRIMARY KEY (id)
+) WITH (fillfactor = 70, autovacuum_vacuum_scale_factor = 0.05);
 ```
 
-which creates the table with `) WITH (fillfactor = 70, autovacuum_vacuum_scale_factor = 0.05, ...);`.
+### What the delta does, and does not, touch
 
-Delta detection reads `pg_class.reloptions` and compares **only the parameters the table declares**: a parameter
-that exists in the database but is not declared is never reset, because someone else may have set it. Values compare
-case-insensitively and numerically when both are numbers (`0.05` equals `0.050`). A difference is an in-place update,
-written as `ALTER TABLE ... SET (...)`; the rollback restores the previous values, or `RESET`s a parameter that was not set.
+Delta detection reads `pg_class.reloptions` and compares **only the parameters the table declares**. A
+parameter that exists in the database but is not declared on the table is never reset, because someone
+else -- a DBA, a migration outside Weasel -- may have set it deliberately. A table that declares no
+parameters at all behaves exactly as it did before this feature existed: no extra SQL, and no delta.
 
-`toast.*` parameters are not supported and are rejected with an exception.
+Values compare case-insensitively, and numerically when both sides are numbers. PostgreSQL stores the
+text as written, so `0.05` and `0.050` are the same setting and do not produce a permanent false diff.
 
-For a partitioned table PostgreSQL rejects storage parameters on the parent, so Weasel writes them on every partition
-it creates (declared partitions and the default partition) and applies `ALTER TABLE` to each existing partition when
-they change. Only the direct partitions of the table are inspected.
+A difference is an in-place `Update`, written as `ALTER TABLE ... SET (...)`. The rollback restores the
+previous value, or `RESET`s a parameter that was not set before.
+
+### Partitioned tables
+
+PostgreSQL rejects storage parameters on a partitioned parent, so Weasel writes them on each partition
+instead -- the declared list, range and hash partitions, the default partition, and the ones
+`ManagedRangePartitions` adds later. A change applies `ALTER TABLE` to every existing partition.
+
+Only the **direct** partitions of the table are inspected, so a sub-partitioned tree is not recursed into.
+
+### Limitations
+
+`toast.*` parameters are rejected with an exception. They are real parameters, but they live on the TOAST
+relation's own `reloptions` rather than the table's, so Weasel could write them and would then read back
+nothing and report a difference forever.
 
 ## Delta Detection and Migration
 
@@ -253,7 +320,7 @@ var existing = await table.FetchExistingAsync(conn);
 var delta = new TableDelta(table, existing);
 // delta.Difference tells you: None, Create, Update, or Recreate
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L143-L159' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L176-L192' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating DDL
@@ -268,5 +335,5 @@ var writer = new StringWriter();
 table.WriteCreateStatement(migrator, writer);
 Console.WriteLine(writer.ToString());
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L164-L171' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_generate_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlTableSamples.cs#L197-L204' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_table_generate_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

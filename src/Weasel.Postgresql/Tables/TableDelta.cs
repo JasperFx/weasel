@@ -635,8 +635,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             (ForeignKeys.Difference(), "a foreign key change cannot be applied incrementally"),
             (Indexes.Difference(), "an index change cannot be applied incrementally"),
             (CheckConstraints.Difference(), "a check constraint change cannot be applied incrementally"),
+            // Always Update when it differs, never Invalid: ALTER TABLE ... SET (...) applies in
+            // place on any existing table. So this entry can never be the MinBy winner that sets
+            // InvalidReason, and the reason text exists only to describe the row.
             (StorageParameterChanges.Length > 0 ? SchemaPatchDifference.Update : SchemaPatchDifference.None,
-                "a storage parameter change"),
+                "a storage parameter change is applied in place and is never invalid"),
             (PrimaryKeyDifference, "the primary key cannot be changed in place"),
             (partitionDifference(), "the table's partitioning cannot be changed in place")
         };
