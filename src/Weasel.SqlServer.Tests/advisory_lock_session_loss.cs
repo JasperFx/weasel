@@ -97,7 +97,7 @@ public class advisory_lock_session_loss
     {
         SqlConnection? connection = null;
         await using var theLock = new AdvisoryLock(() => connection = new SqlConnection(ConnectionSource.ConnectionString),
-            NullLogger.Instance, "Testing", TimeSpan.FromHours(1));
+            NullLogger.Instance, "Testing", new SqlServerAdvisoryLockOptions { MonitoringInterval = TimeSpan.FromHours(1) });
         var released = Locks.NextId();
         var kept = Locks.NextId();
 
@@ -160,9 +160,14 @@ public class advisory_lock_session_loss
 
         public static int NextId() => Interlocked.Increment(ref _lastId);
 
+        // Drives the public options overload rather than a test-only seam, so the suite exercises what a
+        // consumer gets. The default interval is long enough that only the tests asking for a monitor get one.
         public static AdvisoryLock Create(TimeSpan? monitoringInterval = null) =>
             new(() => new SqlConnection(ConnectionSource.ConnectionString), NullLogger.Instance, "Testing",
-                monitoringInterval ?? TimeSpan.FromHours(1));
+                new SqlServerAdvisoryLockOptions
+                {
+                    MonitoringInterval = monitoringInterval ?? TimeSpan.FromHours(1)
+                });
 
         public static async Task<bool> IsFreeAsync(int lockId)
         {

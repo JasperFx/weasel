@@ -8,6 +8,55 @@ using Microsoft.Extensions.Logging;
 namespace Weasel.SqlServer;
 
 /// <summary>
+///     Settings for the lock monitor weasel#695 added to <see cref="AdvisoryLock" />. Every default is the
+///     behaviour of the three-argument constructor, which is what shipped in 9.42.0, so an instance built
+///     with these settings untouched behaves exactly as that release does.
+///     <para>
+///     There is no counterpart to <c>Weasel.Postgresql.AdvisoryLockOptions.ReleaseTimeout</c>; see the
+///     remarks on <see cref="AdvisoryLock.DisposeAsync" /> for the measurement that rules it out.
+///     </para>
+/// </summary>
+public sealed class SqlServerAdvisoryLockOptions
+{
+    /// <summary>
+    ///     How often the monitor asks SQL Server whether this session still holds the locks that
+    ///     <see cref="AdvisoryLock.HasLock" /> reports. The probe short-circuits while no locks are held, so an
+    ///     idle lock costs nothing.
+    /// </summary>
+    /// <remarks>
+    ///     A non-positive value or <see cref="Timeout.InfiniteTimeSpan" /> does not start the monitor at all,
+    ///     following the convention <c>Weasel.Postgresql.AdvisoryLockOptions.ReleaseTimeout</c> documents and
+    ///     JasperFx reads <c>DaemonSettings.StopAndDrainTimeout</c> by. Opting out re-opens the weasel#695
+    ///     split brain: a node that loses its session goes on reporting locks the server has already released,
+    ///     and two nodes run the same shard. The only reason to do it is a deployment with so many databases
+    ///     that one parked timer each is itself the cost — weasel#439 is that shape — and it wants to be a
+    ///     deliberate choice rather than a default.
+    /// </remarks>
+    public TimeSpan MonitoringInterval { get; set; } = 5.Seconds();
+
+    /// <summary>
+    ///     <c>CommandTimeout</c> for the monitor's probe.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         This bounds shutdown as much as it bounds a query. <see cref="AdvisoryLock.DisposeAsync" />
+    ///         stops the monitor from inside the same gate the probe holds, so an in-flight probe delays
+    ///         disposal by up to this long, and a probe that runs to its limit blocks
+    ///         <see cref="AdvisoryLock.TryAttainLockAsync" /> for the same stretch. Keep it under
+    ///         <see cref="MonitoringInterval" />; at equal values a probe at its limit consumes the whole duty
+    ///         cycle.
+    ///     </para>
+    ///     <para>
+    ///         <c>CommandTimeout</c> is whole seconds and reads zero as "no timeout", so a sub-second value is
+    ///         rounded up to one second rather than silently removing the bound. There is deliberately no way
+    ///         to ask for an unbounded probe: it would hold the gate, and disposal behind it, for as long as
+    ///         the server stayed unresponsive.
+    ///     </para>
+    /// </remarks>
+    public TimeSpan ProbeTimeout { get; set; } = 5.Seconds();
+}
+
+/// <summary>
 ///     SQL Server implementation of <see cref="IAdvisoryLock" />. The contract was
 ///     originally a duplicate in <c>Weasel.Core.IAdvisoryLock</c> (byte-identical
 ///     to the upstream JasperFx.Events one); it was lifted into
@@ -18,34 +67,57 @@ namespace Weasel.SqlServer;
 /// </summary>
 public class AdvisoryLock : IAdvisoryLock
 {
-    private const int ProbeTimeoutSeconds = 5;
-
     private readonly Func<SqlConnection> _source;
     private readonly ILogger _logger;
     private readonly string _databaseName;
+    private readonly int _probeTimeoutSeconds;
 
     // The monitor shares the connection, and SqlConnection does not support concurrent commands
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private readonly PeriodicTimer _monitorTimer;
+
+    // Null when monitoring was opted out of: see SqlServerAdvisoryLockOptions.MonitoringInterval
+    private readonly PeriodicTimer? _monitorTimer;
 
     private volatile SqlConnection? _conn;
     private volatile ImmutableHashSet<int> _locks = ImmutableHashSet<int>.Empty;
     private volatile bool _disposed;
 
     public AdvisoryLock(Func<SqlConnection> source, ILogger logger, string databaseName)
-        : this(source, logger, databaseName, 5.Seconds())
+        : this(source, logger, databaseName, new SqlServerAdvisoryLockOptions())
     {
     }
 
-    internal AdvisoryLock(Func<SqlConnection> source, ILogger logger, string databaseName, TimeSpan monitoringInterval)
+    public AdvisoryLock(Func<SqlConnection> source, ILogger logger, string databaseName,
+        SqlServerAdvisoryLockOptions options)
     {
         _source = source;
         _logger = logger;
         _databaseName = databaseName;
+        _probeTimeoutSeconds = ProbeTimeoutSeconds(options.ProbeTimeout);
 
-        // DisposeAsync stops the loop by disposing the timer
-        _monitorTimer = new PeriodicTimer(monitoringInterval);
-        _ = monitorAsync(_monitorTimer);
+        if (MonitoringEnabled(options.MonitoringInterval))
+        {
+            // DisposeAsync stops the loop by disposing the timer
+            _monitorTimer = new PeriodicTimer(options.MonitoringInterval);
+            _ = monitorAsync(_monitorTimer);
+        }
+    }
+
+    // Timeout.InfiniteTimeSpan is itself negative, so the first test already covers it. Both are spelled out
+    // because the opt-out is documented as either, and a reader should not have to know that to trust it.
+    internal static bool MonitoringEnabled(TimeSpan interval)
+    {
+        return interval > TimeSpan.Zero && interval != Timeout.InfiniteTimeSpan;
+    }
+
+    // SqlCommand.CommandTimeout is whole seconds and reads 0 as "wait forever", which is the one value this
+    // must never produce: an unbounded probe would hold _gate, and the disposal waiting behind it, for as
+    // long as the server stayed unresponsive. So round up, and floor at one second.
+    internal static int ProbeTimeoutSeconds(TimeSpan timeout)
+    {
+        if (timeout.TotalSeconds >= int.MaxValue) return int.MaxValue;
+
+        return Math.Max(1, (int)Math.Ceiling(timeout.TotalSeconds));
     }
 
     public bool HasLock(int lockId)
@@ -225,6 +297,20 @@ public class AdvisoryLock : IAdvisoryLock
         }
     }
 
+    /// <summary>
+    ///     Release every held lock and close the connection.
+    /// </summary>
+    /// <remarks>
+    ///     There is deliberately no equivalent of the Postgres sibling's
+    ///     <c>AdvisoryLockOptions.ReleaseTimeout</c>, and the reason is measured rather than assumed. That
+    ///     bound is safe on Postgres because abandoning a release still ends with the connection closing and
+    ///     the session-scoped lock going with it. Here the connection is pooled: closing it returns it to the
+    ///     pool with its session, and its <c>sp_getapplock</c> holds, intact — the lock is not freed until the
+    ///     pooled connection is next reset or the process exits. So a release this method skipped would leave
+    ///     the lock held against the node that needs it next, which is the one failure an advisory lock may
+    ///     not have. The releases are therefore unbounded on purpose. See
+    ///     <c>advisory_lock_options.a_pooled_connection_keeps_its_locks_when_it_closes</c>, which pins it.
+    /// </remarks>
     public async ValueTask DisposeAsync()
     {
         // Set first, before disposing the connection, so any concurrent TryAttainLockAsync short-circuits (weasel#349).
@@ -233,7 +319,7 @@ public class AdvisoryLock : IAdvisoryLock
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            _monitorTimer.Dispose();
+            _monitorTimer?.Dispose();
 
             if (_conn != null)
             {
@@ -312,7 +398,7 @@ public class AdvisoryLock : IAdvisoryLock
 
             try
             {
-                var lost = await locksNotHeldAsync(conn, held).ConfigureAwait(false);
+                var lost = await locksNotHeldAsync(conn, held, _probeTimeoutSeconds).ConfigureAwait(false);
                 if (lost.Count == 0) return;
 
                 _locks = held.Except(lost);
@@ -336,12 +422,13 @@ public class AdvisoryLock : IAdvisoryLock
     }
 
     // Asks per lock: a release whose client-side timeout fired may still have run on the server
-    private static async Task<List<int>> locksNotHeldAsync(SqlConnection conn, ImmutableHashSet<int> held)
+    private static async Task<List<int>> locksNotHeldAsync(SqlConnection conn, ImmutableHashSet<int> held,
+        int probeTimeoutSeconds)
     {
         var lockIds = held.ToArray();
 
         await using var cmd = conn.CreateCommand();
-        cmd.CommandTimeout = ProbeTimeoutSeconds;
+        cmd.CommandTimeout = probeTimeoutSeconds;
         cmd.CommandText =
             $"SELECT i FROM (VALUES {string.Join(", ", lockIds.Select((_, i) => $"({i}, @lock{i})"))}) AS held(i, lock_id) " +
             "WHERE APPLOCK_MODE('public', lock_id, 'Session') <> 'Exclusive'";
