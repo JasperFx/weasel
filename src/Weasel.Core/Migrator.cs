@@ -427,6 +427,12 @@ public abstract class
     /// <summary>
     ///     Write the delta "up" and matching "down" file at the same location
     /// </summary>
+    /// <remarks>
+    ///     The up file creates the schemas of the objects the patch changes, if they do not exist yet.
+    ///     The down file never drops a schema: it rolls back each object the patch touched, and a
+    ///     <c>drop schema ... cascade</c> would also destroy everything else in that schema, including
+    ///     objects this migration does not model and schemas the patch never changed (weasel#706).
+    /// </remarks>
     /// <param name="filename"></param>
     /// <param name="migration"></param>
     public async Task WriteMigrationFileAsync(string filename, SchemaMigration patch, CancellationToken ct = default)
@@ -438,24 +444,16 @@ public abstract class
 
         await WriteTemplatedFile(filename, (r, w) =>
         {
-            if (patch.Schemas.Any())
+            if (patch.ChangedSchemas.Any())
             {
-                WriteSchemaCreationSql(patch.Schemas, w);
+                WriteSchemaCreationSql(patch.ChangedSchemas, w);
             }
 
             patch.WriteAllUpdates(w, r, AutoCreate.All);
         }, ct).ConfigureAwait(false);
 
         var dropFile = SchemaMigration.ToDropFileName(filename);
-        await WriteTemplatedFile(dropFile, (r, w) =>
-        {
-            if (patch.Schemas.Any())
-            {
-                WriteSchemaDropSql(patch.Schemas, w);
-            }
-
-            patch.WriteAllRollbacks(w, r);
-        }, ct).ConfigureAwait(false);
+        await WriteTemplatedFile(dropFile, (r, w) => patch.WriteAllRollbacks(w, r), ct).ConfigureAwait(false);
     }
 
     /// <summary>

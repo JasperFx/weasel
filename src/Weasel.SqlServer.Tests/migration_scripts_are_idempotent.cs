@@ -116,7 +116,7 @@ AS
 
     /// <summary>
     ///     Renders exactly what <c>Migrator.WriteMigrationFileAsync</c> writes, in the same order:
-    ///     schema creation first, then every update.
+    ///     creation of the changed schemas first, then every update.
     /// </summary>
     private static string renderScript(MigrationDatabase database, SchemaMigration migration)
     {
@@ -124,9 +124,9 @@ AS
 
         database.Migrator.WriteScript(writer, (rules, w) =>
         {
-            if (migration.Schemas.Any())
+            if (migration.ChangedSchemas.Any())
             {
-                rules.WriteSchemaCreationSql(migration.Schemas, w);
+                rules.WriteSchemaCreationSql(migration.ChangedSchemas, w);
             }
 
             migration.WriteAllUpdates(w, rules, AutoCreate.All);
