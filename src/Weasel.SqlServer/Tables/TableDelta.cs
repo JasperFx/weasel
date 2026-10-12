@@ -180,7 +180,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         foreach (var index in recreatedIndexes) writer.WriteDropIndex(Expected, index);
         foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteDropStatement(Expected, writer);
 
-        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate();
+        // A primary key the table no longer declares goes before anything is created: it is usually the
+        // clustered index, and a new clustered index cannot be built while it is still there
+        // (JasperFx/wolverine#4989)
+        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate() || primaryKeyRemoved();
         if (primaryKeyDroppedBeforeColumnChanges)
         {
             writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
@@ -250,7 +253,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
                 }
 
-                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                // A table that no longer declares a primary key only loses the old one
+                if (Expected.PrimaryKeyColumns.Count > 0)
+                {
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                }
+
                 break;
 
             case SchemaPatchDifference.Create:
@@ -358,7 +366,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
         foreach (var change in ForeignKeys.Different) change.Expected.WriteDropStatement(Expected, writer);
 
-        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeRollback();
+        // A primary key the update added comes off before the actual indexes are restored, for the same
+        // reason as on the way forward: it is usually the clustered index (JasperFx/wolverine#4989)
+        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeRollback() ||
+                                                   PrimaryKeyDifference == SchemaPatchDifference.Create;
         if (primaryKeyDroppedBeforeColumnChanges)
         {
             writer.WriteLine(
@@ -431,7 +442,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         {
             case SchemaPatchDifference.Invalid:
             case SchemaPatchDifference.Update:
-                if (!primaryKeyDroppedBeforeColumnChanges)
+                // Rolling back a removed primary key: there is no expected one to drop
+                if (!primaryKeyDroppedBeforeColumnChanges && Expected.PrimaryKeyColumns.Count > 0)
                 {
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
                 }
@@ -604,6 +616,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)));
         ForeignKeys = ItemDelta<ForeignKey>.AllMissing(expected.ForeignKeys);
         CheckConstraints = ItemDelta<TableCheckConstraint>.AllMissing(expected.CheckConstraints);
+    }
+
+    private bool primaryKeyRemoved()
+    {
+        return PrimaryKeyDifference == SchemaPatchDifference.Update && Expected.PrimaryKeyColumns.Count == 0;
     }
 
     private bool requiresPrimaryKeyDropBeforeUpdate()

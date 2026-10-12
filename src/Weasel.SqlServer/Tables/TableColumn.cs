@@ -284,8 +284,9 @@ public class TableColumn: ITableColumn
 
     public virtual bool CanAdd()
     {
-        // computed columns are derived, so the database back-fills them on add
-        return AllowNulls || DefaultExpression.IsNotEmpty() || ComputedExpression.IsNotEmpty();
+        // computed columns are derived, so the database back-fills them on add, and SQL Server numbers
+        // the existing rows when an IDENTITY column is added (JasperFx/wolverine#4989)
+        return AllowNulls || DefaultExpression.IsNotEmpty() || ComputedExpression.IsNotEmpty() || IsAutoNumber;
     }
 
     public virtual string AddColumnSql(Table parent)
