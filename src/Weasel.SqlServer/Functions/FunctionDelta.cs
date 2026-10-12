@@ -22,8 +22,11 @@ public class FunctionDelta: SchemaObjectDelta<Function>
 
         // CanonicizeSql handles the OR ALTER preamble. Stripping it here as well was a blind
         // replace over the whole body, so it also hit the words in a literal or a comment.
-        var expectedSql = expected.Body().CanonicizeSql();
-        var actualSql = actual.Body().CanonicizeSql();
+        // CreateStatement, not Body(): Body() now includes the drop (weasel#703), and the drop statements of
+        // a function read back from the catalog are always the default ones -- so comparing Body() would
+        // report a function declared with custom drop statements as changed on every pass.
+        var expectedSql = expected.CreateStatement().CanonicizeSql();
+        var actualSql = actual.CreateStatement().CanonicizeSql();
         if (!expectedSql.Equals(actualSql, StringComparison.OrdinalIgnoreCase))
         {
             return SchemaPatchDifference.Update;
