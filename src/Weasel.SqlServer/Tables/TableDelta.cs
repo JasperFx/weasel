@@ -256,12 +256,14 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 // A table that no longer declares a primary key only loses the old one
                 if (Expected.PrimaryKeyColumns.Count > 0)
                 {
+                    writeNotNullForPrimaryKeyColumns(writer);
                     writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                 }
 
                 break;
 
             case SchemaPatchDifference.Create:
+                writeNotNullForPrimaryKeyColumns(writer);
                 writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                 break;
 
@@ -590,7 +592,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             (ForeignKeys.Difference(), "a foreign key change cannot be applied incrementally"),
             (Indexes.Difference(), "an index change cannot be applied incrementally"),
             (CheckConstraints.Difference(), "a check constraint change cannot be applied incrementally"),
-            (PrimaryKeyDifference, "the primary key cannot be changed in place"),
+            // A primary key added to an existing table is an Update of that table: a table-level Create
+            // means "the table is missing" and writes only CREATE TABLE IF NOT EXISTS (weasel#707)
+            (PrimaryKeyDifference == SchemaPatchDifference.Create ? SchemaPatchDifference.Update : PrimaryKeyDifference,
+                "the primary key cannot be changed in place"),
             (PartitioningDifference, "the table's partitioning cannot be changed in place")
         };
 
@@ -621,6 +626,27 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     private bool primaryKeyRemoved()
     {
         return PrimaryKeyDifference == SchemaPatchDifference.Update && Expected.PrimaryKeyColumns.Count == 0;
+    }
+
+    /// <summary>
+    ///     SQL Server refuses a primary key over a nullable column, so an existing column the new key covers
+    ///     is made NOT NULL first. Done here rather than through column drift detection, which is opt-in
+    ///     (weasel#707).
+    /// </summary>
+    private void writeNotNullForPrimaryKeyColumns(TextWriter writer)
+    {
+        foreach (var columnName in Expected.PrimaryKeyColumns)
+        {
+            var actual = Actual?.ColumnFor(columnName);
+            var expected = Expected.ColumnFor(columnName);
+            if (actual == null || expected == null || !actual.AllowNulls || actual.IsPrimaryKey) continue;
+
+            writer.WriteLine($"alter table {Expected.Identifier} alter column {expected.QuotedName} {expected.Type} NOT NULL;");
+
+            // SQL Server checks the whole batch before running it, so the primary key would still see the
+            // column as nullable without a batch of its own
+            endBatch(writer);
+        }
     }
 
     private bool requiresPrimaryKeyDropBeforeUpdate()

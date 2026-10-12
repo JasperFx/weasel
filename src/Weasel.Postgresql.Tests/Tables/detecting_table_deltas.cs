@@ -671,10 +671,33 @@ public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
 
         var delta = await table.FindDeltaAsync(theConnection);
 
-        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+        // The table had no primary key, so one is created (weasel#707: it used to report the default
+        // name for a table without one, and so an Update)
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Create);
         delta.HasChanges().ShouldBeTrue();
 
         await AssertNoDeltasAfterPatching(theTable);
+        await AssertNoDeltasAfterPatching(table);
+    }
+
+    /// <summary>
+    ///     weasel#707. Removing a table's primary key dropped it and then wrote
+    ///     <c>add CONSTRAINT ... PRIMARY KEY ()</c> for the key the table no longer declares.
+    /// </summary>
+    [Fact]
+    public async Task removing_the_primary_key()
+    {
+        var table = new Table("deltas.states");
+        table.AddColumn<string>("abbreviation").AsPrimaryKey();
+        await CreateSchemaObjectInDatabase(table);
+
+        var without = new Table("deltas.states");
+        without.AddColumn<string>("abbreviation").NotNull();
+
+        var delta = await without.FindDeltaAsync(theConnection);
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching(without);
     }
 
     [Fact]

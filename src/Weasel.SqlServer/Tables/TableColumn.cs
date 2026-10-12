@@ -83,13 +83,18 @@ public class TableColumn: ITableColumn
     /// </summary>
     internal bool HasSameDefaultAndNullability(TableColumn actual)
     {
-        if (!IsPrimaryKey && !actual.IsPrimaryKey && AllowNulls != actual.AllowNulls)
+        if (effectivelyNullable() != actual.effectivelyNullable())
         {
             return false;
         }
 
         return canonicalDefault(DefaultExpression) == canonicalDefault(actual.DefaultExpression);
     }
+
+    // A primary key column is NOT NULL whatever AllowNulls says. Comparing this, rather than skipping
+    // every primary key column, is what makes a nullable column NOT NULL before a primary key is added
+    // over it, which SQL Server requires (weasel#707)
+    private bool effectivelyNullable() => !IsPrimaryKey && AllowNulls;
 
     private static string? canonicalDefault(string? expression)
         => expression == null ? null : SqlServerExpression.Canonicalize(expression);
@@ -138,10 +143,10 @@ public class TableColumn: ITableColumn
 
     internal void WriteDriftCorrections(Table parent, TableColumn actual, TextWriter writer)
     {
-        if (!IsPrimaryKey && !actual.IsPrimaryKey && AllowNulls != actual.AllowNulls)
+        if (effectivelyNullable() != actual.effectivelyNullable())
         {
             writer.WriteLine(
-                $"alter table {parent.Identifier} alter column {QuotedName} {Type} {(AllowNulls ? "NULL" : "NOT NULL")};");
+                $"alter table {parent.Identifier} alter column {QuotedName} {Type} {(effectivelyNullable() ? "NULL" : "NOT NULL")};");
         }
 
         if (canonicalDefault(DefaultExpression) != canonicalDefault(actual.DefaultExpression))

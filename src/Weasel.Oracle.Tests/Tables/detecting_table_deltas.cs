@@ -349,4 +349,45 @@ public class detecting_table_deltas: IntegrationContext
 
         await AssertNoDeltasAfterPatching(theTable);
     }
+
+    /// <summary>
+    ///     weasel#707. A primary key added to an existing table made the whole table delta a Create, and a
+    ///     table-level Create only writes the CREATE TABLE statement, so the key was never added.
+    /// </summary>
+    [Fact]
+    public async Task adding_a_primary_key_to_an_existing_table()
+    {
+        var table = new Table("DELTAS.STATES");
+        table.AddColumn<string>("abbreviation").NotNull();
+        await CreateSchemaObjectInDatabase(table);
+
+        var keyed = new Table("DELTAS.STATES");
+        keyed.AddColumn<string>("abbreviation").AsPrimaryKey();
+
+        var delta = await keyed.FindDeltaAsync(theConnection);
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Create);
+        delta.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching(keyed);
+    }
+
+    /// <summary>
+    ///     weasel#707. Removing a table's primary key dropped it and then wrote
+    ///     <c>ADD CONSTRAINT ... PRIMARY KEY ()</c> for the key the table no longer declares.
+    /// </summary>
+    [Fact]
+    public async Task removing_the_primary_key()
+    {
+        var table = new Table("DELTAS.STATES");
+        table.AddColumn<string>("abbreviation").AsPrimaryKey();
+        await CreateSchemaObjectInDatabase(table);
+
+        var without = new Table("DELTAS.STATES");
+        without.AddColumn<string>("abbreviation").NotNull();
+
+        var delta = await without.FindDeltaAsync(theConnection);
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+
+        await AssertNoDeltasAfterPatching(without);
+    }
 }
