@@ -157,8 +157,14 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason,
                     writer.WriteLine($"ALTER TABLE {Expected.Identifier} DROP CONSTRAINT {Actual.PrimaryKeyName}");
                     writer.WriteLine("/");
                 }
-                writer.WriteLine($"ALTER TABLE {Expected.Identifier} ADD {Expected.PrimaryKeyDeclaration()}");
-                writer.WriteLine("/");
+
+                // A table that no longer declares a primary key only loses the old one (weasel#707)
+                if (Expected.PrimaryKeyColumns.Any())
+                {
+                    writer.WriteLine($"ALTER TABLE {Expected.Identifier} ADD {Expected.PrimaryKeyDeclaration()}");
+                    writer.WriteLine("/");
+                }
+
                 break;
 
             case SchemaPatchDifference.Create:
@@ -361,7 +367,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithReason,
             (Columns.Difference(), "a column change cannot be applied incrementally"),
             (ForeignKeys.Difference(), "a foreign key change cannot be applied incrementally"),
             (Indexes.Difference(), "an index change cannot be applied incrementally"),
-            (PrimaryKeyDifference, "the primary key cannot be changed in place")
+            // A primary key added to an existing table is an Update of that table: a table-level Create
+            // means "the table is missing" and writes only CREATE TABLE IF NOT EXISTS (weasel#707)
+            (PrimaryKeyDifference == SchemaPatchDifference.Create ? SchemaPatchDifference.Update : PrimaryKeyDifference,
+                "the primary key cannot be changed in place")
         };
 
         // Use the minimum to get the most severe required action:

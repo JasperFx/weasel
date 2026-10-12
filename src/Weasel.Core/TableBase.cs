@@ -261,9 +261,23 @@ public abstract class TableBase<TColumn, TIndex, TForeignKey>: SchemaObjectBase,
     public string TruncatedNameIdentifier(string nameIdentifier)
         => nameIdentifier.Substring(0, Math.Min(MaxIdentifierLength, nameIdentifier.Length));
 
+    /// <summary>
+    ///     The primary key constraint's name: the one set explicitly, otherwise the provider's default
+    ///     for the primary key columns. Empty for a table without primary key columns, which has no
+    ///     primary key constraint to name.
+    /// </summary>
+    /// <remarks>
+    ///     Before JasperFx/wolverine#4989 a table without primary key columns still reported the default
+    ///     name (<c>pkey_{table}_</c>), so a delta between a table with a primary key and one without
+    ///     tried to drop a constraint that did not exist.
+    /// </remarks>
     public string PrimaryKeyName
     {
-        get => _primaryKeyName.IsNotEmpty() ? _primaryKeyName : DefaultPrimaryKeyName();
+        get
+        {
+            if (_primaryKeyName.IsNotEmpty()) return _primaryKeyName;
+            return PrimaryKeyColumns.Count == 0 ? string.Empty : DefaultPrimaryKeyName();
+        }
         set => _primaryKeyName = NormalizeIdentifier(value);
     }
 

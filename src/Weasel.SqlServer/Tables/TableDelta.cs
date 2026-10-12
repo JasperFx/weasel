@@ -180,7 +180,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         foreach (var index in recreatedIndexes) writer.WriteDropIndex(Expected, index);
         foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteDropStatement(Expected, writer);
 
-        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate();
+        // A primary key the table no longer declares goes before anything is created: it is usually the
+        // clustered index, and a new clustered index cannot be built while it is still there
+        // (JasperFx/wolverine#4989)
+        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate() || primaryKeyRemoved();
         if (primaryKeyDroppedBeforeColumnChanges)
         {
             writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
@@ -250,10 +253,17 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
                 }
 
-                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                // A table that no longer declares a primary key only loses the old one
+                if (Expected.PrimaryKeyColumns.Count > 0)
+                {
+                    writeNotNullForPrimaryKeyColumns(writer);
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                }
+
                 break;
 
             case SchemaPatchDifference.Create:
+                writeNotNullForPrimaryKeyColumns(writer);
                 writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
                 break;
 
@@ -358,7 +368,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
         foreach (var change in ForeignKeys.Different) change.Expected.WriteDropStatement(Expected, writer);
 
-        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeRollback();
+        // A primary key the update added comes off before the actual indexes are restored, for the same
+        // reason as on the way forward: it is usually the clustered index (JasperFx/wolverine#4989)
+        var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeRollback() ||
+                                                   PrimaryKeyDifference == SchemaPatchDifference.Create;
         if (primaryKeyDroppedBeforeColumnChanges)
         {
             writer.WriteLine(
@@ -431,7 +444,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         {
             case SchemaPatchDifference.Invalid:
             case SchemaPatchDifference.Update:
-                if (!primaryKeyDroppedBeforeColumnChanges)
+                // Rolling back a removed primary key: there is no expected one to drop
+                if (!primaryKeyDroppedBeforeColumnChanges && Expected.PrimaryKeyColumns.Count > 0)
                 {
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
                 }
@@ -578,7 +592,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             (ForeignKeys.Difference(), "a foreign key change cannot be applied incrementally"),
             (Indexes.Difference(), "an index change cannot be applied incrementally"),
             (CheckConstraints.Difference(), "a check constraint change cannot be applied incrementally"),
-            (PrimaryKeyDifference, "the primary key cannot be changed in place"),
+            // A primary key added to an existing table is an Update of that table: a table-level Create
+            // means "the table is missing" and writes only CREATE TABLE IF NOT EXISTS (weasel#707)
+            (PrimaryKeyDifference == SchemaPatchDifference.Create ? SchemaPatchDifference.Update : PrimaryKeyDifference,
+                "the primary key cannot be changed in place"),
             (PartitioningDifference, "the table's partitioning cannot be changed in place")
         };
 
@@ -604,6 +621,32 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             expected.Indexes.Where(x => !expected.HasIgnoredIndex(x.Name)));
         ForeignKeys = ItemDelta<ForeignKey>.AllMissing(expected.ForeignKeys);
         CheckConstraints = ItemDelta<TableCheckConstraint>.AllMissing(expected.CheckConstraints);
+    }
+
+    private bool primaryKeyRemoved()
+    {
+        return PrimaryKeyDifference == SchemaPatchDifference.Update && Expected.PrimaryKeyColumns.Count == 0;
+    }
+
+    /// <summary>
+    ///     SQL Server refuses a primary key over a nullable column, so an existing column the new key covers
+    ///     is made NOT NULL first. Done here rather than through column drift detection, which is opt-in
+    ///     (weasel#707).
+    /// </summary>
+    private void writeNotNullForPrimaryKeyColumns(TextWriter writer)
+    {
+        foreach (var columnName in Expected.PrimaryKeyColumns)
+        {
+            var actual = Actual?.ColumnFor(columnName);
+            var expected = Expected.ColumnFor(columnName);
+            if (actual == null || expected == null || !actual.AllowNulls || actual.IsPrimaryKey) continue;
+
+            writer.WriteLine($"alter table {Expected.Identifier} alter column {expected.QuotedName} {expected.Type} NOT NULL;");
+
+            // SQL Server checks the whole batch before running it, so the primary key would still see the
+            // column as nullable without a batch of its own
+            endBatch(writer);
+        }
     }
 
     private bool requiresPrimaryKeyDropBeforeUpdate()

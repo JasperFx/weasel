@@ -307,7 +307,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
                 // CASCADE will also drop FKs from other tables that reference this PK.
                 // We must recreate those FKs after the PK is altered.
                 writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)} CASCADE;");
-                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+
+                // A table that no longer declares a primary key only loses the old one (weasel#707)
+                if (Expected.PrimaryKeyColumns.Count > 0)
+                {
+                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                }
 
                 // Recreate foreign keys from other tables that were dropped by CASCADE
                 foreach (var (ownerTable, fk) in ReferencingForeignKeys)
@@ -523,8 +528,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         {
             case SchemaPatchDifference.Invalid:
             case SchemaPatchDifference.Update:
-                writer.WriteLine(
-                    $"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                // Rolling back a removed primary key: there is no expected one to drop (weasel#707)
+                if (Expected.PrimaryKeyColumns.Count > 0)
+                {
+                    writer.WriteLine(
+                        $"alter table {Expected.Identifier} drop constraint if exists {Expected.PrimaryKeyName};");
+                }
+
                 writer.WriteLine($"alter table {Expected.Identifier} add {Actual.PrimaryKeyDeclaration()};");
                 break;
 
@@ -640,7 +650,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             // InvalidReason, and the reason text exists only to describe the row.
             (StorageParameterChanges.Length > 0 ? SchemaPatchDifference.Update : SchemaPatchDifference.None,
                 "a storage parameter change is applied in place and is never invalid"),
-            (PrimaryKeyDifference, "the primary key cannot be changed in place"),
+            // A primary key added to an existing table is an Update of that table: a table-level Create
+            // means "the table is missing" and writes only CREATE TABLE IF NOT EXISTS (weasel#707)
+            (PrimaryKeyDifference == SchemaPatchDifference.Create ? SchemaPatchDifference.Update : PrimaryKeyDifference,
+                "the primary key cannot be changed in place"),
             (partitionDifference(), "the table's partitioning cannot be changed in place")
         };
 

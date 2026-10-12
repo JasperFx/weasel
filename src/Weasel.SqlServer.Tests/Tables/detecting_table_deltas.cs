@@ -530,10 +530,13 @@ public class detecting_table_deltas: IntegrationContext
 
         var delta = await table.FindDeltaAsync(theConnection);
 
-        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Update);
+        // The table had no primary key, so one is created (weasel#707: it used to report the default
+        // name for a table without one, and so an Update)
+        delta.PrimaryKeyDifference.ShouldBe(SchemaPatchDifference.Create);
         delta.HasChanges().ShouldBeTrue();
 
         await AssertNoDeltasAfterPatching(theTable);
+        await AssertNoDeltasAfterPatching(table);
     }
 
     [Fact]

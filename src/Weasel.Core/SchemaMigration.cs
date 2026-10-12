@@ -15,10 +15,8 @@ public class SchemaMigration
     public SchemaMigration(IEnumerable<ISchemaObjectDelta> deltas)
     {
         _deltas = new List<ISchemaObjectDelta>(deltas);
-        Schemas = _deltas.SelectMany(x => x.SchemaObject.AllNames())
-            .Select(x => x.Schema)
-            .Where(x => x != "public")
-            .Distinct().ToArray();
+        Schemas = schemasOf(_deltas);
+        ChangedSchemas = schemasOf(_deltas.Where(x => x.Difference != SchemaPatchDifference.None));
 
         if (_deltas.Any())
         {
@@ -85,6 +83,20 @@ public class SchemaMigration
     ///     The unique schemas part of this migration
     /// </summary>
     public string[] Schemas { get; }
+
+    /// <summary>
+    ///     The unique schemas of the objects this migration actually changes. Unlike
+    ///     <see cref="Schemas" />, a schema whose objects are all up to date is not in it (weasel#706).
+    /// </summary>
+    public string[] ChangedSchemas { get; }
+
+    private static string[] schemasOf(IEnumerable<ISchemaObjectDelta> deltas)
+    {
+        return deltas.SelectMany(x => x.SchemaObject.AllNames())
+            .Select(x => x.Schema)
+            .Where(x => x != "public")
+            .Distinct().ToArray();
+    }
 
     /// <summary>
     ///     The detected difference between configuration and the actual database
