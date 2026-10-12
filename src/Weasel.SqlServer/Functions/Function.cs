@@ -20,11 +20,41 @@ public class Function: FunctionBase
     {
     }
 
+    /// <summary>
+    ///     Drops the function if it exists, then creates it, so a generated creation script can be run
+    ///     more than once (weasel#703).
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A bare <c>CREATE FUNCTION</c> fails on a second run with "There is already an object named
+    ///         ...", and every other object in a generated script survives a re-run. <see cref="Triggers.Trigger" />
+    ///         had this problem first and got this answer: drop, then <c>EXEC sp_executesql</c> the create.
+    ///     </para>
+    ///     <para>
+    ///         ⚠️ <b>The drop is deliberately NOT part of what <see cref="FunctionDelta" /> compares</b> — it
+    ///         compares <see cref="CreateStatement" />. <see cref="FunctionBase.Body" /> renders through this
+    ///         method, and a function read back from <c>sys.sql_modules</c> always carries the DEFAULT drop
+    ///         statement, so comparing <c>Body()</c> would report a function built with custom drop statements
+    ///         as changed on every single migration.
+    ///         <c>a_function_with_custom_drop_statements_has_no_delta_after_applying</c> pins that.
+    ///     </para>
+    /// </remarks>
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
+    {
+        WriteDropStatement(migrator, writer);
+        writer.WriteLine(CreateStatement());
+    }
+
+    /// <summary>
+    ///     The single <c>EXEC sp_executesql</c> statement that creates this function, with no drop. Public
+    ///     because it is what delta comparison wants, the same way <see cref="Triggers.Trigger.CreateStatement" />
+    ///     is.
+    /// </summary>
+    public string CreateStatement()
     {
         // The body goes inside a string literal, so its own quotes have to be doubled. Without
         // this, any function containing a string literal produced an unclosed-quote syntax error.
-        writer.WriteLine($"EXEC sp_executesql N'{RawBody?.Replace("'", "''")}';");
+        return $"EXEC sp_executesql N'{RawBody?.Replace("'", "''")}';";
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
