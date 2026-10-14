@@ -67,3 +67,26 @@ All of these now migrate, in both directions, on tables that hold data, and the 
 
 - `Weasel.Core.SchemaMigration.ChangedSchemas`: the schemas of the objects a migration actually changes.
   `Schemas` still lists every schema in the migration.
+
+## 9.45.1
+
+One security fix: [#710](https://github.com/JasperFx/weasel/pull/710), for
+[GHSA-846f-f764-76mx](https://github.com/advisories/GHSA-846f-f764-76mx) / CVE-2026-84008 (high, CVSS
+7.5). `SignedCms.CheckSignature` in `System.Security.Cryptography.Pkcs` can reparse attacker-controlled
+X.509 data with quadratic CPU cost.
+
+Weasel never calls that API itself, but two of its packages brought a vulnerable version of the package
+in through their database drivers, and any application referencing them inherited it:
+
+| Package | Pulled in by | Pkcs version before 9.45.1 |
+|---|---|---|
+| `Weasel.SqlServer` | Microsoft.Data.SqlClient 6.1.3 | 9.0.4 |
+| `Weasel.Oracle` | Oracle.ManagedDataAccess.Core 23.7.0 | 8.0.0 |
+
+Upgrading the driver alone does not help. The newest SqlClient, 7.1.1, still depends on Pkcs 9.0.18.
+So both packages now reference `System.Security.Cryptography.Pkcs` directly, at **10.0.13** on net10.0
+and **9.0.21** on net9.0, the first patched version on each line. Upgrading to 9.45.1 is enough to clear
+`NU1903` for this advisory; no code changes.
+
+If your application references `Microsoft.Data.SqlClient` or `Oracle.ManagedDataAccess.Core` directly
+as well, NuGet already resolves the higher Pkcs version, so nothing else is needed.
