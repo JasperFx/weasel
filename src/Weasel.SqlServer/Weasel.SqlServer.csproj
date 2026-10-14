@@ -22,6 +22,8 @@
              implements that interface directly. -->
         <PackageReference Include="JasperFx.Events" />
         <PackageReference Include="Microsoft.Data.SqlClient" />
+        <!-- GHSA-846f-f764-76mx: patched floor for the driver's transitive Pkcs. See Directory.Packages.props. -->
+        <PackageReference Include="System.Security.Cryptography.Pkcs" />
     </ItemGroup>
 
     <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
