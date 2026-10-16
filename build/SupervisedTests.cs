@@ -51,12 +51,16 @@ partial class Build
     readonly int? TestWorkers;
 
     /// <summary>
-    /// Whether to fold this run into the committed ledger under build/test-ledger/. Defaults to on
-    /// locally and off on CI, where a run's ledger goes to artifacts/test-ledger/ instead, to be
-    /// folded in by <see cref="FoldLedgers"/>: a CI checkout's edits are thrown away with it.
+    /// Whether to fold this run into build/test-ledger/. Off by default, everywhere: the committed
+    /// ledger is folded from CI's artifacts (<see cref="FoldLedgers"/>), because a test's uid is not
+    /// portable. xUnit v3's uid evidently includes the test assembly's path, so a test has one uid per
+    /// target framework (bin/Debug/net9.0 vs net10.0) and another on every machine or checkout --
+    /// measured: a local ledger and a CI ledger of the same suite and framework share no uid at all.
+    /// A local fold would only bloat the committed file with keys CI never looks up. Turn it on to
+    /// balance repeated local runs (<c>--record-ledger</c>), and do not commit the result.
     /// </summary>
-    [Parameter("Fold this run into the committed ledger (default: on locally, off on CI)")]
-    readonly bool? RecordLedger;
+    [Parameter("Fold this run into build/test-ledger/ (default: off; the committed ledger is CI's)")]
+    readonly bool RecordLedger;
 
     /// <summary>
     /// A directory of per-run ledgers (the CI artifacts) for <see cref="FoldLedgers"/>.
@@ -66,7 +70,8 @@ partial class Build
 
     /// <summary>
     /// The committed ledgers, one per test project. Every framework and every CI matrix leg folds
-    /// into the same file -- each run is its own observation, so they never overwrite each other.
+    /// into the same file -- each run is its own observation, so they never overwrite each other, and
+    /// each framework's tests have uids of their own (see <see cref="RecordLedger"/>).
     /// </summary>
     static AbsolutePath CommittedLedgerDirectory => RootDirectory / "build" / "test-ledger";
 
@@ -77,12 +82,13 @@ partial class Build
     static AbsolutePath RunArtifactsDirectory => RootDirectory / "artifacts" / "test-ledger";
 
     /// <summary>
-    /// Observations kept per test in a new ledger. The design default is 20; every CI leg of a
-    /// project (four for Postgres, four for SQL Server) is its own observation, and each costs a few
-    /// hundred bytes per test in a committed file, so 20 would make the Postgres ledger alone several
-    /// megabytes. Five is enough for a median. An existing file keeps the retention it was written with.
+    /// Observations kept per test in a new ledger. The design default is 20, but each observation is
+    /// about 450 bytes in the committed file (uid and display name repeated in every run), and the
+    /// matrix legs sharing a framework share uids, so a Postgres fold adds two observations per test
+    /// per framework per CI run: at 20 the Postgres ledger alone would be ~19 MB. Three is enough for
+    /// a median. An existing file keeps the retention it was written with.
     /// </summary>
-    const int LedgerRunsPerTest = 5;
+    const int LedgerRunsPerTest = 3;
 
     /// <summary>
     /// A test in flight this long is named while the run is still going. Report-only -- nothing is
@@ -113,7 +119,11 @@ partial class Build
             foreach (var group in files.GroupBy(projectOfLedgerFile))
             {
                 var path = CommittedLedgerDirectory / $"{group.Key}.json";
-                var ledger = group.Aggregate(TestLedger.Load(path), (folded, file) => folded.Merge(TestLedger.Load(file)));
+                // Record rather than Merge: Merge keeps the LARGER retention of the two sides, so one
+                // artifact written with a longer retention would grow the committed file for good. The
+                // committed file's own retention decides; the union is the same either way.
+                var ledger = group.Aggregate(TestLedger.Load(path, LedgerRunsPerTest),
+                    (folded, file) => folded.Record(TestLedger.Load(file).Tests.Values.SelectMany(runs => runs)));
                 ledger.Save(path);
                 Log.Information("Folded {Count} run ledger(s) into {Path}", group.Count(), path);
             }
@@ -411,7 +421,7 @@ partial class Build
             TestLedger.Empty(LedgerRunsPerTest).Record(observations)
                 .Save(RunArtifactsDirectory / fileNameSafe($"{ledgerJobName}.{projectName}.{framework}.ledger.json"));
 
-            if (RecordLedger ?? IsLocalBuild)
+            if (RecordLedger)
             {
                 // A partial (cancelled) run is the run so far, not a verdict: keep it out of the
                 // committed history.

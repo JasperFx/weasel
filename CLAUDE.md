@@ -371,7 +371,9 @@ already-built test executable (every test project is a Microsoft.Testing.Platfor
   last row's verdict, so `TheoryRowGuard` in `SupervisedTests.cs` fails the job if any row failed.
   Prefer serializable theory data anyway.
 - **`build/test-ledger/`** is the committed ledger: per-test durations the supervisor balances lanes
-  with. A local run folds into it; CI uploads each leg's run as a `test-ledger-*` artifact, and
+  with, folded from CI only: a uid differs per framework and per checkout, so a local fold would never
+  match CI (`--record-ledger` folds a local run, for local balancing; do not commit that). CI uploads
+  each leg's run as a `test-ledger-*` artifact, and
   `./build.sh FoldLedgers --ledger-source <dir>` folds downloaded ones in.
 
 **SQLite CI Workflow:**

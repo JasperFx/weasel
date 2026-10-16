@@ -128,11 +128,8 @@
           "description": "Directory of downloaded test-ledger artifacts to fold into build/test-ledger/"
         },
         "RecordLedger": {
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "description": "Fold this run into the committed ledger (default: on locally, off on CI)"
+          "type": "boolean",
+          "description": "Fold this run into build/test-ledger/ (default: off; the committed ledger is CI's)"
         },
         "Solution": {
           "type": "string",
