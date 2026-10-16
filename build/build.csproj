@@ -13,6 +13,11 @@
 
   <ItemGroup>
     <PackageReference Include="Nuke.Common" />
+    <!-- The supervised test targets (SupervisedTests.cs). The two database clients provision the
+         per-lane databases before a run; nothing else in the build talks to a database. -->
+    <PackageReference Include="Bobcat.Supervisor" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
 </Project>

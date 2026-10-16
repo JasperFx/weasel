@@ -74,5 +74,16 @@ jobs:
 
     - name: Test
       env:
+        CI_JOB_NAME: mssql-${{ contains(matrix.mssql-image, '2019') && '2019' || '2022' }}-${{ matrix.framework }}
         weasel_sqlserver_testing_database: "Server=localhost;User Id=sa;Password=${{ env.db_pwd }};TrustServerCertificate=true"
-      run: dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }}
+      run: ./build.sh TestSqlServer --framework ${{ matrix.framework }} --configuration Debug
+
+    # The run ledger and the supervisor's JSON report, per leg. `./build.sh FoldLedgers` folds
+    # downloaded ledgers into the committed build/test-ledger/, which balances lanes by duration.
+    - name: Upload test ledger
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-ledger-mssql-${{ contains(matrix.mssql-image, '2019') && '2019' || '2022' }}-${{ matrix.framework }}
+        path: artifacts/test-ledger/
+        if-no-files-found: ignore

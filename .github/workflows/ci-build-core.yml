@@ -62,4 +62,16 @@ jobs:
     # these are unit tests, including the cross-provider identifier conformance suite,
     # which is pure string logic against each provider's IdentifierRules.
     - name: Test
-      run: dotnet test src/Weasel.Core.Tests/Weasel.Core.Tests.csproj --no-build --verbosity normal --configuration ${{ env.config }} --framework ${{ matrix.framework }}
+      env:
+        CI_JOB_NAME: core-${{ matrix.framework }}
+      run: ./build.sh TestCore --framework ${{ matrix.framework }} --configuration ${{ env.config }}
+
+    # The run ledger and the supervisor's JSON report, per leg. `./build.sh FoldLedgers` folds
+    # downloaded ledgers into the committed build/test-ledger/, which balances lanes by duration.
+    - name: Upload test ledger
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-ledger-core-${{ matrix.framework }}
+        path: artifacts/test-ledger/
+        if-no-files-found: ignore

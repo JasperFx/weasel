@@ -1,0 +1,4101 @@
+{
+  "version": 1,
+  "maxRunsPerTest": 3,
+  "tests": {
+    "03a3aa51db3277fb88203e5159c9e02cd9402aac4764d20d765d2185b79b6c9a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "03a3aa51db3277fb88203e5159c9e02cd9402aac4764d20d765d2185b79b6c9a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.empty_batch_does_not_throw",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 65,
+        "firstMs": 65,
+        "stallInduced": false
+      }
+    ],
+    "04694d8787b853d27dc84e710d333f31352fda28742e7ac04f1d141f9647b602": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "04694d8787b853d27dc84e710d333f31352fda28742e7ac04f1d141f9647b602",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_ef_core_cannot_translate_throws_when_queued",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 772,
+        "firstMs": 772,
+        "stallInduced": false
+      }
+    ],
+    "04cd5c979985892cdc93e25dc4fa0c17faf72c9361fa384b54b7400d31b4e0dd": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "04cd5c979985892cdc93e25dc4fa0c17faf72c9361fa384b54b7400d31b4e0dd",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.queries_queued_while_a_retrying_execution_strategy_runs_run_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1983,
+        "firstMs": 1983,
+        "stallInduced": false
+      }
+    ],
+    "06e32c2096579acebf60380d4f83b0f7beedeb2ce339cc9c0457d3d752f94afc": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "06e32c2096579acebf60380d4f83b0f7beedeb2ce339cc9c0457d3d752f94afc",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.default_schema_is_omitted_and_gets_no_ensure_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 31,
+        "firstMs": 31,
+        "stallInduced": false
+      }
+    ],
+    "074358c697aa9dc1947f2aa5a10996154b983efded534d93056960ff7e24791d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "074358c697aa9dc1947f2aa5a10996154b983efded534d93056960ff7e24791d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.json_column_end_to_end.json_column_should_be_jsonb_type",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 25,
+        "firstMs": 25,
+        "stallInduced": false
+      }
+    ],
+    "098ed96ea4e338871b4c8b8cd293929818f7dd7ab0ebcf9f17f1dbed97e58f1f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "098ed96ea4e338871b4c8b8cd293929818f7dd7ab0ebcf9f17f1dbed97e58f1f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_split_query_makes_every_query_run_separately_with_the_same_results",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 423,
+        "firstMs": 423,
+        "stallInduced": false
+      }
+    ],
+    "0a8cc56328c7371f72abe10f8fd0a5e8a08481a128b972e3d0054dcb7095916b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "0a8cc56328c7371f72abe10f8fd0a5e8a08481a128b972e3d0054dcb7095916b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 550,
+        "firstMs": 550,
+        "stallInduced": false
+      }
+    ],
+    "0b14344e7c93a423a7c900e5a3c20f83a5b0650770192d5421d0c0e3d95ae53e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "0b14344e7c93a423a7c900e5a3c20f83a5b0650770192d5421d0c0e3d95ae53e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_of_another_context_throws_when_queued(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 261,
+        "firstMs": 261,
+        "stallInduced": false
+      }
+    ],
+    "0b76c203171344854dd8d8894d737bf7646b6612a4e2acaeecc2988da12f0c99": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "0b76c203171344854dd8d8894d737bf7646b6612a4e2acaeecc2988da12f0c99",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_with_ordering_and_filtering",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 65,
+        "firstMs": 65,
+        "stallInduced": false
+      }
+    ],
+    "0b778c80171755b9f051d313108f0ba22597ae08e79b2423e9753e9173d35ff4": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "0b778c80171755b9f051d313108f0ba22597ae08e79b2423e9753e9173d35ff4",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MySql.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 120,
+        "firstMs": 120,
+        "stallInduced": false
+      }
+    ],
+    "0bbd6b453b11d48728be5f2f4fba952721221bc785d2ad66d4dafe7248e0b280": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "0bbd6b453b11d48728be5f2f4fba952721221bc785d2ad66d4dafe7248e0b280",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.raw_sql_fallback_without_a_migrator_throws",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 5,
+        "firstMs": 5,
+        "stallInduced": false
+      }
+    ],
+    "0c4e901160f12a013e08d93443acbd0d59fc94fccc63330fb41098115e00c954": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "0c4e901160f12a013e08d93443acbd0d59fc94fccc63330fb41098115e00c954",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.drop_operations_reverse_the_object_order",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "0da49a76e30f52c680f2bf86c286d8ae323ca42cebb26831d713e582d5cb90e1": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "0da49a76e30f52c680f2bf86c286d8ae323ca42cebb26831d713e582d5cb90e1",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.the_mapped_tables_say_they_are_add_only",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 17,
+        "firstMs": 17,
+        "stallInduced": false
+      }
+    ],
+    "0dfcef404f909166269cf397e4c6d3a407909af02f50193224230c9efafa4327": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "0dfcef404f909166269cf397e4c6d3a407909af02f50193224230c9efafa4327",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.projections_into_initialized_objects_can_be_batched(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 250,
+        "firstMs": 250,
+        "stallInduced": false
+      }
+    ],
+    "0e66e2c2ad4ca3851e2fad9486a8fb2dd75f9e804affe42ae7584166ae146133": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "0e66e2c2ad4ca3851e2fad9486a8fb2dd75f9e804affe42ae7584166ae146133",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_with_ordering",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 60,
+        "firstMs": 60,
+        "stallInduced": false
+      }
+    ],
+    "10d464f7744ff4b6db3160a39f931551aa1ad1f700696101522010e009300306": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "10d464f7744ff4b6db3160a39f931551aa1ad1f700696101522010e009300306",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Oracle.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 119,
+        "firstMs": 119,
+        "stallInduced": false
+      }
+    ],
+    "12bb783fdac209c71ea2d9ad27776e7859063f12f8c4116f43294f0887799626": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "12bb783fdac209c71ea2d9ad27776e7859063f12f8c4116f43294f0887799626",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.indexes_translate_with_filter_includes_and_method",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "12d158660e2b35d034b9421e14fb036576eab375c30fafa47c023de7ec0a5dae": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "12d158660e2b35d034b9421e14fb036576eab375c30fafa47c023de7ec0a5dae",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_two_list_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 165,
+        "firstMs": 165,
+        "stallInduced": false
+      }
+    ],
+    "1437c443fd44b690bd8d8eee8f632267e23c710a9eb4d7747da9cc6e623b6120": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "1437c443fd44b690bd8d8eee8f632267e23c710a9eb4d7747da9cc6e623b6120",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_checks_and_computed.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 506,
+        "firstMs": 506,
+        "stallInduced": false
+      }
+    ],
+    "1465e324a8bb398c09d2cfa85e6994eeb07b2a26683610dbfaf497ec2834284d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1465e324a8bb398c09d2cfa85e6994eeb07b2a26683610dbfaf497ec2834284d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 59,
+        "firstMs": 59,
+        "stallInduced": false
+      }
+    ],
+    "146b0c773796f5a916a225883e7b90bed01324b24f50fce7fa48c300ea3d0ddf": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "146b0c773796f5a916a225883e7b90bed01324b24f50fce7fa48c300ea3d0ddf",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_indexes.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1234,
+        "firstMs": 1234,
+        "stallInduced": false
+      }
+    ],
+    "150ce9dffcdb840fc99d026655bbd2fab3317fb2b7d43d683e847e64e4cbd31a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "150ce9dffcdb840fc99d026655bbd2fab3317fb2b7d43d683e847e64e4cbd31a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_delete_behaviors.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 4018,
+        "firstMs": 4018,
+        "stallInduced": false
+      }
+    ],
+    "15567153b820e1e8143d28d4fbdba6a68b0da2614d415be245df99eb3f00bcf7": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "15567153b820e1e8143d28d4fbdba6a68b0da2614d415be245df99eb3f00bcf7",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.snapshot_round_trips_through_json_with_zero_diff",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 173,
+        "firstMs": 173,
+        "stallInduced": false
+      }
+    ],
+    "159f18c865b0833e3e4cdf0890a9e818643b31d7132c731ad5e3ea25e5d53e50": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "159f18c865b0833e3e4cdf0890a9e818643b31d7132c731ad5e3ea25e5d53e50",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_default_values.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 511,
+        "firstMs": 511,
+        "stallInduced": false
+      }
+    ],
+    "179850696edb75e0e962a04be39503efaa7cff4afe2fe747dfe4c56bc5cbb4bf": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "179850696edb75e0e962a04be39503efaa7cff4afe2fe747dfe4c56bc5cbb4bf",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.reserved_word_column_names_are_escaped",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 2,
+        "firstMs": 2,
+        "stallInduced": false
+      }
+    ],
+    "179efb87bffebdf35634d0e0802d2048c94b41720ec7ff02ba49769a3a2d6775": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "179efb87bffebdf35634d0e0802d2048c94b41720ec7ff02ba49769a3a2d6775",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_retrying_execution_strategy_runs_each_query_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 120,
+        "firstMs": 120,
+        "stallInduced": false
+      }
+    ],
+    "17a03b7de329b246fb431beba2c5645eb32780b8a54573f4b83798de773c528b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "17a03b7de329b246fb431beba2c5645eb32780b8a54573f4b83798de773c528b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.sql_operations_render_as_verbatim_strings",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "17c7b525103e28ec89f6bb1270f55cc94d2fc4546001468ac93d3df74f8db615": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "17c7b525103e28ec89f6bb1270f55cc94d2fc4546001468ac93d3df74f8db615",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.batched_entities_are_fully_materialized_in_one_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 330,
+        "firstMs": 330,
+        "stallInduced": false
+      }
+    ],
+    "18b4c28b71373e588593a43818a5073f134a477ab22e67398e022bb9f12dcf07": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "18b4c28b71373e588593a43818a5073f134a477ab22e67398e022bb9f12dcf07",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_retrying_execution_strategy_recovers_from_a_transient_error",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 131,
+        "firstMs": 131,
+        "stallInduced": false
+      }
+    ],
+    "1b4ff4da403e99e6647e659060b2e83f908acc4c8a17d7b63534be70ed9c378e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "1b4ff4da403e99e6647e659060b2e83f908acc4c8a17d7b63534be70ed9c378e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.baseline_records_history_rows_without_executing",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 53,
+        "firstMs": 53,
+        "stallInduced": false
+      }
+    ],
+    "1b815a6c2661e4813597494f0c5a3787675aa1e75f66eaf3cae33b1ecb55cbfe": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1b815a6c2661e4813597494f0c5a3787675aa1e75f66eaf3cae33b1ecb55cbfe",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.a_concurrent_build_does_not_push_an_otherwise_typed_index_to_raw_sql",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "1bd721f5a91a118b82adfbf7b57557d2a85487d381c52f0ec7b6aee890801390": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1bd721f5a91a118b82adfbf7b57557d2a85487d381c52f0ec7b6aee890801390",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.an_additive_change_still_applies_to_an_add_only_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 178,
+        "firstMs": 178,
+        "stallInduced": false
+      }
+    ],
+    "1c658045568d11166524cd4ab08fe7620e268d428b321c31907d49b06c7d9687": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "1c658045568d11166524cd4ab08fe7620e268d428b321c31907d49b06c7d9687",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 723,
+        "firstMs": 723,
+        "stallInduced": false
+      }
+    ],
+    "1e3d360a824e6f542fdf4285c45a79c58722203f5c2d106f9ad0ab8d3ff54924": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1e3d360a824e6f542fdf4285c45a79c58722203f5c2d106f9ad0ab8d3ff54924",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.delete_all_data_with_explicit_connection_for_multi_tenancy",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 162,
+        "firstMs": 162,
+        "stallInduced": false
+      }
+    ],
+    "1e3ec758aa69bcb12fc837d0e3f91b559b41828f0e5213c7bfd23bb277bc738a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1e3ec758aa69bcb12fc837d0e3f91b559b41828f0e5213c7bfd23bb277bc738a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.the_database_cleaner_empties_the_tables",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 479,
+        "firstMs": 479,
+        "stallInduced": false
+      }
+    ],
+    "1e6365f1221639b9731c42bac453d81e43625aaed72b6848b1d94bace28ebc40": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "1e6365f1221639b9731c42bac453d81e43625aaed72b6848b1d94bace28ebc40",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.a_raw_sql_index_round_trips_through_the_serialized_snapshot",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "1ed05133ba9c9526fa13907b09a67b2bbe2b277cbfb46b66227fdc1fe910195b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1ed05133ba9c9526fa13907b09a67b2bbe2b277cbfb46b66227fdc1fe910195b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.baseline_conventions.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 251,
+        "firstMs": 251,
+        "stallInduced": false
+      }
+    ],
+    "1f4130a41df5b34cbe38c9eeb26f6207d1177794157732fa7408855714934574": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1f4130a41df5b34cbe38c9eeb26f6207d1177794157732fa7408855714934574",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_when_the_query_is_queued(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 170,
+        "firstMs": 170,
+        "stallInduced": false
+      }
+    ],
+    "1f86eb6acde7222ba0840d58a8008dbd247c25b1c18475e24359cad8c331adea": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "1f86eb6acde7222ba0840d58a8008dbd247c25b1c18475e24359cad8c331adea",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.incremental_migration_end_to_end.incremental_operations_apply_and_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 285,
+        "firstMs": 285,
+        "stallInduced": false
+      }
+    ],
+    "224dd3ee7e0bb7ec6423aa06b9e30bf90966d80534788abbf9103da4e45817b0": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "224dd3ee7e0bb7ec6423aa06b9e30bf90966d80534788abbf9103da4e45817b0",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.saving_a_batched_entity_keeps_its_data",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 275,
+        "firstMs": 275,
+        "stallInduced": false
+      }
+    ],
+    "226b6be52574aab564dd8adcd454a2f578a94e40ceb609bf82a812a37d984eb8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "226b6be52574aab564dd8adcd454a2f578a94e40ceb609bf82a812a37d984eb8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.ef_core_reads_batched_results_from_the_providers_own_reader",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 124,
+        "firstMs": 124,
+        "stallInduced": false
+      }
+    ],
+    "22a7662f84377447d249264077379c119e9c1b0676f26cc6d3ddaa33749cb838": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "22a7662f84377447d249264077379c119e9c1b0676f26cc6d3ddaa33749cb838",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.checked_in_migration_file_matches_regenerated_output",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "24493e911b17b360f93a809ae6a13beff83361e00ad0f024f2c54f9cc9047054": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "24493e911b17b360f93a809ae6a13beff83361e00ad0f024f2c54f9cc9047054",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_failing_batch_faults_every_future",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 107,
+        "firstMs": 107,
+        "stallInduced": false
+      }
+    ],
+    "24eab44d8a12dee1e13901dd9faa527f650a30e4204ed4cfa5f0ddcd84aeb00c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "24eab44d8a12dee1e13901dd9faa527f650a30e4204ed4cfa5f0ddcd84aeb00c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 551,
+        "firstMs": 551,
+        "stallInduced": false
+      }
+    ],
+    "25ecedfaf3ee7d7fb5d871d3f951c24fdf90083b6149205225299558e0fa2ecc": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "25ecedfaf3ee7d7fb5d871d3f951c24fdf90083b6149205225299558e0fa2ecc",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.incremental_migration_chain_round_trips",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 2402,
+        "firstMs": 2402,
+        "stallInduced": false
+      }
+    ],
+    "26df748a66fdaa337aef6c6fbcadd4b3ec1f45263670d0a04dae5e14d4ae9cfc": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "26df748a66fdaa337aef6c6fbcadd4b3ec1f45263670d0a04dae5e14d4ae9cfc",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.inheritance_tpt.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 448,
+        "firstMs": 448,
+        "stallInduced": false
+      }
+    ],
+    "27ce0575aa6ec316ccac671b3813c2a0b8cddd5590d926494b699453ca443717": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "27ce0575aa6ec316ccac671b3813c2a0b8cddd5590d926494b699453ca443717",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.changing_an_operator_class_is_detected_by_the_snapshot_differ",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "28e73be1ce22dc35e882d5bcb3fb2984e2850ea65186d5b5a17584c8c3201861": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "28e73be1ce22dc35e882d5bcb3fb2984e2850ea65186d5b5a17584c8c3201861",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.computed_columns_translate_to_computed_column_sql",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 6,
+        "firstMs": 6,
+        "stallInduced": false
+      }
+    ],
+    "293a740e7e05b49c4299afd84070c1e4a49ec5a964c5b5161ab80540bc344bd7": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "293a740e7e05b49c4299afd84070c1e4a49ec5a964c5b5161ab80540bc344bd7",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_complex_properties.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 562,
+        "firstMs": 562,
+        "stallInduced": false
+      }
+    ],
+    "2946bd3ef137c4e811bdfd44b2a6ef05bbab6e6577cc2d5b72221699b8fe162f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "2946bd3ef137c4e811bdfd44b2a6ef05bbab6e6577cc2d5b72221699b8fe162f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MySql.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 28,
+        "firstMs": 28,
+        "stallInduced": false
+      }
+    ],
+    "295fa1dc1fe8b1d2ab1b83dabb2dbceaaa43d36fef7b82581f9b478f1c39aa71": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "295fa1dc1fe8b1d2ab1b83dabb2dbceaaa43d36fef7b82581f9b478f1c39aa71",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.marten_style_computed_and_operator_class_indexes_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 657,
+        "firstMs": 657,
+        "stallInduced": false
+      }
+    ],
+    "297c4553b86c248e20fac2d5d49c8ed7ac38a1fd2b6becb15811f3c299a37beb": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "297c4553b86c248e20fac2d5d49c8ed7ac38a1fd2b6becb15811f3c299a37beb",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.projections_into_initialized_objects_can_be_batched(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 107,
+        "firstMs": 107,
+        "stallInduced": false
+      }
+    ],
+    "2dc9119925eecba438537f9c263070a97e71edfbf9613601f5343f7991fd3736": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "2dc9119925eecba438537f9c263070a97e71edfbf9613601f5343f7991fd3736",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.alternate_keys.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 266,
+        "firstMs": 266,
+        "stallInduced": false
+      }
+    ],
+    "2e37704d638a09b417636b4563860c24119a431f5dc28fe07c469ab099384a1a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "2e37704d638a09b417636b4563860c24119a431f5dc28fe07c469ab099384a1a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison_sqlserver.baseline_conventions_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1477,
+        "firstMs": 1477,
+        "stallInduced": false
+      }
+    ],
+    "2e9cc8c2e047d37ac5c966030a60f249115ea5206da38d75aaa6234dff48015b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "2e9cc8c2e047d37ac5c966030a60f249115ea5206da38d75aaa6234dff48015b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.delete_all_data_removes_all_rows",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 81,
+        "firstMs": 81,
+        "stallInduced": false
+      }
+    ],
+    "2f06571e4110aa7ce28fe0a9ca79088bb262463058259420b71261d0f0d4de74": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "2f06571e4110aa7ce28fe0a9ca79088bb262463058259420b71261d0f0d4de74",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_retrying_execution_strategy_that_is_already_running_runs_each_query_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 134,
+        "firstMs": 134,
+        "stallInduced": false
+      }
+    ],
+    "2fe5d818f903a21fb6ab527748e648ebf07a51381cfdc6172c3f63eed0f48509": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "2fe5d818f903a21fb6ab527748e648ebf07a51381cfdc6172c3f63eed0f48509",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.the_database_cleaner_empties_the_tables",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 566,
+        "firstMs": 566,
+        "stallInduced": false
+      }
+    ],
+    "30294de0d8395c5cff9a716ea389068211f5c05f7da832d23427481fd18b7c1f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "30294de0d8395c5cff9a716ea389068211f5c05f7da832d23427481fd18b7c1f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_in_a_branch_ef_core_skips_are_not_read(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 120,
+        "firstMs": 120,
+        "stallInduced": false
+      }
+    ],
+    "311daa5fd11bff460d89b64f11e369d129ac97dbf6c1e9240d7b62758550794d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "311daa5fd11bff460d89b64f11e369d129ac97dbf6c1e9240d7b62758550794d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.many_to_many.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 431,
+        "firstMs": 431,
+        "stallInduced": false
+      }
+    ],
+    "31488cf4b033239f569b26276eeb1bf44765cb40e39f69717a50677645c176ac": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "31488cf4b033239f569b26276eeb1bf44765cb40e39f69717a50677645c176ac",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 62,
+        "firstMs": 62,
+        "stallInduced": false
+      }
+    ],
+    "31c7a897d26903d1c865f272c5bbed5e0fce8ba48267368b3e417aacee876a45": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "31c7a897d26903d1c865f272c5bbed5e0fce8ba48267368b3e417aacee876a45",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Oracle.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 9527,
+        "firstMs": 9527,
+        "stallInduced": false
+      }
+    ],
+    "32d1fdad4a8de426244093d0ac0f86800ead3c986e6a5285d13da5accc4b659c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "32d1fdad4a8de426244093d0ac0f86800ead3c986e6a5285d13da5accc4b659c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 21,
+        "firstMs": 21,
+        "stallInduced": false
+      }
+    ],
+    "32f68a6a9f6b4b47d36de8d894213480b5e84a089686a1a337f90a8b1b36f2fa": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "32f68a6a9f6b4b47d36de8d894213480b5e84a089686a1a337f90a8b1b36f2fa",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.row_version_system_column.xmin_is_not_emitted_as_a_table_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 12,
+        "firstMs": 12,
+        "stallInduced": false
+      }
+    ],
+    "330e201389a4b67d8ab8265d3b5371724c2c18dd56d04f539427623451d38c1a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "330e201389a4b67d8ab8265d3b5371724c2c18dd56d04f539427623451d38c1a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.generated_migration_end_to_end.applies_via_ef_round_trips_against_weasel_and_migrates_down",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 135,
+        "firstMs": 135,
+        "stallInduced": false
+      }
+    ],
+    "33187a3b424f9f3ecf92e62a7c57fdbafe5a9c7f04a911f2f2dcf0be74366097": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "33187a3b424f9f3ecf92e62a7c57fdbafe5a9c7f04a911f2f2dcf0be74366097",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.lambda_initial_data_tests.add_initial_data_lambda_rejects_null_delegate",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 55,
+        "firstMs": 55,
+        "stallInduced": false
+      }
+    ],
+    "33e5d9f6ccbe2784c9b62de1974a5a2918c1b53b7553e5c1ef7a13fd7cacf341": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "33e5d9f6ccbe2784c9b62de1974a5a2918c1b53b7553e5c1ef7a13fd7cacf341",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.expressions_ef_core_translates_to_sql_stay_in_sql(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 155,
+        "firstMs": 155,
+        "stallInduced": false
+      }
+    ],
+    "352b59478ecf8aaff4bf6070534427f71f22761da07f9c25ac8a0c902d3c5c37": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "352b59478ecf8aaff4bf6070534427f71f22761da07f9c25ac8a0c902d3c5c37",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_single_entity_query",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 66,
+        "firstMs": 66,
+        "stallInduced": false
+      }
+    ],
+    "35698ea0535288fd04975b0e24c9af8e6490cf8319c561b77c6285b428ba9903": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "35698ea0535288fd04975b0e24c9af8e6490cf8319c561b77c6285b428ba9903",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.no_tracking_query_returns_untracked_results",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 163,
+        "firstMs": 163,
+        "stallInduced": false
+      }
+    ],
+    "356b1ca1ce04f46c7edff64199f8a08b54640fe8003b689313304212751491ab": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "356b1ca1ce04f46c7edff64199f8a08b54640fe8003b689313304212751491ab",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.baseline_conventions_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 3180,
+        "firstMs": 3180,
+        "stallInduced": false
+      }
+    ],
+    "35799b59c704426ae8d8c5fb0b609209e82adf5b14365001bfb63924c7385476": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "35799b59c704426ae8d8c5fb0b609209e82adf5b14365001bfb63924c7385476",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.baseline_conventions_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 578,
+        "firstMs": 578,
+        "stallInduced": false
+      }
+    ],
+    "35cd58e5193800b98fe8f418e97a4e222d028af92c50329e50a739d215d51f2a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "35cd58e5193800b98fe8f418e97a4e222d028af92c50329e50a739d215d51f2a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.complex_properties.table_split_and_json_complex_properties_on_the_same_entity",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 141,
+        "firstMs": 141,
+        "stallInduced": false
+      }
+    ],
+    "35d4794c082e9dd53813347aaa2bab55dcb63daa109d56bce7d1ee9df1549b5a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "35d4794c082e9dd53813347aaa2bab55dcb63daa109d56bce7d1ee9df1549b5a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_retrying_execution_strategy_recovers_from_a_transient_error",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 189,
+        "firstMs": 189,
+        "stallInduced": false
+      }
+    ],
+    "36b5ed4a80668faf7b3b02447f57b0ec1cfdb24a25444d98475831fe15c4f65c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "36b5ed4a80668faf7b3b02447f57b0ec1cfdb24a25444d98475831fe15c4f65c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_when_the_query_is_queued(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 173,
+        "firstMs": 173,
+        "stallInduced": false
+      }
+    ],
+    "37f3b981a102795b99f5bb1b380bc388963b69b57cc82a58fc8fc0922adf4fee": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "37f3b981a102795b99f5bb1b380bc388963b69b57cc82a58fc8fc0922adf4fee",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.altered_column_produces_alter_column_with_old_definition",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 18,
+        "firstMs": 18,
+        "stallInduced": false
+      }
+    ],
+    "389fc6fd07cc4eb78d0f66299fd815e35c420edf52aaba76f0b407fed1844d10": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "389fc6fd07cc4eb78d0f66299fd815e35c420edf52aaba76f0b407fed1844d10",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_base_class_fk_end_to_end.entity_types_sorted_correctly_when_base_class_has_fk",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 42,
+        "firstMs": 42,
+        "stallInduced": false
+      }
+    ],
+    "38daed6412247f09ed01528e9d8aa216a5741403c8e4bcd63097bbc347f56afd": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "38daed6412247f09ed01528e9d8aa216a5741403c8e4bcd63097bbc347f56afd",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.migration_ids_are_bumped_past_the_previous_id",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 9,
+        "firstMs": 9,
+        "stallInduced": false
+      }
+    ],
+    "3b211a160ee90c93407c1509a6160c9cecaa5a0b3c3aaf5862ded0c6f7a3ea60": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "3b211a160ee90c93407c1509a6160c9cecaa5a0b3c3aaf5862ded0c6f7a3ea60",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.inheritance_tph.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 339,
+        "firstMs": 339,
+        "stallInduced": false
+      }
+    ],
+    "3cb2007058aa622a7cc8545c4c76186c34baa7df14163125637742425d4e1cae": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "3cb2007058aa622a7cc8545c4c76186c34baa7df14163125637742425d4e1cae",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.projections_and_scalars_can_be_batched",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 151,
+        "firstMs": 151,
+        "stallInduced": false
+      }
+    ],
+    "3f46c7479cd1a0f31178c73aec0800133b56fce3796859871ec2038fdc505187": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "3f46c7479cd1a0f31178c73aec0800133b56fce3796859871ec2038fdc505187",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.sequences_translate_to_create_sequence_operations",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "3fc6e6ef098cad94e08de3c6cef11865eb45fd9e97b0b67186a80655eae2aa84": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "3fc6e6ef098cad94e08de3c6cef11865eb45fd9e97b0b67186a80655eae2aa84",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.delete_all_data_removes_all_rows",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 118,
+        "firstMs": 118,
+        "stallInduced": false
+      }
+    ],
+    "4370cd78b0e3ab49e48259326c88e99301bd04c9e4b10ba51181b71dc495fddd": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "4370cd78b0e3ab49e48259326c88e99301bd04c9e4b10ba51181b71dc495fddd",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.command_interceptors_apply_to_batched_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 107,
+        "firstMs": 107,
+        "stallInduced": false
+      }
+    ],
+    "43a157ec7f6144f3a003d2b554558c052b38168ccf9225e079659e59370e5171": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "43a157ec7f6144f3a003d2b554558c052b38168ccf9225e079659e59370e5171",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 699,
+        "firstMs": 699,
+        "stallInduced": false
+      }
+    ],
+    "44f3e1e3cf33da19d793045f7d56c50006fd35052c1a0dc2a976fe410373119b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "44f3e1e3cf33da19d793045f7d56c50006fd35052c1a0dc2a976fe410373119b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.two_generated_migration_sets_coexist_in_one_database",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 909,
+        "firstMs": 909,
+        "stallInduced": false
+      }
+    ],
+    "458a4ea083093315e378395a2a3363d62aea2a11091aae3ff47dc2688b053630": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "458a4ea083093315e378395a2a3363d62aea2a11091aae3ff47dc2688b053630",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.migration_names_are_sanitized_into_class_names",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 2,
+        "firstMs": 2,
+        "stallInduced": false
+      }
+    ],
+    "4625e8c8431d415ba2d74ccdf4c4dac626c129ec7cf57afbe9d7a1f3439c824d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "4625e8c8431d415ba2d74ccdf4c4dac626c129ec7cf57afbe9d7a1f3439c824d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.restrict_normalizes_to_no_action_on_sql_server_only",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 5,
+        "firstMs": 5,
+        "stallInduced": false
+      }
+    ],
+    "47c9d02656f81f3e3411223a74e955c99fa368f7f55ceac72d99cbc088531452": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "47c9d02656f81f3e3411223a74e955c99fa368f7f55ceac72d99cbc088531452",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.indexes.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 230,
+        "firstMs": 230,
+        "stallInduced": false
+      }
+    ],
+    "4895536081dc5b253d6cb0f62734fd98790fd64a7600e8e9b61c576799e8ce80": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "4895536081dc5b253d6cb0f62734fd98790fd64a7600e8e9b61c576799e8ce80",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.preserve_identifier_case_flows_through_to_operation_names",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "490ccb3ec429ac186e22ef23fbbc36a2c263e306caa579ac04593356b73aca01": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "490ccb3ec429ac186e22ef23fbbc36a2c263e306caa579ac04593356b73aca01",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.complex_json_columns.maps_complex_property_tojson_to_a_jsonb_container_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 13,
+        "firstMs": 13,
+        "stallInduced": false
+      }
+    ],
+    "49bd46f3c4254b18f5800653f028f6086dbc3fa22534de5e64bf4dabb7f0f49c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "49bd46f3c4254b18f5800653f028f6086dbc3fa22534de5e64bf4dabb7f0f49c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.changed_raw_object_is_refused_with_guidance",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 2,
+        "firstMs": 2,
+        "stallInduced": false
+      }
+    ],
+    "49e00261c536d97bd952a3e842996da30267533319648cb2c56bc0220b30802a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "49e00261c536d97bd952a3e842996da30267533319648cb2c56bc0220b30802a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.sequences_translate_to_create_sequence_operations",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "4b85d0dee4b9ed0c7f966b2ba351505e1e01102c0c2813ee36a2f28587bf58d8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "4b85d0dee4b9ed0c7f966b2ba351505e1e01102c0c2813ee36a2f28587bf58d8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.raw_sql_fallback_objects_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 528,
+        "firstMs": 528,
+        "stallInduced": false
+      }
+    ],
+    "4bcd8ca905a08a31720878b2691c7d697a719ee0dca5853e0453f62344001149": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "4bcd8ca905a08a31720878b2691c7d697a719ee0dca5853e0453f62344001149",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.sql_server_identity_annotation",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 4,
+        "firstMs": 4,
+        "stallInduced": false
+      }
+    ],
+    "4d019594851fbe9bf318ae51cb7bba245a96c5b4664667c7e1744408bb33ea36": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "4d019594851fbe9bf318ae51cb7bba245a96c5b4664667c7e1744408bb33ea36",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.computed_columns.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 207,
+        "firstMs": 207,
+        "stallInduced": false
+      }
+    ],
+    "4d45c23403e3cd10496f582ced109554d1c41ad8a8126250013cceb7064b1ee2": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "4d45c23403e3cd10496f582ced109554d1c41ad8a8126250013cceb7064b1ee2",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.computed_columns.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1082,
+        "firstMs": 1082,
+        "stallInduced": false
+      }
+    ],
+    "4d8d90e1457541f78091b5c8dde65ae024797ebf71f0525610b9d479eb2f400f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "4d8d90e1457541f78091b5c8dde65ae024797ebf71f0525610b9d479eb2f400f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.owned_entities.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 485,
+        "firstMs": 485,
+        "stallInduced": false
+      }
+    ],
+    "4e4e757defc18e1690b3d939c20bd496c72af90e17c950183eb10725d5b5670b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "4e4e757defc18e1690b3d939c20bd496c72af90e17c950183eb10725d5b5670b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.sql_server_identity_annotation",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "4ebb9f14231cafeeb53d98937cd36c96ccbdb318c40872c8726324a05f22054c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "4ebb9f14231cafeeb53d98937cd36c96ccbdb318c40872c8726324a05f22054c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.first_add_scaffolds_context_migration_and_snapshot_then_incremental_add",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 36,
+        "firstMs": 36,
+        "stallInduced": false
+      }
+    ],
+    "502f007f0377205bb4d548333256f57faaec6093ff1cbc3a1202d53b21c03c96": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "502f007f0377205bb4d548333256f57faaec6093ff1cbc3a1202d53b21c03c96",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_with_ordering",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 66,
+        "firstMs": 66,
+        "stallInduced": false
+      }
+    ],
+    "52a501faaf29514c74f2ecb620a8e69af0482d6c14c27a443c2130be94100a46": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "52a501faaf29514c74f2ecb620a8e69af0482d6c14c27a443c2130be94100a46",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.complex_json_columns.maps_complex_collection_tojson_to_a_jsonb_container_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "53a1fe9a5b01db47159a281ff4fca85055143f7076b1db60578cdc52c6baf60f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "53a1fe9a5b01db47159a281ff4fca85055143f7076b1db60578cdc52c6baf60f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.every_option_create_index_cannot_carry_forces_the_raw_path(_: \u0022storage parameter\u0022, configure: Action\u00601 { Method = Void \u003Cget_OptionsTheTypedPathWouldLose\u003Eb__8_5(Weasel.Postgresql.Tables.IndexDefinition), Target = \u003C\u003Ec { } })",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "54f126e6547a99ede74277d200764a3820f6a68111e7bdf673c6d6c931d4abb6": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "54f126e6547a99ede74277d200764a3820f6a68111e7bdf673c6d6c931d4abb6",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_base_class_fk_end_to_end.entity_types_sorted_correctly_when_base_class_has_fk",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 53,
+        "firstMs": 53,
+        "stallInduced": false
+      }
+    ],
+    "5522901ab2ae6867681421704290356e697f91420619b5352938fe2855aac4e8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "5522901ab2ae6867681421704290356e697f91420619b5352938fe2855aac4e8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.sequences.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1681,
+        "firstMs": 1681,
+        "stallInduced": false
+      }
+    ],
+    "55f0b7436c02116c17952f1c0c8a7638a2d57e731eea9207797d304d295c55f5": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "55f0b7436c02116c17952f1c0c8a7638a2d57e731eea9207797d304d295c55f5",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.lambda_initial_data_tests.lambda_extension_registers_LambdaInitialData_as_an_IInitialData_service",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 36,
+        "firstMs": 36,
+        "stallInduced": false
+      }
+    ],
+    "5610ca22d98d20796263dd5f70f311a43c4893c0b015287e14d7231190df8911": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "5610ca22d98d20796263dd5f70f311a43c4893c0b015287e14d7231190df8911",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.empty_batch_does_not_throw",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 93,
+        "firstMs": 93,
+        "stallInduced": false
+      }
+    ],
+    "56c986474c58bc6fd2b8077f4b664e9297e310f30a0419442d1240559cd1b348": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "56c986474c58bc6fd2b8077f4b664e9297e310f30a0419442d1240559cd1b348",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.queries_run_in_the_order_they_were_queued",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 171,
+        "firstMs": 171,
+        "stallInduced": false
+      }
+    ],
+    "56fb547bc67089619ad3051528b158af1d88d0adcb5f9aea0522fa6f5a35f13b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "56fb547bc67089619ad3051528b158af1d88d0adcb5f9aea0522fa6f5a35f13b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_two_list_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 259,
+        "firstMs": 259,
+        "stallInduced": false
+      }
+    ],
+    "5747fc1e4ad3ac92f689a7c056083c1e0182e684106adf18a6abc415f31f2dd7": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "5747fc1e4ad3ac92f689a7c056083c1e0182e684106adf18a6abc415f31f2dd7",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.projections_and_scalars_can_be_batched",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 151,
+        "firstMs": 151,
+        "stallInduced": false
+      }
+    ],
+    "57e9674608c9c7161a9ec424d0277e93955ea536da3cbe5710bfba2a8bde64bb": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "57e9674608c9c7161a9ec424d0277e93955ea536da3cbe5710bfba2a8bde64bb",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.preserve_identifier_case_flows_through_to_operation_names",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 5,
+        "firstMs": 5,
+        "stallInduced": false
+      }
+    ],
+    "59dd0978c072a5279e0b951f9c7383b0881ff4210a2b8881972e04b615a2f801": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "59dd0978c072a5279e0b951f9c7383b0881ff4210a2b8881972e04b615a2f801",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.create_or_update_does_not_drop_a_column_the_mapper_cannot_express",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 59,
+        "firstMs": 59,
+        "stallInduced": false
+      }
+    ],
+    "5c093b0da89990f09a83456890d28b8107a19cf4b508d1ef79ed9adc4936de3e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "5c093b0da89990f09a83456890d28b8107a19cf4b508d1ef79ed9adc4936de3e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.every_option_create_index_cannot_carry_forces_the_raw_path(_: \u0022storage parameter\u0022, configure: Action\u00601 { Method = Void \u003Cget_OptionsTheTypedPathWouldLose\u003Eb__8_5(Weasel.Postgresql.Tables.IndexDefinition), Target = \u003C\u003Ec { } })",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "5d1c9cd3a50915d11aac23319c4a8e102252d7ea6427f7cae28d19c345aaaabd": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "5d1c9cd3a50915d11aac23319c4a8e102252d7ea6427f7cae28d19c345aaaabd",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.row_version_system_column.npgsql_maps_row_version_to_the_xmin_system_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "5d452bb8bd205226c7ae1ade5c76e1feef7c2ecdbac82018447640befddb4b5a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "5d452bb8bd205226c7ae1ade5c76e1feef7c2ecdbac82018447640befddb4b5a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_end_to_end.tph_migration_should_not_produce_duplicate_fk_errors",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 88,
+        "firstMs": 88,
+        "stallInduced": false
+      }
+    ],
+    "5e38fc2ce6d5276b5617d81b0118c78c18ebbe99efe184d144d97d1696eb5211": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "5e38fc2ce6d5276b5617d81b0118c78c18ebbe99efe184d144d97d1696eb5211",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.marten_style_computed_and_operator_class_indexes_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 577,
+        "firstMs": 577,
+        "stallInduced": false
+      }
+    ],
+    "5eea358f0b7ef556061a55de4df80dac663187fb290859091bb04ef6576b55ee": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "5eea358f0b7ef556061a55de4df80dac663187fb290859091bb04ef6576b55ee",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.expression_index_without_columns_is_not_supported",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 2,
+        "firstMs": 2,
+        "stallInduced": false
+      }
+    ],
+    "60fa6cf76c20d132910f79064f3015b8099554efb714dfb16a13de5c7393481f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "60fa6cf76c20d132910f79064f3015b8099554efb714dfb16a13de5c7393481f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_split_query_makes_every_query_run_separately_with_the_same_results",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 216,
+        "firstMs": 216,
+        "stallInduced": false
+      }
+    ],
+    "622309fe57de062a1b39cffb8a8641040bd2ae649200b18b41f69f88ad341d01": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "622309fe57de062a1b39cffb8a8641040bd2ae649200b18b41f69f88ad341d01",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.indexes.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 449,
+        "firstMs": 449,
+        "stallInduced": false
+      }
+    ],
+    "6325c31fcaa37586135e63d90a960624976cb3d970135f453224bec9aeced800": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "6325c31fcaa37586135e63d90a960624976cb3d970135f453224bec9aeced800",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 11,
+        "firstMs": 11,
+        "stallInduced": false
+      }
+    ],
+    "633d0b166c5b3443015d975271745c006cf91f8ab98653bf8d2664f9904359c9": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "633d0b166c5b3443015d975271745c006cf91f8ab98653bf8d2664f9904359c9",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.inheritance_tph.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 435,
+        "firstMs": 435,
+        "stallInduced": false
+      }
+    ],
+    "6427da0652cbb5f7c52e80a283d582fc0594699c1100886313c318069b824360": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "6427da0652cbb5f7c52e80a283d582fc0594699c1100886313c318069b824360",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.an_ordinary_index_is_still_translated_structurally",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "6536e6a22f5428babc324e14bd6e6b6d0edad7e189052528530b768f78719bcc": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "6536e6a22f5428babc324e14bd6e6b6d0edad7e189052528530b768f78719bcc",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_that_a_query_interceptor_makes_split_runs_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 134,
+        "firstMs": 134,
+        "stallInduced": false
+      }
+    ],
+    "65a3157cfe30e5b858ce5ff8b68201037a5c0c1b2c237cc686ceb1c6c94c15ac": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "65a3157cfe30e5b858ce5ff8b68201037a5c0c1b2c237cc686ceb1c6c94c15ac",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.partition_detection_works_structurally",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "66444a3e6226b9f9f4b42d427741bc23b2130562ef52f753a698c7f1a0b40ae0": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "66444a3e6226b9f9f4b42d427741bc23b2130562ef52f753a698c7f1a0b40ae0",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.strings_and_precision.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 402,
+        "firstMs": 402,
+        "stallInduced": false
+      }
+    ],
+    "66800dfc8c65c0bc17884d7d5fc60a4a2ea0e7154a565a64585c059e45e13033": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "66800dfc8c65c0bc17884d7d5fc60a4a2ea0e7154a565a64585c059e45e13033",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_end_to_end.tph_migration_should_not_produce_duplicate_fk_errors",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 154,
+        "firstMs": 154,
+        "stallInduced": false
+      }
+    ],
+    "67bc9568f24ce53c9a603a139b86edfcb8fe8aaf8bbce9a4f0a8002cde0b49ff": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "67bc9568f24ce53c9a603a139b86edfcb8fe8aaf8bbce9a4f0a8002cde0b49ff",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.snapshot_round_trips_through_json_with_zero_diff",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 148,
+        "firstMs": 148,
+        "stallInduced": false
+      }
+    ],
+    "681d7fbc4c78118fbe29c63d064ceca487ad3b5872b9ffa86cbd1a4939cecaba": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "681d7fbc4c78118fbe29c63d064ceca487ad3b5872b9ffa86cbd1a4939cecaba",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_with_ordering_and_filtering",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 181,
+        "firstMs": 181,
+        "stallInduced": false
+      }
+    ],
+    "6ba1d966eb89bfae81d7d937d74c52909265bf9ecfdf269e0336445d951907fb": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "6ba1d966eb89bfae81d7d937d74c52909265bf9ecfdf269e0336445d951907fb",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.sql_operations_render_as_verbatim_strings",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 6,
+        "firstMs": 6,
+        "stallInduced": false
+      }
+    ],
+    "6ba73987967b3b05e70968b9e799a64225deddaa2d038fb8568478cf5bfbb241": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "6ba73987967b3b05e70968b9e799a64225deddaa2d038fb8568478cf5bfbb241",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.without_the_interceptor_each_query_runs_separately_with_the_same_results",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 185,
+        "firstMs": 185,
+        "stallInduced": false
+      }
+    ],
+    "6c8654f9fb675857aa434b1de40cf5f0940ff97038879a4122c23d9bf5827790": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "6c8654f9fb675857aa434b1de40cf5f0940ff97038879a4122c23d9bf5827790",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.delete_all_data_on_empty_database_does_not_throw",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 69,
+        "firstMs": 69,
+        "stallInduced": false
+      }
+    ],
+    "6d069970c9fab12e556cd428f620d8f2f8f1f9cd284295103b88af504e2232be": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "6d069970c9fab12e556cd428f620d8f2f8f1f9cd284295103b88af504e2232be",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 47,
+        "firstMs": 47,
+        "stallInduced": false
+      }
+    ],
+    "6d118f3dec56013039dba71ed2a67181882443eb6f6b2f9f6926e4722e2bbc87": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "6d118f3dec56013039dba71ed2a67181882443eb6f6b2f9f6926e4722e2bbc87",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_three_mixed_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 65,
+        "firstMs": 65,
+        "stallInduced": false
+      }
+    ],
+    "6d28ce86fc88c1fd4ad68b00f1a293cad2774f9ee14a08b11357c6134e3d400b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "6d28ce86fc88c1fd4ad68b00f1a293cad2774f9ee14a08b11357c6134e3d400b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.incremental_operations_render_through_the_emitter",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 18,
+        "firstMs": 18,
+        "stallInduced": false
+      }
+    ],
+    "6d87ae2881369125a74456b317ebe2608ff842c68b2b96c25cb8cba2a2acea6f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "6d87ae2881369125a74456b317ebe2608ff842c68b2b96c25cb8cba2a2acea6f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_once(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 271,
+        "firstMs": 271,
+        "stallInduced": false
+      }
+    ],
+    "6e5cab447e6a31e6c557d4adf36c7396cac8e0bee54d668309758ac55b8005fb": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "6e5cab447e6a31e6c557d4adf36c7396cac8e0bee54d668309758ac55b8005fb",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.relationships.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1811,
+        "firstMs": 1811,
+        "stallInduced": false
+      }
+    ],
+    "701e8d5e80336d469dc41a70f1f0776ab1e3cf933507f5e3f4a2073b89080446": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "701e8d5e80336d469dc41a70f1f0776ab1e3cf933507f5e3f4a2073b89080446",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.added_column_diffs_to_add_column_and_drops_on_down",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "7139b7f5bdb0954fe8cb8ee5e909bd5f49c9715d29791281a8477361e26e60fd": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "7139b7f5bdb0954fe8cb8ee5e909bd5f49c9715d29791281a8477361e26e60fd",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_once(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 147,
+        "firstMs": 147,
+        "stallInduced": false
+      }
+    ],
+    "718c411981d96487e6af83abcc6342ace8bb93aeb535e0c25d7e2eb664051269": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "718c411981d96487e6af83abcc6342ace8bb93aeb535e0c25d7e2eb664051269",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.detects_the_provider_from_the_migrator",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 9,
+        "firstMs": 9,
+        "stallInduced": false
+      }
+    ],
+    "72819240d429d0af7bf5c080c7a38038a91fc2b4287074d3e49a7b7257d4b26d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "72819240d429d0af7bf5c080c7a38038a91fc2b4287074d3e49a7b7257d4b26d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.a_computed_index_is_carried_as_raw_ddl_rather_than_a_quoted_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "72b407a6b78306cb5b4a4b3b284338dc7fa640152770e242d3c253068d497f2b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "72b407a6b78306cb5b4a4b3b284338dc7fa640152770e242d3c253068d497f2b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.relationships.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 388,
+        "firstMs": 388,
+        "stallInduced": false
+      }
+    ],
+    "73f3140fd0bffd262b0bbacf8ad93d5797df0032edf550a1794d11ed8f4b8950": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "73f3140fd0bffd262b0bbacf8ad93d5797df0032edf550a1794d11ed8f4b8950",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.delete_all_data_with_explicit_connection_for_multi_tenancy",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 73,
+        "firstMs": 73,
+        "stallInduced": false
+      }
+    ],
+    "774db43c844d2a1609a8bb6994a7b6bcb468adcc9acb576cadf15e3fba26b0b6": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "774db43c844d2a1609a8bb6994a7b6bcb468adcc9acb576cadf15e3fba26b0b6",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 89,
+        "firstMs": 89,
+        "stallInduced": false
+      }
+    ],
+    "78458ea0f045eb481bc76d35afc86ab27f22774ab685c921c0671f84103f6260": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "78458ea0f045eb481bc76d35afc86ab27f22774ab685c921c0671f84103f6260",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_indexes.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 929,
+        "firstMs": 929,
+        "stallInduced": false
+      }
+    ],
+    "79024d3447e6388c13de1238d475f50da7dc65510a5e85ea7ddb4b745db81692": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "79024d3447e6388c13de1238d475f50da7dc65510a5e85ea7ddb4b745db81692",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_sequences.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 712,
+        "firstMs": 712,
+        "stallInduced": false
+      }
+    ],
+    "799fc029bfe3fd45d12243f78ba1bcc495a5fe8b4fe99afe44b34ec74928514b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "799fc029bfe3fd45d12243f78ba1bcc495a5fe8b4fe99afe44b34ec74928514b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.first_add_scaffolds_context_migration_and_snapshot_then_incremental_add",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 6,
+        "firstMs": 6,
+        "stallInduced": false
+      }
+    ],
+    "79d8cb95293113b0f7049f1b09ef2840d60df774aaeed743c1c0a3194377f21d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "79d8cb95293113b0f7049f1b09ef2840d60df774aaeed743c1c0a3194377f21d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 369,
+        "firstMs": 369,
+        "stallInduced": false
+      }
+    ],
+    "7a01d71bb7ef6c227fd22e3625d5c71092f42d7a97d198c5d74e718881287dc8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "7a01d71bb7ef6c227fd22e3625d5c71092f42d7a97d198c5d74e718881287dc8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.empty_batch_does_not_throw",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 83,
+        "firstMs": 83,
+        "stallInduced": false
+      }
+    ],
+    "7b49746ff5d49991a520351cc7b9969f7f765d878fa5eb4da9421936e27534ed": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "7b49746ff5d49991a520351cc7b9969f7f765d878fa5eb4da9421936e27534ed",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.allow_drops_restores_the_drop",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 68,
+        "firstMs": 68,
+        "stallInduced": false
+      }
+    ],
+    "7b916933d98071be13b1e08e53078d6ddbbc8ddeb497116ad7fe5f41d4c3e9a4": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "7b916933d98071be13b1e08e53078d6ddbbc8ddeb497116ad7fe5f41d4c3e9a4",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.composite_keys.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 330,
+        "firstMs": 330,
+        "stallInduced": false
+      }
+    ],
+    "7c14ef88b9e4e6dfd29b320392ff95488e885ee335ad91a642d8d8a138691cc9": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "7c14ef88b9e4e6dfd29b320392ff95488e885ee335ad91a642d8d8a138691cc9",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.lambda_initial_data_tests.lambda_extension_registers_LambdaInitialData_as_an_IInitialData_service",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 59,
+        "firstMs": 59,
+        "stallInduced": false
+      }
+    ],
+    "7d2f1495470d5ca195a3650aa272e3e6f9f02780386e8d6c2c93878b4ebee313": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "7d2f1495470d5ca195a3650aa272e3e6f9f02780386e8d6c2c93878b4ebee313",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.row_version_system_column.xmin_is_not_emitted_as_a_table_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 13,
+        "firstMs": 13,
+        "stallInduced": false
+      }
+    ],
+    "7f21dd8a829c9d0b9962ee3a131d7f52c250676bf50b82b9af342f679af24815": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "7f21dd8a829c9d0b9962ee3a131d7f52c250676bf50b82b9af342f679af24815",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_base_class_fk_end_to_end.can_apply_migration_when_base_class_has_fk",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 94,
+        "firstMs": 94,
+        "stallInduced": false
+      }
+    ],
+    "7f8a252854c4a20af09bf6a10cde0d478f44799865e6836f5075374f71114d4c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "7f8a252854c4a20af09bf6a10cde0d478f44799865e6836f5075374f71114d4c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.saving_a_batched_entity_keeps_its_data",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 146,
+        "firstMs": 146,
+        "stallInduced": false
+      }
+    ],
+    "803f38f8d7911c2a3d918ed1d2a903b1bd62277afcc40f1874c1d608cf5a4416": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "803f38f8d7911c2a3d918ed1d2a903b1bd62277afcc40f1874c1d608cf5a4416",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.foreign_keys_translate_with_referential_actions",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 8,
+        "firstMs": 8,
+        "stallInduced": false
+      }
+    ],
+    "80b28f12916f81cdbd75ed6c2075014694a0957956d5118dbc82ceb60f8c7cb9": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "80b28f12916f81cdbd75ed6c2075014694a0957956d5118dbc82ceb60f8c7cb9",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison_sqlserver.baseline_conventions_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1446,
+        "firstMs": 1446,
+        "stallInduced": false
+      }
+    ],
+    "80dd545e2b48a6fd27fb1fbf5ee8156fb3823c6149c4afa2a5916c8541750937": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "80dd545e2b48a6fd27fb1fbf5ee8156fb3823c6149c4afa2a5916c8541750937",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_ef_core_cannot_translate_throws_when_queued",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 179,
+        "firstMs": 179,
+        "stallInduced": false
+      }
+    ],
+    "80e9b71db608df35dbfc1fba46a7f160647d57ea20823232509af5dd79fa3e60": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "80e9b71db608df35dbfc1fba46a7f160647d57ea20823232509af5dd79fa3e60",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_three_different_entity_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 124,
+        "firstMs": 124,
+        "stallInduced": false
+      }
+    ],
+    "8258fa22d4778b0c92829254168432f2eec05870a162094236fb79cfe58c6b2f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "8258fa22d4778b0c92829254168432f2eec05870a162094236fb79cfe58c6b2f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.complex_properties.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 260,
+        "firstMs": 260,
+        "stallInduced": false
+      }
+    ],
+    "83ac706be68f497fb27cbdac8f2ae6bdb2cf953d36e521b54930773af1ad8c3d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "83ac706be68f497fb27cbdac8f2ae6bdb2cf953d36e521b54930773af1ad8c3d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.json_column_end_to_end.should_map_json_column_from_owned_entity_with_to_json",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 21,
+        "firstMs": 21,
+        "stallInduced": false
+      }
+    ],
+    "84580bf1ef7d95259af02066568cb33f8cdbb9f6345d57110c49028ef67aec4f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "84580bf1ef7d95259af02066568cb33f8cdbb9f6345d57110c49028ef67aec4f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_when_the_query_is_queued(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 84,
+        "firstMs": 84,
+        "stallInduced": false
+      }
+    ],
+    "84e4e5423f3841dc7e8a9ee84e947a21414831f3c25020abf288b7783db600d2": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "84e4e5423f3841dc7e8a9ee84e947a21414831f3c25020abf288b7783db600d2",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.the_mapped_tables_say_they_are_add_only",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 158,
+        "firstMs": 158,
+        "stallInduced": false
+      }
+    ],
+    "86f81981a09c74010ed5c935c427ce78c837ee4867675a4b8565013c372a69a3": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "86f81981a09c74010ed5c935c427ce78c837ee4867675a4b8565013c372a69a3",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.inheritance_tpt.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 482,
+        "firstMs": 482,
+        "stallInduced": false
+      }
+    ],
+    "87eeafa8ab6715f4397d2be3dbdae7f348b144db23f11bb2e763f96890e56e03": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "87eeafa8ab6715f4397d2be3dbdae7f348b144db23f11bb2e763f96890e56e03",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 13,
+        "firstMs": 13,
+        "stallInduced": false
+      }
+    ],
+    "8a3c4a726a364a90b9b761c69bf3cbe45385e77631c4cf16dbc9dea503131743": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8a3c4a726a364a90b9b761c69bf3cbe45385e77631c4cf16dbc9dea503131743",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.drop_operations_reverse_the_object_order",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "8a65740156e3de66e3663539592ab47f9c5c5f59875925ea92f21b89dbe07491": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8a65740156e3de66e3663539592ab47f9c5c5f59875925ea92f21b89dbe07491",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 9,
+        "firstMs": 9,
+        "stallInduced": false
+      }
+    ],
+    "8a6d3cc2385371e0d878f91c58b8e2f4cf87dde625af7b0ba9a8218bbb47f58f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "8a6d3cc2385371e0d878f91c58b8e2f4cf87dde625af7b0ba9a8218bbb47f58f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_that_a_query_interceptor_makes_split_runs_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 210,
+        "firstMs": 210,
+        "stallInduced": false
+      }
+    ],
+    "8aff594ab1a1ce84999aa1f89a16a329954d3702630773074fb1488ef1524b4f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8aff594ab1a1ce84999aa1f89a16a329954d3702630773074fb1488ef1524b4f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.projections_into_initialized_objects_can_be_batched(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 111,
+        "firstMs": 111,
+        "stallInduced": false
+      }
+    ],
+    "8bf568fcf3e19b28b7a3a1cad8638dfd25aca055308f8cfd4b39ba875ee8a426": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8bf568fcf3e19b28b7a3a1cad8638dfd25aca055308f8cfd4b39ba875ee8a426",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.the_table_around_an_untranslatable_index_stays_typed",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "8bfc8fea77fcbbb96795c16c9ea6ccfd9314675b0b7a24921c1b99ab2e4f0466": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8bfc8fea77fcbbb96795c16c9ea6ccfd9314675b0b7a24921c1b99ab2e4f0466",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.expressions_ef_core_translates_to_sql_stay_in_sql(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 93,
+        "firstMs": 93,
+        "stallInduced": false
+      }
+    ],
+    "8c0f8a816bbb92c0db68c29bb0f5e57a23f63dba5e29369315d6ecc52d6fea92": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "8c0f8a816bbb92c0db68c29bb0f5e57a23f63dba5e29369315d6ecc52d6fea92",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 248,
+        "firstMs": 248,
+        "stallInduced": false
+      }
+    ],
+    "8c6bd1a0a4fce480be28b24beb597ef16a249140a4e4dcd152c4a93cb1e3dbc1": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "8c6bd1a0a4fce480be28b24beb597ef16a249140a4e4dcd152c4a93cb1e3dbc1",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.composite_keys.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1338,
+        "firstMs": 1338,
+        "stallInduced": false
+      }
+    ],
+    "8de5a670f796701672c4cd0b282e12ce6641656a767eec5cf2fa250f8cd626ea": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "8de5a670f796701672c4cd0b282e12ce6641656a767eec5cf2fa250f8cd626ea",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_complex_properties.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 414,
+        "firstMs": 414,
+        "stallInduced": false
+      }
+    ],
+    "8e1621b44ecb29726a972202b54b7e2f6ad19cbd2b37c50656e9d9d1b2743fe9": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "8e1621b44ecb29726a972202b54b7e2f6ad19cbd2b37c50656e9d9d1b2743fe9",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.lambda_initial_data_tests.reset_all_data_runs_class_and_lambda_seeders",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 97,
+        "firstMs": 97,
+        "stallInduced": false
+      }
+    ],
+    "8e6a298096a83333e055a68287f94e40c74a3d523fe47704bc7f7afb1ad01767": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8e6a298096a83333e055a68287f94e40c74a3d523fe47704bc7f7afb1ad01767",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_single_entity_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 41,
+        "firstMs": 41,
+        "stallInduced": false
+      }
+    ],
+    "8e7b964d7579c2946d90561eec3f4cbc0f8211b9cb5a003018703a9b9b168422": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8e7b964d7579c2946d90561eec3f4cbc0f8211b9cb5a003018703a9b9b168422",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.row_version_system_column.npgsql_maps_row_version_to_the_xmin_system_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "8ed7a9ee3fda15f2ec0ba7d73e6447eceea2532a7776805e6fe42ff999f8c0af": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "8ed7a9ee3fda15f2ec0ba7d73e6447eceea2532a7776805e6fe42ff999f8c0af",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.command_interceptors_apply_to_batched_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 185,
+        "firstMs": 185,
+        "stallInduced": false
+      }
+    ],
+    "8fd8e86b3a2c85f23f79a0e853f86d9ed7bdae18e931d9e188fad48c3e77465f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "8fd8e86b3a2c85f23f79a0e853f86d9ed7bdae18e931d9e188fad48c3e77465f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.an_operator_class_survives_instead_of_silently_becoming_the_default",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "903753f3fd78f81ec0352ee472ed9295b6792353dea3453afea776247eb80555": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "903753f3fd78f81ec0352ee472ed9295b6792353dea3453afea776247eb80555",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.json_column_end_to_end.can_apply_migration_with_json_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 97,
+        "firstMs": 97,
+        "stallInduced": false
+      }
+    ],
+    "915d117742e340f5cb80feebeb01460236371a7b30f1819ef1b055f5c7c6945b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "915d117742e340f5cb80feebeb01460236371a7b30f1819ef1b055f5c7c6945b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_of_another_context_throws_when_queued(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 152,
+        "firstMs": 152,
+        "stallInduced": false
+      }
+    ],
+    "920454e0efeccddb12b093741213c0ceae289b99da7dcad6a0a60171461bdd45": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "920454e0efeccddb12b093741213c0ceae289b99da7dcad6a0a60171461bdd45",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.indexes.gin_method_maps_automatically_descending_via_escape_hatch",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 183,
+        "firstMs": 183,
+        "stallInduced": false
+      }
+    ],
+    "92230a47e4a225f770df682f840b28bcf3de43b163d65ffbf78e97bf0a2bf512": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "92230a47e4a225f770df682f840b28bcf3de43b163d65ffbf78e97bf0a2bf512",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_three_different_entity_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 101,
+        "firstMs": 101,
+        "stallInduced": false
+      }
+    ],
+    "938f9887c4fdce0713d396abb5efe1c078e39dbd3f8382e9e3251cd4f15835ca": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "938f9887c4fdce0713d396abb5efe1c078e39dbd3f8382e9e3251cd4f15835ca",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.fk_dependency_ordering.can_apply_migration_with_fk_dependencies",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 255,
+        "firstMs": 255,
+        "stallInduced": false
+      }
+    ],
+    "952c9b1c3c0114d58928199660b57eb4d6449d27073e85e198ab9e8eb23df28d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "952c9b1c3c0114d58928199660b57eb4d6449d27073e85e198ab9e8eb23df28d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 230,
+        "firstMs": 230,
+        "stallInduced": false
+      }
+    ],
+    "97009811853fa787cdb8329f8b341022614cd6f613bdd43396270fa8cbbf072b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "97009811853fa787cdb8329f8b341022614cd6f613bdd43396270fa8cbbf072b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.a_computed_index_is_carried_as_raw_ddl_rather_than_a_quoted_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "9737c89f9f7f57cea6fd05dd68bd56aef3db46308a41995ee9b69e9c089d915d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "9737c89f9f7f57cea6fd05dd68bd56aef3db46308a41995ee9b69e9c089d915d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.foreign_keys_translate_with_referential_actions",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "974e1d29b00fba40632f7913b6b0facc59c415ef47969efd62b9d6808778c766": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "974e1d29b00fba40632f7913b6b0facc59c415ef47969efd62b9d6808778c766",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.projections_into_initialized_objects_can_be_batched(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 132,
+        "firstMs": 132,
+        "stallInduced": false
+      }
+    ],
+    "9b14c22568fe49e98281afb9afbf5e218abac30645f5dfd29ddbb5054f41763c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "9b14c22568fe49e98281afb9afbf5e218abac30645f5dfd29ddbb5054f41763c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_baseline.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 5454,
+        "firstMs": 5454,
+        "stallInduced": false
+      }
+    ],
+    "9c637b7dcda1e5f99dc6e7fdf7c88c7ec0453f001090a14d9a626967bef476d6": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "9c637b7dcda1e5f99dc6e7fdf7c88c7ec0453f001090a14d9a626967bef476d6",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.lambda_initial_data_tests.reset_all_data_runs_class_and_lambda_seeders",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 99,
+        "firstMs": 99,
+        "stallInduced": false
+      }
+    ],
+    "9c9267801073f13585c3e198075b8ddce8603f45e2de4cd7e56af269129dae8b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "9c9267801073f13585c3e198075b8ddce8603f45e2de4cd7e56af269129dae8b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.sql_server_stub_context_uses_the_sql_server_provider",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "9ce83e6cad528dc6c3c0d0a112848132db44b37404ed92aa069a77a100a2fe50": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "9ce83e6cad528dc6c3c0d0a112848132db44b37404ed92aa069a77a100a2fe50",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.reset_all_data_deletes_then_seeds",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 69,
+        "firstMs": 69,
+        "stallInduced": false
+      }
+    ],
+    "9dd647db357be543cec47a2ed047dab4412221e03f832cac6139789b144f6d9b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "9dd647db357be543cec47a2ed047dab4412221e03f832cac6139789b144f6d9b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.default_values.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 196,
+        "firstMs": 196,
+        "stallInduced": false
+      }
+    ],
+    "9e4b67a034da89334993de2d0598be151bc29e056d1c458e8c1054044c8a8c1e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "9e4b67a034da89334993de2d0598be151bc29e056d1c458e8c1054044c8a8c1e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_single_entity_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 75,
+        "firstMs": 75,
+        "stallInduced": false
+      }
+    ],
+    "9ed710d5a53ea16ab1cee356cf7b01728d5de1cdc1ac048d0dfcc13955162812": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "9ed710d5a53ea16ab1cee356cf7b01728d5de1cdc1ac048d0dfcc13955162812",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.parameters_keep_their_provider_specific_type",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 119,
+        "firstMs": 119,
+        "stallInduced": false
+      }
+    ],
+    "9f3150982d1dc8e2fa2f04592ce2be1a4d721496c612847fda42ae6839fcd060": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "9f3150982d1dc8e2fa2f04592ce2be1a4d721496c612847fda42ae6839fcd060",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_base_class_fk_end_to_end.can_apply_migration_when_base_class_has_fk",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 81,
+        "firstMs": 81,
+        "stallInduced": false
+      }
+    ],
+    "9fb80ff35a009fa4a0fa2bb153a8d3a628b1492ffc5f1c9bbd7fcf8c99c54e22": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "9fb80ff35a009fa4a0fa2bb153a8d3a628b1492ffc5f1c9bbd7fcf8c99c54e22",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.altered_column_produces_alter_column_with_old_definition",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "a0582ac6e606b1cd8a44d02707eedc8f37f9f95e9bef6aeda1b5a21071cbd388": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "a0582ac6e606b1cd8a44d02707eedc8f37f9f95e9bef6aeda1b5a21071cbd388",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.generated_migration_end_to_end.applies_via_ef_round_trips_against_weasel_and_migrates_down",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 326,
+        "firstMs": 326,
+        "stallInduced": false
+      }
+    ],
+    "a1fbccfa92c4ee3204e2b638361ba642a738fb6472dfb7221d1b9085ce19f036": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a1fbccfa92c4ee3204e2b638361ba642a738fb6472dfb7221d1b9085ce19f036",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.allow_drops_restores_the_drop",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 160,
+        "firstMs": 160,
+        "stallInduced": false
+      }
+    ],
+    "a2874fccb3251d0051fe58f6f1561893b8735e9f3accadce4885589c1cfff934": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a2874fccb3251d0051fe58f6f1561893b8735e9f3accadce4885589c1cfff934",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.force_raw_sql_routes_a_table_through_its_own_ddl",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 4,
+        "firstMs": 4,
+        "stallInduced": false
+      }
+    ],
+    "a2ae79dfb7883badae89e44db4b70b5dadac423c874bcb883fbda0faedc093d5": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "a2ae79dfb7883badae89e44db4b70b5dadac423c874bcb883fbda0faedc093d5",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.json_column_end_to_end.can_apply_migration_with_json_column",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 191,
+        "firstMs": 191,
+        "stallInduced": false
+      }
+    ],
+    "a2d81e0e4096658c71ad65918e754b98048b159d746200d110afc3ba190cded5": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a2d81e0e4096658c71ad65918e754b98048b159d746200d110afc3ba190cded5",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.complex_properties.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 430,
+        "firstMs": 430,
+        "stallInduced": false
+      }
+    ],
+    "a44c9473156891e60575508c2170954a386253b794bd8ea6d07894a4400b339f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a44c9473156891e60575508c2170954a386253b794bd8ea6d07894a4400b339f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.incremental_migration_end_to_end.incremental_operations_apply_and_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 164,
+        "firstMs": 164,
+        "stallInduced": false
+      }
+    ],
+    "a4919441e79d47c369b76c3b021cfa7638d0f983101e5e2af68307390f1e7af7": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a4919441e79d47c369b76c3b021cfa7638d0f983101e5e2af68307390f1e7af7",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 79,
+        "firstMs": 79,
+        "stallInduced": false
+      }
+    ],
+    "a5cbe78b4ee3515ffd1dd22b63064e983280d7f0f1a693e8787a3c79216c2f6e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "a5cbe78b4ee3515ffd1dd22b63064e983280d7f0f1a693e8787a3c79216c2f6e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_single_entity_query",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 119,
+        "firstMs": 119,
+        "stallInduced": false
+      }
+    ],
+    "a5ccbd6c6b7990f7df9ca9d4e7360c81c7a0feaa25bc5b927548dddac21503f9": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "a5ccbd6c6b7990f7df9ca9d4e7360c81c7a0feaa25bc5b927548dddac21503f9",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.an_unchanged_computed_index_does_not_diff",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "a635a9fb500d99a0ae563a307dfb6427c166e40c455e227a867b3f8e8c427ba5": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a635a9fb500d99a0ae563a307dfb6427c166e40c455e227a867b3f8e8c427ba5",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Oracle.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 78,
+        "firstMs": 78,
+        "stallInduced": false
+      }
+    ],
+    "a6f55e62e59d52c27ce96edb4e4ab5744b9cfa8eefb69cf8c46850c6a62bfb33": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "a6f55e62e59d52c27ce96edb4e4ab5744b9cfa8eefb69cf8c46850c6a62bfb33",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.computed_columns_translate_to_computed_column_sql",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 3,
+        "firstMs": 3,
+        "stallInduced": false
+      }
+    ],
+    "a6fc16dab83381e873fbe358accfdb85648ec27910a49393ff23bdd8405e6df6": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "a6fc16dab83381e873fbe358accfdb85648ec27910a49393ff23bdd8405e6df6",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.the_withheld_drop_is_logged_when_a_migration_runs",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 52,
+        "firstMs": 52,
+        "stallInduced": false
+      }
+    ],
+    "a7829791eab8de7de2e193e7e5d557987be35a7fa9072950518a3c3ee0489c16": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a7829791eab8de7de2e193e7e5d557987be35a7fa9072950518a3c3ee0489c16",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.no_tracking_query_returns_untracked_results",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 139,
+        "firstMs": 139,
+        "stallInduced": false
+      }
+    ],
+    "a862b0d3bd89efadd52d2df1b2a527506188048ccc359c072e93c7d1113274c2": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a862b0d3bd89efadd52d2df1b2a527506188048ccc359c072e93c7d1113274c2",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.without_the_interceptor_each_query_runs_separately_with_the_same_results",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 139,
+        "firstMs": 139,
+        "stallInduced": false
+      }
+    ],
+    "a9350ed71e7d3d83b9a484afa57bcfcf1259f2a1d5ab5fabc97dda39d92737f8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "a9350ed71e7d3d83b9a484afa57bcfcf1259f2a1d5ab5fabc97dda39d92737f8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_once(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 99,
+        "firstMs": 99,
+        "stallInduced": false
+      }
+    ],
+    "a97293c391781595447bff22dd633c964c0b7f231edcdf5111f1f0bd8a000233": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "a97293c391781595447bff22dd633c964c0b7f231edcdf5111f1f0bd8a000233",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.changed_raw_object_is_refused_with_guidance",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 8,
+        "firstMs": 8,
+        "stallInduced": false
+      }
+    ],
+    "aa935fc2b793f0a0f7f70956d05f4d43df14a8c10e5e6abfd920c88a407de971": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "aa935fc2b793f0a0f7f70956d05f4d43df14a8c10e5e6abfd920c88a407de971",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.parameters_keep_their_provider_specific_type",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 135,
+        "firstMs": 135,
+        "stallInduced": false
+      }
+    ],
+    "ab2689d0ee3cc60f47e5e0ccaf98ad23510eac21dfcd0db7b146c5c3e089b6d5": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "ab2689d0ee3cc60f47e5e0ccaf98ad23510eac21dfcd0db7b146c5c3e089b6d5",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.checked_in_migration_file_matches_regenerated_output",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 27,
+        "firstMs": 27,
+        "stallInduced": false
+      }
+    ],
+    "ab4b6eeed0bea385eb8742ec4b7291d03d0c34f53f39314723765e956edf59fd": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ab4b6eeed0bea385eb8742ec4b7291d03d0c34f53f39314723765e956edf59fd",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.fk_dependency_ordering.entity_types_are_sorted_by_fk_dependencies",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 170,
+        "firstMs": 170,
+        "stallInduced": false
+      }
+    ],
+    "ab5f16088d9ee5e48239c54c934254cd1432991e5affb40bbd5b46e79d43ca5a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ab5f16088d9ee5e48239c54c934254cd1432991e5affb40bbd5b46e79d43ca5a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_of_another_context_throws_when_queued(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 83,
+        "firstMs": 83,
+        "stallInduced": false
+      }
+    ],
+    "ab99559897d1af81e3f86d7ca65dd07b5cd6eed23f54bddc2eb19026207b45cb": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ab99559897d1af81e3f86d7ca65dd07b5cd6eed23f54bddc2eb19026207b45cb",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.raw_sql_fallback_without_a_migrator_throws",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "abbe65df9843d616744584e1e21ee1aa705d452d921f81670587ebabc22b331b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "abbe65df9843d616744584e1e21ee1aa705d452d921f81670587ebabc22b331b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.default_schema_is_omitted_and_gets_no_ensure_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "accead694e0e6490ec3f4e39d3526a75ae667d9a6ae17c2949f58ce76de9204e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "accead694e0e6490ec3f4e39d3526a75ae667d9a6ae17c2949f58ce76de9204e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.baseline_conventions.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 362,
+        "firstMs": 362,
+        "stallInduced": false
+      }
+    ],
+    "accef4b993150204c27ba5dd56b59899e18e809567620349d504d0d70e1292fe": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "accef4b993150204c27ba5dd56b59899e18e809567620349d504d0d70e1292fe",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 10,
+        "firstMs": 10,
+        "stallInduced": false
+      }
+    ],
+    "ad075de9086871b631cf2ad24d8dc51f79f0d41f048a001ee3936b9e9e90fe68": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ad075de9086871b631cf2ad24d8dc51f79f0d41f048a001ee3936b9e9e90fe68",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 314,
+        "firstMs": 314,
+        "stallInduced": false
+      }
+    ],
+    "ad33fd6c1d2a189ae746d5d148f60aece5101d1adeeda3edc6d436e511455df0": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ad33fd6c1d2a189ae746d5d148f60aece5101d1adeeda3edc6d436e511455df0",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_end_to_end.tph_table_should_contain_columns_from_all_subtypes",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 7,
+        "firstMs": 7,
+        "stallInduced": false
+      }
+    ],
+    "ad7d1b9854ba747b6edd876aed031585911bf7d1f26953cf9175bd7064d9490b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "ad7d1b9854ba747b6edd876aed031585911bf7d1f26953cf9175bd7064d9490b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.incremental_operations_render_through_the_emitter",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 6,
+        "firstMs": 6,
+        "stallInduced": false
+      }
+    ],
+    "adee0bcb9a10646679087bda6b773a5d0634dd18aad7ac7a88f1c94a80ed2ee0": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "adee0bcb9a10646679087bda6b773a5d0634dd18aad7ac7a88f1c94a80ed2ee0",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.a_table_weasel_creates_reads_back_unchanged_and_serves_ef_core",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 438,
+        "firstMs": 438,
+        "stallInduced": false
+      }
+    ],
+    "ae26e3016aad2751755b6a51877b98030df7b57b7bbcd74dbfee36abafa4d222": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ae26e3016aad2751755b6a51877b98030df7b57b7bbcd74dbfee36abafa4d222",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.changing_an_operator_class_is_detected_by_the_snapshot_differ",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "ae4a96941076739883cdb5ba1a1d5015d37387ad0326f1ea915e787c4bc67cc0": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ae4a96941076739883cdb5ba1a1d5015d37387ad0326f1ea915e787c4bc67cc0",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_when_the_query_is_queued(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 139,
+        "firstMs": 139,
+        "stallInduced": false
+      }
+    ],
+    "ae8de5337496d85ef00b81a796389b0d4f29419776a13fcd87adb6426916a76c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ae8de5337496d85ef00b81a796389b0d4f29419776a13fcd87adb6426916a76c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_baseline.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 4408,
+        "firstMs": 4408,
+        "stallInduced": false
+      }
+    ],
+    "aedf2c46021820036bb0066122c3712bd974b55050f59b40a3171fc86f63437b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "aedf2c46021820036bb0066122c3712bd974b55050f59b40a3171fc86f63437b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.force_raw_sql_routes_a_table_through_its_own_ddl",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "af454956953f2afbb8e9a2f7b5abc9292743300cc325b6fe52827bd223ef051b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "af454956953f2afbb8e9a2f7b5abc9292743300cc325b6fe52827bd223ef051b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.indexes_translate_with_filter_includes_and_method",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 5,
+        "firstMs": 5,
+        "stallInduced": false
+      }
+    ],
+    "afa09b7030b4e032d9fc56a2d8bf4feb92ca6538d4ffb961d5d7e984df4d7e7e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "afa09b7030b4e032d9fc56a2d8bf4feb92ca6538d4ffb961d5d7e984df4d7e7e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 602,
+        "firstMs": 602,
+        "stallInduced": false
+      }
+    ],
+    "afb5cefd968660b82304359fcf4b93d4b7479b29f60f20fd96af9887e3b88c1d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "afb5cefd968660b82304359fcf4b93d4b7479b29f60f20fd96af9887e3b88c1d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.a_raw_sql_index_round_trips_through_the_serialized_snapshot",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "afea19ddb783513d19f75c7fa27451eb1473a83914f1a74bdbfa0b3b22ed130f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "afea19ddb783513d19f75c7fa27451eb1473a83914f1a74bdbfa0b3b22ed130f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_three_mixed_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 44,
+        "firstMs": 44,
+        "stallInduced": false
+      }
+    ],
+    "aff953181c4f253602cafb497ce05a89cf3a6a8ab32ee32d54044993f5c0a598": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "aff953181c4f253602cafb497ce05a89cf3a6a8ab32ee32d54044993f5c0a598",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.fk_dependency_ordering.entity_types_are_sorted_by_fk_dependencies",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 9,
+        "firstMs": 9,
+        "stallInduced": false
+      }
+    ],
+    "b0bacb571b07a598c24225c90bf84d274319153ce36ba6f6a670733f16934ed3": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "b0bacb571b07a598c24225c90bf84d274319153ce36ba6f6a670733f16934ed3",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.sequences.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 166,
+        "firstMs": 166,
+        "stallInduced": false
+      }
+    ],
+    "b1c891f95df49e26c5d1f9a5c42cac83acc253d9fab4f533ef60d8b36fdd5eea": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "b1c891f95df49e26c5d1f9a5c42cac83acc253d9fab4f533ef60d8b36fdd5eea",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_query_of_another_context_throws_when_queued(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 60,
+        "firstMs": 60,
+        "stallInduced": false
+      }
+    ],
+    "b20f6865db82243546cc6942dd3a563c2e663f04bed571f4bdf777f3ae5101e8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "b20f6865db82243546cc6942dd3a563c2e663f04bed571f4bdf777f3ae5101e8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_retrying_execution_strategy_that_is_already_running_runs_each_query_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 136,
+        "firstMs": 136,
+        "stallInduced": false
+      }
+    ],
+    "b284839297795f476368eb3fde024eb4ef4071a9f85dd5972a443a1ba0626d35": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "b284839297795f476368eb3fde024eb4ef4071a9f85dd5972a443a1ba0626d35",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_in_a_branch_ef_core_skips_are_not_read(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 132,
+        "firstMs": 132,
+        "stallInduced": false
+      }
+    ],
+    "b437bf3fa2298e32a106933a752072817accd9a55cbdd0ceaaa5cfcf0d6129a9": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "b437bf3fa2298e32a106933a752072817accd9a55cbdd0ceaaa5cfcf0d6129a9",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.queries_queued_while_a_retrying_execution_strategy_runs_run_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 216,
+        "firstMs": 216,
+        "stallInduced": false
+      }
+    ],
+    "b45bd4dd5b1177fb6a053ea5750a55df0a5b436b9a1188bcfa3784f6a3617900": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "b45bd4dd5b1177fb6a053ea5750a55df0a5b436b9a1188bcfa3784f6a3617900",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.identity_strategies.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 546,
+        "firstMs": 546,
+        "stallInduced": false
+      }
+    ],
+    "b5b86a5721fc3697a63dbd66cd3ed97665d00d138ba8e6ef0a2228157a4e77db": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "b5b86a5721fc3697a63dbd66cd3ed97665d00d138ba8e6ef0a2228157a4e77db",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.check_constraints.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 206,
+        "firstMs": 206,
+        "stallInduced": false
+      }
+    ],
+    "b9a9e2b0f784efb72ce98b70c1c7a60c1fd479733b1f19b4474d0facb14d2e7e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "b9a9e2b0f784efb72ce98b70c1c7a60c1fd479733b1f19b4474d0facb14d2e7e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_rowversion.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 605,
+        "firstMs": 605,
+        "stallInduced": false
+      }
+    ],
+    "ba30feb81888872ac7cc080055482a74c279fea183ff7d4279d8315f7d4f9b49": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ba30feb81888872ac7cc080055482a74c279fea183ff7d4279d8315f7d4f9b49",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_in_a_branch_ef_core_skips_are_not_read(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 328,
+        "firstMs": 328,
+        "stallInduced": false
+      }
+    ],
+    "bb1fad77146589f61d42bc81bfba0fe50011e652cda721810defbcdcaea31f3e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "bb1fad77146589f61d42bc81bfba0fe50011e652cda721810defbcdcaea31f3e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.ef_core_reads_batched_results_from_the_providers_own_reader",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 150,
+        "firstMs": 150,
+        "stallInduced": false
+      }
+    ],
+    "bc698964c439818ad0db9de5e62c5e8ea2135b66ee38f781b87eaa2ad197efa1": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "bc698964c439818ad0db9de5e62c5e8ea2135b66ee38f781b87eaa2ad197efa1",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.expressions_ef_core_translates_to_sql_stay_in_sql(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 83,
+        "firstMs": 83,
+        "stallInduced": false
+      }
+    ],
+    "bf499d3bfd8514dc13b72927ebdedb426718b5d532115af2cc118bc011fe21f8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "bf499d3bfd8514dc13b72927ebdedb426718b5d532115af2cc118bc011fe21f8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.empty_batch_does_not_throw",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 108,
+        "firstMs": 108,
+        "stallInduced": false
+      }
+    ],
+    "c1203f029bcd2b2fed4ccf9639c49f1201ce46a0856fbac763f279ec4b3bfe6e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "c1203f029bcd2b2fed4ccf9639c49f1201ce46a0856fbac763f279ec4b3bfe6e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_failing_batch_faults_every_future",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 136,
+        "firstMs": 136,
+        "stallInduced": false
+      }
+    ],
+    "c14c8d0e3c568d192731d81047715b5aa89537bd1cde033ee60ae330ccf58542": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "c14c8d0e3c568d192731d81047715b5aa89537bd1cde033ee60ae330ccf58542",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.sql_server_batch_query_tests.can_batch_two_list_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 36,
+        "firstMs": 36,
+        "stallInduced": false
+      }
+    ],
+    "c17883f2ae03242df27c677b98cf4e8c6298d959b400095d86fb0eb1272126b6": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "c17883f2ae03242df27c677b98cf4e8c6298d959b400095d86fb0eb1272126b6",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_end_to_end.tph_entities_should_produce_single_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 9,
+        "firstMs": 9,
+        "stallInduced": false
+      }
+    ],
+    "c2c07b99dbc799e109310e22a12ab0427127e4d2e2fa10d521ae528adb187500": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "c2c07b99dbc799e109310e22a12ab0427127e4d2e2fa10d521ae528adb187500",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.computed_columns_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 559,
+        "firstMs": 559,
+        "stallInduced": false
+      }
+    ],
+    "c2faf1ecf9426dd163dba6f5123b63a311fab88d06ee276654795a2400cc2626": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "c2faf1ecf9426dd163dba6f5123b63a311fab88d06ee276654795a2400cc2626",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.create_or_update_does_not_drop_a_column_the_mapper_cannot_express",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 127,
+        "firstMs": 127,
+        "stallInduced": false
+      }
+    ],
+    "c3ee10f40b235d99c45f400237040bf20fa29e134fcee27ae8fd7cd01060ca42": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "c3ee10f40b235d99c45f400237040bf20fa29e134fcee27ae8fd7cd01060ca42",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_end_to_end.tph_table_should_contain_columns_from_all_subtypes",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 20,
+        "firstMs": 20,
+        "stallInduced": false
+      }
+    ],
+    "c4c17d9eb98cac86ea19c0560fa129f7653038bf6ed1fb5f729ab090c8895fa7": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "c4c17d9eb98cac86ea19c0560fa129f7653038bf6ed1fb5f729ab090c8895fa7",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.translates_a_postgresql_table_to_a_create_table_operation",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "c524221a2fd914aeabaaf11b692152a755b239a631019b807f57e228cab692d0": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "c524221a2fd914aeabaaf11b692152a755b239a631019b807f57e228cab692d0",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_are_read_once(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 90,
+        "firstMs": 90,
+        "stallInduced": false
+      }
+    ],
+    "c5365c4cf04ed019033f22cfb67ddbfcef84d6fcaca2f221cf4ec068976eeed2": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "c5365c4cf04ed019033f22cfb67ddbfcef84d6fcaca2f221cf4ec068976eeed2",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.queries_run_in_the_order_they_were_queued",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 209,
+        "firstMs": 209,
+        "stallInduced": false
+      }
+    ],
+    "c72726fcf08f97cc75ab03c264181f99648a9750105ffa0be91d78b0a5835fa9": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "c72726fcf08f97cc75ab03c264181f99648a9750105ffa0be91d78b0a5835fa9",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_tests.can_batch_two_list_queries",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 69,
+        "firstMs": 69,
+        "stallInduced": false
+      }
+    ],
+    "c7544c2c97e8201c91331b7c5fc2f884d9f01f3fefaa0e2c451e10cf518038ec": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "c7544c2c97e8201c91331b7c5fc2f884d9f01f3fefaa0e2c451e10cf518038ec",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.migration_ids_are_bumped_past_the_previous_id",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "c9568ce0c19d89727973a0f54bbf0c0b598cdf7759ded9974a2953c09ff91cc1": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "c9568ce0c19d89727973a0f54bbf0c0b598cdf7759ded9974a2953c09ff91cc1",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.alternate_keys.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 362,
+        "firstMs": 362,
+        "stallInduced": false
+      }
+    ],
+    "cb96c72f7a1a70ab2ed31939fa855aaf20b797ae0647bf233fd37e6e9ac3a978": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "cb96c72f7a1a70ab2ed31939fa855aaf20b797ae0647bf233fd37e6e9ac3a978",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_sequences.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1639,
+        "firstMs": 1639,
+        "stallInduced": false
+      }
+    ],
+    "cba01a441dd691ea48a00c9d76b2da11c6e5c1809ac7a729beb897fb74d66697": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "cba01a441dd691ea48a00c9d76b2da11c6e5c1809ac7a729beb897fb74d66697",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.expression_index_without_columns_is_not_supported",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "cc79b368fbbd97bfcea7748d0dd367e092d1bc1c7732ad96f94dac3eacbde929": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "cc79b368fbbd97bfcea7748d0dd367e092d1bc1c7732ad96f94dac3eacbde929",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.a_table_weasel_creates_reads_back_unchanged_and_serves_ef_core",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 428,
+        "firstMs": 428,
+        "stallInduced": false
+      }
+    ],
+    "ceae5efd9b729a0efddc598736b872ccedc10053648b4293de6926b023d62558": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ceae5efd9b729a0efddc598736b872ccedc10053648b4293de6926b023d62558",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_checks_and_computed.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 955,
+        "firstMs": 955,
+        "stallInduced": false
+      }
+    ],
+    "d0a0ba44712f0b70c6c35977ba240505d036b910c716389990e12a8d3397746e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "d0a0ba44712f0b70c6c35977ba240505d036b910c716389990e12a8d3397746e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.tracking_query_tracks_results_and_resolves_identity",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 109,
+        "firstMs": 109,
+        "stallInduced": false
+      }
+    ],
+    "d0fecc5a2b22f1d22943758f606ec0bc6ca8d0f1bc14de26d0fbf8f00270f872": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "d0fecc5a2b22f1d22943758f606ec0bc6ca8d0f1bc14de26d0fbf8f00270f872",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 6,
+        "firstMs": 6,
+        "stallInduced": false
+      }
+    ],
+    "d18f46a2bfb9c1d3cb4739252ffe40214ccb263ff79e518d77a9b778ea081068": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d18f46a2bfb9c1d3cb4739252ffe40214ccb263ff79e518d77a9b778ea081068",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.incremental_migration_chain_round_trips",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 890,
+        "firstMs": 890,
+        "stallInduced": false
+      }
+    ],
+    "d2390909ff1d0b4af7f01c87558e5fe29a8e982afaf54a3b3c9971c04fa78ea1": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d2390909ff1d0b4af7f01c87558e5fe29a8e982afaf54a3b3c9971c04fa78ea1",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.raw_sql_fallback_objects_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 606,
+        "firstMs": 606,
+        "stallInduced": false
+      }
+    ],
+    "d23b0df1557e6e12abdc15fb8caccaf3ca8f6fa4dc425afe7c7e9f113d3421fc": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d23b0df1557e6e12abdc15fb8caccaf3ca8f6fa4dc425afe7c7e9f113d3421fc",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.an_unchanged_computed_index_does_not_diff",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "d3a179734b89a5d6a104a7003fc18d1a268e54974d1bd9e9717d0187ecdef4d6": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d3a179734b89a5d6a104a7003fc18d1a268e54974d1bd9e9717d0187ecdef4d6",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.tph_end_to_end.tph_entities_should_produce_single_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 8,
+        "firstMs": 8,
+        "stallInduced": false
+      }
+    ],
+    "d3cf0dd5ab0ce35fcd940f3f4c24df92c6aaf63ab7e292301ad98f5cc0309de8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d3cf0dd5ab0ce35fcd940f3f4c24df92c6aaf63ab7e292301ad98f5cc0309de8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.a_concurrent_build_does_not_push_an_otherwise_typed_index_to_raw_sql",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "d598228d3f5a437727268182c8857223a3d43a88779f72812b6d196cf53e71ec": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "d598228d3f5a437727268182c8857223a3d43a88779f72812b6d196cf53e71ec",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 10,
+        "firstMs": 10,
+        "stallInduced": false
+      }
+    ],
+    "d74c272b737e0b232109303a2b7ae365fa1a067741cf3050918f862201f15705": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "d74c272b737e0b232109303a2b7ae365fa1a067741cf3050918f862201f15705",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.json_column_end_to_end.json_column_should_be_jsonb_type",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 7,
+        "firstMs": 7,
+        "stallInduced": false
+      }
+    ],
+    "d802241aad827b15af092038319592be5b8cb262fc109d202bbd5b04ffeb7c1f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d802241aad827b15af092038319592be5b8cb262fc109d202bbd5b04ffeb7c1f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.tracking_query_tracks_results_and_resolves_identity",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 124,
+        "firstMs": 124,
+        "stallInduced": false
+      }
+    ],
+    "d837adb294f1891ddd3a325bce59eca72ccc6fd6e6e3d9e156308d8229518385": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d837adb294f1891ddd3a325bce59eca72ccc6fd6e6e3d9e156308d8229518385",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Firebird.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 324,
+        "firstMs": 324,
+        "stallInduced": false
+      }
+    ],
+    "d845a0efdc43b7aa45930368ca77a5123b659ca973dcdeffc0009a62341a56c3": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "d845a0efdc43b7aa45930368ca77a5123b659ca973dcdeffc0009a62341a56c3",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.json_column_end_to_end.should_map_json_column_from_owned_entity_with_to_json",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 18,
+        "firstMs": 18,
+        "stallInduced": false
+      }
+    ],
+    "da0a7ad3ecf277a5d5a8a1b2fd86a0970cba87035bb69c91241b997168169734": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "da0a7ad3ecf277a5d5a8a1b2fd86a0970cba87035bb69c91241b997168169734",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.check_constraints.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 136,
+        "firstMs": 136,
+        "stallInduced": false
+      }
+    ],
+    "da20e21db42e81da16294104e37c13f6d8e183cf126f15e04a454622a3bb9733": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "da20e21db42e81da16294104e37c13f6d8e183cf126f15e04a454622a3bb9733",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.changed_index_recreates_it",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "db07e78015e0550a5ebc2ad4e3222a20aa0994d26d6a73cf2951b665878e1a35": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "db07e78015e0550a5ebc2ad4e3222a20aa0994d26d6a73cf2951b665878e1a35",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.fk_dependency_ordering.can_apply_migration_with_fk_dependencies",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 239,
+        "firstMs": 239,
+        "stallInduced": false
+      }
+    ],
+    "db190bc38d71898debcb9caa1aae2576b49716ac9ff62736dc4e2423270ac985": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "db190bc38d71898debcb9caa1aae2576b49716ac9ff62736dc4e2423270ac985",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.added_foreign_key_and_table_diff_together",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 5,
+        "firstMs": 5,
+        "stallInduced": false
+      }
+    ],
+    "db45538ce5edca6702c321c7f60d3933cadfc95d32f551497204a6c83dee4a2f": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "db45538ce5edca6702c321c7f60d3933cadfc95d32f551497204a6c83dee4a2f",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.identity_strategies.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 569,
+        "firstMs": 569,
+        "stallInduced": false
+      }
+    ],
+    "dc28bb895590b7ae6012d6bf39acbba66e3142063e299102d324021c9e6d7b50": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "dc28bb895590b7ae6012d6bf39acbba66e3142063e299102d324021c9e6d7b50",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.two_generated_migration_sets_coexist_in_one_database",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1015,
+        "firstMs": 1015,
+        "stallInduced": false
+      }
+    ],
+    "dcac15e0f1e2b36b3a631fc6172fd1cbe9524a27297b35f49a199617766e292c": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "dcac15e0f1e2b36b3a631fc6172fd1cbe9524a27297b35f49a199617766e292c",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.added_foreign_key_and_table_diff_together",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 5,
+        "firstMs": 5,
+        "stallInduced": false
+      }
+    ],
+    "dce7ba7778596b3e8bff5808df708ec5097a3c1a9bab1c1be6d9019517777d72": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "dce7ba7778596b3e8bff5808df708ec5097a3c1a9bab1c1be6d9019517777d72",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.restrict_normalizes_to_no_action_on_sql_server_only",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 3,
+        "firstMs": 3,
+        "stallInduced": false
+      }
+    ],
+    "dd61b7cd4f996ef86a895eafa1c7f5e95e0943746956fcaa8b72f3b31165fcce": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "dd61b7cd4f996ef86a895eafa1c7f5e95e0943746956fcaa8b72f3b31165fcce",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.batched_entities_are_fully_materialized_in_one_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 92,
+        "firstMs": 92,
+        "stallInduced": false
+      }
+    ],
+    "de171c25824f3d37b59fda73b7fd10daaa6296ed6b84893584e94d5b0e6c8d2d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "de171c25824f3d37b59fda73b7fd10daaa6296ed6b84893584e94d5b0e6c8d2d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.inverted_schema_comparison.computed_columns_round_trip",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 484,
+        "firstMs": 484,
+        "stallInduced": false
+      }
+    ],
+    "df3d4024c42bc43c821349228b260cb3020789e7f8f0ee093cf6bb138965a3a5": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "df3d4024c42bc43c821349228b260cb3020789e7f8f0ee093cf6bb138965a3a5",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.many_to_many.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 422,
+        "firstMs": 422,
+        "stallInduced": false
+      }
+    ],
+    "dfe3273210fa1b2bd4403dd59f671a629be2c0587760cf9a4b06abab363f7b28": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "dfe3273210fa1b2bd4403dd59f671a629be2c0587760cf9a4b06abab363f7b28",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MySql.end_to_end.can_create_migration_and_apply",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 412,
+        "firstMs": 412,
+        "stallInduced": false
+      }
+    ],
+    "e0040ce49c6932d63c9c00cb082be719e2b7393b759ebd0ee5fc434539d40608": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "e0040ce49c6932d63c9c00cb082be719e2b7393b759ebd0ee5fc434539d40608",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.baseline_records_history_rows_without_executing",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 116,
+        "firstMs": 116,
+        "stallInduced": false
+      }
+    ],
+    "e1080c6281225bedd114eff7fbe4779f8010e8ecc0dcda078dda831c81f745bf": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "e1080c6281225bedd114eff7fbe4779f8010e8ecc0dcda078dda831c81f745bf",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.checked_in_stub_context_matches_regenerated_output",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "e468862bd296954bf3e85fe0c607199b50bb69c0867575583cc136399447b4c4": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "e468862bd296954bf3e85fe0c607199b50bb69c0867575583cc136399447b4c4",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.a_retrying_execution_strategy_runs_each_query_separately",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 90,
+        "firstMs": 90,
+        "stallInduced": false
+      }
+    ],
+    "e4c7fb8b31b983207a7aa29d7b9979dce03b1b91bf6908f561d8fe9e6cebaa63": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "e4c7fb8b31b983207a7aa29d7b9979dce03b1b91bf6908f561d8fe9e6cebaa63",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.delete_all_data_on_empty_database_does_not_throw",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 95,
+        "firstMs": 95,
+        "stallInduced": false
+      }
+    ],
+    "e51d6699c86f43e1e4610821164edd007213ad69d4264ecffeae114f675e7884": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "e51d6699c86f43e1e4610821164edd007213ad69d4264ecffeae114f675e7884",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.added_column_diffs_to_add_column_and_drops_on_down",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 2,
+        "firstMs": 2,
+        "stallInduced": false
+      }
+    ],
+    "e64be786cc57302e0992b7a644ce3eaf3d438ad7e6120a0337d6d205a08cc1d5": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "e64be786cc57302e0992b7a644ce3eaf3d438ad7e6120a0337d6d205a08cc1d5",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_rowversion.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1199,
+        "firstMs": 1199,
+        "stallInduced": false
+      }
+    ],
+    "e79a38b7777d81638732a67012e67d415dd89938118b3fe3ef385ec424f254da": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "e79a38b7777d81638732a67012e67d415dd89938118b3fe3ef385ec424f254da",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.an_ordinary_index_is_still_translated_structurally",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "e95739beb5f2979c870125166a20648ce5a7cd0697a57edec628acc6ebefb4d6": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "e95739beb5f2979c870125166a20648ce5a7cd0697a57edec628acc6ebefb4d6",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.an_operator_class_survives_instead_of_silently_becoming_the_default",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "ea6eb34b2b236c145c9ab0c269718569a300ad128531e998bd4c48629ccda02d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "ea6eb34b2b236c145c9ab0c269718569a300ad128531e998bd4c48629ccda02d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.sql_server_stub_context_uses_the_sql_server_provider",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "ea9757e87a098273930fa94e93dbabf64943129d73668673c35c8ba65ae87a95": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "ea9757e87a098273930fa94e93dbabf64943129d73668673c35c8ba65ae87a95",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.an_additive_change_still_applies_to_an_add_only_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 151,
+        "firstMs": 151,
+        "stallInduced": false
+      }
+    ],
+    "eaced85d9e37f1473e7b635fe44b27d63795fd726c874a3b3e66377112de0ddf": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "eaced85d9e37f1473e7b635fe44b27d63795fd726c874a3b3e66377112de0ddf",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.snapshot_and_incremental_migrations.changed_index_recreates_it",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 4,
+        "firstMs": 4,
+        "stallInduced": false
+      }
+    ],
+    "ecc677f3bd1d0d4d0a59ea59c5af6c61f981125a3a4a960ff84e4057c66245b4": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "ecc677f3bd1d0d4d0a59ea59c5af6c61f981125a3a4a960ff84e4057c66245b4",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.indexes.gin_method_maps_automatically_descending_via_escape_hatch",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 194,
+        "firstMs": 194,
+        "stallInduced": false
+      }
+    ],
+    "ed2bb090658e48c614edc07c81aed1796622c621169dcce13c436126a222ce9b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "ed2bb090658e48c614edc07c81aed1796622c621169dcce13c436126a222ce9b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.lambda_initial_data_tests.add_initial_data_lambda_rejects_null_delegate",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 48,
+        "firstMs": 48,
+        "stallInduced": false
+      }
+    ],
+    "edce565d3fcbcdfb161d4992bb073c4661f0e15cee8a87b7434e154008a5d256": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "edce565d3fcbcdfb161d4992bb073c4661f0e15cee8a87b7434e154008a5d256",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.migration_names_are_sanitized_into_class_names",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "ee31c1b6933966a539fa8a7d0c1d97fea43dc922ed9065d95c0a9da731c4e77b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "ee31c1b6933966a539fa8a7d0c1d97fea43dc922ed9065d95c0a9da731c4e77b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.reserved_word_column_names_are_escaped",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "efd2738b4f540167ddd7dd11153e68f7a17e792bb2931ddef012365e39183ac2": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "efd2738b4f540167ddd7dd11153e68f7a17e792bb2931ddef012365e39183ac2",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.owned_entities.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 530,
+        "firstMs": 530,
+        "stallInduced": false
+      }
+    ],
+    "f0a9e1f84332952f976c9b263fe97514454fdbe62b048be65adb3163c0d7bf62": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "f0a9e1f84332952f976c9b263fe97514454fdbe62b048be65adb3163c0d7bf62",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.migration_file_emitter.checked_in_stub_context_matches_regenerated_output",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "f0ce3bc2aba1872e1f7cf9e111c9c32b7efffec76ce5e6d705c6fd9542f6f47a": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "f0ce3bc2aba1872e1f7cf9e111c9c32b7efffec76ce5e6d705c6fd9542f6f47a",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MySql.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 190,
+        "firstMs": 190,
+        "stallInduced": false
+      }
+    ],
+    "f105eeed5925eb9f1ce9ebc41d64cce8e728206c551b2d2347b82cef202a698e": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "f105eeed5925eb9f1ce9ebc41d64cce8e728206c551b2d2347b82cef202a698e",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.default_values.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 266,
+        "firstMs": 266,
+        "stallInduced": false
+      }
+    ],
+    "f274867c6f0400e5950184c5c9535036d3388b43c28f9c3635a78fcf80fb9da2": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "f274867c6f0400e5950184c5c9535036d3388b43c28f9c3635a78fcf80fb9da2",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.add_only_ef_migrations.the_withheld_drop_is_logged_when_a_migration_runs",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 144,
+        "firstMs": 144,
+        "stallInduced": false
+      }
+    ],
+    "f44ae6dd2d85ed9d9be4e41f3030b5f4971d4982d306c819ebedf5c7b142c6b7": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "f44ae6dd2d85ed9d9be4e41f3030b5f4971d4982d306c819ebedf5c7b142c6b7",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_delete_behaviors.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1820,
+        "firstMs": 1820,
+        "stallInduced": false
+      }
+    ],
+    "f4c0e9fef9c3413302fbdab6ebb3f9c9689ad4281417c2e39065f500d04545d8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "f4c0e9fef9c3413302fbdab6ebb3f9c9689ad4281417c2e39065f500d04545d8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_build_a_database_for_db_context",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 13,
+        "firstMs": 13,
+        "stallInduced": false
+      }
+    ],
+    "f88f0bde2c78a075097e0b5a3e488d20c1f37b7322d29df8efe787ddd7b76014": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "f88f0bde2c78a075097e0b5a3e488d20c1f37b7322d29df8efe787ddd7b76014",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.end_to_end.can_map_entity_to_table",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 6,
+        "firstMs": 6,
+        "stallInduced": false
+      }
+    ],
+    "fa6de516c19f420311635872162487794393a710f18f4e81d31c948f98724fcb": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "fa6de516c19f420311635872162487794393a710f18f4e81d31c948f98724fcb",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.partition_detection_works_structurally",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "fc47266c73184d3cff1a24e1c85b368671bcec8860d73c75e50616eedc4b0ba2": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "fc47266c73184d3cff1a24e1c85b368671bcec8860d73c75e50616eedc4b0ba2",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.expressions_ef_core_translates_to_sql_stay_in_sql(batching: False)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 76,
+        "firstMs": 76,
+        "stallInduced": false
+      }
+    ],
+    "fca1dce418cd127ae88adefab94db85515bfdcb8b02266c331306bd42b3a3786": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "fca1dce418cd127ae88adefab94db85515bfdcb8b02266c331306bd42b3a3786",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.indexes_that_ef_cannot_model.the_table_around_an_untranslatable_index_stays_typed",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 0,
+        "firstMs": 0,
+        "stallInduced": false
+      }
+    ],
+    "fcedeb7d5add16824176c7cb66bb20b19519142739d556e00ba5afd9db6153e1": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "fcedeb7d5add16824176c7cb66bb20b19519142739d556e00ba5afd9db6153e1",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.SqlServer.SchemaComparison.sqlserver_default_values.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 628,
+        "firstMs": 628,
+        "stallInduced": false
+      }
+    ],
+    "fd1fea2151cc6a21f0e0f133ac389a0b8703d0f1754e100915f39019c3d3ff35": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "fd1fea2151cc6a21f0e0f133ac389a0b8703d0f1754e100915f39019c3d3ff35",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.translation_layer.translates_a_postgresql_table_to_a_create_table_operation",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 7,
+        "firstMs": 7,
+        "stallInduced": false
+      }
+    ],
+    "fd4399f537fa082f7c017839fed1e5b87c39bca16fdd70bec375833b9117c342": [
+      {
+        "runId": "gh-38959295006-1/efcore-net10.0/Weasel.EntityFrameworkCore.Tests/net10.0",
+        "at": "2026-10-16T20:06:18.4247685+00:00",
+        "uid": "fd4399f537fa082f7c017839fed1e5b87c39bca16fdd70bec375833b9117c342",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.database_cleaner_tests.reset_all_data_deletes_then_seeds",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 96,
+        "firstMs": 96,
+        "stallInduced": false
+      }
+    ],
+    "fe0941817182c4bfe9bdbd5ad9aa8a64f3a27603e2633868b6c9d50dc16e7452": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "fe0941817182c4bfe9bdbd5ad9aa8a64f3a27603e2633868b6c9d50dc16e7452",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Oracle.end_to_end.can_create_table_and_verify_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 419,
+        "firstMs": 419,
+        "stallInduced": false
+      }
+    ],
+    "fe7bc2aa03e4d3ce0f2e33fe3e41ba17184753c7af0a995101b97fdedbab1fe8": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "fe7bc2aa03e4d3ce0f2e33fe3e41ba17184753c7af0a995101b97fdedbab1fe8",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.batch_query_materialization_tests.captured_values_in_a_branch_ef_core_skips_are_not_read(batching: True)",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 104,
+        "firstMs": 104,
+        "stallInduced": false
+      }
+    ],
+    "fea676b0bec000796d3c732f557b69bfc7c4077f895097af1cba48eb9d507d9d": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "fea676b0bec000796d3c732f557b69bfc7c4077f895097af1cba48eb9d507d9d",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.MigrationOperations.ef_migration_generator.detects_the_provider_from_the_migrator",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 1,
+        "firstMs": 1,
+        "stallInduced": false
+      }
+    ],
+    "ffc3a82ad14497dbcc0bf304496983e3376546384b302e8b1567d0c77190238b": [
+      {
+        "runId": "gh-38959295006-1/efcore-net9.0/Weasel.EntityFrameworkCore.Tests/net9.0",
+        "at": "2026-10-16T20:06:50.5325044+00:00",
+        "uid": "ffc3a82ad14497dbcc0bf304496983e3376546384b302e8b1567d0c77190238b",
+        "displayName": "Weasel.EntityFrameworkCore.Tests.Postgresql.SchemaComparison.strings_and_precision.weasel_schema_matches_ef_schema",
+        "outcome": "CleanPass",
+        "attempts": 1,
+        "totalMs": 221,
+        "firstMs": 221,
+        "stallInduced": false
+      }
+    ]
+  }
+}
