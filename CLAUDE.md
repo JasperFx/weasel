@@ -352,6 +352,28 @@ GitHub Actions workflows:
 - `ci-build-firebird.yml` - Firebird CI (Ubuntu, Firebird 3, 4 and 5)
 - `publish_nuget.yml` - NuGet publishing
 
+**Supervised test runs (JasperFx/bobcat#565):** every workflow's Test step runs
+`./build.sh Test<Engine> --framework <tfm> --configuration <cfg>` (`TestCore`, `TestSqlite`,
+`TestPostgresql`, `TestSqlServer`, `TestMySql`, `TestOracle`, `TestFirebird`, `TestEfCore`) instead of
+`dotnet test`. The targets live in `build/SupervisedTests.cs` and `build/TestTargets.cs`: each runs the
+already-built test executable (every test project is a Microsoft.Testing.Platform host, via
+`UseMicrosoftTestingPlatformRunner` in `Tests.Build.props`) through Bobcat's supervisor. Things to know:
+
+- **Postgres, SQL Server and Firebird run on several worker processes** (4, clamped to half the cores, so
+  2 on a hosted runner; `--test-workers N` overrides). Postgres and SQL Server get a database per lane
+  (`<db>_w0..`, `weasel_w0..`) through the same `weasel_*_testing_database` variable the suites already
+  read; Firebird needs nothing, because every test class already has a database file of its own. A test
+  that creates something **server-scoped** (a database, a role, a login, a Firebird file) must give it a
+  name no other test class uses, or two lanes will fight over it.
+- **No retries.** `dotnet test` gave a test one attempt; so does this. A test can opt in with
+  `[Trait("Retry", "2")]`, and none does.
+- **Theory data xUnit cannot serialize** runs as one test under one uid; the supervisor keeps only its
+  last row's verdict, so `TheoryRowGuard` in `SupervisedTests.cs` fails the job if any row failed.
+  Prefer serializable theory data anyway.
+- **`build/test-ledger/`** is the committed ledger: per-test durations the supervisor balances lanes
+  with. A local run folds into it; CI uploads each leg's run as a `test-ledger-*` artifact, and
+  `./build.sh FoldLedgers --ledger-source <dir>` folds downloaded ones in.
+
 **SQLite CI Workflow:**
 The SQLite workflow tests on multiple operating systems (Ubuntu, Windows, macOS) and all supported .NET versions (8.0, 9.0, 10.0) to ensure cross-platform compatibility. SQLite tests require no database services since SQLite is file-based and embedded.
 

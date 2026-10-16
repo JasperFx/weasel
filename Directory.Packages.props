@@ -4,6 +4,11 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <!-- Build-only: build/SupervisedTests.cs drives the CI test projects through Bobcat's
+         supervisor (JasperFx/bobcat#565). Referenced by build/build.csproj alone, never by a
+         shipped package or a test project. The supervisor drives the test executables over
+         Microsoft.Testing.Platform's wire protocol and never loads them. -->
+    <PackageVersion Include="Bobcat.Supervisor" Version="0.60.4" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Meziantou.Analyzer" Version="2.0.260" />
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.12.19" />

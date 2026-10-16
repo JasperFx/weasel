@@ -64,4 +64,16 @@ jobs:
       run: dotnet build --no-restore --configuration ${{ env.config }}
 
     - name: Test
-      run: dotnet test src/Weasel.Sqlite.Tests/Weasel.Sqlite.Tests.csproj --no-build --verbosity normal --configuration ${{ env.config }} --framework ${{ matrix.framework }}
+      env:
+        CI_JOB_NAME: sqlite-${{ matrix.os }}-${{ matrix.framework }}
+      run: ./build.sh TestSqlite --framework ${{ matrix.framework }} --configuration ${{ env.config }}
+
+    # The run ledger and the supervisor's JSON report, per leg. `./build.sh FoldLedgers` folds
+    # downloaded ledgers into the committed build/test-ledger/, which balances lanes by duration.
+    - name: Upload test ledger
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-ledger-sqlite-${{ matrix.os }}-${{ matrix.framework }}
+        path: artifacts/test-ledger/
+        if-no-files-found: ignore
