@@ -420,6 +420,16 @@ public class IndexDefinition: ITableIndex
             var childName = ChildIndexName(parent, partition);
             var quotedChild = SchemaUtils.QuoteName(childName);
 
+            // A run that stopped partway through leaves this partition's index behind, unattached:
+            // invalid if its build failed, valid if the run died before the ATTACH. Dropping the
+            // parent index does not remove it -- only attached children go with the parent -- so
+            // building it again under the same name failed with 42P07 on every later run. Rebuilt
+            // rather than adopted, since a leftover may predate a change to the definition. Its own
+            // command, for the same reason as the build below; a no-op when there is nothing left.
+            builder.AppendLine(IndexCreationBeginComment);
+            builder.AppendLine($"DROP INDEX CONCURRENTLY IF EXISTS {schema}.{quotedChild};");
+            builder.AppendLine(IndexCreationEndComment);
+
             // The markers put this statement in a command of its own. CREATE INDEX CONCURRENTLY
             // cannot run inside a transaction block, and PostgresqlMigrator.executeDelta splits the
             // script on exactly this boundary.
@@ -439,9 +449,10 @@ public class IndexDefinition: ITableIndex
     /// </summary>
     /// <remarks>
     ///     Deterministic, so a run that died partway through names the same child index on the next
-    ///     attempt rather than building a second one beside it. Deliberately not truncated when it runs
-    ///     long: <c>AssertValidIdentifier</c> refuses an over-length identifier rather than silently
-    ///     renaming the object, which is the rule weasel#468 settled.
+    ///     attempt -- which drops what is left of it before building it again -- rather than building a
+    ///     second one beside it. Deliberately not truncated when it runs long: <c>AssertValidIdentifier</c>
+    ///     refuses an over-length identifier rather than silently renaming the object, which is the
+    ///     rule weasel#468 settled.
     /// </remarks>
     internal string ChildIndexName(Table parent, string partitionTableName)
     {
