@@ -18,6 +18,14 @@
              does, and did so on the Postgres suite well before the xUnit v3
              migration. -->
         <TestTfmsInParallel>false</TestTfmsInParallel>
+
+        <!-- Every test project doubles as a Microsoft.Testing.Platform host, so Bobcat's
+             supervisor (build/SupervisedTests.cs) can drive the built executable as a worker
+             process over the platform's server mode. This changes only the executable's entry
+             point: `dotnet test` still goes through the VSTest adapter above, unchanged. Set
+             here, once, rather than per job, because a build without it silently produces a
+             non-supervisable executable at the same path (JasperFx/bobcat#565). -->
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
     </PropertyGroup>
 
     <ItemGroup>

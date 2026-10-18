@@ -28,7 +28,16 @@
         "Clean",
         "Compile",
         "Detach",
-        "Restore"
+        "FoldLedgers",
+        "Restore",
+        "TestCore",
+        "TestEfCore",
+        "TestFirebird",
+        "TestMySql",
+        "TestOracle",
+        "TestPostgresql",
+        "TestSqlite",
+        "TestSqlServer"
       ]
     },
     "Verbosity": {
@@ -110,9 +119,29 @@
             "Release"
           ]
         },
+        "Framework": {
+          "type": "string",
+          "description": "Target framework to run the tests under, e.g. net9.0. Default: every framework built"
+        },
+        "LedgerSource": {
+          "type": "string",
+          "description": "Directory of downloaded test-ledger artifacts to fold into build/test-ledger/"
+        },
+        "RecordLedger": {
+          "type": "boolean",
+          "description": "Fold this run into build/test-ledger/ (default: off; the committed ledger is CI's)"
+        },
         "Solution": {
           "type": "string",
           "description": "Path to a solution file that is automatically loaded"
+        },
+        "TestWorkers": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "Worker processes per suite, overriding the committed count and the per-machine clamp",
+          "format": "int32"
         }
       }
     },

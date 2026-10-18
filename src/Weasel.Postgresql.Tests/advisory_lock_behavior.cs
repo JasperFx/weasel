@@ -307,13 +307,22 @@ internal static class AdvisoryLockTesting
     ///     The distinct backend pids holding any of the given advisory locks. A bigint key is stored as
     ///     classid (high 32 bits) and objid (low 32 bits) with objsubid = 1.
     /// </summary>
+    /// <remarks>
+    ///     Only this database's locks. An advisory lock is scoped to its database, but pg_locks shows
+    ///     the whole server, and <see cref="NextLockId" /> restarts at the same number in every process.
+    ///     Unfiltered, a supervised run with a database per worker lane counted the other lane's
+    ///     backends here, and <see cref="TerminateBackendsHoldingAsync" /> killed them -- failing
+    ///     <c>held_locks_share_a_connection_only_when_multiplexing</c> and
+    ///     <c>dispose_releases_every_held_lock</c> in whichever lane lost the race (JasperFx/bobcat#565).
+    /// </remarks>
     public static async Task<int[]> BackendsHoldingAsync(params int[] lockIds)
     {
         await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
         await conn.OpenAsync();
 
         await using var cmd = new NpgsqlCommand(
-            "select distinct pid from pg_locks where locktype = 'advisory' and granted and objsubid = 1 and classid = 0 and objid::bigint = any(@ids)",
+            "select distinct pid from pg_locks where locktype = 'advisory' and granted and objsubid = 1 and classid = 0 and objid::bigint = any(@ids) " +
+            "and database = (select oid from pg_database where datname = current_database())",
             conn);
         cmd.Parameters.AddWithValue("ids", lockIds.Select(x => (long)x).ToArray());
 

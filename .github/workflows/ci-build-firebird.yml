@@ -94,5 +94,16 @@ jobs:
     # against its data directory.
     - name: Test
       env:
+        CI_JOB_NAME: firebird${{ matrix.firebird-image == 'firebirdsql/firebird:3' && '3' || matrix.firebird-image == 'firebirdsql/firebird:4' && '4' || '5' }}-${{ matrix.framework }}
         weasel_firebird_testing_database: "DataSource=localhost;Port=3050;Database=/var/lib/firebird/data/weasel_testing.fdb;User=SYSDBA;Password=${{ env.db_pwd }};Charset=UTF8"
-      run: dotnet test src/Weasel.Firebird.Tests/Weasel.Firebird.Tests.csproj --no-build --verbosity normal --framework ${{ matrix.framework }}
+      run: ./build.sh TestFirebird --framework ${{ matrix.framework }} --configuration Debug
+
+    # The run ledger and the supervisor's JSON report, per leg. `./build.sh FoldLedgers` folds
+    # downloaded ledgers into the committed build/test-ledger/, which balances lanes by duration.
+    - name: Upload test ledger
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-ledger-firebird${{ matrix.firebird-image == 'firebirdsql/firebird:3' && '3' || matrix.firebird-image == 'firebirdsql/firebird:4' && '4' || '5' }}-${{ matrix.framework }}
+        path: artifacts/test-ledger/
+        if-no-files-found: ignore
