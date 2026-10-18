@@ -25,9 +25,12 @@ using Serilog;
 //   - Honest reporting. A crashed worker is Indeterminate with its exit code and stderr, never a
 //     silent pass or an ordinary "failed"; a test in flight past the stall threshold is named while
 //     the run is still going; the job summary carries the supervisor's own report.
-//   - The committed ledger (build/test-ledger/). Every run's per-test durations and outcomes, folded
-//     into one file per project, so lanes are balanced by measured duration from the first pass
-//     instead of by test count.
+//   - The ledger, carried between CI runs as an artifact (artifacts/test-ledger/). Every run's
+//     per-test durations and outcomes, so lanes are balanced by measured duration from the first
+//     pass instead of by test count.
+//   - Collapsed theories judged worst-first. A theory whose data xUnit cannot serialize is one test
+//     under one uid that reports every row; Bobcat 1.0 keeps the worst row's verdict and names the
+//     collapse in its report (bobcat#649), so a failing row can no longer hide behind a passing one.
 //
 // Retries are OPT-IN ONLY. `dotnet test` gave every test exactly one attempt, so that is the parity
 // ceiling (lesson 8 of the Wolverine rollout: match the old harness's REAL retry ceiling). The budget
@@ -51,48 +54,30 @@ partial class Build
     readonly int? TestWorkers;
 
     /// <summary>
-    /// Whether to fold this run into build/test-ledger/. Off by default, everywhere: the committed
-    /// ledger is folded from CI's artifacts (<see cref="FoldLedgers"/>), because a test's uid is not
-    /// portable. xUnit v3's uid evidently includes the test assembly's path, so a test has one uid per
-    /// target framework (bin/Debug/net9.0 vs net10.0) and another on every machine or checkout --
-    /// measured: a local ledger and a CI ledger of the same suite and framework share no uid at all.
-    /// A local fold would only bloat the committed file with keys CI never looks up. Turn it on to
-    /// balance repeated local runs (<c>--record-ledger</c>), and do not commit the result.
+    /// The ledger lives here, beside the run's report, and is carried from run to run as a CI
+    /// artifact (bobcat#730's default): each workflow leg downloads the newest successful master run's
+    /// <c>test-ledger-{CI_JOB_NAME}</c> artifact into this directory before the Test step, the run
+    /// balances lanes on it, folds its own observations in and saves it back, and the upload step
+    /// sends it on. Nothing is committed. Under artifacts/, which is gitignored.
     /// </summary>
-    [Parameter("Fold this run into build/test-ledger/ (default: off; the committed ledger is CI's)")]
-    readonly bool RecordLedger;
-
-    /// <summary>
-    /// A directory of per-run ledgers (the CI artifacts) for <see cref="FoldLedgers"/>.
-    /// </summary>
-    [Parameter("Directory of downloaded test-ledger artifacts to fold into build/test-ledger/")]
-    readonly AbsolutePath LedgerSource;
-
-    /// <summary>
-    /// The committed ledgers, one per test project. Every framework and every CI matrix leg folds
-    /// into the same file -- each run is its own observation, so they never overwrite each other, and
-    /// each framework's tests have uids of their own (see <see cref="RecordLedger"/>).
-    /// </summary>
-    static AbsolutePath CommittedLedgerDirectory => RootDirectory / "build" / "test-ledger";
-
-    /// <summary>
-    /// This run's own ledger and report, for the CI artifact upload. Under artifacts/, which is
-    /// gitignored.
-    /// </summary>
+    /// <remarks>
+    /// Locally the same directory carries a laptop's own runs forward, and
+    /// <c>gh run download &lt;run&gt; -n test-ledger-postgres-net9.0-cstrue -D artifacts/test-ledger</c>
+    /// seeds it from CI. Tests are keyed by display name since Bobcat 1.0, so a CI ledger matches a
+    /// local run and either framework; the uid it used to be keyed by matched nothing off the machine
+    /// that recorded it, which is why the ledger used to be committed and folded by hand.
+    /// </remarks>
     static AbsolutePath RunArtifactsDirectory => RootDirectory / "artifacts" / "test-ledger";
 
     /// <summary>
-    /// Observations kept per test in a new ledger. The design default is 20, but each observation is
-    /// about 450 bytes in the committed file (uid and display name repeated in every run), and the
-    /// matrix legs sharing a framework share uids, so a Postgres fold adds two observations per test
-    /// per framework per CI run: at 20 the Postgres ledger alone would be ~19 MB. Three is enough for
-    /// a median. An existing file keeps the retention it was written with.
+    /// A test the ledger has not seen run for this long is dropped from it: deleted, renamed, or (for
+    /// a theory that collapses under one uid) recorded under a row's display name that has changed.
     /// </summary>
-    const int LedgerRunsPerTest = 3;
+    static readonly TimeSpan LedgerForgetsAfter = TimeSpan.FromDays(30);
 
     /// <summary>
     /// A test in flight this long is named while the run is still going. Report-only -- nothing is
-    /// killed. Weasel's slowest tests take seconds (the committed ledger has the numbers), so two
+    /// killed. Weasel's slowest tests take seconds (the ledger has the numbers), so two
     /// minutes is far past anything healthy and still well inside every job's 15-45 minute cap: a
     /// wedged job says which test it was wedged on before the cap destroys the log.
     /// </summary>
@@ -100,47 +85,10 @@ partial class Build
 
     /// <summary>
     /// The ceiling on retries. Only a test carrying a <c>Retry</c> trait can spend it (see the note
-    /// at the top of this file), and none does.
+    /// at the top of this file), and none does. Since Bobcat 1.0 such a retry runs alone in a fresh
+    /// process (bobcat#661); <c>[Trait("RetryWarm", "true")]</c> is the opt-in for a same-process one.
     /// </summary>
     static readonly RetryBudget OptInRetries = new() { MaxAttemptsPerTest = 3, MaxRetriesPerRun = 10 };
-
-    /// <summary>
-    /// Folds downloaded CI ledgers into the committed ones: <c>./build.sh FoldLedgers --ledger-source
-    /// &lt;dir&gt;</c>, after <c>gh run download &lt;run&gt; -p 'test-ledger-*' -D &lt;dir&gt;</c>. The
-    /// fold is a set union, so folding the same artifact twice, or in any order, changes nothing.
-    /// </summary>
-    Target FoldLedgers => _ => _
-        .Requires(() => LedgerSource)
-        .Executes(() =>
-        {
-            var files = Directory.EnumerateFiles(LedgerSource, "*.ledger.json", SearchOption.AllDirectories).ToList();
-            Assert.True(files.Count > 0, $"No *.ledger.json files under {LedgerSource}");
-
-            foreach (var group in files.GroupBy(projectOfLedgerFile))
-            {
-                var path = CommittedLedgerDirectory / $"{group.Key}.json";
-                // Record rather than Merge: Merge keeps the LARGER retention of the two sides, so one
-                // artifact written with a longer retention would grow the committed file for good. The
-                // committed file's own retention decides; the union is the same either way.
-                var ledger = group.Aggregate(TestLedger.Load(path, LedgerRunsPerTest),
-                    (folded, file) => folded.Record(TestLedger.Load(file).Tests.Values.SelectMany(runs => runs)));
-                ledger.Save(path);
-                Log.Information("Folded {Count} run ledger(s) into {Path}", group.Count(), path);
-            }
-        });
-
-    // A run ledger is named {job}.{project}.{framework}.ledger.json; the project is the segment that
-    // names one of the test projects, so a job name with dots in it cannot confuse the split.
-    static string projectOfLedgerFile(string file)
-    {
-        var name = Path.GetFileName(file);
-        var project = Directory.GetDirectories(RootDirectory / "src", "*.Tests")
-            .Select(Path.GetFileName)
-            .OrderByDescending(x => x.Length)
-            .FirstOrDefault(x => name.Contains($".{x}.", StringComparison.Ordinal));
-
-        return project ?? throw new InvalidOperationException($"Cannot tell which test project {file} belongs to");
-    }
 
     /// <summary>
     /// How one suite's worker processes are kept apart, when it needs anything at all. Provision runs
@@ -209,8 +157,8 @@ partial class Build
                 : null
         };
 
-        var ledgerPath = CommittedLedgerDirectory / $"{projectName}.json";
-        var ledger = TestLedger.Load(ledgerPath, LedgerRunsPerTest);
+        var ledgerPath = RunArtifactsDirectory / fileNameSafe($"{ledgerJobName}.{projectName}.{framework}.ledger.json");
+        var ledger = previousLedger(projectName);
         var known = ledger.KnownDurations();
 
         var supervisor = new Supervisor(factory)
@@ -234,7 +182,7 @@ partial class Build
 
         if (known.Count > 0)
             Log.Information("  balancing lanes with {Count} measured duration(s) from {Ledger}", known.Count,
-                RootDirectory.GetRelativePathTo(ledgerPath));
+                RootDirectory.GetRelativePathTo(RunArtifactsDirectory));
 
         var runId = ledgerRunId(projectName, framework);
         var startedAt = DateTimeOffset.UtcNow;
@@ -254,97 +202,8 @@ partial class Build
             }
         });
 
-        var rows = new TheoryRowGuard();
-        supervisor.AddObserver(rows);
-
         var results = supervisor.Run().GetAwaiter().GetResult();
-        var reported = report(projectName, framework, results, runId, startedAt, ledger, ledgerPath);
-        return rows.Check(projectName, framework, results) && reported;
-    }
-
-    /// <summary>
-    /// Catches the failures the supervisor's verdict would otherwise lose.
-    /// </summary>
-    /// <remarks>
-    /// <para>
-    /// A theory whose data xUnit cannot serialize (a <c>TableColumn</c>, an <c>Action&lt;Table&gt;</c>,
-    /// an <c>IEnumerable&lt;Guid&gt;</c>) is not enumerated at discovery: it is ONE test, with one uid,
-    /// that runs all its rows when executed. Over Microsoft.Testing.Platform every row then reports a
-    /// verdict under that same uid, and Bobcat.Supervisor 0.60.4 keeps the LAST terminal update per
-    /// uid. So a failing row followed by a passing one is a pass. Measured on this branch: a forced
-    /// failure in the first row of <c>TableColumnTests.can_add</c> failed the in-process host, and the
-    /// supervised run reported "1056 passed".
-    /// </para>
-    /// <para>
-    /// The observer sees every update as it arrives, so it keeps what the verdict throws away: every
-    /// row that failed. A test whose final verdict is a pass after one of its rows failed fails the
-    /// job, naming the row. Remove this when the supervisor folds a uid's rows itself.
-    /// </para>
-    /// </remarks>
-    class TheoryRowGuard : ISupervisorObserver
-    {
-        readonly object _lock = new();
-        readonly Dictionary<string, int> _terminalUpdates = new(StringComparer.Ordinal);
-        readonly Dictionary<string, List<string>> _failedRows = new(StringComparer.Ordinal);
-
-        public void TestUpdated(WorkerLaunchContext worker, WorkerTestUpdate update)
-        {
-            if (update.State is not { } state) return;
-
-            lock (_lock)
-            {
-                _terminalUpdates[update.Uid] = _terminalUpdates.GetValueOrDefault(update.Uid) + 1;
-
-                if (state is WorkerTestState.Failed or WorkerTestState.Error or WorkerTestState.Timeout)
-                {
-                    if (!_failedRows.TryGetValue(update.Uid, out var rows)) _failedRows[update.Uid] = rows = [];
-                    rows.Add(update.DisplayName);
-                }
-            }
-        }
-
-        public bool Check(string projectName, string framework, SupervisorResults results)
-        {
-            lock (_lock)
-            {
-                var multiRow = _terminalUpdates.Where(x => x.Value > 1).ToList();
-                if (multiRow.Count > 0)
-                    Log.Information("  {Tests} test(s) reported {Rows} theory rows under one uid each; " +
-                                    "the supervisor counts each as one test", multiRow.Count, multiRow.Sum(x => x.Value));
-
-                if (multiRow.Count > 0 && Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY") is { Length: > 0 } summary)
-                {
-                    try
-                    {
-                        File.AppendAllText(summary,
-                            $"> {multiRow.Count} theory test(s) ran {multiRow.Sum(x => x.Value)} rows under one uid each " +
-                            "(data xUnit cannot serialize); the counts above show each as one test. Every row's " +
-                            "verdict was checked: a failing row fails the job.\n\n");
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Warning(e, "Could not append to $GITHUB_STEP_SUMMARY");
-                    }
-                }
-
-                // A retried test's earlier failures are the retry policy's business, not a lost row.
-                var lost = results.Tests
-                    .Where(t => t.Final.Succeeded && t.AttemptCount == 1 && _failedRows.ContainsKey(t.Uid))
-                    .ToList();
-
-                foreach (var test in lost)
-                {
-                    foreach (var row in _failedRows[test.Uid])
-                    {
-                        Log.Error("  [FAILED ROW] {Row} — a failing theory row the supervisor's verdict reported as passed", row);
-                        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true")
-                            Console.WriteLine($"::error title={projectName} ({framework}) failed theory row::{row}");
-                    }
-                }
-
-                return lost.Count == 0;
-            }
-        }
+        return report(projectName, framework, results, runId, startedAt, ledger, ledgerPath);
     }
 
     /// <summary>
@@ -375,8 +234,7 @@ partial class Build
             return false;
         }
 
-        Log.Information("=== {Project} ({Framework}): {Summary}; {Skipped} of those passes were skips ===",
-            projectName, framework, results.Summarize(), skippedCount(results));
+        Log.Information("=== {Project} ({Framework}): {Summary} ===", projectName, framework, results.Summarize());
 
         foreach (var flaky in results.PassedOnRetry)
             Log.Warning("  [FLAKY] {Test} — passed on attempt {Attempts}", flaky.DisplayName, flaky.AttemptCount);
@@ -401,36 +259,52 @@ partial class Build
         return results.ExitCode == 0;
     }
 
-    static int skippedCount(SupervisorResults results)
-        => results.Tests.Count(t => t.AttemptCount == 1 && t.Final.Outcome.State == WorkerTestState.Skipped);
-
     // ─── The ledger ───────────────────────────────────────────────────────
 
     /// <summary>
-    /// The run's own ledger always goes to artifacts/test-ledger/ (the CI upload); locally it is also
-    /// folded into the committed one. Reporting about the tests must never be what fails the tests.
+    /// Every ledger already in artifacts/test-ledger/ for this project -- on CI the one the leg
+    /// downloaded from master, locally whatever earlier runs and downloads left there -- merged into
+    /// one. Ledgers written by Bobcat 0.60 (keyed by uid) are re-keyed by display name as they load.
+    /// None at all is an empty ledger, and lanes balance by test count.
+    /// </summary>
+    static TestLedger previousLedger(string projectName)
+    {
+        var ledger = TestLedger.Empty();
+        if (!Directory.Exists(RunArtifactsDirectory)) return ledger;
+
+        foreach (var file in Directory.EnumerateFiles(RunArtifactsDirectory, "*.ledger.json")
+                     .Where(x => Path.GetFileName(x).Contains($".{projectName}.", StringComparison.Ordinal)))
+        {
+            try
+            {
+                ledger = ledger.Merge(TestLedger.Load(file));
+            }
+            catch (Exception e)
+            {
+                // A ledger only balances lanes. One that will not load must never fail the tests.
+                Log.Warning(e, "Ignoring the unreadable ledger {File}", file);
+            }
+        }
+
+        return ledger;
+    }
+
+    /// <summary>
+    /// Folds this run into the previous ledger and saves it under this leg's name, for the CI upload
+    /// to carry to the next run. Reporting about the tests must never be what fails the tests.
     /// </summary>
     void recordLedger(string projectName, string framework, SupervisorResults results, string runId,
         DateTimeOffset startedAt, TestLedger ledger, AbsolutePath ledgerPath)
     {
         try
         {
-            var observations = SupervisorLedger.From(results, runId, startedAt);
+            // A partial (cancelled) run is the run so far, not a verdict: carry the history on
+            // without it.
+            var folded = results.IsPartial ? ledger : ledger.Record(SupervisorLedger.From(results, runId, startedAt));
 
-            RunArtifactsDirectory.CreateDirectory();
-            TestLedger.Empty(LedgerRunsPerTest).Record(observations)
-                .Save(RunArtifactsDirectory / fileNameSafe($"{ledgerJobName}.{projectName}.{framework}.ledger.json"));
-
-            if (RecordLedger)
-            {
-                // A partial (cancelled) run is the run so far, not a verdict: keep it out of the
-                // committed history.
-                if (results.IsPartial) return;
-
-                ledger.Record(observations).Save(ledgerPath);
-                Log.Information("  folded {Count} observation(s) into {Ledger}", observations.Count,
-                    RootDirectory.GetRelativePathTo(ledgerPath));
-            }
+            // The artifact is carried forward indefinitely, so a deleted or renamed test would stay in
+            // it for good without a cutoff.
+            folded.PruneTestsNotSeenSince(startedAt - LedgerForgetsAfter).Save(ledgerPath);
         }
         catch (Exception e)
         {
@@ -500,17 +374,22 @@ partial class Build
                 builder.AppendLine();
             }
 
-            // Bobcat counts a skipped test as a clean pass (Summarize, RunReport's cleanPass), so the
-            // skips are split out here: "passed" should mean something ran.
-            var skipped = skippedCount(results);
             builder.AppendLine("| tests | passed | skipped | passed on retry | failed | indeterminate | stalled | worker faults | workers | wall clock |");
             builder.AppendLine("|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|");
             builder.AppendLine(
-                $"| {results.Tests.Count} | {results.CleanPasses.Count - skipped} | {skipped} | {mark(results.PassedOnRetry.Count)} | " +
+                $"| {results.Tests.Count} | {results.CleanPasses.Count} | {results.Skipped.Count} | {mark(results.PassedOnRetry.Count)} | " +
                 $"{mark(results.Failed.Count(x => !x.IsIndeterminate))} | {mark(results.Indeterminate.Count)} | " +
                 $"{mark(results.StalledTests.Count)} | {mark(results.WorkerFaults.Count)} | {results.WorkersLaunched} launched | " +
                 $"{results.Duration.TotalSeconds:F0}s |");
             builder.AppendLine();
+            if (results.Collapsed.Count > 0)
+            {
+                builder.AppendLine($"> {results.Collapsed.Count} theory test(s) ran several rows under one uid each (data " +
+                                   "xUnit cannot serialize), so the counts above show each as one test, judged by its " +
+                                   "worst row. The report below names the rows.");
+                builder.AppendLine();
+            }
+
             builder.AppendLine("<details><summary>Supervisor report</summary>");
             builder.AppendLine();
             builder.AppendLine("```text");

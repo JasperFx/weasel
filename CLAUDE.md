@@ -366,15 +366,19 @@ already-built test executable (every test project is a Microsoft.Testing.Platfor
   that creates something **server-scoped** (a database, a role, a login, a Firebird file) must give it a
   name no other test class uses, or two lanes will fight over it.
 - **No retries.** `dotnet test` gave a test one attempt; so does this. A test can opt in with
-  `[Trait("Retry", "2")]`, and none does.
-- **Theory data xUnit cannot serialize** runs as one test under one uid; the supervisor keeps only its
-  last row's verdict, so `TheoryRowGuard` in `SupervisedTests.cs` fails the job if any row failed.
-  Prefer serializable theory data anyway.
-- **`build/test-ledger/`** is the committed ledger: per-test durations the supervisor balances lanes
-  with, folded from CI only: a uid differs per framework and per checkout, so a local fold would never
-  match CI (`--record-ledger` folds a local run, for local balancing; do not commit that). CI uploads
-  each leg's run as a `test-ledger-*` artifact, and
-  `./build.sh FoldLedgers --ledger-source <dir>` folds downloaded ones in.
+  `[Trait("Retry", "2")]`, and none does. Since Bobcat 1.0 such a retry runs alone in a fresh process;
+  `[Trait("RetryWarm", "true")]` asks for a same-process one.
+- **Theory data xUnit cannot serialize** runs as one test under one uid that reports every row. Bobcat
+  1.0 judges it by its worst row and names the collapse (the "Collapsed theories" section of the
+  supervisor report, and a note under the job summary's table), so a failing row fails the job.
+  Prefer serializable theory data anyway: a collapsed theory counts as one test, and the ledger
+  cannot match its duration (it is discovered under the method name and recorded under a row's).
+- **The ledger travels as a CI artifact; nothing is committed.** Each leg's "Download the previous
+  test ledger" step fetches `test-ledger-<CI_JOB_NAME>` from the newest successful master run into
+  `artifacts/test-ledger/`; the run balances lanes on it, folds itself in, and the upload step sends
+  it on. Tests are keyed by display name, so one ledger serves any framework or machine: to balance a
+  local run the same way, `gh run download <run> -n test-ledger-postgres-net9.0-cstrue -D artifacts/test-ledger`.
+  A missing ledger only means lanes balance by test count.
 
 **SQLite CI Workflow:**
 The SQLite workflow tests on multiple operating systems (Ubuntu, Windows, macOS) and all supported .NET versions (8.0, 9.0, 10.0) to ensure cross-platform compatibility. SQLite tests require no database services since SQLite is file-based and embedded.
