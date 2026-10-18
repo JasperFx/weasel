@@ -23,6 +23,11 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# actions: read lets the ledger step download the previous run's artifact.
+permissions:
+  actions: read
+  contents: read
+
 env:
   config: Release
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
@@ -77,14 +82,31 @@ jobs:
     - name: Build
       run: dotnet build --no-restore
 
+    # The ledger the supervisor balances lanes with, from the newest successful master run of this
+    # workflow (bobcat#730: the ledger travels as a CI artifact, nothing is committed). Missing is
+    # fine: the first run, or a new matrix leg, balances by test count.
+    - name: Download the previous test ledger
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        run_id=$(gh run list --repo "${{ github.repository }}" --workflow "${{ github.workflow }}" --branch master \
+          --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty' || true)
+        if [ -n "$run_id" ]; then
+          gh run download "$run_id" --repo "${{ github.repository }}" --name "test-ledger-mysql-${{ matrix.framework }}" --dir artifacts/test-ledger \
+            || echo "No test-ledger-mysql-${{ matrix.framework }} artifact on run $run_id: lanes balance by test count"
+        fi
+        # Only the ledger carries over; a stale report must not pass for this run's.
+        rm -f artifacts/test-ledger/*.report.json
+
     - name: Test
       env:
         CI_JOB_NAME: mysql-${{ matrix.framework }}
         weasel_mysql_testing_database: "Server=localhost;Port=3306;Database=weasel_testing;Uid=weasel;Pwd=${{ env.db_pwd }};"
       run: ./build.sh TestMySql --framework ${{ matrix.framework }} --configuration Debug
 
-    # The run ledger and the supervisor's JSON report, per leg. `./build.sh FoldLedgers` folds
-    # downloaded ledgers into the committed build/test-ledger/, which balances lanes by duration.
+    # The ledger (carried forward with this run folded in) and the supervisor's JSON report, per leg.
+    # The next run's "Download the previous test ledger" step picks the ledger up from master.
     - name: Upload test ledger
       if: always()
       uses: actions/upload-artifact@v4
