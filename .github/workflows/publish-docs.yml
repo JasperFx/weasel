@@ -11,6 +11,10 @@ concurrency:
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  # Applies to every npm invocation in this workflow, including the one
+  # cloudflare/wrangler-action runs itself to install wrangler -- which is why this is an env var
+  # and not a flag on our own install step. See the install step for why the conflict exists.
+  NPM_CONFIG_LEGACY_PEER_DEPS: "true"
 
 jobs:
   deploy:
@@ -50,11 +54,12 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      # --legacy-peer-deps, deliberately. vitepress-plugin-mermaid 2.0.17 -- the latest there is --
-      # declares `peer mermaid@"10 || 11"`, and weasel#713 took mermaid to 12.2.0 as the ancestor
-      # dependency of a katex bump. npm 10 refuses that combination outright, so plain `npm ci` has
-      # failed since 2026-10-15 and no docs deploy has run since; nothing caught it because this
-      # workflow is workflow_dispatch only and no PR check builds the site.
+      # Needs NPM_CONFIG_LEGACY_PEER_DEPS, set at the top of this workflow.
+      # vitepress-plugin-mermaid 2.0.17 -- the latest there is -- declares
+      # `peer mermaid@"10 || 11"`, and weasel#713 took mermaid to 12.2.0 as the ancestor dependency
+      # of a katex bump. npm 10 refuses that combination outright, so plain `npm ci` has failed
+      # since 2026-10-15 and no docs deploy has run since; nothing caught it because this workflow
+      # is workflow_dispatch only and no PR check builds the site.
       #
       # Not fixed by pinning mermaid back to 11: the bump is what closed mermaid's own advisories
       # (an infinite-loop DoS in XY charts, CSS injection, prototype pollution) and katex's, so a
@@ -63,7 +68,7 @@ jobs:
       # as a 36-node SVG with no console errors. Revisit if the plugin ever ships a release that
       # peers on 12.
       - name: Install npm dependencies
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Build VitePress site
         run: npx vitepress build docs
