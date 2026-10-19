@@ -278,6 +278,43 @@ public class FirebirdMigrator: Migrator
     private static readonly int[] TransientConnectionErrorNumbers = [335544721, 335544727, 335544726, 335544856];
 
     /// <summary>
+    ///     "BLOB not found" (335544382), which a catalog read gets when an applier rewrote the object it
+    ///     was reading. Reading again is the whole fix, so <c>SchemaMigration.DetermineAsync</c> re-reads.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Firebird keeps a view's, a routine's and a trigger's source in a BLOB
+    ///         (<c>RDB$VIEW_SOURCE</c>, <c>RDB$PROCEDURE_SOURCE</c> and friends), and a row carries only
+    ///         the BLOB's id; the client fetches the blob itself in a later round trip. A concurrent
+    ///         <c>CREATE OR ALTER</c> replaces the record version the id came from, and the blob can be
+    ///         collected before that fetch -- so the read fails for something no reader did wrong, and
+    ///         the same read a moment later succeeds. Measured deterministically: read the row of
+    ///         <c>RDB$VIEW_SOURCE</c>, let another attachment <c>CREATE OR ALTER</c> the view twice, then
+    ///         materialize, and it is "BLOB not found" every time (weasel#723, seen first as an
+    ///         intermittent failure of <c>racing_create_or_alter</c> on Firebird 5).
+    ///     </para>
+    ///     <para>
+    ///         Not a member of <see cref="IsCatalogConflict" />, which governs re-running a DDL
+    ///         <em>statement</em>: a statement never produces this, and conflating the two would mean a
+    ///         losing applier re-ran its DDL in answer to a failed read.
+    ///     </para>
+    /// </remarks>
+    public override bool IsConcurrentIntrospectionFailure(Exception exception)
+    {
+        foreach (var e in ExceptionChain.Flatten(exception))
+        {
+            if (e is FbException firebird && HasErrorNumber(firebird, BlobNotFound))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    internal const int BlobNotFound = 335544382;
+
+    /// <summary>
     ///     Clear FirebirdClient's pool for this connection string. Firebird needs it more than most: a
     ///     pooled connection is not validated when it is handed out, so after a server restart the pool is
     ///     full of dead attachments, and an idle pooled attachment still holds the tables it touched.

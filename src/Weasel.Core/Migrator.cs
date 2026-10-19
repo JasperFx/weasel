@@ -561,6 +561,29 @@ public abstract class
     public virtual bool IsTransientConnectionFailure(Exception exception) => false;
 
     /// <summary>
+    ///     Did this exception come from reading the catalog <em>while another applier was rewriting it</em>,
+    ///     such that reading again is likely to succeed? Unlike
+    ///     <see cref="IsTransientConnectionFailure" />, this is about the introspection read itself rather
+    ///     than about connecting, and it is consulted by
+    ///     <see cref="SchemaMigration.DetermineAsync(DbConnection, Migrator, CancellationToken, ISchemaObject[])" />,
+    ///     which re-reads from scratch rather than retrying a statement.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         The default is <c>false</c>, which treats every introspection failure as real. That is the
+    ///         safe direction to be wrong in: a provider that has not opted in behaves exactly as before,
+    ///         and a genuine failure is never retried into a slower version of itself.
+    ///     </para>
+    ///     <para>
+    ///         Only Firebird answers true today (weasel#723): its catalog keeps a view's, routine's or
+    ///         trigger's source in a BLOB, the row carries only the BLOB's id, and a concurrent
+    ///         <c>CREATE OR ALTER</c> can collect the blob between the read of the row and the read of the
+    ///         blob -- "BLOB not found", which is not a failure of anything the reader did.
+    ///     </para>
+    /// </remarks>
+    public virtual bool IsConcurrentIntrospectionFailure(Exception exception) => false;
+
+    /// <summary>
     ///     Release the pooled connections associated with the supplied connection, which is supplied closed
     ///     purely to identify the pool. The default is a no-op; provider-specific migrators override it with
     ///     their driver's pool-clearing call.

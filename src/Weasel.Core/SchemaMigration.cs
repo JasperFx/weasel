@@ -171,8 +171,55 @@ public class SchemaMigration
         Migrator migrator,
         CancellationToken ct,
         params ISchemaObject[] schemaObjects
-    ) => determineBatchedAsync(conn, () => migrator.CreateCommandBuilder(conn),
-        migrator.MaxParametersPerCommand, ct, schemaObjects);
+    ) => rereadWhileTheCatalogIsChangingAsync(migrator, ct,
+        () => determineBatchedAsync(conn, () => migrator.CreateCommandBuilder(conn),
+            migrator.MaxParametersPerCommand, ct, schemaObjects));
+
+    /// <summary>
+    ///     Attempts of an introspection read, including the first.
+    /// </summary>
+    /// <remarks>
+    ///     Only reached by a provider whose <see cref="Migrator.IsConcurrentIntrospectionFailure" /> says
+    ///     yes, so for every provider but Firebird this is exactly one attempt and nothing changes.
+    /// </remarks>
+    private const int MaxIntrospectionAttempts = 3;
+
+    /// <summary>
+    ///     Read the whole set again when the read raced an applier rewriting the catalog (weasel#723).
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Deliberately a re-read of everything rather than a retry of one statement. A migration's
+    ///         introspection is one batched command whose reader is consumed object by object, so there is
+    ///         no "the statement that failed" to run again -- and a fresh builder and a fresh delta list
+    ///         are what make the second attempt clean.
+    ///     </para>
+    ///     <para>
+    ///         The backoff is jittered, so appliers that lost together come back apart rather than racing
+    ///         each other again, the same reasoning as the guarded-statement retry in
+    ///         <c>FirebirdMigrator</c>.
+    ///     </para>
+    /// </remarks>
+    private static async Task<SchemaMigration> rereadWhileTheCatalogIsChangingAsync(
+        Migrator migrator,
+        CancellationToken ct,
+        Func<Task<SchemaMigration>> determine
+    )
+    {
+        for (var attempt = 1;; attempt++)
+        {
+            try
+            {
+                return await determine().ConfigureAwait(false);
+            }
+            catch (Exception e) when (attempt < MaxIntrospectionAttempts
+                                      && migrator.IsConcurrentIntrospectionFailure(e))
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25 * attempt + Random.Shared.Next(50 * attempt)), ct)
+                    .ConfigureAwait(false);
+            }
+        }
+    }
 
     /// <summary>
     ///     Create a SchemaMigration using a command builder the caller supplies.
