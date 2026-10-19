@@ -194,6 +194,15 @@ public class AdvisoryLock : IAdvisoryLock
     ///         between the two-int and bigint forms of the key.
     ///     </para>
     ///     <para>
+    ///         Scoped to the current database. An advisory lock is taken on the acquiring session's
+    ///         database -- two databases on one server hold the id <em>independently</em>, and a
+    ///         <c>pg_try_advisory_lock</c> for an id another database holds succeeds. <c>pg_locks</c>,
+    ///         though, is server-wide, so the unscoped read reported a neighbouring database's holder as
+    ///         this database's: "held", with a name and a pid, for a lock this node could have taken
+    ///         (weasel#719). Database-per-tenant and parallel test lanes are where that bites. SQL Server
+    ///         never had this: <c>sp_getapplock</c>'s rows are filtered by <c>DB_ID()</c>.
+    ///     </para>
+    ///     <para>
     ///         The join to <c>pg_stat_activity</c> is a LEFT join: a non-superuser sees every row of
     ///         <c>pg_locks</c> but is shown nothing about another user's backend, and a holder whose
     ///         details are hidden is still a holder worth reporting.
@@ -213,6 +222,7 @@ public class AdvisoryLock : IAdvisoryLock
                           FROM pg_locks l
                           LEFT JOIN pg_stat_activity a ON a.pid = l.pid
                           WHERE l.locktype = 'advisory'
+                            AND l.database = (SELECT oid FROM pg_database WHERE datname = current_database())
                             AND l.classid::bigint = @classid
                             AND l.objid::bigint = @objid
                             AND l.granted

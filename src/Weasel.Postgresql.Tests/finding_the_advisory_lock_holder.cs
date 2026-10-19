@@ -137,4 +137,114 @@ public class finding_the_advisory_lock_holder : IAsyncLifetime
 
         (await advisory.FindHolderAsync(918_277, ct)).ShouldBeNull();
     }
+
+    /// <summary>
+    ///     weasel#719. The lock is per database, the view is per server.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         An advisory lock is taken on the acquiring session's database, so two databases on one
+    ///         server hold the same id independently and neither blocks the other -- measured, not
+    ///         assumed: <c>pg_try_advisory_lock</c> for an id the neighbour holds returns true.
+    ///         <c>pg_locks</c>, though, is server-wide and shows every database's rows, so the unscoped
+    ///         read named the neighbour's backend as this database's holder.
+    ///     </para>
+    ///     <para>
+    ///         That is the worst direction for this read to be wrong in: it reports a lock as held, with
+    ///         a pid and an application name to make it convincing, when a local acquire would in fact
+    ///         succeed. Database-per-tenant deployments and parallel test lanes share a server and reuse
+    ///         lock ids, so they hit it by construction -- in weasel#716's lanes a test helper of this
+    ///         shape went on to kill the other lane's connections.
+    ///     </para>
+    /// </remarks>
+    [Fact]
+    public async Task a_lock_held_in_another_database_is_not_this_database_s_holder()
+    {
+        await using var neighbour = await NeighbouringDatabase.StartAsync(ct);
+
+        await using var theirs = neighbour.AdvisoryLock();
+        (await theirs.TryAttainLockAsync(918_278, ct)).ShouldBeTrue();
+        (await theirs.FindHolderAsync(918_278, ct)).ShouldNotBeNull("the neighbour does hold it");
+
+        await using var ours = lockFor();
+
+        (await ours.FindHolderAsync(918_278, ct))
+            .ShouldBeNull("a holder in another database was reported as this database's");
+    }
+
+    /// <summary>
+    ///     The other half: both databases really can hold the id at once, and each reads back its own
+    ///     backend rather than whichever row <c>pg_locks</c> returned first.
+    /// </summary>
+    [Fact]
+    public async Task each_database_reports_its_own_holder_for_the_same_lock_id()
+    {
+        await using var neighbour = await NeighbouringDatabase.StartAsync(ct);
+
+        await using var theirs = neighbour.AdvisoryLock();
+        await using var ours = lockFor();
+
+        (await theirs.TryAttainLockAsync(918_279, ct)).ShouldBeTrue();
+        (await ours.TryAttainLockAsync(918_279, ct))
+            .ShouldBeTrue("the id is held per database, so this acquire should not be contended");
+
+        var theirHolder = await theirs.FindHolderAsync(918_279, ct);
+        var ourHolder = await ours.FindHolderAsync(918_279, ct);
+
+        theirHolder.ShouldNotBeNull();
+        ourHolder.ShouldNotBeNull();
+        ourHolder.SessionId.ShouldNotBe(theirHolder.SessionId);
+        ourHolder.IsCurrentNode.ShouldBe(true);
+    }
+
+    /// <summary>
+    ///     A throwaway database on the same server as the test database, with a data source onto it.
+    /// </summary>
+    private sealed class NeighbouringDatabase : IAsyncDisposable
+    {
+        private readonly NpgsqlDataSource _source;
+        private readonly string _name;
+
+        private NeighbouringDatabase(string name, NpgsqlDataSource source)
+        {
+            _name = name;
+            _source = source;
+        }
+
+        public static async Task<NeighbouringDatabase> StartAsync(CancellationToken token)
+        {
+            var name = $"weasel_holder_scope_{Guid.NewGuid():N}";
+            var builder = new NpgsqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+            {
+                Database = name
+            };
+
+            await using (var conn = new NpgsqlConnection(builder.ConnectionString))
+            {
+                await new PostgresqlMigrator().EnsureDatabaseExistsAsync(conn, token);
+            }
+
+            return new NeighbouringDatabase(name, NpgsqlDataSource.Create(builder.ConnectionString));
+        }
+
+        public AdvisoryLock AdvisoryLock()
+        {
+            return new AdvisoryLock(_source, NullLogger.Instance, _name, new AdvisoryLockOptions());
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _source.DisposeAsync();
+
+            var adminBuilder = new NpgsqlConnectionStringBuilder(ConnectionSource.ConnectionString)
+            {
+                Database = "postgres"
+            };
+
+            await using var admin = new NpgsqlConnection(adminBuilder.ConnectionString);
+            await admin.OpenAsync();
+            await admin.KillIdleSessions(_name);
+            await admin.DropDatabase(_name);
+        }
+    }
 }
