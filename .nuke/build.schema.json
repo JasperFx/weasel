@@ -29,6 +29,7 @@
         "Compile",
         "Detach",
         "Restore",
+        "TestCommandLine",
         "TestCore",
         "TestEfCore",
         "TestFirebird",
