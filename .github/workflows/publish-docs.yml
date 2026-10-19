@@ -50,8 +50,20 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # --legacy-peer-deps, deliberately. vitepress-plugin-mermaid 2.0.17 -- the latest there is --
+      # declares `peer mermaid@"10 || 11"`, and weasel#713 took mermaid to 12.2.0 as the ancestor
+      # dependency of a katex bump. npm 10 refuses that combination outright, so plain `npm ci` has
+      # failed since 2026-10-15 and no docs deploy has run since; nothing caught it because this
+      # workflow is workflow_dispatch only and no PR check builds the site.
+      #
+      # Not fixed by pinning mermaid back to 11: the bump is what closed mermaid's own advisories
+      # (an infinite-loop DoS in XY charts, CSS injection, prototype pollution) and katex's, so a
+      # downgrade would reopen them to keep a peer range happy. The pairing is verified rather than
+      # assumed -- built locally on mermaid 12.2.0 and loaded in a browser, where a diagram renders
+      # as a 36-node SVG with no console errors. Revisit if the plugin ever ships a release that
+      # peers on 12.
       - name: Install npm dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       - name: Build VitePress site
         run: npx vitepress build docs
