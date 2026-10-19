@@ -43,12 +43,33 @@ public class a_catalog_read_that_raced_a_rewrite: IntegrationContext
 
     /// <summary>
     ///     Force the interleave and keep the exception the server really produced, rather than building
-    ///     an FbException by hand and asserting against a number nothing confirmed.
+    ///     an FbException by hand and asserting against a number nothing confirmed --
+    ///     <c>FirebirdClient</c> does not let one be constructed anyway.
     /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Firebird 4 and 5 only. On Firebird 3 the blob stays reachable however the interleave is
+    ///         arranged: measured up to forty rewrites, with a delay and a third attachment reading the
+    ///         catalog to prod a cooperative collector, and it never once failed. Its collector simply
+    ///         does not take that version away under an open read.
+    ///     </para>
+    ///     <para>
+    ///         So the three tests that need the error skip on Firebird 3, named, rather than passing
+    ///         quietly on an interleave that proved nothing -- and nothing is lost by it: the
+    ///         classification under test is an error-number comparison with no version in it, and the
+    ///         negative case below runs everywhere. If a Firebird 3 server does produce this error under
+    ///         some load, the fix handles it the same way.
+    ///     </para>
+    /// </remarks>
     private async Task<FbException> readSourceAcrossARewriteAsync()
     {
+        if (ServerVersion.Major < 4)
+        {
+            Assert.Skip($"Firebird {ServerVersion} does not collect the blob under an open read");
+        }
+
         // Two rewrites: one leaves the blob the reader's id points at still reachable, the second
-        // orphans it. Measured against Firebird 5 -- one is not enough, two always is.
+        // orphans it. Measured against Firebird 4 and 5 -- one is not enough, two always is.
         for (var rewrites = 1; rewrites <= 6; rewrites++)
         {
             await using var readerConn = await OpenConnectionAsync();
@@ -80,8 +101,9 @@ public class a_catalog_read_that_raced_a_rewrite: IntegrationContext
         }
 
         throw new InvalidOperationException(
-            "Could not get Firebird to collect the blob under the read, so this test proves nothing. "
-            + "If this server no longer behaves that way, the classification below still needs covering.");
+            $"Firebird {ServerVersion} did not collect the blob under the read, so this test proves "
+            + "nothing. If this version no longer behaves as 4 and 5 did, skip it here as 3 is skipped "
+            + "-- but the classification still needs covering on some version that does.");
     }
 
     [Fact]
