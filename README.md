@@ -81,11 +81,6 @@ Some of our tests are run against a particular PostgreSQL version. If you'd like
 POSTGRES_IMAGE=postgres:15.3-alpine MSSQL_IMAGE=mcr.microsoft.com/mssql/server:2022-latest docker compose up
 ```
 
-By default Postgres tests are run with case insensitive names. To run tests against case sensitive, set environment variable:
-
-```
-USE_CASE_SENSITIVE_QUALIFIED_NAMES=true
-```
 
 ## Support Plans
 

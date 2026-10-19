@@ -4,27 +4,28 @@ using Npgsql;
 namespace Weasel.Postgresql.Tests;
 
 /// <summary>
-/// The Postgres CI matrix runs the whole suite twice, once with case-sensitive
-/// qualified names and once without, selected by an environment variable.
+/// Process-wide setup for the suite, run before discovery.
 /// </summary>
 /// <remarks>
+/// <para>
 /// This was a custom xUnit v2 TestFramework. v3 reshaped that extensibility point,
 /// and a module initializer is a better fit anyway: it needs no test-framework hook,
 /// and it runs before discovery rather than alongside it.
+/// </para>
+/// <para>
+/// It also used to set <c>PostgresqlProvider.UseCaseSensitiveQualifiedNames</c> from
+/// <c>USE_CASE_SENSITIVE_QUALIFIED_NAMES</c>, for a Postgres CI matrix leg that ran the whole suite
+/// a second time with it on. Removed in weasel#720: the variable was set on the Postgres service
+/// container rather than the test process, so it never arrived, and the property is <c>[Obsolete]</c>
+/// and read by no product code anyway -- identifiers are unconditionally quoted when they are
+/// keywords or carry uppercase.
+/// </para>
 /// </remarks>
 internal static class TestSetup
 {
     [ModuleInitializer]
     internal static void Initialize()
     {
-        if (bool.TryParse(
-                Environment.GetEnvironmentVariable("USE_CASE_SENSITIVE_QUALIFIED_NAMES"),
-                out var useCaseSensitiveQualifiedNames)
-           )
-        {
-            PostgresqlProvider.Instance.UseCaseSensitiveQualifiedNames = useCaseSensitiveQualifiedNames;
-        }
-
         WarmUpNpgsqlTypeInference();
     }
 
