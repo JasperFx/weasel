@@ -32,8 +32,14 @@ using Serilog;
 //               tests. The suite runs in seconds, so a second lane would buy nothing anyway.
 //   Oracle      1 worker. A schema is a USER, scoped to the pluggable database, and the tests create
 //               and drop them by fixed name; lane isolation would need a PDB per lane.
-//   SQLite, Core, EF Core
+//   SQLite, Core, EF Core, CommandLine
 //               1 worker. Seconds each; parallel lanes would cost more in process start than they save.
+//               CommandLine is Postgres-backed despite the name -- it shares Weasel.Postgresql.Tests'
+//               ConnectionSource and drops real schemas -- so it runs as a second step of the Postgres
+//               workflow rather than the Core one. At one worker it needs no lane isolation; it would,
+//               at more than one, because its classes share [Collection("integration")] and reset
+//               schemas by literal name, which is the same reason the Postgres suite gets a database
+//               per lane.
 partial class Build
 {
     Target TestCore => _ => _.Executes(() => RunSupervised("Weasel.Core.Tests"));
@@ -53,6 +59,9 @@ partial class Build
     Target TestOracle => _ => _.Executes(() => RunSupervised("Weasel.Oracle.Tests"));
 
     Target TestEfCore => _ => _.Executes(() => RunSupervised("Weasel.EntityFrameworkCore.Tests"));
+
+    // weasel#721: run by no workflow at all until now, so its 57 tests could rot unseen.
+    Target TestCommandLine => _ => _.Executes(() => RunSupervised("Weasel.CommandLine.Tests"));
 
     // ─── Postgres ─────────────────────────────────────────────────────────
 

@@ -118,6 +118,21 @@ jobs:
         weasel_postgresql_testing_database: "Host=localhost;Database=${{ env.db_name }};Username=${{ env.db_user }};Password=${{ env.db_pwd }};"
       run: ./build.sh TestPostgresql --framework ${{ matrix.framework }} --configuration Debug
 
+    # weasel#721. Weasel.CommandLine.Tests was run by no workflow, so its 57 tests could rot unseen.
+    # It belongs to this workflow and not the Core one despite its name: it compiles in
+    # Weasel.Postgresql.Tests' own ConnectionSource and drops real schemas on the server, so it needs
+    # this job's Postgres service. A separate step rather than a line in the one above, so a failure
+    # names which suite failed, and so each suite keeps its own ledger and report (both are keyed by
+    # project name as well as job).
+    #
+    # if: always() deliberately: a red Postgres suite must not hide whether this one is red too.
+    - name: Test the command line
+      if: always()
+      env:
+        CI_JOB_NAME: postgres-${{ matrix.framework }}-cs${{ matrix.useCaseSensitiveQualifiedNames }}
+        weasel_postgresql_testing_database: "Host=localhost;Database=${{ env.db_name }};Username=${{ env.db_user }};Password=${{ env.db_pwd }};"
+      run: ./build.sh TestCommandLine --framework ${{ matrix.framework }} --configuration Debug
+
     # The ledger (carried forward with this run folded in) and the supervisor's JSON report, per leg.
     # The next run's "Download the previous test ledger" step picks the ledger up from master.
     - name: Upload test ledger
