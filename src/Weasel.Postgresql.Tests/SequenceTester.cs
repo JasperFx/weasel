@@ -47,32 +47,23 @@ public class SequenceTester: IntegrationContext
         delta.Difference.ShouldBe(SchemaPatchDifference.Create);
     }
 
-    [InlineData("seq1", false)]
-    [InlineData("seq1UpErCaSe", true)]
+    /// <summary>
+    ///     Both rows run, which they did not before weasel#720.
+    /// </summary>
+    /// <remarks>
+    ///     This was two identical methods, each row guarded by
+    ///     <c>if (PostgresqlProvider.Instance.UseCaseSensitiveQualifiedNames != isCaseSensitive) return;</c>
+    ///     -- an early return, so a row that did not match the mode reported a pass. The flag has been
+    ///     <c>[Obsolete]</c> and read by no product code since identifiers became unconditionally quoted
+    ///     when they are keywords or carry uppercase, so it was always false and the <c>seq1UpErCaSe</c>
+    ///     row never ran, in either leg of the Postgres matrix. The mixed-case name is the case worth
+    ///     covering, so it now runs unconditionally.
+    /// </remarks>
+    [InlineData("seq1")]
+    [InlineData("seq1UpErCaSe")]
     [Theory]
-    public async Task determine_that_it_is_already_there(string sequenceName, bool isCaseSensitive)
+    public async Task determine_that_it_is_already_there(string sequenceName)
     {
-        if (PostgresqlProvider.Instance.UseCaseSensitiveQualifiedNames != isCaseSensitive)
-            return;
-
-        await can_create_sequence_without_blowing_up(sequenceName);
-
-        var sequence = new Sequence(new PostgresqlObjectName("sequences", sequenceName));
-
-        var delta = await sequence.FindDeltaAsync(theConnection);
-
-        delta.Difference.ShouldBe(SchemaPatchDifference.None);
-
-    }
-
-    [InlineData("seq1", false)]
-    [InlineData("seq1UpErCaSe", true)]
-    [Theory]
-    public async Task determine_that_it_is_already_there_when_contain_uppercase(string sequenceName, bool isCaseSensitive)
-    {
-        if (PostgresqlProvider.Instance.UseCaseSensitiveQualifiedNames != isCaseSensitive)
-            return;
-
         await can_create_sequence_without_blowing_up(sequenceName);
 
         var sequence = new Sequence(new PostgresqlObjectName("sequences", sequenceName));

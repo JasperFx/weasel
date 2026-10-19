@@ -42,19 +42,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # weasel#720: this matrix used to carry a useCaseSensitiveQualifiedNames dimension, doubling the
+    # workflow to four jobs. It tested nothing, in two independent ways. The variable it set was set
+    # on the POSTGRES SERVICE CONTAINER, so the test process never saw it and both legs ran
+    # identically. And the property it would have set --
+    # PostgresqlProvider.UseCaseSensitiveQualifiedNames -- is [Obsolete] and read by no product code:
+    # identifiers are unconditionally quoted when they are keywords or carry uppercase. So the leg
+    # could not be repaired by moving the variable, only deleted. The mixed-case coverage it was
+    # meant to provide now runs in every leg (SequenceTester).
     strategy:
     # define the test matrix
         matrix:
             postgres-image:
                 - postgres:15.3-alpine
-            useCaseSensitiveQualifiedNames:
-                - true
-                - false
             framework:
                 - net9.0
                 - net10.0
 
-    name: Postgres ${{ matrix.postgres-image }} ${{ matrix.framework }} Case Sensitive ${{ matrix.useCaseSensitiveQualifiedNames }}
+    name: Postgres ${{ matrix.postgres-image }} ${{ matrix.framework }}
 
     services:
       postgres:
@@ -65,7 +70,6 @@ jobs:
           POSTGRES_HOST_AUTH_METHOD: trust
           POSTGRES_DB: ${{ env.db_name }}
           POSTGRES_USER: ${{ env.db_user }}
-          USE_CASE_SENSITIVE_QUALIFIED_NAMES:  ${{ matrix.useCaseSensitiveQualifiedNames }}
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -106,15 +110,15 @@ jobs:
         run_id=$(gh run list --repo "${{ github.repository }}" --workflow "${{ github.workflow }}" --branch master \
           --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty' || true)
         if [ -n "$run_id" ]; then
-          gh run download "$run_id" --repo "${{ github.repository }}" --name "test-ledger-postgres-${{ matrix.framework }}-cs${{ matrix.useCaseSensitiveQualifiedNames }}" --dir artifacts/test-ledger \
-            || echo "No test-ledger-postgres-${{ matrix.framework }}-cs${{ matrix.useCaseSensitiveQualifiedNames }} artifact on run $run_id: lanes balance by test count"
+          gh run download "$run_id" --repo "${{ github.repository }}" --name "test-ledger-postgres-${{ matrix.framework }}" --dir artifacts/test-ledger \
+            || echo "No test-ledger-postgres-${{ matrix.framework }} artifact on run $run_id: lanes balance by test count"
         fi
         # Only the ledger carries over; a stale report must not pass for this run's.
         rm -f artifacts/test-ledger/*.report.json
 
     - name: Test
       env:
-        CI_JOB_NAME: postgres-${{ matrix.framework }}-cs${{ matrix.useCaseSensitiveQualifiedNames }}
+        CI_JOB_NAME: postgres-${{ matrix.framework }}
         weasel_postgresql_testing_database: "Host=localhost;Database=${{ env.db_name }};Username=${{ env.db_user }};Password=${{ env.db_pwd }};"
       run: ./build.sh TestPostgresql --framework ${{ matrix.framework }} --configuration Debug
 
@@ -124,7 +128,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: test-ledger-postgres-${{ matrix.framework }}-cs${{ matrix.useCaseSensitiveQualifiedNames }}
+        name: test-ledger-postgres-${{ matrix.framework }}
         path: artifacts/test-ledger/
         if-no-files-found: ignore
 
