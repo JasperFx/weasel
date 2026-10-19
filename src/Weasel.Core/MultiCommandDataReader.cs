@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Weasel.Core;
 
@@ -144,7 +145,12 @@ internal sealed class MultiCommandDataReader: DbDataReader
     public override DateTime GetDateTime(int ordinal) => _current.GetDateTime(ordinal);
     public override decimal GetDecimal(int ordinal) => _current.GetDecimal(ordinal);
     public override double GetDouble(int ordinal) => _current.GetDouble(ordinal);
+
+    // Repeats the base method's annotation: an override that drops it is IL2093 in every
+    // trimmed or native publish that keeps this type.
+    [return: DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)]
     public override Type GetFieldType(int ordinal) => _current.GetFieldType(ordinal);
+
     public override float GetFloat(int ordinal) => _current.GetFloat(ordinal);
     public override Guid GetGuid(int ordinal) => _current.GetGuid(ordinal);
     public override short GetInt16(int ordinal) => _current.GetInt16(ordinal);
