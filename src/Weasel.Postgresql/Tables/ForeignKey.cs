@@ -166,30 +166,41 @@ public class ForeignKey: ForeignKeyBase
 
     public void TryToCorrectForLink(Table parentTable, Table linkedTable)
     {
+        // Table.PostProcess runs this on every migration, and a host with several databases migrates them in
+        // parallel over the same Table instances. So each array is read once, the correction is built locally,
+        // and it is published in one assignment: every caller publishes the same arrays. Appending to the live
+        // property let a caller that had already decided to widen the key append to another caller's result,
+        // which rendered FOREIGN KEY(seq_id, tenant_id, tenant_id).
+
         // Depends on "id" always being first in Marten world
         // This is important, don't lose the ordering that marten does to put tenant_id first
-        if (LinkedNames.Length != linkedTable.PrimaryKeyColumns.Count)
+        var linkedNames = LinkedNames;
+        if (linkedNames.Length != linkedTable.PrimaryKeyColumns.Count)
         {
-            LinkedNames = LinkedNames.Union(linkedTable.PrimaryKeyColumns).ToArray();
+            linkedNames = linkedNames.Union(linkedTable.PrimaryKeyColumns).ToArray();
+            LinkedNames = linkedNames;
         }
 
-        if (ColumnNames.Length != LinkedNames.Length)
+        var columnNames = ColumnNames;
+        if (columnNames.Length != linkedNames.Length)
         {
             // Leave the first column alone!
-            for (int i = 1; i < LinkedNames.Length; i++)
+            for (int i = 1; i < linkedNames.Length; i++)
             {
-                var columnName = LinkedNames[i];
+                var columnName = linkedNames[i];
                 var matching = parentTable.ColumnFor(columnName);
                 if (matching != null)
                 {
-                    ColumnNames = ColumnNames.Concat([columnName]).ToArray();
+                    columnNames = columnNames.Concat([columnName]).ToArray();
                 }
                 else
                 {
                     throw new InvalidForeignKeyException(
-                        $"Cannot make a foreign key relationship from {parentTable.Identifier}({ColumnNames.Join(", ")}) to {linkedTable.Identifier}({LinkedNames.Join(", ")}) ");
+                        $"Cannot make a foreign key relationship from {parentTable.Identifier}({columnNames.Join(", ")}) to {linkedTable.Identifier}({linkedNames.Join(", ")}) ");
                 }
             }
+
+            ColumnNames = columnNames;
         }
     }
 }
