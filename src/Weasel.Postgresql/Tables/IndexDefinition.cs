@@ -450,9 +450,14 @@ public class IndexDefinition: ITableIndex
     /// <remarks>
     ///     Deterministic, so a run that died partway through names the same child index on the next
     ///     attempt -- which drops what is left of it before building it again -- rather than building a
-    ///     second one beside it. Deliberately not truncated when it runs long: <c>AssertValidIdentifier</c>
-    ///     refuses an over-length identifier rather than silently renaming the object, which is the
-    ///     rule weasel#468 settled.
+    ///     second one beside it.
+    ///     <para>
+    ///         Kept within <see cref="PostgresqlIdentifier.DefaultMaxLength" />. PostgreSQL would otherwise
+    ///         truncate it into the suffix that tells partitions apart, and partitions whose suffixes
+    ///         share a prefix would ask for the same name. So the index name gives way, ending in a hash
+    ///         of itself, and the suffix stays whole. Nobody declared this name, so shortening it is not
+    ///         the silent rename of a declared identifier that weasel#468 refuses.
+    ///     </para>
     /// </remarks>
     internal string ChildIndexName(Table parent, string partitionTableName)
     {
@@ -465,7 +470,17 @@ public class IndexDefinition: ITableIndex
             ? partitionTableName.Substring(prefix.Length)
             : partitionTableName;
 
-        return $"{Name}_{suffix}";
+        var name = $"{Name}_{suffix}";
+        if (name.Length <= PostgresqlIdentifier.DefaultMaxLength)
+        {
+            return name;
+        }
+
+        // Shorten needs room for at least one character of the index name ahead of its hash.
+        var room = PostgresqlIdentifier.DefaultMaxLength - suffix.Length - 1;
+        return room > 5
+            ? $"{PostgresqlIdentifier.Shorten(Name, room)}_{suffix}"
+            : PostgresqlIdentifier.Shorten(name);
     }
 
     /// <summary>
