@@ -95,7 +95,7 @@ public class releasing_connection_pools: IAsyncLifetime
 
         public override DatabaseDescriptor Describe() => new()
         {
-            Engine = PostgresqlProvider.EngineName, ServerName = "localhost", DatabaseName = "marten_testing"
+            Engine = PostgresqlProvider.EngineName, ServerName = "localhost", DatabaseName = "weasel_testing"
         };
     }
 

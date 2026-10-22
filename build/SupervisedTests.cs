@@ -164,21 +164,13 @@ partial class Build
         var supervisor = new Supervisor(factory)
         {
             MaxParallelWorkers = workers,
-            RetryBudget = OptInRetries,
-            // Lesson 4: lanes sitting idle at peak working set through a fresh-process retry is
-            // workers + 1 hosts resident at once. Cheap insurance even with retries opt-in.
-            ReleaseIdleLanes = true,
-            StallThreshold = StallThreshold,
-            StallAction = StallAction.Report,
-            HeartbeatInterval = TimeSpan.FromSeconds(30),
-            ResourceSampleInterval = TimeSpan.FromSeconds(15),
-            KnownTestDurations = known.Count > 0 ? known : null,
             // Announces the run to a Bobcat monitor when one answers at BOBCAT_MONITOR_URL. On a CI
             // runner nothing listens: one refused local connection, nothing published.
             // BOBCAT_MONITOR=0 turns it off.
             PublishToMonitor = true,
             Log = message => Log.Information("  {Message}", message)
         };
+        applyWeaselPolicy(supervisor, known);
 
         if (known.Count > 0)
             Log.Information("  balancing lanes with {Count} measured duration(s) from {Ledger}", known.Count,
@@ -204,6 +196,23 @@ partial class Build
 
         var results = supervisor.Run().GetAwaiter().GetResult();
         return report(projectName, framework, results, runId, startedAt, ledger, ledgerPath);
+    }
+
+    /// <summary>
+    /// The supervisor settings every Weasel suite runs under, in CI (<see cref="RunSupervised"/>) and
+    /// in the local gate (LocalGate.cs) alike, so the gate judges a suite exactly as its workflow does.
+    /// </summary>
+    static void applyWeaselPolicy(Supervisor supervisor, IReadOnlyDictionary<string, TimeSpan> known)
+    {
+        supervisor.RetryBudget = OptInRetries;
+        // Lesson 4: lanes sitting idle at peak working set through a fresh-process retry is
+        // workers + 1 hosts resident at once. Cheap insurance even with retries opt-in.
+        supervisor.ReleaseIdleLanes = true;
+        supervisor.StallThreshold = StallThreshold;
+        supervisor.StallAction = StallAction.Report;
+        supervisor.HeartbeatInterval = TimeSpan.FromSeconds(30);
+        supervisor.ResourceSampleInterval = TimeSpan.FromSeconds(15);
+        supervisor.KnownTestDurations = known.Count > 0 ? known : null;
     }
 
     /// <summary>

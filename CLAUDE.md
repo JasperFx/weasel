@@ -95,8 +95,15 @@ docker compose up  # For PostgreSQL, SQL Server, Oracle
 # SQLite tests require no setup - they use in-memory or temporary databases
 ```
 
+Before pushing, run the whole CI test matrix locally with `./build.sh LocalGate` (see "Local gate"
+below).
+
 **Connection Strings (environment variables):**
-- `weasel_postgresql_testing_database` - PostgreSQL connection
+- `weasel_postgresql_testing_database` - PostgreSQL connection. The default database is `weasel_testing`,
+  not `marten_testing`: lanes are named `<database>_w{n}`, and on a Postgres shared with Marten its lanes
+  are `marten_testing_w{n}` (weasel#733)
+- `weasel_mysql_testing_database`, `weasel_oracle_testing_database` - MySQL and Oracle connections (read
+  by the EF Core suite too)
 - `weasel_sqlserver_testing_database` - SQL Server connection
 - `weasel_firebird_testing_database` - Firebird connection; the database file it names is only a
   directory, since each test class creates a file of its own beside it. docker-compose publishes
@@ -379,6 +386,77 @@ already-built test executable (every test project is a Microsoft.Testing.Platfor
   it on. Tests are keyed by display name, so one ledger serves any framework or machine: to balance a
   local run the same way, `gh run download <run> -n test-ledger-postgres-net9.0-cstrue -D artifacts/test-ledger`.
   A missing ledger only means lanes balance by test count.
+
+### Local gate (`./build.sh LocalGate`, weasel#733)
+
+One command that runs every suite the eight `ci-build-*.yml` workflows run, as fast as the machine
+allows, on Bobcat.Supervisor's `Gate` (`build/LocalGate.cs`; Bobcat's
+[local gates](https://github.com/JasperFx/bobcat/blob/main/docs/local-gates.md)). Run it before a push:
+
+```bash
+docker compose up -d                       # the gate never starts, stops or resets a container
+./build.sh LocalGate                       # newest framework (net10.0), Debug
+./build.sh LocalGate --framework all       # net9.0 and net10.0: the CI matrix
+./build.sh LocalGate --gate-workers 6      # worker budget across all suites (default: half the cores)
+./build.sh LocalGate --gate-legs sqlserver2019,sqlserver2022,firebird3,firebird4
+./build.sh CompileDocSamples               # the docs samples alone
+```
+
+What it does, in order: preflights every server by a **real connection** (Postgres also creates the
+configured database if it is missing; Oracle's listener answers long before its PDB opens, so a port
+check is not enough), restores the solution once and builds exactly the test projects plus
+`src/DocSamples` for each framework (a broken docs sample fails the gate), then runs one supervisor per
+`(project, framework)` unit, longest first, and prints one line per unit plus the full report of any
+unit that was not clean. Exit code is the worst unit's; every unit runs even when one is red.
+
+- **Units and tracks.** Core, Sqlite, Postgresql, CommandLine, SqlServer, MySql, Oracle, Firebird and
+  EfCore, each with the workers and lane isolation its CI target uses and the same supervisor policy
+  (`applyWeaselPolicy`, no retries). Each external server is one exclusive **track**, so no two suites
+  ever share a server at once: CommandLine is on the Postgres track (it drops real schemas there), and
+  EfCore holds Postgres, SQL Server and Firebird -- plus MySQL and Oracle when net9.0 runs, the only
+  framework its MySQL/Oracle tests compile for. Core and SQLite are limited by the worker budget alone.
+- **Configuration.** CI builds Core and SQLite in Release and everything else in Debug; the gate
+  normalises to **Debug** (the Nuke default locally). `--configuration Release` overrides it.
+- **Servers.** It reads the same `weasel_*_testing_database` variables the suites do, defaulting to the
+  suites' own defaults: Postgres `localhost:5432/weasel_testing`, SQL Server `localhost,1435`, MySQL
+  `localhost:3306`, Oracle `localhost:1521/FREEPDB1`, Firebird 5 `localhost:3065`. On a shared machine
+  those ports are often taken (Marten's Postgres holds 5432, Wolverine's MySQL and Oracle 3306 and
+  1521): start Weasel's compose under its own project name with `WEASEL_*_PORT` set and point the
+  variables at it, e.g.
+
+  ```bash
+  WEASEL_POSTGRES_PORT=5436 WEASEL_MYSQL_PORT=3307 WEASEL_ORACLE_PORT=1522 \
+    docker compose -p weasel up -d postgresql sqlserver oracle mysql firebird5
+  export weasel_postgresql_testing_database="Host=localhost;Port=5436;Database=weasel_testing;Username=postgres;password=postgres"
+  export weasel_mysql_testing_database="Server=localhost;Port=3307;Database=weasel_testing;Uid=weasel;Pwd=P@55w0rd;"
+  export weasel_oracle_testing_database="Data Source=localhost:1522/FREEPDB1;User Id=weasel;Password=P@55w0rd;"
+  ```
+- **Postgres connections.** The Postgres suite on 4 lanes peaked at 89 client connections (sampled
+  every 200ms) against the stock `max_connections` of 100. The gate reads `max_connections` first and
+  runs `(max_connections - 10) / 25` lanes, at most 4: a stock server gets 3, compose's Postgres (set to
+  200) gets 4. Only one unit at a time uses a server, so that is the whole budget.
+- **Optional legs** (`--gate-legs`), not defaults: the CI matrix's other server versions, run after the
+  gate against containers of their own, in rounds of at most one leg per suite. `sqlserver2019` and
+  `sqlserver2022` (compose profile `legs`, ports 1436/1437, variables
+  `weasel_sqlserver2019_testing_database` / `weasel_sqlserver2022_testing_database`) and `firebird3` /
+  `firebird4` (compose services `firebird3`/`firebird4`, ports 3063/3064, variables
+  `weasel_firebird3_testing_database` / `weasel_firebird4_testing_database`). Start them with
+  `docker compose --profile legs up -d sqlserver2022 firebird3 firebird4`. The SQL Server images are
+  amd64 only; on Apple silicon they run under Rosetta.
+- **Records.** Each unit's ledger and run report land in `artifacts/test-ledger/` as the CI targets'
+  do (`local.<project>.<tfm>.*`), so the next run balances lanes on them, plus the gate's own report
+  (`local.gate.report.txt`); `.bobcat/gate-durations.json` (gitignored) orders the next run. Units
+  publish to a Bobcat monitor under `$BOBCAT_RUN_TAG/<unit>` when one is listening.
+- **Wall clock** on an 18-core Apple silicon machine (budget 9 workers), newest framework: about
+  **1m00s-1m20s warm** (incremental build included) against about 2m-2m45s for the same units one after
+  the other, and about 2m with a cold build. Firebird and SQL Server (40-55s on 4 lanes) and Oracle
+  (25-40s, one worker) are the long poles; everything else is under 15s. `--framework all` (18 units)
+  took 2m05s against 3m46s one after the other. The build step is about 12s warm and 30s cold per
+  framework, the docs samples a few seconds of it. The optional legs add their own time after the gate (SQL Server 2022 about 25s, Firebird 3
+  and 4 about 35s-1m40s).
+- **Why a custom build step.** Bobcat's default build is `dotnet build <solution> -f <tfm>`, which fails
+  on any project in the solution that does not target that framework (bobcat#774) and builds every
+  project besides; `buildForGate` builds only what the gate runs.
 
 **SQLite CI Workflow:**
 The SQLite workflow tests on multiple operating systems (Ubuntu, Windows, macOS) and all supported .NET versions (8.0, 9.0, 10.0) to ensure cross-platform compatibility. SQLite tests require no database services since SQLite is file-based and embedded.

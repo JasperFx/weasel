@@ -1,18 +1,26 @@
-version: '3'
+# Host ports are env-driven so the stack can run beside another repository's containers on a shared
+# machine (Marten's Postgres on 5432, Wolverine's MySQL and Oracle on 3306 and 1521). The defaults are
+# the ports the test suites' own connection-string defaults expect; move one with WEASEL_*_PORT and point
+# the matching weasel_*_testing_database variable at it. See "Local gate" in CLAUDE.md.
 services:
   postgresql:
     image: "postgres:15.3-alpine"
+    # The local gate runs the Postgres suite on 4 lanes, which peak at about 90 client connections:
+    # too close to the stock 100. On a server left at 100 the gate drops to 3 lanes (build/LocalGate.cs).
+    command: ["postgres", "-c", "max_connections=200"]
     ports:
-     - "5432:5432"
+     - "${WEASEL_POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
-      POSTGRES_DB: marten_testing
+      # Not marten_testing: the per-lane databases are named <database>_w{n}, and Marten's lanes on a
+      # shared server are marten_testing_w{n} (weasel#733).
+      POSTGRES_DB: weasel_testing
       NAMEDATALEN: 100
   sqlserver:
       image: "mcr.microsoft.com/azure-sql-edge"
       ports:
-          - "1435:1433"
+          - "${WEASEL_SQLSERVER_PORT:-1435}:1433"
       environment:
           - "ACCEPT_EULA=Y"
           - "SA_PASSWORD=P@55w0rd"
@@ -20,7 +28,7 @@ services:
   oracle:
       image: "gvenzl/oracle-free:23-slim"
       ports:
-          - "1521:1521"
+          - "${WEASEL_ORACLE_PORT:-1521}:1521"
       environment:
           - "ORACLE_PASSWORD=P@55w0rd"
           - "APP_USER=weasel"
@@ -30,7 +38,7 @@ services:
   mysql:
       image: "mysql:8.0"
       ports:
-          - "3306:3306"
+          - "${WEASEL_MYSQL_PORT:-3306}:3306"
       environment:
           - "MYSQL_ROOT_PASSWORD=P@55w0rd"
           - "MYSQL_DATABASE=weasel_testing"
@@ -46,7 +54,7 @@ services:
   firebird3:
       image: "firebirdsql/firebird:3"
       ports:
-          - "3063:3050"
+          - "${WEASEL_FIREBIRD3_PORT:-3063}:3050"
       environment:
           - "FIREBIRD_ROOT_PASSWORD=P@55w0rd"
           - "ISC_USER=SYSDBA"
@@ -59,7 +67,7 @@ services:
   firebird4:
       image: "firebirdsql/firebird:4"
       ports:
-          - "3064:3050"
+          - "${WEASEL_FIREBIRD4_PORT:-3064}:3050"
       environment:
           - "FIREBIRD_ROOT_PASSWORD=P@55w0rd"
           - "ISC_USER=SYSDBA"
@@ -72,7 +80,7 @@ services:
   firebird5:
       image: "firebirdsql/firebird:5"
       ports:
-          - "3065:3050"
+          - "${WEASEL_FIREBIRD5_PORT:-3065}:3050"
       environment:
           - "FIREBIRD_ROOT_PASSWORD=P@55w0rd"
           - "ISC_USER=SYSDBA"
@@ -82,3 +90,24 @@ services:
           interval: 2s
           timeout: 5s
           retries: 30
+
+  # The CI SQL Server legs (ci-build-mssql.yml runs 2019 and 2022), for the local gate's optional
+  # legs (`./build.sh LocalGate --gate-legs sqlserver2019,sqlserver2022`). Behind a profile, so a plain
+  # `docker compose up` does not start them: `docker compose --profile legs up -d sqlserver2019`.
+  # Both images are amd64 only; on Apple silicon they run under Rosetta, and 2019 may not start there.
+  sqlserver2019:
+      image: "mcr.microsoft.com/mssql/server:2019-latest"
+      profiles: ["legs"]
+      ports:
+          - "${WEASEL_SQLSERVER2019_PORT:-1436}:1433"
+      environment:
+          - "ACCEPT_EULA=Y"
+          - "SA_PASSWORD=P@55w0rd"
+  sqlserver2022:
+      image: "mcr.microsoft.com/mssql/server:2022-latest"
+      profiles: ["legs"]
+      ports:
+          - "${WEASEL_SQLSERVER2022_PORT:-1437}:1433"
+      environment:
+          - "ACCEPT_EULA=Y"
+          - "SA_PASSWORD=P@55w0rd"

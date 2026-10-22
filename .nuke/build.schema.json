@@ -27,7 +27,9 @@
         "Attach",
         "Clean",
         "Compile",
+        "CompileDocSamples",
         "Detach",
+        "LocalGate",
         "Restore",
         "TestCommandLine",
         "TestCore",
@@ -122,6 +124,18 @@
         "Framework": {
           "type": "string",
           "description": "Target framework to run the tests under, e.g. net9.0. Default: every framework built"
+        },
+        "GateLegs": {
+          "type": "string",
+          "description": "LocalGate: optional CI legs to run after the gate, comma-separated: sqlserver2019, sqlserver2022, firebird3, firebird4. Each needs its own container"
+        },
+        "GateWorkers": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "description": "LocalGate: worker processes across every unit at once. Default: half the cores",
+          "format": "int32"
         },
         "Solution": {
           "type": "string",

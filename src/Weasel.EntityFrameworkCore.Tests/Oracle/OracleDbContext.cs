@@ -4,7 +4,11 @@ namespace Weasel.EntityFrameworkCore.Tests.Oracle;
 
 public class OracleDbContext : DbContext
 {
-    public const string ConnectionString = "User Id=weasel;Password=P@55w0rd;Data Source=localhost:1521/FREEPDB1";
+    // The same variable Weasel.Oracle.Tests reads, so the suite can reach an Oracle that is not on
+    // localhost:1521 (a shared machine, the local gate: weasel#733).
+    public static readonly string ConnectionString =
+        Environment.GetEnvironmentVariable("weasel_oracle_testing_database")
+        ?? "User Id=weasel;Password=P@55w0rd;Data Source=localhost:1521/FREEPDB1";
 
     public OracleDbContext(DbContextOptions<OracleDbContext> options) : base(options)
     {

@@ -84,7 +84,7 @@ public class end_to_end : IAsyncLifetime
         var context = scope.ServiceProvider.GetRequiredService<PostgresqlDbContext>();
 
         // Recreate just this test's table. Never EnsureDeleted here — that drops
-        // the whole shared marten_testing database and kills every other test's
+        // the whole shared weasel_testing database and kills every other test's
         // connections (57P01) when the suite runs in parallel.
         await context.Database.ExecuteSqlRawAsync("DROP TABLE IF EXISTS my_entities");
         await context.Database.ExecuteSqlRawAsync(context.Database.GenerateCreateScript());

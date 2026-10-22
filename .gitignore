@@ -65,6 +65,8 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+# The local gate's record of unit durations, which orders its next run (build/LocalGate.cs)
+.bobcat/
 
 # StyleCop
 StyleCopReport.xml
