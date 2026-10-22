@@ -7,7 +7,7 @@ public class ConnectionSource
     // TODO -- use a separate database
     public static readonly string ConnectionString =
         Environment.GetEnvironmentVariable("weasel_postgresql_testing_database")
-        ?? "Host=localhost;Port=5432;Database=marten_testing;Username=postgres;password=postgres;SSL Mode=Disable";
+        ?? "Host=localhost;Port=5432;Database=weasel_testing;Username=postgres;password=postgres;SSL Mode=Disable";
 
     static ConnectionSource()
     {

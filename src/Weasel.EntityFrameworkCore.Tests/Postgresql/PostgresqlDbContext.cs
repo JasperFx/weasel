@@ -13,7 +13,7 @@ public class PostgresqlDbContext : DbContext
     /// </summary>
     public static readonly string ConnectionString =
         Environment.GetEnvironmentVariable("weasel_postgresql_testing_database")
-        ?? "Host=localhost;Port=5432;Database=marten_testing;Username=postgres;Password=postgres";
+        ?? "Host=localhost;Port=5432;Database=weasel_testing;Username=postgres;Password=postgres";
 
     public PostgresqlDbContext(DbContextOptions<PostgresqlDbContext> options) : base(options)
     {

@@ -57,7 +57,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: marten_testing
+          POSTGRES_DB: weasel_testing
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         ports:
