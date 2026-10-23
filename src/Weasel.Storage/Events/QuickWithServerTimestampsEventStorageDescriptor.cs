@@ -114,6 +114,13 @@ public sealed class QuickWithServerTimestampsEventStorageDescriptor
     public string AppendEventSqlSuffix { get; init; } = ")";
 
     /// <summary>
+    /// True when <see cref="AppendEventSqlSuffix"/> ends in a clause returning the <c>seq_id</c> the INSERT drew,
+    /// so the per-event operation writes it back onto <see cref="IEvent.Sequence"/> and a failed unit of work can
+    /// tombstone it (marten#5454).
+    /// </summary>
+    public bool AppendEventSqlReturnsSequence { get; init; }
+
+    /// <summary>
     /// Optional-metadata-column binders for the per-event QuickWithVersion
     /// path. Excludes the sequence binder — seq_id is server-set.
     /// </summary>
