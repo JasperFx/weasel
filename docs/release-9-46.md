@@ -125,3 +125,82 @@ Two internal CI fixes also landed, with no effect on the packages:
 obsolete and unread for some time), and
 [#721](https://github.com/JasperFx/weasel/issues/721) put `Weasel.CommandLine.Tests` into a workflow —
 it had been run by none.
+
+## 9.46.1
+
+Two PostgreSQL fixes, both in code paths that only misbehave under conditions a single-database,
+single-threaded apply never reaches. Nothing public was added, removed or changed.
+
+### A foreign key is corrected for its linked key once, however many migrations run it
+
+[#730](https://github.com/JasperFx/weasel/pull/730), contributed by
+[@lahma](https://github.com/lahma).
+
+`Table.PostProcess` widens a foreign key whose linked table has more primary key columns than the key
+names, through `ForeignKey.TryToCorrectForLink`. It runs on **every** migration, and a host with
+several databases migrates them in parallel over **the same cached `Table` instances** — Marten's
+`IMartenStorage.ApplyAllConfiguredChangesToDatabaseAsync` applies a sharded store's databases with
+`Parallel.ForEachAsync` over one cached set of event-store schema objects.
+
+The correction compared the live `ColumnNames` against `LinkedNames` and then appended to the live
+array one column at a time. When two migrations both saw the key one column short, both appended, and
+the second appended to the first one's result:
+
+```
+ALTER TABLE public.mt_event_tag_sharded_removal
+ADD CONSTRAINT fkey_mt_event_tag_sharded_removal_seq_id FOREIGN KEY(seq_id, tenant_id, tenant_id)
+REFERENCES public.mt_events(seq_id, tenant_id);
+```
+
+```
+42830: number of referencing and referenced columns for foreign key disagree
+```
+
+The shared instance keeps the widened key, so **every later migration in that process renders it
+again** — the failure does not clear on a retry. `TryToCorrectForLink` now reads each array once,
+builds the correction in locals, and publishes it in a single assignment. Every caller computes the
+same arrays from the same inputs, so whichever publishes last, the key is right. Sequential behaviour
+is unchanged, and a correction that throws `InvalidForeignKeyException` part-way no longer leaves the
+key half widened.
+
+### A partition's child index name stays within 63 characters
+
+[#731](https://github.com/JasperFx/weasel/issues/731) /
+[#732](https://github.com/JasperFx/weasel/pull/732), contributed by
+[@erdtsieck](https://github.com/erdtsieck).
+
+`IndexDefinition.ChildIndexName` returned `"{index}_{suffix}"` at whatever length that came to. Past
+63 bytes PostgreSQL truncates the identifier, and the truncation **cuts into the suffix** — which is
+the only part that distinguishes one partition's child from another's. Two partitions whose suffixes
+share a prefix then ask for the same child index name, and the concurrent build on an existing
+partitioned table fails on the second one, on every rerun: `42P07` in 9.45.0, and `2BP01` since
+9.46.0's leftover drop.
+
+When `{index}_{suffix}` would run past the maximum, the **index name** now gives way through the
+existing `PostgresqlIdentifier.Shorten` — ending in a hash of the full index name — and the suffix
+stays whole. Names that already fit are unchanged. Shortening rather than refusing is the deliberate
+choice here: [#468](https://github.com/JasperFx/weasel/pull/468)'s rule is that Weasel does not
+silently rename an identifier *someone declared*, and nobody declares this one — Weasel generates it
+while writing the DDL, it is attached to the parent, and nothing reads it by name. Refusing would turn
+every index name longer than about 50 characters on a partitioned table into a hard failure.
+
+The name stays deterministic, which the resume path needs: a rerun after a half-finished build finds
+the same child and drops it before building again.
+
+### What changes for you
+
+- **Child index names on partitioned tables change for long index names.** If `{index}_{suffix}` came
+  to more than 63 bytes, the child is now named from a shortened, hashed index name. Names that fit are
+  byte-for-byte identical. The delta reads indexes off the parent only, so this does not register as
+  drift and a second run still reports `None`.
+- **One case is deliberately not handled.** An *unattached* child left by a pre-9.46.1 run that died
+  between build and attach stays behind as a stray index on that partition. It no longer collides,
+  because the new name differs, but Weasel will not drop it by its old name — a truncated name may
+  belong to another object.
+- **If you apply several databases in parallel over shared schema objects, upgrade.** The foreign key
+  corruption above is silent until the apply fails, and then fails identically on every subsequent run
+  in that process.
+
+One internal change also landed with no effect on the packages:
+[#734](https://github.com/JasperFx/weasel/pull/734) runs every CI suite as a single local gate on
+Bobcat.Supervisor 1.0.0-rc.3.
