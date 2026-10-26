@@ -34,7 +34,8 @@ internal sealed class QuickWithServerTimestampsEventStorage<TId>: EventStorage<T
             @event);
 
     public override IStorageOperation QuickAppendEventWithVersion(StreamAction stream, IEvent @event)
-        => new QuickAppendEventWithVersionOperation(
+    {
+        var operation = new QuickAppendEventWithVersionOperation(
             _descriptor.AppendEventSqlPrefix,
             _descriptor.AppendEventSqlSuffix,
             _descriptor.MetadataBinders,
@@ -44,6 +45,11 @@ internal sealed class QuickWithServerTimestampsEventStorage<TId>: EventStorage<T
             _descriptor.Dialect,
             stream,
             @event);
+
+        return _descriptor.AppendEventSqlReturnsSequence
+            ? new QuickAppendEventWithVersionReadingSequenceOperation(operation)
+            : operation;
+    }
 
     public override IStorageOperation QuickAppendEvents(StreamAction stream)
         // Dialect-supplied — see QuickEventStorage<TId>.QuickAppendEvents.
