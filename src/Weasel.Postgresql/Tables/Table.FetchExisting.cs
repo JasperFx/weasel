@@ -12,14 +12,6 @@ public partial class Table
     {
         var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
         var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
-        var nameWithSchemaParam = builder.AddParameter($"{Identifier.Schema}.{Identifier.Name}").ParameterName;
-
-        // PostgreSQL's regclassout returns quoted identifiers for mixed-case names.
-        // We need to also match against the quoted form to handle tables like "TestRecords".
-        // See https://github.com/JasperFx/weasel/issues/224
-        var quotedName = $"\"{Identifier.Name}\"";
-        var quotedNameParam = builder.AddParameter(quotedName).ParameterName;
-        var nameWithSchemaQuotedParam = builder.AddParameter($"{Identifier.Schema}.{quotedName}").ParameterName;
 
         builder.Append($@"
 select column_name, data_type, character_maximum_length, udt_name, column_default, is_nullable, is_generated, generation_expression
@@ -40,7 +32,10 @@ FROM (
     SELECT
       R.rolname                AS user_name,
       ns.nspname               AS schema_name,
-      pg_catalog.textin(pg_catalog.regclassout(idx.indrelid :: REGCLASS)) AS table_name,
+      -- The bare relname, not regclassout's rendering: that quotes mixed-case names (weasel#224) and
+      -- reserved-word schemas such as order, and any spelling it chose that was not matched dropped
+      -- every index of the table.
+      t.relname                AS table_name,
       i.relname                AS index_name,
       pg_get_indexdef(i.oid) as ddl,
       idx.indisunique          AS is_unique,
@@ -62,6 +57,8 @@ FROM (
     FROM pg_index AS idx
       JOIN pg_class AS i
         ON i.oid = idx.indexrelid
+      JOIN pg_class AS t
+        ON t.oid = idx.indrelid
       JOIN pg_am AS am
         ON i.relam = am.oid
       JOIN pg_namespace AS NS ON i.relnamespace = NS.OID
@@ -77,10 +74,7 @@ FROM (
       nspname = :{schemaParam}
 ) ind
 WHERE
-      ind.table_name = :{nameParam} OR
-      ind.table_name = :{nameWithSchemaParam} OR
-      ind.table_name = :{quotedNameParam} OR
-      ind.table_name = :{nameWithSchemaQuotedParam};
+      ind.table_name = :{nameParam};
 
 SELECT c.conname                                     AS constraint_name,
        c.contype                                     AS constraint_type,
@@ -442,8 +436,7 @@ order by column_index;
             var isValid = await reader.GetFieldValueAsync<bool>(12, ct).ConfigureAwait(false);
 
 
-            if ((Identifier.Schema == schemaName && Identifier.Name == tableName) ||
-                Equals(Identifier, DbObjectName.Parse(PostgresqlProvider.Instance, tableName)))
+            if (Identifier.Schema == schemaName && Identifier.Name == tableName)
             {
                 var index = IndexDefinition.Parse(ddl);
                 index.IsValidInDatabase = isValid;
