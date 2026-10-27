@@ -8,7 +8,7 @@
          supervisor (JasperFx/bobcat#565). Referenced by build/build.csproj alone, never by a
          shipped package or a test project. The supervisor drives the test executables over
          Microsoft.Testing.Platform's wire protocol and never loads them. -->
-    <PackageVersion Include="Bobcat.Supervisor" Version="1.0.0-rc.3" />
+    <PackageVersion Include="Bobcat.Supervisor" Version="1.0.0" />
     <PackageVersion Include="coverlet.collector" Version="6.0.4" />
     <PackageVersion Include="Meziantou.Analyzer" Version="2.0.260" />
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.12.19" />
