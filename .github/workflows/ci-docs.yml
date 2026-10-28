@@ -1,0 +1,109 @@
+name: Docs CI Build
+
+# The docs site has had no pre-deploy check at all: publish-docs.yml is workflow_dispatch only, so
+# the first thing to build the site after a docs-affecting change was the next release deploy.
+# weasel#729 is what that costs. PR #713 bumped mermaid to 12.2.0 on 2026-10-15, which plain
+# `npm ci` refuses (vitepress-plugin-mermaid 2.0.17 peers on `mermaid@"10 || 11"`), and nothing
+# noticed until the 9.46.0 deploy four days later -- after the release was already tagged. The same
+# gap means a bad `docs/.vitepress/config.ts` edit or a page that will not render surfaces at
+# deploy time too.
+#
+# This workflow builds the site and deploys nothing: no wrangler, no Cloudflare step, no secrets.
+#
+# Both triggers are path-filtered, and the filter is duplicated because GitHub Actions has no way to
+# share one. Push to master matters as much as pull_request here: the last several releases were cut
+# by a direct push to master, and the dispatched deploy follows minutes later -- a PR-only check
+# would not stand between those two.
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - 'docs/**'
+      - 'src/DocSamples/**'
+      - 'mdsnippets.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-docs.yml'
+  pull_request:
+    branches: [ master ]
+    paths:
+      - 'docs/**'
+      # The mdsnippets sources. Every one of the 223 `<!-- snippet: ... -->` names in docs/ resolves
+      # inside src/DocSamples, and mdsnippets runs with TreatMissingAsWarning:false, so deleting or
+      # renaming a region here fails the build. If snippets ever start living in a test project,
+      # this list has to grow with them.
+      - 'src/DocSamples/**'
+      - 'mdsnippets.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/ci-docs.yml'
+
+# Same reasoning as the eight ci-build-*.yml workflows: a re-pushed PR branch supersedes its
+# predecessor, but a master commit's result is the record for that commit, and github.workflow is in
+# the key so this does not cancel them (weasel#611).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  # Exactly as in publish-docs.yml, and for the same reason: vitepress-plugin-mermaid 2.0.17 -- the
+  # latest there is, from 2024 -- declares `peer mermaid@"10 || 11"`, while package.json is on
+  # mermaid 12.2.0 because that bump is what closed mermaid's and katex's own advisories. npm 10
+  # refuses the combination outright. Do not "fix" this by pinning mermaid back to 11; see
+  # weasel#729 for the options, none of which is a downgrade.
+  NPM_CONFIG_LEGACY_PEER_DEPS: "true"
+
+jobs:
+  build:
+    name: Build the docs site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # mdsnippets is a .NET global tool. Both SDKs, matching publish-docs.yml, so the tool resolves
+      # a runtime whichever framework it targets.
+      #
+      # src/DocSamples is NOT built here. publish-docs.yml builds it, but it is part of Weasel.slnx,
+      # so ci-build-core.yml's unfiltered `dotnet build` already compiles it on every PR -- and
+      # mdsnippets reads the .cs files rather than the assembly.
+      - name: Install .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: |
+            9.0.x
+            10.0.x
+
+      - name: Install mdsnippets
+        run: dotnet tool install -g MarkdownSnippets.Tool
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # `npm ci` rather than `npm install`, as the deploy does: a package-lock.json that has drifted
+      # out of sync with package.json is itself a docs break, and this is where it should surface.
+      - name: Install npm dependencies
+        run: npm ci
+
+      # `npm run docs-build` is what a developer runs locally -- mdsnippets, then `vitepress build
+      # docs` -- so this checks the script, not a CI-only reimplementation of it. publish-docs.yml
+      # spells the two steps out separately; both end in the same VitePress build.
+      #
+      # Deliberately NO `git diff --exit-code` gate afterwards. mdsnippets rewrites markdown in
+      # place, and the locally installed tool lowercases snippet anchor ids differently from
+      # whatever generated the committed files, so a build with no doc edits at all still leaves six
+      # files dirty (docs/core/command-builders.md, multi-tenancy.md, schema-migrations.md,
+      # schema-objects.md, docs/efcore/batch-queries.md, schema-customization.md). That churn is not
+      # a real change, and a cleanliness gate here would fail every unrelated PR. The question this
+      # workflow answers is "does the site build", not "are the snippets canonical".
+      - name: Build the VitePress site
+        run: npm run docs-build
