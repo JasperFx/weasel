@@ -411,8 +411,36 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
         foreach (var property in properties)
         {
             var value = property.GetValue(parameters);
-            AddNamedParameter(property.Name, value ?? DBNull.Value, _provider.ToParameterType(property.PropertyType));
+            AddNamedParameter(property.Name, value ?? DBNull.Value,
+                parameterTypeFor(value, property.PropertyType));
         }
+    }
+
+    /// <summary>
+    ///     The parameter type for a value the caller supplied as part of a parameter bag.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     Both <c>AddParameters</c> overloads used to call <c>ToParameterType</c> on the
+    ///     declared or runtime <em>type</em>, which skipped the value-aware seam weasel#403
+    ///     added -- so PostgreSQL never got to pick <c>timestamptz</c> over <c>timestamp</c>
+    ///     from a <see cref="DateTime.Kind" />, and Npgsql threw outright on a UTC
+    ///     <see cref="DateTime" />: "Cannot write DateTime with Kind=UTC to PostgreSQL type
+    ///     'timestamp without time zone'". The same bag passed one at a time through
+    ///     <see cref="AddNamedParameter(string, object, Nullable{TParameterType})" /> worked,
+    ///     because that path does consult the value.
+    ///     </para>
+    ///     <para>
+    ///     A null carries no value to key off, so it keeps using the declared type -- otherwise
+    ///     a <c>DateTime?</c> property holding null would lose its typing. Returning null defers
+    ///     to the driver for an unmapped type rather than throwing, per weasel#404.
+    ///     </para>
+    /// </remarks>
+    private TParameterType? parameterTypeFor(object? value, Type declaredType)
+    {
+        return value is null
+            ? _provider.TryGetDbType(declaredType) ?? _provider.TryGetDbType(typeof(DBNull))
+            : _provider.TryGetDbTypeForValue(value);
     }
 
     /// <summary>
@@ -442,10 +470,7 @@ public class CommandBuilderBase<TCommand, TParameter, TParameterType>: ICommandB
 
         foreach (var (key, value) in parameters)
         {
-            AddNamedParameter(
-                key,
-                (object?)value ?? DBNull.Value,
-                _provider.ToParameterType(value?.GetType() ?? typeof(DBNull)));
+            AddNamedParameter(key, (object?)value ?? DBNull.Value, parameterTypeFor(value, typeof(T)));
         }
     }
 

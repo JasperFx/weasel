@@ -40,6 +40,8 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
         store<DateTimeOffset>(SqliteType.Text, "TEXT"); // ISO8601 with timezone
         store<Guid>(SqliteType.Text, "TEXT"); // Stored as string
         store<TimeSpan>(SqliteType.Text, "TEXT"); // Stored as string
+        store<DateOnly>(SqliteType.Text, "TEXT"); // ISO8601 date
+        store<TimeOnly>(SqliteType.Text, "TEXT"); // ISO8601 time
 
         // Blob types
         store<byte[]>(SqliteType.Blob, "BLOB");
@@ -52,9 +54,18 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
         return ResolveDatabaseTypeFromMemo(type);
     }
 
+    /// <summary>
+    ///     The <see cref="SqliteType" /> for a CLR type, or null when there is no mapping.
+    /// </summary>
+    /// <remarks>
+    ///     This used to end in <c>?? SqliteType.Text</c>, which could never return null -- so
+    ///     <see cref="determineParameterType" /> always reported success and every branch after
+    ///     its first was dead code, including weasel#404's "null means unmapped, defer to the
+    ///     driver". weasel#758 found the same shape on the generic provider and SQL Server.
+    /// </remarks>
     private SqliteType? ResolveSqliteType(Type type)
     {
-        return ResolveParameterTypeFromMemo(type) ?? SqliteType.Text;
+        return ResolveParameterTypeFromMemo(type);
     }
 
     protected override Type[] determineClrTypesForParameterType(SqliteType dbType)
@@ -170,21 +181,14 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
             return true;
         }
 
-        if (type.IsEnum)
+        // Enums and arrays keep the TEXT catch-all they have always resolved to. The Integer
+        // this branch used to carry, and the array refusal that followed it, were both
+        // unreachable; turning either on is its own behaviour change, tracked separately.
+        // byte[] never reaches here -- it is in the memo as Blob.
+        if (type.IsEnum || type.IsArray)
         {
-            dbType = SqliteType.Integer;
+            dbType = SqliteType.Text;
             return true;
-        }
-
-        if (type.IsArray)
-        {
-            // SQLite doesn't support arrays, but byte[] is handled above
-            if (type == typeof(byte[]))
-            {
-                dbType = SqliteType.Blob;
-                return true;
-            }
-            throw new NotSupportedException("SQLite does not support array column types (except byte[])");
         }
 
         if (type == typeof(DBNull))
