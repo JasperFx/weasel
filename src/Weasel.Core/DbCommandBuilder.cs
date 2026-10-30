@@ -139,14 +139,35 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
     {
         store<string>(DbType.String, "varchar(100)");
         store<bool>(DbType.Boolean, "bit");
+        store<byte>(DbType.Byte, "tinyint");
+        store<short>(DbType.Int16, "smallint");
+        store<int>(DbType.Int32, "int");
         store<long>(DbType.Int64, "bigint");
         store<byte[]>(DbType.Binary, "binary");
-        store<DateTime>(DbType.Date, "datetime");
+
+        // DbType.Date drops the time of day -- SqlClient sends it as `date`, so a bound
+        // DateTime came back midnight (weasel#759). DateTime2 is the only one of the three
+        // candidates that round trips exactly, and it seeks against both a `datetime` and a
+        // `datetime2` column. The database type stays `datetime` deliberately: the column a
+        // migration generates is unchanged, and the comparison is still seek-clean.
+        store<DateTime>(DbType.DateTime2, "datetime");
         store<DateTimeOffset>(DbType.DateTimeOffset, "datetimeoffset");
+        store<DateOnly>(DbType.Date, "date");
+        store<TimeOnly>(DbType.Time, "time");
+        store<TimeSpan>(DbType.Time, "time");
+
         store<decimal>(DbType.Decimal, "decimal");
         store<double>(DbType.Double, "float");
-        store<int>(DbType.Int32, "int");
-        store<TimeSpan>(DbType.Time, "time");
+        store<float>(DbType.Single, "real");
+        store<char>(DbType.String, "nchar(1)");
+
+        // Without this, Guid resolved to DbType.Object, which SqlClient sends as sql_variant.
+        // Comparing a sql_variant against a uniqueidentifier column converts the *column* on
+        // every row, so `where id = @p` scanned instead of seeking (weasel#758). DbType.Guid
+        // is carried correctly by every driver this builder wraps: SqlClient binds
+        // uniqueidentifier, Npgsql uuid, MySqlConnector its own Guid, and Microsoft.Data.Sqlite
+        // still TEXT, matching how Weasel.Sqlite stores one.
+        store<Guid>(DbType.Guid, "uniqueidentifier");
     }
 
     protected override bool determineParameterType(Type type, out DbType dbType)
@@ -164,15 +185,13 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
             return true;
         }
 
-        if (type.IsEnum)
+        // Enums and arrays keep the catch-all they have always resolved to. Reviving the
+        // Int32 this branch used to carry, and the array refusal below, are behaviour changes
+        // of their own rather than part of weasel#758; they are tracked separately.
+        if (type.IsEnum || type.IsArray)
         {
-            dbType = DbType.Int32;
+            dbType = DbType.Object;
             return true;
-        }
-
-        if (type.IsArray)
-        {
-            throw new NotSupportedException("The generic database provider does not support arrays");
         }
 
         if (type == typeof(DBNull))
@@ -191,22 +210,17 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
         return false;
     }
 
-    private DbType? ResolveSqlDbType(Type type)
-    {
-        if (ParameterTypeMemo.Value.TryFind(type, out var value))
-        {
-            return value;
-        }
-
-        if (type.IsNullable() &&
-            ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var parameterType))
-        {
-            ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
-            return parameterType;
-        }
-
-        return DbType.Object;
-    }
+    /// <summary>
+    ///     The parameter type for a CLR type, or null when this provider has no mapping for it.
+    /// </summary>
+    /// <remarks>
+    ///     This used to end in <c>?? DbType.Object</c>, which could never return null -- so
+    ///     <see cref="determineParameterType" /> always reported success and every branch below
+    ///     its first was dead code. That made weasel#404's "null means unmapped, defer to the
+    ///     driver" unreachable here: an unmapped type was typed <c>Object</c>, which SqlClient
+    ///     sends as sql_variant and compares by converting the column (weasel#758).
+    /// </remarks>
+    private DbType? ResolveSqlDbType(Type type) => ResolveParameterTypeFromMemo(type);
 
     protected override Type[] determineClrTypesForParameterType(DbType dbType)
     {

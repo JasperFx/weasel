@@ -37,7 +37,7 @@ public class SqlServerProviderTests
         SqlServerProvider.Instance.ToParameterType(typeof(WithOpenGeneric<>)).ShouldBe(SqlDbType.VarChar);
     }
 
-    [Fact(Skip = "Different backing behaviour than for Postgres")]
+    [Fact]
     public void execute_to_parameter_type_with_closed_generics_falls_back_to_open()
     {
         SqlServerProvider.Instance.RegisterMapping(typeof(WithOpenGeneric<>), "VarChar", SqlDbType.VarChar);
@@ -51,7 +51,7 @@ public class SqlServerProviderTests
         SqlServerProvider.Instance.ToParameterType(typeof(WithClosedGeneric<int>)).ShouldBe(SqlDbType.VarChar);
     }
 
-    [Fact(Skip = "Different backing behaviour than for Postgres")]
+    [Fact]
     public void execute_to_parameter_type_with_closed_generics_open_generic()
     {
         SqlServerProvider.Instance.RegisterMapping(typeof(WithClosedGeneric<int>), "VarChar", SqlDbType.VarChar);
@@ -59,7 +59,7 @@ public class SqlServerProviderTests
         act.ShouldThrow<NotSupportedException>();
     }
 
-    [Fact(Skip = "Different backing behaviour than for Postgres")]
+    [Fact]
     public void execute_to_parameter_type_with_closed_generics_generic_override()
     {
         SqlServerProvider.Instance.RegisterMapping(typeof(WithClosedGeneric<int>), "VarChar", SqlDbType.VarChar);
@@ -67,7 +67,7 @@ public class SqlServerProviderTests
         act.ShouldThrow<NotSupportedException>();
     }
 
-    [Fact(Skip = "Different backing behaviour than for Postgres")]
+    [Fact]
     public void execute_to_parameter_type_with_closed_generics_overrides_definitions_with_open_generic()
     {
         SqlServerProvider.Instance.RegisterMapping(typeof(WithMixedGeneric<>), "VarChar", SqlDbType.VarChar);
