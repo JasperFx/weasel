@@ -63,14 +63,13 @@ public class RangePartitioning : ISplittablePartitioning
         var psName = PartitionSchemeName(parent);
         var rangeDir = IsRangeRight ? "RIGHT" : "LEFT";
 
-        // Drop existing (for idempotent creation)
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
+        // Refresh the partition objects, but only while nothing is partitioned on them -- otherwise the
+        // second run of a generated creation script fails on the table it created itself (weasel#765).
+        PartitionDdl.WriteDropIfUnused(writer, psName, pfName);
 
         // Create partition function
-        writer.Write($"CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType})");
+        PartitionDdl.WriteCreateFunctionGuard(writer, pfName);
+        writer.Write($"    CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType})");
         writer.Write($" AS RANGE {rangeDir}");
         if (_boundaryValues.Any())
         {
@@ -80,7 +79,8 @@ public class RangePartitioning : ISplittablePartitioning
         writer.WriteLine(";");
 
         // Create partition scheme
-        writer.WriteLine($"CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
+        PartitionDdl.WriteCreateSchemeGuard(writer, psName);
+        writer.WriteLine($"    CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
     }
 
     public void WriteOnClause(TextWriter writer, Table parent)
@@ -93,10 +93,7 @@ public class RangePartitioning : ISplittablePartitioning
         var psName = PartitionSchemeName(parent);
         var pfName = PartitionFunctionName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
+        PartitionDdl.WriteDrop(writer, psName, pfName);
     }
 
     public PartitionDelta CreateDelta(SqlServerPartitionInfo? actual)
