@@ -1,13 +1,85 @@
 # Upgrading to 9.48
 
-Six fixes, and **one of them changes behaviour you may be relying on**: an enum bound as a parameter
-now goes out as an integer by default on every provider. If you store enums as strings on MySQL or
-Oracle, read [the enum section](#enums-are-bound-by-their-enumstorage-not-by-a-per-provider-guess)
-before upgrading — it is the only breaking change here, and it is a two-line fix at the call site.
+The parameter-type release. One line repeated across five providers made every provider's
+type-resolution fall-through unreachable; this is that fix, plus the three issues it uncovered,
+three SQL Server bugs found from Polecat, and a documentation-only settlement of a question that
+looked like a bug and is not.
 
-Everything else is additive or a straight fix: three SQL Server bugs found from Polecat, the two
-remaining loose ends from 9.47.1's parameter-type work, and a documentation-only settlement of a
-question that looked like a bug and is not.
+**Two things here change behaviour you may be relying on.** Both are narrow, and both are a one-line
+fix at the call site:
+
+1. **An unmapped type now defers instead of being guessed at**, so `ToParameterType` throws for one
+   where it used to return a character type — and a `DateTime` parameter is bound as `DateTime2`
+   rather than a date-only type. See [the catch-all
+   section](#a-parameter-type-resolver-can-now-defer-instead-of-guessing).
+2. **An enum bound as a parameter now goes out as an integer by default** on every provider. If you
+   store enums as strings on MySQL or Oracle, see [the enum
+   section](#enums-are-bound-by-their-enumstorage-not-by-a-per-provider-guess).
+
+Everything else is a straight fix or additive.
+
+## A parameter type resolver can now defer instead of guessing
+
+[#758](https://github.com/JasperFx/weasel/issues/758) and
+[#759](https://github.com/JasperFx/weasel/issues/759) /
+[#760](https://github.com/JasperFx/weasel/pull/760).
+
+Both issues were the same line, repeated in five providers. The private helper each one resolved
+through ended in `?? <catch-all>` — `DbType.Object` on the generic provider, `SqlDbType.Variant` on
+SQL Server, `SqliteType.Text`, `MySqlDbType.VarChar`, `OracleDbType.Varchar2`. **That can never
+return null**, so `determineParameterType` always reported success and every branch after its first
+was dead code, which took [#404](https://github.com/JasperFx/weasel/issues/404)'s "null means
+unmapped, defer to the driver" with it. PostgreSQL and Firebird fell through properly, which is
+exactly why the divergence read as a PostgreSQL quirk rather than a bug in the other five.
+
+**The catch-all was not a harmless default.** SQL Server sends it as `sql_variant`, which outranks
+every ordinary type in data type precedence, so comparing one against a column converts **the
+column**, once per row:
+
+| parameter | column | plan |
+| --- | --- | --- |
+| `DbType.Object` | `uniqueidentifier` | Clustered Index **Scan**, `CONVERT_IMPLICIT(sql_variant,[id],0)` |
+| `DbType.Guid` | `uniqueidentifier` | Clustered Index **Seek** |
+
+Measured on SQL Server 2025. So **a missing `store<T>()` was a performance bug rather than a gap** —
+and the types missing from SQL Server's memo were `Guid`, `short`, `byte`, `float`, `char`,
+`DateOnly` and `TimeOnly`. A `smallint` primary-key lookup was measured scanning too.
+
+Four tests in `SqlServerProviderTests` carried the skip reason "Different backing behaviour than for
+Postgres". That *was* this bug; all four now pass.
+
+### `DateTime` was bound as a date, so the time of day was dropped
+
+[#759](https://github.com/JasperFx/weasel/issues/759). Both the generic provider and SQL Server
+mapped `DateTime` to a date-only parameter type, so a bound `2026-10-30T13:45:12Z` came back
+`2026-10-30T00:00:00`. `DateTime2` is the only one of the three candidates that round trips exactly,
+and it seeks against a `datetime` column as well as a `datetime2` one.
+
+**The generated column type stays `datetime` on purpose**, so no existing column produces a schema
+diff. The parameter and column types deliberately disagree in name.
+
+### `AddParameters` went around the value-aware seam
+
+Found in passing, and a hard failure rather than a slow query. Both `AddParameters` overloads
+resolved through `ToParameterType` on the *type*, skipping the value-aware seam
+[#403](https://github.com/JasperFx/weasel/issues/403) added — so a UTC `DateTime` in a parameter bag
+was bound as `timestamp without time zone` and **Npgsql threw outright**, while the same value passed
+one at a time through `AddNamedParameter` worked. They now resolve from the value, and keep using the
+declared type for a null, which has no value to key off.
+
+### What changes for you
+
+- **`ToParameterType` and `ToParameterTypeForValue` now throw for a type the provider has no mapping
+  for**, where they used to return the catch-all. That is the point of the change, but it is a
+  behaviour change: use `TryGetDbType` / `TryGetDbTypeForValue` where you want the `null` and want to
+  leave the parameter untyped.
+- **An unmapped value is now left untyped for the driver** on the value-aware paths, rather than
+  going out as `sql_variant` / `VARCHAR` / `TEXT`. For most callers that is the fix; if you were
+  relying on a value being coerced to a string, type the parameter yourself.
+- **A `DateTime` parameter is now `DateTime2`.** Nothing changes in the plan against a `datetime`
+  column — that was measured — and the time of day now survives.
+- **If you have ever measured a Weasel query scanning where it should seek, re-measure.** On SQL
+  Server, `Guid`, `short`, `byte`, `float` and `char` were each paying a per-row column conversion.
 
 ## Enums are bound by their `EnumStorage`, not by a per-provider guess
 
@@ -30,8 +102,7 @@ that reframes the issue, because **three of the six did not merely convert the c
 | PostgreSQL | `Integer` | works | wrong |
 | Firebird | `Integer` | works | wrong |
 
-So on SQL Server this was never
-[#758](https://github.com/JasperFx/weasel/issues/758)'s performance bug one type over — binding an
+So on SQL Server this was never the `sql_variant` performance bug above, one type over — binding an
 enum was simply impossible. And `AsInteger` is the `JasperFx` default, so three providers were
 throwing against the *default* column shape.
 
@@ -81,7 +152,8 @@ On SQL Server, SQLite, MySQL and Oracle an array — anything but `byte[]` — r
 character catch-all as an enum, so an `int[]` was quietly bound as text. It is now left **unmapped**,
 which on this seam means *defer*: the parameter goes out untyped and the driver rules on it.
 
-The refusal that `#760` revealed sitting unreachable behind the catch-all
+The refusal that [#760](https://github.com/JasperFx/weasel/pull/760) revealed sitting unreachable
+behind the catch-all
 (`"Sql Server does not support arrays"`) is deliberately **not** turned on. Deferring is the
 established meaning of "unmapped" here ([#404](https://github.com/JasperFx/weasel/issues/404)), it
 does not override a driver that can handle an array on its own, and when there is a failure it now
@@ -95,7 +167,7 @@ branch.
 ### What changes for you
 
 - **`ToParameterType(typeof(int[]))` now throws on those four providers** rather than returning a
-  character type, which is what `ToParameterType` has meant for any unmapped type since 9.47.1. Use
+  character type, which is what `ToParameterType` now means for any unmapped type. Use
   `TryGetDbType` if you want the `null`.
 - **A bound array value is no longer typed by Weasel.** If you were relying on the old behaviour to
   send an array as a delimited string, type the parameter yourself.
@@ -103,8 +175,9 @@ branch.
 ## `DateOnly` and `TimeOnly` on MySQL and Oracle
 
 [#763](https://github.com/JasperFx/weasel/issues/763) /
-[#772](https://github.com/JasperFx/weasel/pull/772). The two providers 9.47.1 left alone, and they
-did not close the same way.
+[#772](https://github.com/JasperFx/weasel/pull/772). The two providers
+[#760](https://github.com/JasperFx/weasel/pull/760) left alone above, and they did not close the same
+way.
 
 **MySQL maps both.** Verified by round trip against MySQL 8.0 rather than taken from
 MySqlConnector's inference:
@@ -146,8 +219,8 @@ or `TimeSpan` it converts to.
   assumed.
 - **On MySQL, `GetDatabaseType` now answers for both**, where it previously threw.
 - **On Oracle, a `DateOnly` parameter now throws a legible `NotSupportedException`** where it
-  previously produced an `ArgumentException` from inside ODP.NET, or — before 9.47.1 — silently sent
-  a culture-dependent string.
+  previously produced an `ArgumentException` from inside ODP.NET, or — before
+  [#760](https://github.com/JasperFx/weasel/pull/760) — silently sent a culture-dependent string.
 
 ## SQL Server: a partition scheme that is still in use is no longer dropped
 
@@ -294,11 +367,16 @@ If you bind strings through the generic `DbCommandBuilder` against SQL Server an
 `varchar`, pass the type explicitly: `builder.AppendParameter(value, DbType.AnsiString)`.
 
 A `char` is the deliberate exception — `SqlDbType.NChar` against an `nchar(1)` column. It had no
-mapping at all before 9.47.1, so there was no behaviour to preserve, the parameter and the column
-agree with each other, and an `nchar` cannot lose a character.
+mapping at all before [#760](https://github.com/JasperFx/weasel/pull/760) above, so there was no
+behaviour to preserve, the parameter and the column agree with each other, and an `nchar` cannot lose
+a character.
 
 ## Also in this release
 
+- **MySqlConnector moves to 2.6.1**, from 2.4.0
+  ([#767](https://github.com/JasperFx/weasel/pull/767)), closing
+  [GHSA-473q-m89c-ghf8](https://github.com/advisories/GHSA-473q-m89c-ghf8). Anyone on
+  `Weasel.MySql` should take this release for that reason alone.
 - **JasperFx and JasperFx.Events move to 2.98.0**
   ([#769](https://github.com/JasperFx/weasel/pull/769)), from 2.90.2.
 - **The NuGet publish workflow uses NuGet.org trusted publishing** (OIDC) instead of a long-lived API
