@@ -44,8 +44,39 @@ var connectionString = "User Id=myuser;Password=mypass;Data Source=localhost:152
 | `double` | `BINARY_DOUBLE` |
 | `DateTime` | `DATE` |
 | `DateTimeOffset` | `TIMESTAMP WITH TIME ZONE` |
+| `TimeSpan` | `INTERVAL DAY TO SECOND` |
+| `DateOnly` | `DATE` (column only -- see below) |
+| `TimeOnly` | `INTERVAL DAY TO SECOND` (column only -- see below) |
 | `Guid` | `RAW(16)` |
 | `byte[]` | `BLOB` |
+
+### `DateOnly` and `TimeOnly` cannot be bound as parameters
+
+Weasel generates a column type for both, so a schema can declare one -- but ODP.NET has no
+conversion for either CLR type, so neither can be used as a parameter value. Measured against
+ODP.NET 23.1.0.0, with the `OracleDbType` assigned before the value:
+
+| Binding | Result |
+|---|---|
+| `DateOnly` as `Date` | `InvalidCastException` -- ODP.NET binds a date through `Convert.ToDateTime`, and `DateOnly` is not `IConvertible` |
+| `DateOnly` or `TimeOnly` as `TimeStamp` | `ORA-50028: Invalid parameter binding` |
+| `TimeOnly` as `IntervalDS` | `ArgumentException: Value does not fall within the expected range` |
+| `TimeOnly` as `Varchar2` | executes, and writes the current culture's `ToString()` -- e.g. `1:45 PM` |
+
+Leaving the parameter untyped is not an alternative either: an untyped `OracleParameter` rejects
+the value outright, so there is nothing for the driver to infer from. `ToParameterType` therefore
+refuses with a `NotSupportedException` that names the conversion to make instead:
+
+```csharp
+// DateOnly against a DATE column
+provider.AddNamedParameter(command, "d", theDate.ToDateTime(TimeOnly.MinValue));
+
+// TimeOnly against an INTERVAL DAY TO SECOND column
+provider.AddNamedParameter(command, "t", theTime.ToTimeSpan());
+```
+
+Note that Entity Framework Core is unaffected: `Oracle.EntityFrameworkCore` applies its own value
+converter for both types, so an EF model mapping a `DateOnly` property keeps working.
 
 ## Creating a Migrator
 

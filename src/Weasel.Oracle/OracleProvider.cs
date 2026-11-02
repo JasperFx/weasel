@@ -32,7 +32,49 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
         store<float>(OracleDbType.Single, "BINARY_FLOAT");
         store<TimeSpan>(OracleDbType.IntervalDS, "INTERVAL DAY TO SECOND");
         store<Guid>(OracleDbType.Raw, "RAW(16)");
+
+        // A column type for each, and deliberately no parameter type: ODP.NET cannot bind either
+        // CLR type to anything. The column types still earn their place -- a schema can now declare
+        // one, and the value is bound as the DateTime or TimeSpan it converts to. See
+        // determineParameterType for what was measured. weasel#763.
+        RegisterMapping(typeof(DateOnly), "DATE", null);
+        RegisterMapping(typeof(TimeOnly), "INTERVAL DAY TO SECOND", null);
     }
+
+    /// <summary>
+    ///     Why <see cref="DateOnly" /> and <see cref="TimeOnly" /> have no parameter type on Oracle,
+    ///     and what to do instead. Public so the refusal can be asserted without a server to hand.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     Measured against ODP.NET 23.1.0.0 and Oracle Free 23, every combination, with
+    ///     <c>OracleDbType</c> assigned before the value (assigning it after throws from the value
+    ///     setter alone, which is a red herring -- it is the <em>bind</em> that cannot be done):
+    ///     </para>
+    ///     <list type="bullet">
+    ///         <item><c>DateOnly</c> as <c>Date</c>: <c>InvalidCastException</c>, because ODP.NET
+    ///         binds a date through <c>Convert.ToDateTime</c> and <c>DateOnly</c> is not
+    ///         <c>IConvertible</c>.</item>
+    ///         <item><c>DateOnly</c> or <c>TimeOnly</c> as <c>TimeStamp</c>:
+    ///         <c>ORA-50028: Invalid parameter binding</c>.</item>
+    ///         <item><c>TimeOnly</c> as <c>IntervalDS</c>: <c>ArgumentException: Value does not fall
+    ///         within the expected range</c>.</item>
+    ///         <item><c>TimeOnly</c> as <c>Varchar2</c>: the only one that executes, and it writes
+    ///         <c>1:45 PM</c> -- the current culture's <c>ToString()</c>. That is what the pre-#758
+    ///         catch-all did, and it is the defect, not the mapping.</item>
+    ///     </list>
+    ///     <para>
+    ///     Deferring to the driver is not an option either: an <em>untyped</em> OracleParameter
+    ///     rejects the value outright, so there is nothing for ODP.NET to infer from. So the choice
+    ///     is between a cryptic failure from inside the driver and a refusal that says what to do,
+    ///     and this is the latter -- the same shape as the array refusals elsewhere in Weasel.
+    ///     </para>
+    /// </remarks>
+    public static string DateOnlyAndTimeOnlyRefusal(Type type) =>
+        $"Oracle cannot bind a {type.Name} parameter: ODP.NET has no conversion for it, and an untyped "
+        + "parameter rejects the value before the driver sees it. Convert the value first -- a DateOnly "
+        + "with ToDateTime(TimeOnly.MinValue) against a DATE column, a TimeOnly with ToTimeSpan() against "
+        + "an INTERVAL DAY TO SECOND column. Weasel generates both column types for you. See weasel#763.";
 
     private string? ResolveDatabaseType(Type type)
     {
@@ -115,6 +157,13 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
         {
             dbType = oracleDbType.Value;
             return true;
+        }
+
+        // An active refusal rather than a deferral, because deferring does not work here either:
+        // see DateOnlyAndTimeOnlyRefusal for what each candidate binding actually does.
+        if (type == typeof(DateOnly) || type == typeof(TimeOnly))
+        {
+            throw new NotSupportedException(DateOnlyAndTimeOnlyRefusal(type));
         }
 
         if (type.IsNullable())

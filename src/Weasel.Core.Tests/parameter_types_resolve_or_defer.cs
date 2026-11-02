@@ -186,6 +186,37 @@ public class parameter_types_resolve_or_defer
     }
 
     /// <summary>
+    ///     weasel#763 closed the two providers weasel#760 left alone, and they did not close the same
+    ///     way. MySQL takes both types cleanly, measured by round trip against MySQL 8.0. Oracle takes
+    ///     neither, against any candidate <c>OracleDbType</c>, so it refuses with an explanation
+    ///     instead -- and refuses rather than defers, because an untyped <c>OracleParameter</c> will
+    ///     not even hold the value, so there is nothing for ODP.NET to infer from. The per-provider
+    ///     measurements live in <c>Weasel.MySql.Tests.dateonly_and_timeonly_round_trip</c> and
+    ///     <c>Weasel.Oracle.Tests.dateonly_and_timeonly_are_refused</c>; this is the cross-provider
+    ///     picture, so that a later sweep cannot quietly make them agree the wrong way.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void every_provider_has_an_answer_for_date_only_and_time_only(string provider)
+    {
+        if (provider == "Oracle")
+        {
+            foreach (var type in new[] { typeof(DateOnly), typeof(TimeOnly) })
+            {
+                Should.Throw<NotSupportedException>(() => TryGetDbType(provider, type))
+                    .Message.ShouldContain("Oracle cannot bind");
+            }
+
+            return;
+        }
+
+        TryGetDbType(provider, typeof(DateOnly))
+            .ShouldNotBeNull($"{provider} should resolve DateOnly");
+        TryGetDbType(provider, typeof(TimeOnly))
+            .ShouldNotBeNull($"{provider} should resolve TimeOnly");
+    }
+
+    /// <summary>
     ///     weasel#403 let a provider choose a parameter type from the <em>value</em> rather than its
     ///     type, which PostgreSQL needs because <c>timestamptz</c> versus <c>timestamp</c> follows
     ///     <see cref="DateTime.Kind" />. Both <c>AddParameters</c> overloads went around that seam by
