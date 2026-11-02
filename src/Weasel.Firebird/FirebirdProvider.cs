@@ -93,9 +93,12 @@ public class FirebirdProvider: DatabaseProvider<FbCommand, FbParameter, FbDbType
             return true;
         }
 
+        // As on PostgreSQL: the same answer for an int-backed enum, by the shared route, so that a
+        // long- or byte-backed one resolves through its own underlying type and the parameterless
+        // overload cannot drift from ToParameterType(type, EnumStorage.AsInteger). weasel#761.
         if (type.IsEnum)
         {
-            dbType = FbDbType.Integer;
+            dbType = ToParameterType(type, EnumStorage.AsInteger);
             return true;
         }
 

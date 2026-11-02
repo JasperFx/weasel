@@ -138,15 +138,30 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
             return true;
         }
 
-        // Enums and arrays keep resolving to the Variant catch-all they have always resolved
-        // to. The Int this branch used to carry, and the array refusal that followed it, were
-        // both unreachable; turning either on is a behaviour change of its own rather than part
-        // of weasel#758, so each is tracked separately.
-        if (type.IsEnum || type.IsArray)
+        // Measured against a live server rather than reasoned about: what every provider did here
+        // was wrong against the column its own GetDatabaseType generates, and three of the six did
+        // not merely convert but threw. An enum now resolves through EnumStorage.AsInteger -- the
+        // JasperFx default, and what PostgreSQL, Firebird and SQLite already did in effect -- which
+        // also routes it through the enum's *underlying* type, so a long-backed enum is not
+        // truncated. An AsString consumer calls ToParameterType(type, EnumStorage.AsString).
+        // weasel#761.
+        //
+        // On SQL Server specifically, Variant was not a slow answer but a broken one: binding an
+        // enum as sql_variant throws "Implicit conversion from data type sql_variant to int is not
+        // allowed" against an int column and the varchar equivalent against a character one. There
+        // was no behaviour here to preserve.
+        if (type.IsEnum)
         {
-            dbType = System.Data.SqlDbType.Variant;
+            dbType = ToParameterType(type, EnumStorage.AsInteger);
             return true;
         }
+
+        // An array is left unmapped, so it defers: TryGetDbType returns null and the parameter goes
+        // out untyped for the driver to infer. The refusal the dead branch carried was never
+        // reachable, and overriding a driver that can handle an array -- a table-valued parameter,
+        // MySqlConnector's own handling -- would be the worse of the two answers. byte[] never
+        // reaches here; it is in the memo. So there is deliberately no `type.IsArray` branch
+        // below. weasel#761.
 
         if (type == typeof(DBNull))
         {

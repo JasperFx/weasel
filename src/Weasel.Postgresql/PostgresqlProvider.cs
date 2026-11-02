@@ -228,9 +228,13 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             return true;
         }
 
+        // Integer was already right for the AsInteger column, so this is the same answer by a
+        // shared route: resolving through the enum's underlying type means a long-backed enum
+        // resolves to Bigint rather than silently narrowing to Integer, and the parameterless
+        // overload cannot drift from ToParameterType(type, EnumStorage.AsInteger). weasel#761.
         if (type.IsEnum)
         {
-            dbType = NpgsqlDbType.Integer;
+            dbType = ToParameterType(type, EnumStorage.AsInteger);
             return true;
         }
 
