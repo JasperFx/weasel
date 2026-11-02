@@ -7,6 +7,16 @@ on:
 # each dispatch publishes once, and a cancelled publish -- packages half pushed, the run gone -- is
 # far worse than a duplicated queue slot. The eight ci-build-* workflows do have one.
 
+# Trusted publishing (OIDC), rather than a long-lived NUGET_API_KEY secret. NuGet/login exchanges
+# this run's GitHub OIDC token for an API key that expires in minutes, so there is no durable
+# credential in the repository to leak or rotate. `id-token: write` is what lets the runner request
+# that token; without it the login step fails with a missing-token error rather than publishing
+# anything. `contents: read` is the checkout, declared explicitly because naming any permission
+# drops the rest to none.
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -54,8 +64,17 @@ jobs:
     - name: Pack Weasel.EntityFrameworkCore
       run: dotnet pack ./src/Weasel.EntityFrameworkCore/Weasel.EntityFrameworkCore.csproj -o ./artifacts --configuration Release --no-build
 
+    # Exchanges this run's OIDC token for a short-lived NuGet API key. `user` is the NuGet.org
+    # account that owns the trusted publishing policy -- it has to match, and a mismatch fails here,
+    # before any package is pushed.
+    - name: Log in to NuGet with trusted publishing
+      id: nuget-login
+      uses: NuGet/login@v1
+      with:
+        user: jeremydmiller
+
     - name: Publish to NuGet
       run: |
-        find . -name '*.nupkg' -exec dotnet nuget push "{}" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_API_KEY }} --skip-duplicate \;
-        # find . -name '*.snupkg' -exec dotnet nuget push "{}" -s https://api.nuget.org/v3/index.json -k ${{ secrets.NUGET_API_KEY }} \;
+        find . -name '*.nupkg' -exec dotnet nuget push "{}" -s https://api.nuget.org/v3/index.json -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" --skip-duplicate \;
+        # find . -name '*.snupkg' -exec dotnet nuget push "{}" -s https://api.nuget.org/v3/index.json -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" \;
       shell: bash
