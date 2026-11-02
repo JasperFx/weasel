@@ -67,7 +67,10 @@ public static class PartitionExtensions
             return $"'{dt.ToString("yyyy-MM-dd HH:mm:ss.FFFFFF", CultureInfo.InvariantCulture)}'";
         }
 
-        if (typeof(T).IsNumeric()) return value.ToString();
+        // Invariant for the same reason the date arms above are: under de-DE a decimal renders with a
+        // comma separator, and under sv-SE a negative value carries U+2212 rather than ASCII '-'.
+        // weasel#764.
+        if (typeof(T).IsNumeric()) return ((IFormattable)value!).ToString(null, CultureInfo.InvariantCulture);
 
         if (value is bool b) return b.ToString().ToLowerInvariant();
 

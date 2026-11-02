@@ -85,6 +85,46 @@ public static class SharedLockExtensions
         };
     }
 
+    /// <summary>
+    ///     How long the client should wait on the <c>sp_getapplock</c> round trip, given how long
+    ///     the server was told to wait for the lock. The wait is the server's job; the command
+    ///     timeout only has to outlast it so that SQL Server gets to answer first.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     Without this the lock wait was silently capped at the connection's
+    ///     <c>CommandTimeout</c> -- 30 seconds unless the connection string says otherwise --
+    ///     whatever <c>@LockTimeout</c> asked for. So a wait of 30 seconds or more never had its
+    ///     requested effect, and at exactly 30 the client usually lost the race: the caller got a
+    ///     raw <see cref="Microsoft.Data.SqlClient.SqlException" /> ("Execution Timeout Expired")
+    ///     instead of a failed <see cref="AttainLockResult" />, which
+    ///     <see cref="ResourceMigrationFailureMode.ContinueOnFailures" /> can never rule on.
+    ///     weasel#766.
+    ///     </para>
+    ///     <para>
+    ///     The margin is five seconds, and the result never <em>lowers</em> a command timeout the
+    ///     caller configured deliberately -- a connection string carrying
+    ///     <c>Command Timeout=120</c> keeps it. A negative lock timeout means "wait forever" on
+    ///     <c>sp_getapplock</c>, which no finite command timeout can outlast, so it maps to
+    ///     <c>CommandTimeout = 0</c>: infinite.
+    ///     </para>
+    /// </remarks>
+    internal static int CommandTimeoutForLockWait(int currentCommandTimeout, int lockTimeoutMs)
+    {
+        if (lockTimeoutMs < 0)
+        {
+            return 0;
+        }
+
+        // Already infinite, and nothing should narrow that.
+        if (currentCommandTimeout == 0)
+        {
+            return 0;
+        }
+
+        return Math.Max(currentCommandTimeout, lockTimeoutMs / 1000 + 5);
+    }
+
     private static async Task<int> tryGetLock(this SqlConnection conn, string lockId, string owner, SqlTransaction? tx,
         CancellationToken cancellation, int? lockTimeoutMs = null)
     {
@@ -96,7 +136,10 @@ public static class SharedLockExtensions
         cmd.With("LockMode", "Exclusive");
 
         cmd.With("LockOwner", owner);
-        cmd.With("LockTimeout", lockTimeoutMs ?? DefaultLockTimeoutMilliseconds);
+
+        var timeout = lockTimeoutMs ?? DefaultLockTimeoutMilliseconds;
+        cmd.With("LockTimeout", timeout);
+        cmd.CommandTimeout = CommandTimeoutForLockWait(cmd.CommandTimeout, timeout);
 
         var returnValue = cmd.CreateParameter();
         returnValue.ParameterName = "ReturnValue";

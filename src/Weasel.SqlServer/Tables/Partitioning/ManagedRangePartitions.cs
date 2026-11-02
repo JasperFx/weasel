@@ -152,16 +152,16 @@ public class ManagedRangePartitions: ISplittablePartitioning
         var pfName = PartitionFunctionName(parent);
         var psName = PartitionSchemeName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
+        // Only while nothing is partitioned on them; see weasel#765.
+        PartitionDdl.WriteDropIfUnused(writer, psName, pfName);
 
-        writer.Write($"CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType}) AS RANGE RIGHT");
+        PartitionDdl.WriteCreateFunctionGuard(writer, pfName);
+        writer.Write($"    CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType}) AS RANGE RIGHT");
         writer.Write($" FOR VALUES ({Boundaries().Join(", ")})");
         writer.WriteLine(";");
 
-        writer.WriteLine($"CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
+        PartitionDdl.WriteCreateSchemeGuard(writer, psName);
+        writer.WriteLine($"    CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
     }
 
     /// <inheritdoc />
@@ -176,10 +176,7 @@ public class ManagedRangePartitions: ISplittablePartitioning
         var psName = PartitionSchemeName(parent);
         var pfName = PartitionFunctionName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
+        PartitionDdl.WriteDrop(writer, psName, pfName);
     }
 
     /// <inheritdoc />

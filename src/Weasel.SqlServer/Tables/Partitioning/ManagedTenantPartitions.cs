@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using JasperFx.Core;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -259,25 +260,25 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         var pfName = PartitionFunctionName(parent);
         var psName = PartitionSchemeName(parent);
 
-        // Drop existing for idempotent creation (matches RangePartitioning).
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
+        // Drop existing for idempotent creation (matches RangePartitioning), but only while nothing is
+        // partitioned on them -- otherwise the second run of a generated script fails (weasel#765).
+        PartitionDdl.WriteDropIfUnused(writer, psName, pfName);
 
         var boundaries = OrderedBoundaries();
 
-        writer.Write($"CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType}) AS RANGE RIGHT");
+        PartitionDdl.WriteCreateFunctionGuard(writer, pfName);
+        writer.Write($"    CREATE PARTITION FUNCTION {SchemaUtils.BracketName(pfName)} ({SqlDataType}) AS RANGE RIGHT");
         if (boundaries.Length > 0)
         {
             writer.Write(" FOR VALUES (");
-            writer.Write(boundaries.Select(x => x.ToString()).Join(", "));
+            writer.Write(boundaries.Select(x => x.ToString(CultureInfo.InvariantCulture)).Join(", "));
             writer.Write(")");
         }
 
         writer.WriteLine(";");
+        PartitionDdl.WriteCreateSchemeGuard(writer, psName);
         writer.WriteLine(
-            $"CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
+            $"    CREATE PARTITION SCHEME {SchemaUtils.BracketName(psName)} AS PARTITION {SchemaUtils.BracketName(pfName)} ALL TO ({SchemaUtils.BracketName(Filegroup)});");
     }
 
     /// <inheritdoc />
@@ -292,10 +293,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         var psName = PartitionSchemeName(parent);
         var pfName = PartitionFunctionName(parent);
 
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = '{SchemaUtils.EscapeLiteral(psName)}')");
-        writer.WriteLine($"    DROP PARTITION SCHEME {SchemaUtils.BracketName(psName)};");
-        writer.WriteLine($"IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{SchemaUtils.EscapeLiteral(pfName)}')");
-        writer.WriteLine($"    DROP PARTITION FUNCTION {SchemaUtils.BracketName(pfName)};");
+        PartitionDdl.WriteDrop(writer, psName, pfName);
     }
 
     /// <inheritdoc />
@@ -322,7 +320,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         }
 
         var expected = new HashSet<string>(
-            OrderedBoundaries().Select(x => x.ToString()),
+            OrderedBoundaries().Select(x => x.ToString(CultureInfo.InvariantCulture)),
             StringComparer.OrdinalIgnoreCase);
         var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
 
@@ -357,7 +355,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
         foreach (var ordinal in OrderedBoundaries())
         {
-            var boundary = ordinal.ToString();
+            var boundary = ordinal.ToString(CultureInfo.InvariantCulture);
             if (actualSet.Contains(boundary))
             {
                 continue;
@@ -1149,7 +1147,7 @@ OUTPUT inserted.ordinal;";
 
                 foreach (var ordinal in OrderedBoundaries())
                 {
-                    if (existing.Contains(ordinal.ToString()))
+                    if (existing.Contains(ordinal.ToString(CultureInfo.InvariantCulture)))
                     {
                         continue;
                     }

@@ -43,6 +43,9 @@ var connectionString = "Server=localhost;Database=mydb;User=root;Password=YourPa
 | `decimal` | `DECIMAL(18,2)` |
 | `double` | `DOUBLE` |
 | `DateTime` | `DATETIME` |
+| `DateOnly` | `DATE` |
+| `TimeOnly` | `TIME` |
+| `TimeSpan` | `TIME` |
 | `Guid` | `CHAR(36)` |
 | `byte[]` | `BLOB` |
 

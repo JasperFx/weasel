@@ -188,6 +188,37 @@ public class parameter_types_resolve_or_defer
     }
 
     /// <summary>
+    ///     weasel#763 closed the two providers weasel#760 left alone, and they did not close the same
+    ///     way. MySQL takes both types cleanly, measured by round trip against MySQL 8.0. Oracle takes
+    ///     neither, against any candidate <c>OracleDbType</c>, so it refuses with an explanation
+    ///     instead -- and refuses rather than defers, because an untyped <c>OracleParameter</c> will
+    ///     not even hold the value, so there is nothing for ODP.NET to infer from. The per-provider
+    ///     measurements live in <c>Weasel.MySql.Tests.dateonly_and_timeonly_round_trip</c> and
+    ///     <c>Weasel.Oracle.Tests.dateonly_and_timeonly_are_refused</c>; this is the cross-provider
+    ///     picture, so that a later sweep cannot quietly make them agree the wrong way.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void every_provider_has_an_answer_for_date_only_and_time_only(string provider)
+    {
+        if (provider == "Oracle")
+        {
+            foreach (var type in new[] { typeof(DateOnly), typeof(TimeOnly) })
+            {
+                Should.Throw<NotSupportedException>(() => TryGetDbType(provider, type))
+                    .Message.ShouldContain("Oracle cannot bind");
+            }
+
+            return;
+        }
+
+        TryGetDbType(provider, typeof(DateOnly))
+            .ShouldNotBeNull($"{provider} should resolve DateOnly");
+        TryGetDbType(provider, typeof(TimeOnly))
+            .ShouldNotBeNull($"{provider} should resolve TimeOnly");
+    }
+
+    /// <summary>
     ///     weasel#403 let a provider choose a parameter type from the <em>value</em> rather than its
     ///     type, which PostgreSQL needs because <c>timestamptz</c> versus <c>timestamp</c> follows
     ///     <see cref="DateTime.Kind" />. Both <c>AddParameters</c> overloads went around that seam by
@@ -233,6 +264,63 @@ public class parameter_types_resolve_or_defer
         var parameter = (SqlParameter)command.Parameters[0];
         parameter.SqlDbType.ShouldBe(SqlDbType.DateTime2);
         parameter.Value.ShouldBe(DBNull.Value);
+    }
+
+    /// <summary>
+    ///     weasel#762. The two builders disagree about what a .NET <see cref="string" /> is, and the
+    ///     disagreement is deliberate rather than an oversight -- so it is pinned here, because the
+    ///     obvious "tidy up" in either direction is a worse bug than the one it fixes.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     <c>nvarchar</c> outranks <c>varchar</c> in SQL Server's data type precedence, so the
+    ///     direction decides which side of a comparison is converted. Measured on SQL Server 2025
+    ///     (17.0.4045.5) by reading the cached plan out of <c>sys.dm_exec_query_plan</c>, against an
+    ///     indexed column of 5,000 rows:
+    ///     </para>
+    ///     <list type="table">
+    ///         <item><term>VarChar vs varchar(100)</term><description>Index Seek</description></item>
+    ///         <item><term>VarChar vs nvarchar(100)</term><description>Index Seek, the convert on the
+    ///         parameter</description></item>
+    ///         <item><term>NVarChar vs nvarchar(100)</term><description>Index Seek</description></item>
+    ///         <item><term>NVarChar vs varchar(100)</term><description>Index <em>Scan</em>, with
+    ///         CONVERT_IMPLICIT(nvarchar(100), [probe]) on the <em>column</em></description></item>
+    ///     </list>
+    ///     <para>
+    ///     So <c>Weasel.SqlServer</c>'s non-Unicode default is the safe direction -- it seeks against
+    ///     either column shape -- and the generic builder's Unicode default is the dangerous one,
+    ///     specifically against the <c>varchar</c> column Weasel's own DDL generates. Both are left
+    ///     alone: <c>DbType.AnsiString</c> on the generic provider would truncate non-Latin1 text,
+    ///     and an <c>nvarchar</c> column type would be a schema diff for every existing column.
+    ///     </para>
+    /// </remarks>
+    [Fact]
+    public void the_two_builders_disagree_about_strings_deliberately()
+    {
+        SqlServerProvider.Instance.ToParameterType(typeof(string)).ShouldBe(SqlDbType.VarChar);
+        SqlServerProvider.Instance.GetDatabaseType(typeof(string), EnumStorage.AsInteger)
+            .ShouldBe("varchar(100)");
+
+        // The generic provider's DbType.String is what SqlClient turns into nvarchar.
+        var command = new SqlCommand();
+        new DbCommandBuilder(command).AddNamedParameter("s", (object)"abc");
+        var parameter = (SqlParameter)command.Parameters[0];
+        parameter.DbType.ShouldBe(DbType.String);
+        parameter.SqlDbType.ShouldBe(SqlDbType.NVarChar);
+    }
+
+    /// <summary>
+    ///     And the one deliberate exception to it: a <see cref="char" /> is Unicode on SQL Server,
+    ///     because it had no mapping at all before weasel#760 and so there was no behaviour to
+    ///     preserve -- the parameter and the column it generates agree with each other, and an
+    ///     <c>nchar</c> cannot lose a character. weasel#762 settled this alongside the string.
+    /// </summary>
+    [Fact]
+    public void a_char_is_unicode_and_agrees_with_its_own_column_type()
+    {
+        SqlServerProvider.Instance.ToParameterType(typeof(char)).ShouldBe(SqlDbType.NChar);
+        SqlServerProvider.Instance.GetDatabaseType(typeof(char), EnumStorage.AsInteger)
+            .ShouldBe("nchar(1)");
     }
 
     /// <summary>
