@@ -31,6 +31,16 @@ public class MySqlProvider: DatabaseProvider<MySqlCommand, MySqlParameter, MySql
         store<double>(MySqlDbType.Double, "DOUBLE");
         store<float>(MySqlDbType.Float, "FLOAT");
         store<TimeSpan>(MySqlDbType.Time, "TIME");
+
+        // Measured against MySQL 8.0 by round trip rather than taken from MySqlConnector's own
+        // inference: a DateOnly lands as 2026-10-01 in a DATE column and reads back as a DateTime,
+        // a TimeOnly as 13:45:30 in a TIME column and reads back as a TimeSpan. Before weasel#758
+        // neither was mapped, so both fell to the VarChar catch-all and went out as whatever
+        // ToString() produced; after it they resolved to nothing and ToParameterType threw.
+        // GetDatabaseType has never supported either. weasel#763.
+        store<DateOnly>(MySqlDbType.Date, "DATE");
+        store<TimeOnly>(MySqlDbType.Time, "TIME");
+
         store<Guid>(MySqlDbType.Guid, "CHAR(36)");
     }
 
