@@ -41,9 +41,18 @@ public class MySqlProvider: DatabaseProvider<MySqlCommand, MySqlParameter, MySql
                    $"Weasel.MySql does not (yet) support database type mapping to {type.FullNameInCode()}");
     }
 
+    /// <summary>
+    ///     The <see cref="MySqlDbType" /> for a CLR type, or null when there is no mapping.
+    /// </summary>
+    /// <remarks>
+    ///     This used to end in <c>?? MySqlDbType.VarChar</c>, which could never return null -- so
+    ///     <see cref="determineParameterType" /> always reported success and every branch after
+    ///     its first was dead code, including weasel#404's "null means unmapped, defer to the
+    ///     driver". weasel#758 found the same shape on the generic provider and SQL Server.
+    /// </remarks>
     private MySqlDbType? ResolveMySqlDbType(Type type)
     {
-        return ResolveParameterTypeFromMemo(type) ?? MySqlDbType.VarChar;
+        return ResolveParameterTypeFromMemo(type);
     }
 
     protected override Type[] determineClrTypesForParameterType(MySqlDbType dbType)
@@ -101,15 +110,13 @@ public class MySqlProvider: DatabaseProvider<MySqlCommand, MySqlParameter, MySql
             return true;
         }
 
-        if (type.IsEnum)
+        // Enums and arrays keep the VarChar catch-all they have always resolved to. The Int32
+        // this branch used to carry, and the array refusal that followed it, were both
+        // unreachable; turning either on is its own behaviour change, tracked separately.
+        if (type.IsEnum || type.IsArray)
         {
-            dbType = MySqlDbType.Int32;
+            dbType = MySqlDbType.VarChar;
             return true;
-        }
-
-        if (type.IsArray)
-        {
-            throw new NotSupportedException("MySql does not support arrays as parameters");
         }
 
         if (type == typeof(DBNull))

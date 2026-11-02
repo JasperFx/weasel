@@ -154,6 +154,37 @@ group.AppendParameter("value3");
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/CommandBuilderSamples.cs#L90-L96' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_grouped_parameters' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+## Parameter Types
+
+A command builder types each parameter from the provider's CLR-to-parameter-type map before the
+driver ever sees it. Which call you use decides where that type comes from:
+
+| Call | Where the type comes from |
+|---|---|
+| `AppendParameter(value, dbType)` | the type you pass |
+| `AppendParameter(int / Guid / string)` | the provider's map, for that one type |
+| `AppendParameter((object)value)` | nowhere — the parameter is left untyped and the driver infers it |
+| `AddNamedParameter(name, (object)value)` | the provider's map, from the value |
+| `AddParameters(object)` / `AddParameters(dictionary)` | the provider's map, from each value |
+
+When a provider has no mapping for a type, it **defers**: the parameter is left untyped and the
+driver infers it from the value. That is deliberate — a provider guessing a catch-all type is worse
+than saying nothing, because the server then has to convert. On SQL Server the catch-all is
+`sql_variant`, which outranks every ordinary type in data type precedence, so comparing one against
+a column converts **the column**, once per row, and an indexed lookup becomes a scan.
+
+`TryGetDbType` and `TryGetDbTypeForValue` return `null` for an unmapped type, so a caller can tell
+"no mapping" from a real answer. `ToParameterType` and `ToParameterTypeForValue` throw instead; use
+them only where deferring is not acceptable.
+
+Two cases resolve from the value rather than its type, because a per-type map cannot express them:
+PostgreSQL picks `timestamptz` over `timestamp` from a `DateTime.Kind`, and picks an array's element
+type from its first element. Those only work through the value-aware calls in the table above.
+
+To add a mapping of your own, or to override one, call `RegisterMapping(type, databaseType,
+parameterType)` on the provider before you build any commands. Passing `null` as the parameter type
+registers the type as deliberately deferred.
+
 ## When to Use What
 
 | Scenario | Tool |

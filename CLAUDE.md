@@ -214,6 +214,57 @@ This one is SQL Server's alone. PostgreSQL analyzes each statement of a multi-st
 it reaches it, Oracle already sends one statement per command, and MySQL and SQLite parse per
 statement.
 
+### A parameter-type resolver must be able to say "I don't know"
+
+`determineParameterType` is a chain: memo, then nullable, then enum, then array, then DBNull, then
+open generic, then `return false`. Five of the seven providers resolved the first step through a
+private helper that ended in `?? <catch-all>`:
+
+```csharp
+private SqlDbType? ResolveSqlDbType(Type type)
+    => ResolveParameterTypeFromMemo(type) ?? SqlDbType.Variant;   // never null
+```
+
+That can never return null, so the chain always stopped at step one and **every branch after it was
+dead code** — including weasel#404's "null means unmapped, defer to the driver". PostgreSQL and
+Firebird fell through properly, which is exactly why the divergence read as a PostgreSQL quirk
+instead of a bug in the other five. Four tests in `SqlServerProviderTests` carried the skip reason
+"Different backing behaviour than for Postgres"; that *was* the bug (weasel#758).
+
+**The catch-all is not a harmless default — on SQL Server it is a seek-killer.** `DbType.Object` and
+`SqlDbType.Variant` go out as `sql_variant`, and sql_variant sits near the top of SQL Server's data
+type precedence list. So comparing one against a column converts **the column**, once per row:
+
+```
+guid col, DbType.Object     Clustered Index Scan   CONVERT_IMPLICIT(sql_variant,[probe_guid].[id],0)
+guid col, DbType.Guid       Clustered Index Seek
+```
+
+Every type missing from the memo paid that, which on SQL Server meant `Guid`, `short`, `byte`,
+`float`, `char`, `DateOnly` and `TimeOnly`. So **a missing `store<T>()` is a performance bug, not a
+gap** — check the memo before concluding a provider "doesn't support" a type.
+
+Three things that follow:
+
+- **Two branches were revived by making the chain honest**, and both were left as explicit
+  catch-alls rather than changed: an enum would have started binding as an integer, and an array
+  would have started throwing the refusal written below it. `enums_and_arrays_keep_the_behaviour_they_had`
+  in `Weasel.Core.Tests/parameter_types_resolve_or_defer.cs` pins them (weasel#761).
+- **`AddParameters` is a separate path and has its own trap.** Both overloads resolved through
+  `ToParameterType` on the *type*, which skips the value-aware seam weasel#403 added — so a UTC
+  `DateTime` in a parameter bag was bound as `timestamp without time zone` and **Npgsql threw**,
+  while the same value through `AddNamedParameter` worked. Anything keyed off a value rather than a
+  type has to go through `TryGetDbTypeForValue`.
+- **`DateTime` was mapped to a date-only parameter type** on the generic provider and SQL Server, so
+  the time of day was silently dropped (weasel#759). `DateTime2` round trips exactly and seeks
+  against both a `datetime` and a `datetime2` column; the generated column type stays `datetime` so
+  nobody gets a schema diff. The parameter and column types deliberately disagree in name.
+
+Verify a parameter-type claim by reading the **actual** plan, not by reasoning about precedence:
+run the query, then pull `sys.dm_exec_query_plan` for it and look for `CONVERT_IMPLICIT` and which
+side it names. Several intuitions here were wrong — `DateTime2` against a `datetime` column seeks
+cleanly, and a `varchar` parameter against an `nvarchar` column seeks while the reverse scans.
+
 ### A `Type`-keyed seam cannot be a generic, because of Native AOT
 
 `MakeGenericType` closes an instantiation whose type arguments are all **reference** types — they

@@ -18,16 +18,37 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
 
     protected override void storeMappings()
     {
+        // Anything missing from this table fell to the Variant catch-all, and SQL Server
+        // compares a sql_variant parameter by converting the *column* on every row -- so a
+        // `where v = @p` against an indexed column scanned instead of seeking. byte, short,
+        // float and char were all missing, which made each of them weasel#758 one type over.
         store<string>(SqlDbType.VarChar, "varchar(100)");
         store<bool>(SqlDbType.Bit, "bit");
+        store<byte>(SqlDbType.TinyInt, "tinyint");
+        store<short>(SqlDbType.SmallInt, "smallint");
+        store<int>(SqlDbType.Int, "int");
         store<long>(SqlDbType.BigInt, "bigint");
         store<byte[]>(SqlDbType.Binary, "binary");
-        store<DateTime>(SqlDbType.Date, "datetime");
+
+        // SqlDbType.Date sends the value as `date`, which silently dropped the time of day
+        // (weasel#759). DateTime2 round trips exactly and still seeks against a `datetime`
+        // column as well as a `datetime2` one. The database type stays `datetime` on purpose:
+        // the column a migration generates does not change, so nobody gets a schema diff.
+        store<DateTime>(SqlDbType.DateTime2, "datetime");
         store<DateTimeOffset>(SqlDbType.DateTimeOffset, "datetimeoffset");
+        store<DateOnly>(SqlDbType.Date, "date");
+        store<TimeOnly>(SqlDbType.Time, "time");
+        store<TimeSpan>(SqlDbType.Time, "time");
+
         store<decimal>(SqlDbType.Decimal, "decimal");
         store<double>(SqlDbType.Float, "float");
-        store<int>(SqlDbType.Int, "int");
-        store<TimeSpan>(SqlDbType.Time, "time");
+        store<float>(SqlDbType.Real, "real");
+
+        // Unicode, unlike the non-Unicode default `string` carries, because a char had no
+        // mapping at all before and so there is no behaviour here to preserve -- and nchar
+        // cannot lose a character. The column type generated below agrees with it either way.
+        store<char>(SqlDbType.NChar, "nchar(1)");
+
         store<Guid>(SqlDbType.UniqueIdentifier, "uniqueidentifier");
     }
 
@@ -42,9 +63,20 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
                    $"Weasel.SqlServer does not (yet) support database type mapping to {type.FullNameInCode()}");
     }
 
+    /// <summary>
+    ///     The <see cref="SqlDbType" /> for a CLR type, or null when there is no mapping for it.
+    /// </summary>
+    /// <remarks>
+    ///     This used to end in <c>?? SqlDbType.Variant</c>. That could never return null, so
+    ///     <see cref="determineParameterType" /> always reported success and every branch after
+    ///     its first was unreachable -- which is why weasel#404's "null means unmapped, defer to
+    ///     the driver" never applied here. An unmapped type was typed <c>Variant</c>, and SQL
+    ///     Server compares a sql_variant parameter by converting the *column* on every row, so
+    ///     the query scanned (weasel#758).
+    /// </remarks>
     private SqlDbType? ResolveSqlDbType(Type type)
     {
-        return ResolveParameterTypeFromMemo(type) ?? SqlDbType.Variant;
+        return ResolveParameterTypeFromMemo(type);
     }
 
 
@@ -106,15 +138,14 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
             return true;
         }
 
-        if (type.IsEnum)
+        // Enums and arrays keep resolving to the Variant catch-all they have always resolved
+        // to. The Int this branch used to carry, and the array refusal that followed it, were
+        // both unreachable; turning either on is a behaviour change of its own rather than part
+        // of weasel#758, so each is tracked separately.
+        if (type.IsEnum || type.IsArray)
         {
-            dbType = System.Data.SqlDbType.Int;
+            dbType = System.Data.SqlDbType.Variant;
             return true;
-        }
-
-        if (type.IsArray)
-        {
-            throw new NotSupportedException("Sql Server does not support arrays");
         }
 
         if (type == typeof(DBNull))
