@@ -185,6 +185,54 @@ To add a mapping of your own, or to override one, call `RegisterMapping(type, da
 parameterType)` on the provider before you build any commands. Passing `null` as the parameter type
 registers the type as deliberately deferred.
 
+### Strings on SQL Server are bound as non-Unicode, on purpose
+
+The two builders disagree about what a .NET `string` is, and the disagreement is deliberate:
+
+| Provider | Parameter type | Sent as |
+|---|---|---|
+| `Weasel.SqlServer` | `SqlDbType.VarChar` | `varchar` |
+| the generic `DbCommandBuilder` | `DbType.String` | `nvarchar` (SqlClient's mapping) |
+
+`nvarchar` outranks `varchar` in SQL Server's data type precedence, so the direction decides which
+side of a comparison gets converted — and only one direction converts the column. Measured on SQL
+Server 2025 by reading the cached plan out of `sys.dm_exec_query_plan`, against an indexed column of
+5,000 rows:
+
+| Parameter | Column | Plan |
+|---|---|---|
+| `VarChar` | `varchar(100)` | Index Seek |
+| `VarChar` | `nvarchar(100)` | Index Seek, `CONVERT_IMPLICIT` on the **parameter** |
+| `NVarChar` | `nvarchar(100)` | Index Seek |
+| `NVarChar` | `varchar(100)` | **Index Scan**, `CONVERT_IMPLICIT(nvarchar(100), [probe])` on the **column** |
+
+So `varchar` is the safe direction: it seeks against either column shape, because converting one
+parameter is free and converting every row is not. `nvarchar` is dangerous specifically against the
+`varchar` column that **Weasel's own DDL generates** for a `string`.
+
+Both defaults are left as they are. Changing the generic provider to `DbType.AnsiString` would make
+it seek-safe too, but it would silently truncate non-Latin1 text — a data bug traded for a
+performance one, which is the wrong direction. Changing the generated column type to `nvarchar`
+would be correct and seek-clean, but it is a schema diff and an `ALTER` for every existing `varchar`
+column downstream.
+
+If you bind strings through the generic `DbCommandBuilder` against SQL Server and your columns are
+`varchar`, pass the parameter type explicitly:
+
+```csharp
+builder.AppendParameter(value, DbType.AnsiString);
+```
+
+Downstream, for reference: Polecat declares `varchar(250)` and `varchar(500)` for its identity and
+metadata columns and `nvarchar(max)` for JSON and flat-table string columns. `Weasel.SqlServer`'s
+`VarChar` default seeks against both of those shapes, so nothing downstream is paying for the
+column-converting direction today.
+
+A `char` is the one deliberate exception: `Weasel.SqlServer` binds it as `SqlDbType.NChar` against
+an `nchar(1)` column. It had no mapping at all before weasel#760, so there was no behaviour to
+preserve, the parameter and the column agree with each other, and `nchar` cannot lose a character.
+The asymmetry with `string` is intentional rather than an oversight. See weasel#762.
+
 ## When to Use What
 
 | Scenario | Tool |
