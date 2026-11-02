@@ -555,14 +555,17 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
             return DefaultValueByExpression($"'{value}'");
         }
 
+        // Invariant, like the double overload below: a negative default rendered with the current
+        // culture's negative sign, which is U+2212 rather than ASCII '-' under sv-SE, fi-FI, lt-LT and
+        // nb-NO. weasel#764.
         public ColumnExpression DefaultValue(int value)
         {
-            return DefaultValueByExpression(value.ToString());
+            return DefaultValueByExpression(value.ToString(CultureInfo.InvariantCulture));
         }
 
         public ColumnExpression DefaultValue(long value)
         {
-            return DefaultValueByExpression(value.ToString());
+            return DefaultValueByExpression(value.ToString(CultureInfo.InvariantCulture));
         }
 
         public ColumnExpression DefaultValue(double value)

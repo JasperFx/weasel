@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using JasperFx.Core;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -271,7 +272,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         if (boundaries.Length > 0)
         {
             writer.Write(" FOR VALUES (");
-            writer.Write(boundaries.Select(x => x.ToString()).Join(", "));
+            writer.Write(boundaries.Select(x => x.ToString(CultureInfo.InvariantCulture)).Join(", "));
             writer.Write(")");
         }
 
@@ -322,7 +323,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
         }
 
         var expected = new HashSet<string>(
-            OrderedBoundaries().Select(x => x.ToString()),
+            OrderedBoundaries().Select(x => x.ToString(CultureInfo.InvariantCulture)),
             StringComparer.OrdinalIgnoreCase);
         var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
 
@@ -357,7 +358,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
         foreach (var ordinal in OrderedBoundaries())
         {
-            var boundary = ordinal.ToString();
+            var boundary = ordinal.ToString(CultureInfo.InvariantCulture);
             if (actualSet.Contains(boundary))
             {
                 continue;
@@ -1149,7 +1150,7 @@ OUTPUT inserted.ordinal;";
 
                 foreach (var ordinal in OrderedBoundaries())
                 {
-                    if (existing.Contains(ordinal.ToString()))
+                    if (existing.Contains(ordinal.ToString(CultureInfo.InvariantCulture)))
                     {
                         continue;
                     }
