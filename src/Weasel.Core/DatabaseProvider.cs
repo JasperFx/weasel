@@ -7,6 +7,45 @@ using Weasel.Core.Names;
 namespace Weasel.Core;
 
 /// <summary>
+///     Which CLR type's parameter mapping stands in for an enum, given how the enum is stored.
+/// </summary>
+/// <remarks>
+///     <para>
+///     <c>GetDatabaseType</c> has always generated an integer column for an enum under
+///     <see cref="EnumStorage.AsInteger" /> and a character column under
+///     <see cref="EnumStorage.AsString" />. The parameter path had no <see cref="EnumStorage" /> in
+///     scope at all, so every provider picked one constant and three of six then threw against the
+///     column Weasel itself generates. This is the rule that lets the two agree. weasel#761.
+///     </para>
+///     <para>
+///     <see cref="EnumStorage.AsInteger" /> substitutes the enum's <em>underlying</em> type rather
+///     than <see cref="int" /> flatly, so a <c>long</c>-backed enum carrying a value past
+///     <see cref="int.MaxValue" /> is not truncated and a <c>byte</c>-backed one is not widened past
+///     what its column holds. A provider with no mapping for that underlying type falls back to
+///     <see cref="int" />, which every provider maps.
+///     </para>
+/// </remarks>
+public static class EnumParameterType
+{
+    /// <summary>
+    ///     The stand-in type for <paramref name="type" />, or null when it is not an enum — in which
+    ///     case there is nothing to substitute and the type resolves as itself. A
+    ///     <c>Nullable&lt;TEnum&gt;</c> is treated as its enum.
+    /// </summary>
+    public static Type? Substitute(Type type, EnumStorage enumStyle)
+    {
+        var inner = type.IsNullable() ? type.GetInnerTypeFromNullable() : type;
+
+        if (!inner.IsEnum)
+        {
+            return null;
+        }
+
+        return enumStyle == EnumStorage.AsString ? typeof(string) : Enum.GetUnderlyingType(inner);
+    }
+}
+
+/// <summary>
 ///     Primarily responsible for handling .Net to database engine type mappings
 /// </summary>
 public interface IDatabaseProvider
@@ -99,6 +138,41 @@ public interface IDatabaseProvider<in TCommand, in TParameter, TParameterType>: 
         throw new NotSupportedException($"Can't infer {typeof(TParameterType).Name} for value of type " +
                                         value.GetType());
 
+    /// <summary>
+    ///     The parameter type for a CLR type, resolving an enum the way <paramref name="enumStyle" />
+    ///     says it is stored — so the parameter agrees with the column
+    ///     <see cref="GetDatabaseType" /> generates for the same enum. weasel#761.
+    /// </summary>
+    /// <remarks>
+    ///     Defaulted so that an implementation outside Weasel keeps compiling. Prefer this over
+    ///     <see cref="ToParameterType(Type)" /> wherever the caller knows its
+    ///     <see cref="EnumStorage" />: the parameterless overload has to assume
+    ///     <see cref="EnumStorage.AsInteger" />, and binding an enum as an integer against a
+    ///     <c>varchar</c> column is the same defect weasel#758 was about, one type over.
+    /// </remarks>
+    TParameterType ToParameterType(Type type, EnumStorage enumStyle) =>
+        EnumParameterType.Substitute(type, enumStyle) is { } substitute
+            ? TryGetDbType(substitute) ?? ToParameterType(typeof(int))
+            : ToParameterType(type);
+
+    /// <summary>
+    ///     <see cref="TryGetDbType(Type)" />, resolving an enum by its <see cref="EnumStorage" />.
+    ///     Null still means "unmapped, defer to the driver". weasel#761.
+    /// </summary>
+    TParameterType? TryGetDbType(Type? type, EnumStorage enumStyle) =>
+        type is null
+            ? null
+            : TryGetDbType(EnumParameterType.Substitute(type, enumStyle) ?? type);
+
+    /// <summary>
+    ///     <see cref="TryGetDbTypeForValue(object)" />, resolving an enum by its
+    ///     <see cref="EnumStorage" />. weasel#761.
+    /// </summary>
+    TParameterType? TryGetDbTypeForValue(object value, EnumStorage enumStyle) =>
+        EnumParameterType.Substitute(value.GetType(), enumStyle) is { } substitute
+            ? TryGetDbType(substitute)
+            : TryGetDbTypeForValue(value);
+
     Type[] ResolveTypes(TParameterType parameterType);
     string GetDatabaseType(Type memberType, EnumStorage enumStyle);
     void AddParameter(TCommand command, TParameter parameter);
@@ -160,6 +234,79 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
         }
 
         throw new NotSupportedException($"Can't infer {typeof(TParameterType).Name} for type " + type);
+    }
+
+    /// <summary>
+    ///     The parameter type for a CLR type, resolving an enum the way <paramref name="enumStyle" />
+    ///     says it is stored — so the parameter agrees with the column
+    ///     <see cref="GetDatabaseType" /> generates for the same enum.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     Prefer this over <see cref="ToParameterType(Type)" /> wherever the caller knows its
+    ///     <see cref="EnumStorage" />. The parameterless overload has no <see cref="EnumStorage" />
+    ///     in scope, so it has to assume <see cref="EnumStorage.AsInteger" /> — which is the
+    ///     <c>JasperFx</c> default, but binding an enum as an integer against the <c>varchar</c>
+    ///     column an <see cref="EnumStorage.AsString" /> consumer generated is the same defect
+    ///     weasel#758 was about, one type over.
+    ///     </para>
+    ///     <para>
+    ///     What each provider did before this existed, measured against the column its own
+    ///     <c>GetDatabaseType</c> generates rather than reasoned about — and three of the six did
+    ///     not merely convert, they threw:
+    ///     </para>
+    ///     <list type="table">
+    ///         <item><term>SQL Server, <c>Variant</c></term><description>threw against both columns:
+    ///         "Implicit conversion from data type sql_variant to int is not allowed"</description></item>
+    ///         <item><term>MySQL, <c>VarChar</c></term><description>threw against the AsInteger
+    ///         column: "Incorrect integer value: 'Strawberry'"</description></item>
+    ///         <item><term>Oracle, <c>Varchar2</c></term><description>threw against the AsInteger
+    ///         column: ORA-01722</description></item>
+    ///         <item><term>SQLite, <c>Text</c></term><description>stored the integer either way —
+    ///         type affinity makes it moot</description></item>
+    ///         <item><term>PostgreSQL and Firebird, <c>Integer</c></term><description>correct for
+    ///         AsInteger, wrong for AsString</description></item>
+    ///     </list>
+    /// </remarks>
+    public TParameterType ToParameterType(Type type, EnumStorage enumStyle)
+    {
+        if (EnumParameterType.Substitute(type, enumStyle) is not { } substitute)
+        {
+            return ToParameterType(type);
+        }
+
+        // Fall back to int when the provider has no mapping for the underlying type -- every
+        // provider maps int, and PostgreSQL resolves integers through Npgsql's own map rather
+        // than a storeMappings() entry.
+        return TryGetDbType(substitute) ?? ToParameterType(typeof(int));
+    }
+
+    /// <summary>
+    ///     <see cref="TryGetDbType(Type)" />, resolving an enum by its <see cref="EnumStorage" />.
+    ///     Null still means "unmapped, defer to the driver". weasel#761.
+    /// </summary>
+    public TParameterType? TryGetDbType(Type? type, EnumStorage enumStyle)
+    {
+        if (type == null)
+        {
+            return null;
+        }
+
+        return TryGetDbType(EnumParameterType.Substitute(type, enumStyle) ?? type);
+    }
+
+    /// <summary>
+    ///     <see cref="TryGetDbTypeForValue(object)" />, resolving an enum by its
+    ///     <see cref="EnumStorage" />. weasel#761.
+    /// </summary>
+    public TParameterType? TryGetDbTypeForValue(object value, EnumStorage enumStyle)
+    {
+        if (EnumParameterType.Substitute(value.GetType(), enumStyle) is { } substitute)
+        {
+            return TryGetDbType(substitute);
+        }
+
+        return TryGetDbTypeForValue(value);
     }
 
     /// <summary>

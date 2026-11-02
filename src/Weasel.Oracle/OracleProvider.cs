@@ -123,14 +123,29 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
             return true;
         }
 
-        // Enums and arrays keep the Varchar2 catch-all they have always resolved to. The Int32
-        // this branch used to carry, and the array refusal that followed it, were both
-        // unreachable; turning either on is its own behaviour change, tracked separately.
-        if (type.IsEnum || type.IsArray)
+        // Measured against a live server rather than reasoned about: what every provider did here
+        // was wrong against the column its own GetDatabaseType generates, and three of the six did
+        // not merely convert but threw. An enum now resolves through EnumStorage.AsInteger -- the
+        // JasperFx default, and what PostgreSQL, Firebird and SQLite already did in effect -- which
+        // also routes it through the enum's *underlying* type, so a long-backed enum is not
+        // truncated. An AsString consumer calls ToParameterType(type, EnumStorage.AsString).
+        // weasel#761.
+        //
+        // Oracle's Varchar2 sent the enum's *name*, which worked against an AsString column and
+        // threw ORA-01722 against the AsInteger one. As on MySQL, an AsString consumer has to move
+        // to the EnumStorage overload.
+        if (type.IsEnum)
         {
-            dbType = OracleDbType.Varchar2;
+            dbType = ToParameterType(type, EnumStorage.AsInteger);
             return true;
         }
+
+        // An array is left unmapped, so it defers: TryGetDbType returns null and the parameter goes
+        // out untyped for the driver to infer. The refusal the dead branch carried was never
+        // reachable, and overriding a driver that can handle an array -- a table-valued parameter,
+        // MySqlConnector's own handling -- would be the worse of the two answers. byte[] never
+        // reaches here; it is in the memo. So there is deliberately no `type.IsArray` branch
+        // below. weasel#761.
 
         if (type == typeof(DBNull))
         {

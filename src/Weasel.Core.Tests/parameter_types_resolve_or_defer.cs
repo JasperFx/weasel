@@ -1,5 +1,6 @@
 using System.Data;
 using Microsoft.Data.SqlClient;
+using FirebirdSql.Data.FirebirdClient;
 using Microsoft.Data.Sqlite;
 using MySqlConnector;
 using Npgsql;
@@ -56,7 +57,8 @@ public class parameter_types_resolve_or_defer
     private enum Flavor
     {
         Sweet,
-        Salty
+        Salty,
+        Strawberry
     }
 
     /// <summary>
@@ -234,29 +236,212 @@ public class parameter_types_resolve_or_defer
     }
 
     /// <summary>
-    ///     Enums and arrays keep the catch-all they have always resolved to. Making the fall-through
-    ///     honest revived two branches that had been unreachable — an enum would have started binding
-    ///     as an integer, and an array would have started throwing the refusal written below it — and
-    ///     both are behaviour changes of their own rather than part of weasel#758. This pins them so
-    ///     that whoever changes one does it on purpose.
+    ///     weasel#761. This test used to be <c>enums_and_arrays_keep_the_behaviour_they_had</c>, and
+    ///     it is rewritten rather than deleted because the behaviour it pinned has deliberately
+    ///     changed — which is what it existed to force. It pinned the two explicit catch-alls
+    ///     weasel#760 left behind when it made the fall-through honest, so that whoever changed one
+    ///     did it on purpose. This is that change.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///     What each provider sent for an enum before, measured against the column its own
+    ///     <c>GetDatabaseType</c> generates rather than reasoned about. Three of the six did not
+    ///     merely convert the column — they threw outright, which is why there was no behaviour here
+    ///     worth preserving:
+    ///     </para>
+    ///     <list type="table">
+    ///         <item><term>SQL Server, Variant</term><description>threw against both columns:
+    ///         "Implicit conversion from data type sql_variant to int is not allowed"</description></item>
+    ///         <item><term>MySQL, VarChar</term><description>sent the name; threw against the
+    ///         AsInteger column: "Incorrect integer value: 'Strawberry'"</description></item>
+    ///         <item><term>Oracle, Varchar2</term><description>sent the name; threw ORA-01722 against
+    ///         the AsInteger column</description></item>
+    ///         <item><term>SQLite, Text</term><description>stored the integer either way; type
+    ///         affinity makes it moot</description></item>
+    ///         <item><term>PostgreSQL / Firebird, Integer</term><description>correct for AsInteger,
+    ///         wrong for AsString</description></item>
+    ///     </list>
+    /// </remarks>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void an_enum_resolves_as_an_integer_unless_told_otherwise(string provider)
+    {
+        // The parameterless overload has no EnumStorage in scope, so it assumes AsInteger -- the
+        // JasperFx default -- and must not diverge from the explicit call.
+        ToDbType(provider, typeof(Flavor))
+            .ShouldBe(ToDbType(provider, typeof(int)));
+
+        ToDbType(provider, typeof(Flavor), EnumStorage.AsInteger)
+            .ShouldBe(ToDbType(provider, typeof(int)));
+
+        ToDbType(provider, typeof(Flavor), EnumStorage.AsString)
+            .ShouldBe(ToDbType(provider, typeof(string)));
+    }
+
+    /// <summary>
+    ///     The invariant that keeps the two overloads from drifting: every provider routes its
+    ///     parameterless enum branch through the same rule, rather than naming a constant of its own.
+    ///     That is how the catch-alls came to disagree in the first place.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void the_parameterless_overload_agrees_with_as_integer(string provider)
+    {
+        foreach (var type in new[] { typeof(Flavor), typeof(Flavor?), typeof(LongFlavor), typeof(ByteFlavor) })
+        {
+            ToDbType(provider, type)
+                .ShouldBe(ToDbType(provider, type, EnumStorage.AsInteger), $"{provider}, {type.Name}");
+        }
+    }
+
+    /// <summary>
+    ///     An enum is resolved through its <em>underlying</em> type, not through <see cref="int" />
+    ///     flatly, so a <c>long</c>-backed enum carrying a value past <see cref="int.MaxValue" />
+    ///     cannot be narrowed on the way out. Asserted where the provider has a distinct mapping for
+    ///     the underlying type; SQLite maps every integer width to <c>INTEGER</c>, so there is
+    ///     nothing to tell apart there.
     /// </summary>
     [Fact]
-    public void enums_and_arrays_keep_the_behaviour_they_had()
+    public void a_long_backed_enum_resolves_through_its_underlying_type()
     {
-        SqlServerProvider.Instance.ToParameterType(typeof(Flavor)).ShouldBe(SqlDbType.Variant);
-        SqlServerProvider.Instance.ToParameterType(typeof(int[])).ShouldBe(SqlDbType.Variant);
+        SqlServerProvider.Instance.ToParameterType(typeof(LongFlavor)).ShouldBe(SqlDbType.BigInt);
+        MySqlProvider.Instance.ToParameterType(typeof(LongFlavor)).ShouldBe(MySqlDbType.Int64);
+        OracleProvider.Instance.ToParameterType(typeof(LongFlavor)).ShouldBe(OracleDbType.Int64);
+        FirebirdProvider.Instance.ToParameterType(typeof(LongFlavor)).ShouldBe(FbDbType.BigInt);
 
-        SqliteProvider.Instance.ToParameterType(typeof(Flavor)).ShouldBe(SqliteType.Text);
-        SqliteProvider.Instance.ToParameterType(typeof(int[])).ShouldBe(SqliteType.Text);
+        // And the value a narrowing would have lost really is out of int's range.
+        ((long)LongFlavor.Huge).ShouldBeGreaterThan(int.MaxValue);
+    }
 
-        MySqlProvider.Instance.ToParameterType(typeof(Flavor)).ShouldBe(MySqlDbType.VarChar);
-        MySqlProvider.Instance.ToParameterType(typeof(int[])).ShouldBe(MySqlDbType.VarChar);
+    /// <summary>
+    ///     A nullable enum resolves the same way as its enum, rather than falling through the
+    ///     nullable branch to something else.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void a_nullable_enum_resolves_like_its_enum(string provider)
+    {
+        ToDbType(provider, typeof(Flavor?)).ShouldBe(ToDbType(provider, typeof(Flavor)));
+        ToDbType(provider, typeof(Flavor?), EnumStorage.AsString)
+            .ShouldBe(ToDbType(provider, typeof(string)));
+    }
 
-        OracleProvider.Instance.ToParameterType(typeof(Flavor)).ShouldBe(OracleDbType.Varchar2);
-        OracleProvider.Instance.ToParameterType(typeof(int[])).ShouldBe(OracleDbType.Varchar2);
+    /// <summary>
+    ///     An enum resolved from a <em>value</em> rather than a type goes through the same rule, so
+    ///     the value-aware path cannot be the one that keeps the old answer. weasel#403 added that
+    ///     seam, and weasel#758 found that <c>AddParameters</c> had gone around it.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(Providers))]
+    public void an_enum_value_resolves_the_same_way_as_its_type(string provider)
+    {
+        ForValue(provider, Flavor.Strawberry).ShouldBe(ToDbType(provider, typeof(int)));
+        ForValue(provider, Flavor.Strawberry, EnumStorage.AsString)
+            .ShouldBe(ToDbType(provider, typeof(string)));
+    }
 
-        // byte[] is in SQLite's memo as a blob and must not be caught by the array branch.
+    /// <summary>
+    ///     Arrays now defer instead of resolving to a character catch-all. The refusal the dead
+    ///     branch carried ("Sql Server does not support arrays") is deliberately <em>not</em> turned
+    ///     on: deferring leaves the parameter untyped for the driver, which is both the established
+    ///     meaning of "unmapped" here (weasel#404) and the answer that does not override a driver
+    ///     able to handle an array on its own.
+    /// </summary>
+    /// <remarks>
+    ///     PostgreSQL still maps an array properly, as an <c>Array | element</c> composite, and
+    ///     Firebird still refuses one outright. Neither is changed — the four providers that silently
+    ///     bound an <c>int[]</c> as text are.
+    /// </remarks>
+    [Theory]
+    [InlineData("SqlServer")]
+    [InlineData("Sqlite")]
+    [InlineData("MySql")]
+    [InlineData("Oracle")]
+    public void an_array_defers_to_the_driver(string provider)
+    {
+        TryGetDbType(provider, typeof(int[]))
+            .ShouldBeNull($"{provider} should leave an int[] to the driver");
+
+        // ToParameterType still throws for an unmapped type, which is what it has meant since #760.
+        Should.Throw<NotSupportedException>(() => ToDbType(provider, typeof(int[])));
+    }
+
+    [Fact]
+    public void postgresql_still_maps_an_array_and_firebird_still_refuses_one()
+    {
+        PostgresqlProvider.Instance.ToParameterType(typeof(int[]))
+            .ShouldBe(NpgsqlDbType.Array | NpgsqlDbType.Integer);
+
+        Should.Throw<NotSupportedException>(() => FirebirdProvider.Instance.ToParameterType(typeof(int[])));
+    }
+
+    /// <summary>
+    ///     SQLite's <c>byte[]</c> is in the memo as a blob and must not be caught by the change
+    ///     above — the memo is consulted first, so an array branch could never have reached it, but
+    ///     that ordering is exactly the kind of thing a later edit breaks.
+    /// </summary>
+    [Fact]
+    public void a_byte_array_is_still_a_blob_rather_than_a_deferred_array()
+    {
         SqliteProvider.Instance.ToParameterType(typeof(byte[])).ShouldBe(SqliteType.Blob);
+        SqlServerProvider.Instance.ToParameterType(typeof(byte[])).ShouldBe(SqlDbType.Binary);
+        MySqlProvider.Instance.ToParameterType(typeof(byte[])).ShouldBe(MySqlDbType.Blob);
+        OracleProvider.Instance.ToParameterType(typeof(byte[])).ShouldBe(OracleDbType.Blob);
+        PostgresqlProvider.Instance.ToParameterType(typeof(byte[])).ShouldBe(NpgsqlDbType.Bytea);
+    }
+
+    private static object ToDbType(string provider, Type type) => provider switch
+    {
+        "PostgreSQL" => PostgresqlProvider.Instance.ToParameterType(type),
+        "SqlServer" => SqlServerProvider.Instance.ToParameterType(type),
+        "Sqlite" => SqliteProvider.Instance.ToParameterType(type),
+        "MySql" => MySqlProvider.Instance.ToParameterType(type),
+        "Oracle" => OracleProvider.Instance.ToParameterType(type),
+        "Firebird" => FirebirdProvider.Instance.ToParameterType(type),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider)
+    };
+
+    private static object ToDbType(string provider, Type type, EnumStorage enumStyle) => provider switch
+    {
+        "PostgreSQL" => PostgresqlProvider.Instance.ToParameterType(type, enumStyle),
+        "SqlServer" => SqlServerProvider.Instance.ToParameterType(type, enumStyle),
+        "Sqlite" => SqliteProvider.Instance.ToParameterType(type, enumStyle),
+        "MySql" => MySqlProvider.Instance.ToParameterType(type, enumStyle),
+        "Oracle" => OracleProvider.Instance.ToParameterType(type, enumStyle),
+        "Firebird" => FirebirdProvider.Instance.ToParameterType(type, enumStyle),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider)
+    };
+
+    private static object? ForValue(string provider, object value) => provider switch
+    {
+        "PostgreSQL" => PostgresqlProvider.Instance.TryGetDbTypeForValue(value),
+        "SqlServer" => SqlServerProvider.Instance.TryGetDbTypeForValue(value),
+        "Sqlite" => SqliteProvider.Instance.TryGetDbTypeForValue(value),
+        "MySql" => MySqlProvider.Instance.TryGetDbTypeForValue(value),
+        "Oracle" => OracleProvider.Instance.TryGetDbTypeForValue(value),
+        "Firebird" => FirebirdProvider.Instance.TryGetDbTypeForValue(value),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider)
+    };
+
+    private static object? ForValue(string provider, object value, EnumStorage enumStyle) => provider switch
+    {
+        "PostgreSQL" => PostgresqlProvider.Instance.TryGetDbTypeForValue(value, enumStyle),
+        "SqlServer" => SqlServerProvider.Instance.TryGetDbTypeForValue(value, enumStyle),
+        "Sqlite" => SqliteProvider.Instance.TryGetDbTypeForValue(value, enumStyle),
+        "MySql" => MySqlProvider.Instance.TryGetDbTypeForValue(value, enumStyle),
+        "Oracle" => OracleProvider.Instance.TryGetDbTypeForValue(value, enumStyle),
+        "Firebird" => FirebirdProvider.Instance.TryGetDbTypeForValue(value, enumStyle),
+        _ => throw new ArgumentOutOfRangeException(nameof(provider), provider)
+    };
+
+    public enum LongFlavor : long
+    {
+        Huge = 5_000_000_000L
+    }
+
+    public enum ByteFlavor : byte
+    {
+        Tiny = 7
     }
 
     /// <summary>

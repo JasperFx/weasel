@@ -181,6 +181,41 @@ Two cases resolve from the value rather than its type, because a per-type map ca
 PostgreSQL picks `timestamptz` over `timestamp` from a `DateTime.Kind`, and picks an array's element
 type from its first element. Those only work through the value-aware calls in the table above.
 
+### Enums need to be told how they are stored
+
+`GetDatabaseType` has always generated an integer column for an enum under
+`EnumStorage.AsInteger` and a character column under `EnumStorage.AsString`. The parameter path had
+no `EnumStorage` in scope, so each provider picked one constant — and against the column Weasel
+itself generates, three of the six did not merely convert, they threw:
+
+| Provider | old parameter type | against the AsInteger column | against the AsString column |
+|---|---|---|---|
+| SQL Server | `Variant` | **throws** — `Implicit conversion from data type sql_variant to int is not allowed` | **throws** |
+| MySQL | `VarChar` | **throws** — `Incorrect integer value: 'Strawberry'` | works |
+| Oracle | `Varchar2` | **throws** — `ORA-01722` | works |
+| SQLite | `Text` | works (type affinity stores the integer either way) | stores the integer, not the name |
+| PostgreSQL / Firebird | `Integer` | works | wrong |
+
+So pass the storage wherever you know it:
+
+```csharp
+var dbType = provider.ToParameterType(typeof(Flavor), EnumStorage.AsString);
+
+// and the Try/value-aware siblings
+provider.TryGetDbType(typeof(Flavor), EnumStorage.AsString);
+provider.TryGetDbTypeForValue(theFlavor, EnumStorage.AsString);
+```
+
+The overloads without an `EnumStorage` assume `AsInteger`, which is the `JasperFx` default. They
+resolve an enum through its **underlying** type rather than through `int` flatly, so a `long`-backed
+enum is not narrowed and a `byte`-backed one is not widened past its column. See weasel#761.
+
+### Arrays
+
+Only PostgreSQL maps an array, as an `Array | element` composite. Firebird refuses one outright. The
+other four leave it unmapped, so it defers and the driver rules on it — they used to bind an `int[]`
+as a character type, which is never what the caller meant.
+
 To add a mapping of your own, or to override one, call `RegisterMapping(type, databaseType,
 parameterType)` on the provider before you build any commands. Passing `null` as the parameter type
 registers the type as deliberately deferred.
