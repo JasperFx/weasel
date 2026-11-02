@@ -26,7 +26,7 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="MySqlConnector" Version="2.4.0" />
+    <PackageVersion Include="MySqlConnector" Version="2.6.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Npgsql" Version="9.0.4" />
     <!-- Npgsql EF Core is framework-conditional - see below -->
