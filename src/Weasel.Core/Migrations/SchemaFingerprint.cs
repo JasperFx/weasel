@@ -5,7 +5,7 @@ using System.Text;
 namespace Weasel.Core.Migrations;
 
 /// <summary>
-/// Opt-in short-circuit for <see cref="DatabaseBase{TConnection}.ApplyAllConfiguredChangesToDatabaseAsync(Weasel.Core.MultiTenancy.IGlobalLock{TConnection}, JasperFx.AutoCreate?, ReconnectionOptions?, System.Threading.CancellationToken)"/>
+/// Opt-in short-circuit for <see cref="DatabaseBase{TConnection}.ApplyAllConfiguredChangesToDatabaseAsync(IGlobalLock{TConnection}, JasperFx.AutoCreate?, ReconnectionOptions?, System.Threading.CancellationToken)"/>
 /// (see <see cref="Migrator.UseSchemaFingerprinting"/>): after a successful full apply, a SHA-256
 /// fingerprint of the configured schema's expected DDL is stamped into a one-row table in the migrator's
 /// default schema. The next full apply recomputes the fingerprint in memory and, when it matches the

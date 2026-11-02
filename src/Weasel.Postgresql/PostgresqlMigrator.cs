@@ -414,7 +414,7 @@ $$;
 
     /// <summary>
     ///     The character PostgreSQL delimits identifiers with. A <c>"</c> closes a quoted identifier, and
-    ///     <see cref="SchemaUtils.QuoteName" /> does not double an embedded one -- so a name carrying one
+    ///     <see cref="SchemaUtils.QuoteName(string)" /> does not double an embedded one -- so a name carrying one
     ///     does not stay inside its own quotes. The rest of what is rejected is universal and lives in
     ///     <see cref="IdentifierValidation" />.
     /// </summary>

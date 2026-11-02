@@ -359,7 +359,8 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
     ///     <c>timestamptz</c>. Internally calls <see cref="GetNullableType" /> which
     ///     constructs closed <see cref="Nullable{T}" /> generics via
     ///     <see cref="Type.MakeGenericType" />. <see cref="storeMappings" /> overrides an
-    ///     abstract base and can't be annotated with <see cref="RequiresDynamicCodeAttribute" />
+    ///     abstract base and can't be annotated with
+    ///     <see cref="T:System.Diagnostics.CodeAnalysis.RequiresDynamicCodeAttribute" />
     ///     without IL3051 against <c>DatabaseProvider&lt;,,&gt;.storeMappings</c>, so we
     ///     <see cref="UnconditionalSuppressMessageAttribute">suppress</see> the IL3050 here
     ///     with a Justification. AOT consumers that pre-register the nullable form alongside

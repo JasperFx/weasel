@@ -12,7 +12,8 @@ namespace Weasel.SqlServer;
 ///     Before this, SQL Server had no implementation of the seam at all, so
 ///     <c>ApplyAllConfiguredChangesToDatabaseAsync</c> ran under the nullo lock and the only
 ///     SQL Server migration lock in the stack was the one callers took for themselves through
-///     <see cref="SharedLockExtensions.GetGlobalLock" /> -- where losing the race threw rather
+///     <see cref="SharedLockExtensions.GetGlobalLock(SqlConnection, string, CancellationToken, SqlTransaction?, int?)" />
+///     -- where losing the race threw rather
 ///     than being ruled on by <see cref="ResourceMigrationFailureMode" />. With this, contention
 ///     is an <see cref="AttainLockResult" /> failure on SQL Server exactly as it is on PostgreSQL,
 ///     and <c>ContinueOnFailures</c> means the same thing on both.

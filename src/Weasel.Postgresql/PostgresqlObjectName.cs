@@ -3,7 +3,8 @@ using Weasel.Core;
 namespace Weasel.Postgresql;
 
 /// <remarks>
-///     Like <see cref="DbObjectName" />, this type does not validate. <see cref="From" /> is sometimes
+///     Like <see cref="DbObjectName" />, this type does not validate.
+///     <see cref="From(DbObjectName)" /> is sometimes
 ///     assumed to be a sanitizing boundary and is not -- it quotes for rendering, which is not the same as
 ///     checking that a name is safe. Use <see cref="PostgresqlMigrator.AssertValidIdentifier" /> for that
 ///     (weasel#416).
