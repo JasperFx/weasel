@@ -52,6 +52,34 @@ public class range_partition_value_formatting
         }
     }
 
+    /// <summary>
+    ///     The numeric arm is the same defect one provider over: it rendered with the current culture, so a
+    ///     decimal boundary carried a comma separator under de-DE and a negative one a U+2212 minus sign
+    ///     under sv-SE. The date arms were already invariant. weasel#764.
+    /// </summary>
+    [Theory]
+    [InlineData("de-DE")]
+    [InlineData("sv-SE")]
+    [InlineData("fi-FI")]
+    [InlineData("lt-LT")]
+    public void format_numeric_values_do_not_depend_on_current_culture(string culture)
+    {
+        var original = Thread.CurrentThread.CurrentCulture;
+        try
+        {
+            Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+
+            1.5m.FormatSqlValue().ShouldBe("1.5");
+            (-1.5d).FormatSqlValue().ShouldBe("-1.5");
+            (-7).FormatSqlValue().ShouldBe("-7");
+            (-8L).FormatSqlValue().ShouldBe("-8");
+        }
+        finally
+        {
+            Thread.CurrentThread.CurrentCulture = original;
+        }
+    }
+
     [Fact]
     public void normalize_strips_quotes_for_integers()
     {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using JasperFx.Core;
 
 namespace Weasel.SqlServer.Tables.Partitioning;
@@ -164,6 +165,15 @@ public class RangePartitioning : ISplittablePartitioning
     /// literal and add statements of its own. Mirrors the PostgreSQL side; see weasel#416. Numeric, bool and
     /// date arms are rendered from typed values and cannot contain a quote.
     /// </summary>
+    /// <remarks>
+    ///     Every arm renders under <see cref="CultureInfo.InvariantCulture" />, because the generated DDL is
+    ///     SQL and not display text. The interpolations here used to use the current culture, which made the
+    ///     schema a host emitted depend on where it ran: under <c>th-TH</c> a custom date format string picks
+    ///     up the Buddhist calendar, so <c>2026-10-01</c> rendered as <c>'2569-10-01 ...'</c> — a boundary 543
+    ///     years from the intended one, and a host disagreeing with one running invariant. The numeric arm has
+    ///     the same shape wherever the decimal separator is a comma or the negative sign is not ASCII.
+    ///     weasel#764.
+    /// </remarks>
     internal static string FormatSqlValue<T>(T? value)
     {
         if (value == null) return "NULL";
@@ -171,9 +181,16 @@ public class RangePartitioning : ISplittablePartitioning
         return value switch
         {
             bool b => b ? "1" : "0",
-            int or long or short or byte or decimal or float or double => value.ToString()!,
-            DateTime dt => $"'{dt:yyyy-MM-dd HH:mm:ss}'",
-            DateTimeOffset dto => $"'{dto:yyyy-MM-dd HH:mm:ss.fffffff zzz}'",
+            int or long or short or byte or decimal or float or double =>
+                ((IFormattable)value).ToString(null, CultureInfo.InvariantCulture),
+            DateTime dt => $"'{dt.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)}'",
+            DateTimeOffset dto =>
+                $"'{dto.ToString("yyyy-MM-dd HH:mm:ss.fffffff zzz", CultureInfo.InvariantCulture)}'",
+
+            // Anything else that can render itself invariantly does so; only a type that cannot is left to
+            // its own ToString(). Both arms escape, because either can carry a quote.
+            IFormattable formattable =>
+                $"'{formattable.ToString(null, CultureInfo.InvariantCulture).Replace("'", "''")}'",
             _ => $"'{value.ToString()?.Replace("'", "''")}'"
         };
     }
