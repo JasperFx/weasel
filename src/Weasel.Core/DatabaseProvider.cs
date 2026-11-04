@@ -122,15 +122,16 @@ public interface IDatabaseProvider<in TCommand, in TParameter, TParameterType>: 
     ///     <see cref="DateTime.Kind" />, which a per-type mapping cannot express. weasel#403.
     /// </summary>
     /// <remarks>
-    ///     Stands to <see cref="ToParameterTypeForValue" /> as <see cref="TryGetDbType" /> does
-    ///     to <see cref="ToParameterType" />: null means "unmapped, defer". A provider that
+    ///     Stands to <see cref="ToParameterTypeForValue(object)" /> as
+    ///     <see cref="TryGetDbType(Type)" /> does to <see cref="ToParameterType(Type)" />: null means
+    ///     "unmapped, defer". A provider that
     ///     actively rejects a type — SQL Server and arrays, say — still throws. weasel#404.
     /// </remarks>
     TParameterType? TryGetDbTypeForValue(object value) => TryGetDbType(value.GetType());
 
     /// <summary>
     ///     Resolve the parameter type for a value, throwing when this provider has no mapping.
-    ///     Prefer <see cref="TryGetDbTypeForValue" /> where deferring to the driver is
+    ///     Prefer <see cref="TryGetDbTypeForValue(object)" /> where deferring to the driver is
     ///     acceptable. weasel#403.
     /// </summary>
     TParameterType ToParameterTypeForValue(object value) =>
@@ -322,7 +323,7 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
 
     /// <summary>
     ///     Resolve the parameter type for a value, throwing when this provider has no mapping.
-    ///     Prefer <see cref="TryGetDbTypeForValue" /> where deferring to the driver is
+    ///     Prefer <see cref="TryGetDbTypeForValue(object)" /> where deferring to the driver is
     ///     acceptable. weasel#403.
     /// </summary>
     public TParameterType ToParameterTypeForValue(object value)

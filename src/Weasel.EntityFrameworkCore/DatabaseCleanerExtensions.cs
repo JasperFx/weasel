@@ -18,10 +18,10 @@ public static class DatabaseCleanerExtensions
 
     /// <summary>
     ///     Registers an <see cref="IInitialData{TContext}" /> implementation that seeds data
-    ///     after <see cref="IDatabaseCleaner{TContext}.ResetAllDataAsync" />.
+    ///     after <see cref="IDatabaseCleaner{TContext}.ResetAllDataAsync(CancellationToken)" />.
     ///     Multiple seeders execute in registration order.
     ///     <para>
-    ///     <see cref="Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient" />
+    ///     <see cref="Microsoft.Extensions.DependencyInjection.ServiceCollectionServiceExtensions.AddTransient(Microsoft.Extensions.DependencyInjection.IServiceCollection, Type, Type)" />
     ///     requires <see cref="System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors" />
     ///     on <c>TImplementation</c>; propagating that to <c>TData</c> here would cascade to
     ///     every caller. Suppressed with Justification — AOT consumers that register seeders
@@ -41,7 +41,8 @@ public static class DatabaseCleanerExtensions
 
     /// <summary>
     ///     Registers an inline <see cref="IInitialData{TContext}" /> seeder that executes
-    ///     <paramref name="apply" /> after <see cref="IDatabaseCleaner{TContext}.ResetAllDataAsync" />.
+    ///     <paramref name="apply" /> after
+    ///     <see cref="IDatabaseCleaner{TContext}.ResetAllDataAsync(CancellationToken)" />.
     ///     Useful for small amounts of seed data where authoring a dedicated
     ///     <see cref="IInitialData{TContext}" /> class is unwarranted. Registered as a singleton;
     ///     multiple lambda seeders execute in registration order alongside class-based seeders.

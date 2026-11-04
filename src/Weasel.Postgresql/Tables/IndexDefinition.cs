@@ -268,7 +268,7 @@ public class IndexDefinition: ITableIndex
     /// </summary>
     /// <remarks>
     ///     The last three vary only for a concurrent index on a partitioned table, which is built as
-    ///     three statements per partition rather than one — see <see cref="ToCreateSql" />.
+    ///     three statements per partition rather than one — see <see cref="ToCreateSql(Table)" />.
     /// </remarks>
     private string createStatement(Table parent, string indexName, string table, bool concurrently, bool onlyParent)
     {

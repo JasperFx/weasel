@@ -204,7 +204,8 @@ public static class SharedLockExtensions
     }
 
     /// <summary>
-    ///     The <see cref="AttainLockResult" /> shape of <see cref="TryGetGlobalLock" />, for the
+    ///     The <see cref="AttainLockResult" /> shape of
+    ///     <see cref="TryGetGlobalLock(SqlConnection, string, CancellationToken, int?)" />, for the
     ///     <see cref="IGlobalLock{TConnection}" /> seam that <c>DatabaseBase</c> drives. Contention
     ///     (-1), cancellation (-2) and being picked as a deadlock victim (-3) are reported as a
     ///     failure the caller's <see cref="ResourceMigrationFailureMode" /> gets to rule on; -999
