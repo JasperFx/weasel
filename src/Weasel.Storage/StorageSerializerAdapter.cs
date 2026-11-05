@@ -77,21 +77,46 @@ public sealed class StorageSerializerAdapter : IStorageSerializer
     public ValueTask<object> FromJsonAsync(Type type, Stream stream, CancellationToken cancellationToken = default)
         => _inner.FromJsonAsync(type, stream, cancellationToken);
 
+    /// <summary>
+    ///     Stream the column where the provider allows it, and otherwise hand the read back to the
+    ///     inner serializer's own reader read — the member a user-supplied serializer implements,
+    ///     and the one the synchronous overloads above already use. <c>GetStream</c> is not
+    ///     universal: SqlClient refuses it on <c>nvarchar</c> and on SQL Server 2025's native
+    ///     <c>json</c>, which is weasel#778. Which providers are which is discovered rather than
+    ///     declared; see <see cref="JsonColumnStreaming" /> (weasel#565).
+    /// </summary>
     public async ValueTask<T> FromJsonAsync<T>(DbDataReader reader, int index,
         CancellationToken cancellationToken = default)
     {
-        // Route through the unannotated Stream overload rather than the RUC-annotated
-        // string overloads so the adapter adds no trim/AOT surface of its own.
-        await Task.CompletedTask.ConfigureAwait(false); // row is already buffered; stream access is synchronous
-        await using var stream = reader.GetStream(index);
-        return _inner.FromJson<T>(stream);
+        var stream = await JsonColumnStreaming.TryGetStreamAsync(reader, index, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (stream is null)
+        {
+            return _inner.FromJson<T>(reader, index);
+        }
+
+        await using (stream.ConfigureAwait(false))
+        {
+            return await _inner.FromJsonAsync<T>(stream, cancellationToken).ConfigureAwait(false);
+        }
     }
 
+    /// <inheritdoc cref="FromJsonAsync{T}(DbDataReader,int,CancellationToken)" />
     public async ValueTask<object> FromJsonAsync(Type type, DbDataReader reader, int index,
         CancellationToken cancellationToken = default)
     {
-        await Task.CompletedTask.ConfigureAwait(false);
-        await using var stream = reader.GetStream(index);
-        return _inner.FromJson(type, stream);
+        var stream = await JsonColumnStreaming.TryGetStreamAsync(reader, index, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (stream is null)
+        {
+            return _inner.FromJson(type, reader, index);
+        }
+
+        await using (stream.ConfigureAwait(false))
+        {
+            return await _inner.FromJsonAsync(type, stream, cancellationToken).ConfigureAwait(false);
+        }
     }
 }
