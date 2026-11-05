@@ -282,8 +282,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     /// </summary>
     private HashSet<string> recomputedColumnNames()
     {
+        // A plain type change (ALTER COLUMN) is refused the same way when an index depends on the column
+        // (Msg 5074), so those columns count too. Drift-only changes (default/nullability) do not.
         return Columns.Different
-            .Where(x => x.Expected.ComputedDefinitionChanged(x.Actual))
+            .Where(x => x.Expected.ComputedDefinitionChanged(x.Actual) || !x.Expected.Equals(x.Actual))
             .Select(x => x.Expected.Name)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
