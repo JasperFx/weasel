@@ -123,4 +123,21 @@ public class storage_serializer_adapter_tests
         (await theAdapter.FromJsonAsync(typeof(TestDoc), reader, 0))
             .ShouldBeOfType<TestDoc>().Number.ShouldBe(13);
     }
+
+    [Fact]
+    public async Task async_reader_reads_do_not_depend_on_the_reader_supporting_get_stream()
+    {
+        // A text column on a reader whose GetStream throws, as SQL Server's json type does (weasel#778)
+        var table = new System.Data.DataTable();
+        table.Columns.Add("doc", typeof(string));
+        table.Rows.Add("{\"name\":\"text\",\"number\":21}");
+
+        await using var reader = table.CreateDataReader();
+        reader.Read().ShouldBeTrue();
+        Should.Throw<Exception>(() => reader.GetStream(0));
+
+        (await theAdapter.FromJsonAsync<TestDoc>(reader, 0)).Name.ShouldBe("text");
+        (await theAdapter.FromJsonAsync(typeof(TestDoc), reader, 0))
+            .ShouldBeOfType<TestDoc>().Number.ShouldBe(21);
+    }
 }

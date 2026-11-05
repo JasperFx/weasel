@@ -80,10 +80,8 @@ public sealed class StorageSerializerAdapter : IStorageSerializer
     public async ValueTask<T> FromJsonAsync<T>(DbDataReader reader, int index,
         CancellationToken cancellationToken = default)
     {
-        // Route through the unannotated Stream overload rather than the RUC-annotated
-        // string overloads so the adapter adds no trim/AOT surface of its own.
-        await Task.CompletedTask.ConfigureAwait(false); // row is already buffered; stream access is synchronous
-        await using var stream = reader.GetStream(index);
+        await Task.CompletedTask.ConfigureAwait(false); // row is already buffered; access is synchronous
+        await using var stream = openJson(reader, index);
         return _inner.FromJson<T>(stream);
     }
 
@@ -91,7 +89,23 @@ public sealed class StorageSerializerAdapter : IStorageSerializer
         CancellationToken cancellationToken = default)
     {
         await Task.CompletedTask.ConfigureAwait(false);
-        await using var stream = reader.GetStream(index);
+        await using var stream = openJson(reader, index);
         return _inner.FromJson(type, stream);
+    }
+
+    /// <summary>
+    ///     JSON columns (SQL Server's native json type, SQLite TEXT, nvarchar) are text, and
+    ///     <c>DbDataReader.GetStream</c> throws on them; only binary columns support it. So read
+    ///     text as a string and hand the serializer its UTF-8 bytes (weasel#778). Still routed
+    ///     through the Stream overloads, so the adapter adds no trim/AOT surface of its own.
+    /// </summary>
+    private static Stream openJson(DbDataReader reader, int index)
+    {
+        if (reader.GetFieldType(index) == typeof(byte[]))
+        {
+            return reader.GetStream(index);
+        }
+
+        return new MemoryStream(Encoding.UTF8.GetBytes(reader.GetString(index)), false);
     }
 }
