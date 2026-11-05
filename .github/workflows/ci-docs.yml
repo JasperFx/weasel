@@ -51,12 +51,6 @@ permissions:
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: 1
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
-  # Exactly as in publish-docs.yml, and for the same reason: vitepress-plugin-mermaid 2.0.17 -- the
-  # latest there is, from 2024 -- declares `peer mermaid@"10 || 11"`, while package.json is on
-  # mermaid 12.2.0 because that bump is what closed mermaid's and katex's own advisories. npm 10
-  # refuses the combination outright. Do not "fix" this by pinning mermaid back to 11; see
-  # weasel#729 for the options, none of which is a downgrade.
-  NPM_CONFIG_LEGACY_PEER_DEPS: "true"
 
 jobs:
   build:
