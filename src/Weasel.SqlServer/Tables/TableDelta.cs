@@ -119,7 +119,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         {
             PrimaryKeyDifference = SchemaPatchDifference.Create;
         }
-        else if (!expected.PrimaryKeyOrderMatches(actual.PrimaryKeyColumns, StringComparer.Ordinal))
+        else if (!expected.PrimaryKeyOrderMatches(actual.PrimaryKeyColumns, StringComparer.OrdinalIgnoreCase))
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }

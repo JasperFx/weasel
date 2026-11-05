@@ -46,13 +46,6 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     public override IReadOnlyList<string> PrimaryKeyColumns =>
         ApplyPrimaryKeyOrder(_columns.Where(x => x.IsPrimaryKey).Select(x => x.Name).ToList());
 
-    /// <summary>
-    ///     SQL Server compared key columns with <see cref="StringComparer.Ordinal" /> before the
-    ///     ordering API moved to <see cref="TableBase{TColumn,TIndex,TForeignKey}" />, whose default
-    ///     is case-insensitive. Kept so this is a refactoring and not a behaviour change.
-    /// </summary>
-    protected override StringComparer PrimaryKeyColumnComparer => StringComparer.Ordinal;
-
     /// <inheritdoc />
     /// <inheritdoc />
     protected override string NormalizeIdentifier(string name) => SchemaUtils.Unbracket(name);
