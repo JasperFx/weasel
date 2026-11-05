@@ -1,8 +1,6 @@
 import { defineConfig } from 'vitepress'
-import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default withMermaid(
-  defineConfig({
+export default defineConfig({
     title: 'Weasel',
     description: 'Database schema management and migration for .NET',
     head: [
@@ -215,9 +213,18 @@ export default withMermaid(
       }
     },
 
-    mermaid: {},
-    mermaidPlugin: {
-      class: 'mermaid'
+    markdown: {
+      config(md) {
+        // ```mermaid fences become a <Mermaid> component that renders client-side (theme/Mermaid.vue).
+        // This replaces vitepress-plugin-mermaid, which peers on mermaid 10 || 11 (weasel#729).
+        const fence = md.renderer.rules.fence!
+        md.renderer.rules.fence = (tokens, idx, options, env, self) => {
+          const token = tokens[idx]
+          if (token.info.trim() === 'mermaid') {
+            return `<Mermaid code="${encodeURIComponent(token.content)}" />`
+          }
+          return fence(tokens, idx, options, env, self)
+        }
+      }
     }
   })
-)
