@@ -1,5 +1,8 @@
 using System.Buffers;
+using System.Data;
+using System.Data.Common;
 using System.Text;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Shouldly;
 using Weasel.Core;
@@ -128,16 +131,70 @@ public class storage_serializer_adapter_tests
     public async Task async_reader_reads_do_not_depend_on_the_reader_supporting_get_stream()
     {
         // A text column on a reader whose GetStream throws, as SQL Server's json type does (weasel#778)
-        var table = new System.Data.DataTable();
+        var table = new DataTable();
         table.Columns.Add("doc", typeof(string));
         table.Rows.Add("{\"name\":\"text\",\"number\":21}");
 
         await using var reader = table.CreateDataReader();
         reader.Read().ShouldBeTrue();
-        Should.Throw<Exception>(() => reader.GetStream(0));
+        Should.Throw<InvalidCastException>(() => reader.GetStream(0));
 
         (await theAdapter.FromJsonAsync<TestDoc>(reader, 0)).Name.ShouldBe("text");
         (await theAdapter.FromJsonAsync(typeof(TestDoc), reader, 0))
             .ShouldBeOfType<TestDoc>().Number.ShouldBe(21);
+    }
+
+    /// <summary>
+    ///     What a user actually supplies: an ISerializer of their own, not a
+    ///     SystemTextJsonSerializer subclass. Its reader reads are the only ones the adapter should
+    ///     be using (weasel#778 / polecat#908).
+    /// </summary>
+    private sealed class CustomSerializer : ISerializer
+    {
+        public int ReaderReads { get; private set; }
+        public EnumStorage EnumStorage => EnumStorage.AsInteger;
+        public Casing Casing => Casing.Default;
+        public string ToJson(object document) => JsonSerializer.Serialize(document);
+        public T FromJson<T>(Stream stream) => JsonSerializer.Deserialize<T>(stream)!;
+        public object FromJson(Type type, Stream stream) => JsonSerializer.Deserialize(stream, type)!;
+
+        public T FromJson<T>(DbDataReader reader, int index)
+        {
+            ReaderReads++;
+            return JsonSerializer.Deserialize<T>(reader.GetString(index))!;
+        }
+
+        public object FromJson(Type type, DbDataReader reader, int index)
+        {
+            ReaderReads++;
+            return JsonSerializer.Deserialize(reader.GetString(index), type)!;
+        }
+
+        public ValueTask<T> FromJsonAsync<T>(Stream stream, CancellationToken cancellationToken = default)
+            => new(FromJson<T>(stream));
+
+        public ValueTask<object> FromJsonAsync(Type type, Stream stream, CancellationToken cancellationToken = default)
+            => new(FromJson(type, stream));
+    }
+
+    [Fact]
+    public async Task async_reader_reads_go_through_the_custom_serializers_own_reader_read()
+    {
+        var custom = new CustomSerializer();
+        var adapter = StorageSerializerAdapter.For(custom);
+
+        var table = new DataTable();
+        table.Columns.Add("doc", typeof(string));
+        table.Rows.Add("{\"Name\":\"custom\",\"Number\":33}");
+
+        await using var reader = table.CreateDataReader();
+        reader.Read().ShouldBeTrue();
+        Should.Throw<InvalidCastException>(() => reader.GetStream(0));
+
+        (await adapter.FromJsonAsync<TestDoc>(reader, 0)).Name.ShouldBe("custom");
+        (await adapter.FromJsonAsync(typeof(TestDoc), reader, 0))
+            .ShouldBeOfType<TestDoc>().Number.ShouldBe(33);
+
+        custom.ReaderReads.ShouldBe(2);
     }
 }
