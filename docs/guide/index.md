@@ -4,7 +4,9 @@ Weasel is a set of .NET libraries for database schema management and ADO.NET hel
 
 ## Origin and the Critter Stack
 
-Weasel was extracted from the [Marten](https://martendb.io) project during its V4 development cycle. What started as Marten's internal schema management layer is now a standalone, general-purpose library and a foundational part of the **Critter Stack** -- the family of .NET libraries that includes [Marten](https://martendb.io), [Wolverine](https://wolverinefx.net), and Polecat.
+Weasel was extracted from the [Marten](https://martendb.io) project during its V4 development cycle. What started as Marten's internal schema management layer is now a standalone, general-purpose library and a foundational part of the **Critter Stack** -- the family of .NET libraries that includes [Marten](https://martendb.io), [Wolverine](https://wolverinefx.net), [Polecat](https://polecat.jasperfx.net), and [Fisher](https://fisher.jasperfx.net). Every table those tools create, from a Marten document table to Wolverine's inbox and outbox to a Polecat event stream table, is defined as a Weasel schema object and migrated by Weasel. The [CritterWatch](https://critterwatch.jasperfx.net) console manages its own database the same way.
+
+That is also why the `db-apply`, `db-assert`, `db-patch`, `db-dump` and `db-list` commands look the same in every one of those tools: they are Weasel's [command line tools](/cli/), and the databases they act on are the ones each library registers. The JasperFx [stateful resource](https://shared-libs.jasperfx.net/cli/resources.html) model sits one level up, so the same databases can be set up alongside message broker objects with `resources setup` or at application startup.
 
 Weasel is developed and maintained by [JasperFx Software](https://jasperfx.net).
 
@@ -47,3 +49,5 @@ All provider packages automatically reference `Weasel.Core`, so you only need to
 
 - [Installation](/guide/installation) -- Add Weasel to your project
 - [Quick Start](/guide/quickstart) -- Define and migrate your first table in minutes
+- [Choosing a Schema Management Approach](/guide/schema-management) -- Runtime migration, startup setup, deployment commands, or DBA-reviewed scripts
+- [Command Line Tools](/cli/) -- `db-apply`, `db-assert`, `db-patch`, `db-dump`, `db-list`, and how they relate to `resources`
