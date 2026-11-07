@@ -103,7 +103,7 @@ if (migration.Difference == SchemaPatchDifference.None)
 
 ## AutoCreate Policy
 
-The `AutoCreate` enum (from the `JasperFx` namespace) controls what schema changes Weasel is allowed to make at runtime:
+The `AutoCreate` enum (from the `JasperFx` namespace) controls what schema changes Weasel is allowed to make at runtime. For how this policy fits with startup setup, the `db-*` commands and DBA-reviewed scripts, see [Choosing a Schema Management Approach](/guide/schema-management):
 
 | Value | Behavior | Recommended Use |
 |-------|----------|----------------|
@@ -125,11 +125,11 @@ Two paths read `None`, and neither one throws:
 - The lazy per-feature path (`IDatabase.EnsureStorageExistsAsync`) returns immediately without
   touching the database, so a missing table surfaces later as the provider's own error --
   `42P01` on PostgreSQL, `SqlException 208` on SQL Server.
-- The full apply path -- `ApplyAllConfiguredChangesToDatabaseAsync`, and therefore `db-apply` and
-  `resources setup` -- **coerces `None` to `CreateOrUpdate` and migrates anyway**, because an
+- The full apply path -- `ApplyAllConfiguredChangesToDatabaseAsync`, and therefore [`db-apply`](/cli/db-apply) and
+  [`resources setup`](https://shared-libs.jasperfx.net/cli/resources.html) -- **coerces `None` to `CreateOrUpdate` and migrates anyway**, because an
   explicit apply is intent to provision.
 
-The only path that reports drift is `AssertDatabaseMatchesConfigurationAsync` / `db-assert`,
+The only path that reports drift is `AssertDatabaseMatchesConfigurationAsync` / [`db-assert`](/cli/db-assert),
 which throws a `DatabaseValidationException` regardless of the `AutoCreate` setting. So
 `AutoCreate.None` plus `db-assert` in your deployment pipeline is the combination that actually
 fails fast; `AutoCreate.None` on its own only means "do not migrate lazily".
@@ -198,7 +198,7 @@ Weasel warns before it runs, once per object, through `IMigrationLogger.Destruct
 > existing table; any rows in it will be lost. Use db-patch to see the migration, or
 > AutoCreate.CreateOrUpdate to be refused instead.
 
-`resources check` and the `SchemaMigrationException` that every other `AutoCreate` raises carry the same
+[`resources check`](https://shared-libs.jasperfx.net/cli/resources.html) and the `SchemaMigrationException` that every other `AutoCreate` raises carry the same
 reason, so the object and the change that is stuck are named wherever the situation comes up.
 
 To keep `AutoCreate.All`'s convenience for additive changes while refusing this one:
@@ -281,8 +281,8 @@ The two remedies, both of which are deployment decisions rather than code ones:
    evaluates its own `IF NOT EXISTS`, which is why Weasel guards schema creation with a
    `pg_namespace` lookup: a role holding `CREATE` on one schema and nothing on the database can
    still migrate into it.
-2. **Pre-provision the schema.** Run the output of `db-patch` as a privileged user, and run the
-   application itself with `AutoCreate.None` so it never attempts DDL. Pair that with `db-assert`
+2. **Pre-provision the schema.** Run the output of [`db-patch`](/cli/db-patch) as a privileged user, and run the
+   application itself with `AutoCreate.None` so it never attempts DDL. Pair that with [`db-assert`](/cli/db-assert)
    in your deployment pipeline, since `AutoCreate.None` on its own does not report drift.
 
 ### Introspection is privilege-filtered
