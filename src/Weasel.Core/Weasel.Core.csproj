@@ -18,6 +18,12 @@
 
     <ItemGroup>
       <PackageReference Include="JasperFx" />
+      <!-- Registers the db-* commands, their inputs and factories through a generated
+           [ModuleInitializer], so they are found and run from a Native AOT binary (jasperfx#1141). -->
+      <PackageReference Include="JasperFx.SourceGenerator">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
     </ItemGroup>
 
     <Import Project="../../Analysis.Build.props" />
