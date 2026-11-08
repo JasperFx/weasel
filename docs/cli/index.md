@@ -4,6 +4,22 @@ Weasel provides database CLI commands through the [JasperFx](https://shared-libs
 
 If you are here from Marten, Polecat, Fisher, Wolverine or CritterWatch: these are the `db-*` commands those tools list under `dotnet run -- help`. Each of them registers its databases with Weasel, so the commands below work the same way against a document store, Wolverine's envelope storage, a database-backed Wolverine transport, or an EF Core `DbContext` that Wolverine manages. See [Choosing a Schema Management Approach](/guide/schema-management) for where these commands fit against runtime migration and startup setup.
 
+::: tip
+The command line framework itself is documented with JasperFx: [setup](https://shared-libs.jasperfx.net/cli/),
+[writing your own commands](https://shared-libs.jasperfx.net/cli/writing-commands),
+[arguments and flags](https://shared-libs.jasperfx.net/cli/arguments-flags),
+[environment checks](https://shared-libs.jasperfx.net/cli/environment-checks) and
+[`describe`](https://shared-libs.jasperfx.net/cli/describe). This section covers the `db-*` commands Weasel adds.
+:::
+
+::: info Native AOT
+Since JasperFx 2.101.0 the command line runs from a Native AOT binary, as long as every assembly that
+contributes commands is built with `JasperFx.SourceGenerator`. Weasel.Core and Weasel.EntityFrameworkCore
+are, from Weasel 9.50.0 on, so `db-apply`, `db-assert`, `db-patch`, `db-dump`, `db-list` and `db-ef-migration`
+all appear in `help` and run from the native binary. See [Native AOT](https://shared-libs.jasperfx.net/cli/#native-aot)
+in the JasperFx documentation for what your application needs.
+:::
+
 ## Enabling the CLI
 
 To enable the Weasel CLI commands, make two changes to your `Program.cs`:
