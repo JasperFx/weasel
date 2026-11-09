@@ -509,6 +509,19 @@ unit that was not clean. Exit code is the worst unit's; every unit runs even whe
   on any project in the solution that does not target that framework (bobcat#774) and builds every
   project besides; `buildForGate` builds only what the gate runs.
 
+### Local packs for the .NET 11 release train (weasel#735)
+
+The Nuke host (`build/build.csproj`) targets net10.0. Three targets in `build/LocalTrain.cs`:
+
+```bash
+./build.sh Pack --version 10.0.0-local.1 --feed ~/code/_local_nuget_feed   # the nine shipped packages
+./build.sh AotSmoke                       # native-AOT publish of Weasel.Core.AotSmoke, then runs the binary
+scripts/take-local-upstream.sh 3.0.0-local.1 ~/code/_local_nuget_feed       # pin JasperFx* to a local pack
+```
+
+`take-local-upstream.sh` rewrites the JasperFx pins in `Directory.Packages.props` and registers the feed in a
+gitignored `nuget.config`; run it with the released version to put the pins back.
+
 **SQLite CI Workflow:**
 The SQLite workflow tests on multiple operating systems (Ubuntu, Windows, macOS) and all supported .NET versions (8.0, 9.0, 10.0) to ensure cross-platform compatibility. SQLite tests require no database services since SQLite is file-based and embedded.
 

@@ -374,3 +374,6 @@ MigrationBackup/
 # VitePress documentation
 docs/.vitepress/cache
 docs/.vitepress/dist
+
+# Machine-local NuGet feed written by TakeLocalUpstream
+/nuget.config
