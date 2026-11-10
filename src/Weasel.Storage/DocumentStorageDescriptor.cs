@@ -89,6 +89,56 @@ public sealed class DocumentStorageDescriptor<TDoc, TId>
     }
 
     /// <summary>
+    /// weasel#745: build the descriptor from a <see cref="DocumentBinderPlan{TDoc}"/>, which supplies
+    /// every binder array, the version and revision binders, and both read indexes. This guarantees
+    /// they come from the same ordered plan, which also builds the SELECT column list. A new
+    /// overload, so the original constructor's signature is unchanged.
+    /// </summary>
+    public DocumentStorageDescriptor(
+        Core.Identity.IIdentification<TDoc, TId> identification,
+        IStorageSerializer serializer,
+        IStorageDialect dialect,
+        DocumentBinderPlan<TDoc> binders,
+        string upsertSql,
+        string insertSql,
+        string updateSql,
+        string overwriteSql,
+        bool isConjoined,
+        ConcurrencyMode concurrencyMode,
+        Func<string, Type>? resolveDocumentType,
+        string tableName,
+        IDocumentMetadataBinder<TDoc>[]? partitionPkBinders = null,
+        bool useVersionFromMatchingStream = false,
+        IOperationExceptionTransform? exceptionTransform = null,
+        Func<Type, object, Exception>? createMissingDocumentException = null)
+        : this(
+            identification,
+            serializer,
+            dialect,
+            (binders ?? throw new ArgumentNullException(nameof(binders))).ClientSideWriteBinders,
+            binders.WriteBinders,
+            binders.ReadBinders,
+            binders.QueryOnlyReadBinders,
+            upsertSql,
+            insertSql,
+            updateSql,
+            overwriteSql,
+            isConjoined,
+            concurrencyMode,
+            binders.VersionBinder,
+            binders.RevisionBinder,
+            binders.VersionReadIndex,
+            resolveDocumentType,
+            binders.DocTypeReadIndex,
+            tableName,
+            partitionPkBinders,
+            useVersionFromMatchingStream,
+            exceptionTransform,
+            createMissingDocumentException)
+    {
+    }
+
+    /// <summary>
     ///     Optional store-supplied translation of provider exceptions raised by the write
     ///     operations (unique-constraint violations, etc.). Null = no translation.
     /// </summary>
