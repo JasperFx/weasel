@@ -6,7 +6,7 @@ using Nuke.Common;
 using Serilog;
 
 // One supervised target per CI test project, the same split the workflows already make: each
-// workflow builds, then runs exactly one of these (`./build.sh TestPostgresql --framework net9.0`).
+// workflow builds, then runs exactly one of these (`./build.sh TestPostgresql --framework net10.0`).
 // None depends on Compile -- the workflow's own restore and build steps stay as they were, and the
 // target fails loudly if the test host it needs was not built.
 //

@@ -40,11 +40,11 @@ using Serilog;
 partial class Build
 {
     /// <summary>
-    /// The target framework to run, e.g. <c>--framework net9.0</c>. Every CI job names one. When
+    /// The target framework to run, e.g. <c>--framework net10.0</c>. Every CI job names one. When
     /// omitted, every framework the project has been built for runs, one after the other -- never
     /// concurrently, because the database-backed suites share schemas between frameworks.
     /// </summary>
-    [Parameter("Target framework to run the tests under, e.g. net9.0. Default: every framework built")]
+    [Parameter("Target framework to run the tests under, e.g. net10.0. Default: every framework built")]
     readonly string Framework;
 
     /// <summary>
@@ -62,7 +62,7 @@ partial class Build
     /// </summary>
     /// <remarks>
     /// Locally the same directory carries a laptop's own runs forward, and
-    /// <c>gh run download &lt;run&gt; -n test-ledger-postgres-net9.0-cstrue -D artifacts/test-ledger</c>
+    /// <c>gh run download &lt;run&gt; -n test-ledger-postgres-net10.0-cstrue -D artifacts/test-ledger</c>
     /// seeds it from CI. Tests are keyed by display name since Bobcat 1.0, so a CI ledger matches a
     /// local run and either framework; the uid it used to be keyed by matched nothing off the machine
     /// that recorded it, which is why the ledger used to be committed and folded by hand.

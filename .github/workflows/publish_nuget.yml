@@ -28,8 +28,10 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
           dotnet-version: |
-              9.0.x
               10.0.x
+              11.0.x
+          # .NET 11 is a release candidate until November
+          dotnet-quality: preview
 
     - name: Install dependencies
       run: dotnet restore

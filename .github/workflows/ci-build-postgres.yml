@@ -56,7 +56,7 @@ jobs:
             postgres-image:
                 - postgres:15.3-alpine
             framework:
-                - net9.0
+                - net11.0
                 - net10.0
 
     name: Postgres ${{ matrix.postgres-image }} ${{ matrix.framework }}
@@ -90,8 +90,10 @@ jobs:
       uses: actions/setup-dotnet@v5
       with:
           dotnet-version: |
-              9.0.x
               10.0.x
+              11.0.x
+          # .NET 11 is a release candidate until November
+          dotnet-quality: preview
 
     - name: Restore dependencies
       run: dotnet restore

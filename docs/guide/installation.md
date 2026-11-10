@@ -48,7 +48,7 @@ dotnet add package Weasel.EntityFrameworkCore
 
 ## Supported .NET Versions
 
-Weasel targets .NET 8.0, .NET 9.0, and .NET 10.0.
+Weasel targets .NET 10.0 and .NET 11.0.
 
 ## Driver Dependencies
 

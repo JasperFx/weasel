@@ -22,7 +22,7 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 // https://github.com/JasperFx/bobcat/blob/main/docs/local-gates.md): every suite the eight
 // ci-build-*.yml workflows run, as one command, against whatever containers are already up.
 //
-//   ./build.sh LocalGate                          newest framework (net10.0), Debug
+//   ./build.sh LocalGate                          newest framework (net11.0), Debug
 //   ./build.sh LocalGate --framework all          every framework, the CI matrix
 //   ./build.sh LocalGate --gate-workers 6         a smaller worker budget
 //   ./build.sh LocalGate --gate-legs sqlserver2019,firebird3
@@ -112,14 +112,12 @@ partial class Build
             gate.Project(testProject("Weasel.MySql.Tests")).On("mysql");
             gate.Project(testProject("Weasel.Oracle.Tests")).On("oracle");
 
-            // EF Core touches every engine it has a provider for. Its Oracle and MySQL tests are
-            // compiled out on net10.0 (no EF Core 10 provider yet), so it holds those two tracks only
-            // when the gate runs an earlier framework -- holding them for nothing would serialise it
-            // behind the Oracle suite for no reason.
-            var efCore = gate.Project(testProject("Weasel.EntityFrameworkCore.Tests"))
-                .On("postgres", "sqlserver", "firebird")
+            // EF Core touches every engine it has a provider for. Its MySQL tests are compiled out on
+            // every framework (Pomelo has no EF Core 10 release), so it holds the Oracle track but not
+            // MySQL's.
+            gate.Project(testProject("Weasel.EntityFrameworkCore.Tests"))
+                .On("postgres", "sqlserver", "firebird", "oracle")
                 .LaunchingWith(unit => new MtpWorkerFactory(unit.Executable, efCoreEnvironment()));
-            if (frameworks.Select(efCore.DeclaredFrameworks).Any(f => f != "net10.0")) efCore.On("mysql", "oracle");
 
             gate.Project(testProject("Weasel.Core.Tests"));
             gate.Project(testProject("Weasel.Sqlite.Tests"));

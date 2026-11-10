@@ -13,7 +13,7 @@ Weasel is a low-level database abstraction and schema migration library for .NET
 
 ## Technology Stack
 
-- **Language:** C# 13.0 / .NET 8.0, 9.0, 10.0
+- **Language:** C# 13.0 / .NET 10.0, 11.0
 - **Nullable Reference Types:** Enabled (required throughout)
 - **PostgreSQL:** Npgsql driver with NetTopologySuite support
 - **SQL Server:** Microsoft.Data.SqlClient
@@ -86,7 +86,7 @@ dotnet test src/Weasel.SqlServer.Tests/Weasel.SqlServer.Tests.csproj
 dotnet test src/Weasel.Sqlite.Tests/Weasel.Sqlite.Tests.csproj
 
 # Target specific framework
-dotnet test --framework net9.0
+dotnet test --framework net10.0
 ```
 
 **Database Setup for Integration Tests:**
@@ -435,7 +435,7 @@ already-built test executable (every test project is a Microsoft.Testing.Platfor
   test ledger" step fetches `test-ledger-<CI_JOB_NAME>` from the newest successful master run into
   `artifacts/test-ledger/`; the run balances lanes on it, folds itself in, and the upload step sends
   it on. Tests are keyed by display name, so one ledger serves any framework or machine: to balance a
-  local run the same way, `gh run download <run> -n test-ledger-postgres-net9.0-cstrue -D artifacts/test-ledger`.
+  local run the same way, `gh run download <run> -n test-ledger-postgres-net10.0-cstrue -D artifacts/test-ledger`.
   A missing ledger only means lanes balance by test count.
 
 ### Local gate (`./build.sh LocalGate`, weasel#733)
@@ -446,8 +446,8 @@ allows, on Bobcat.Supervisor's `Gate` (`build/LocalGate.cs`; Bobcat's
 
 ```bash
 docker compose up -d                       # the gate never starts, stops or resets a container
-./build.sh LocalGate                       # newest framework (net10.0), Debug
-./build.sh LocalGate --framework all       # net9.0 and net10.0: the CI matrix
+./build.sh LocalGate                       # newest framework (net11.0), Debug
+./build.sh LocalGate --framework all       # net10.0 and net11.0: the CI matrix
 ./build.sh LocalGate --gate-workers 6      # worker budget across all suites (default: half the cores)
 ./build.sh LocalGate --gate-legs sqlserver2019,sqlserver2022,firebird3,firebird4
 ./build.sh CompileDocSamples               # the docs samples alone
@@ -464,8 +464,8 @@ unit that was not clean. Exit code is the worst unit's; every unit runs even whe
   EfCore, each with the workers and lane isolation its CI target uses and the same supervisor policy
   (`applyWeaselPolicy`, no retries). Each external server is one exclusive **track**, so no two suites
   ever share a server at once: CommandLine is on the Postgres track (it drops real schemas there), and
-  EfCore holds Postgres, SQL Server and Firebird -- plus MySQL and Oracle when net9.0 runs, the only
-  framework its MySQL/Oracle tests compile for. Core and SQLite are limited by the worker budget alone.
+  EfCore holds Postgres, SQL Server, Firebird and Oracle (its MySQL tests are compiled out everywhere:
+  Pomelo has no EF Core 10 release, weasel#736). Core and SQLite are limited by the worker budget alone.
 - **Configuration.** CI builds Core and SQLite in Release and everything else in Debug; the gate
   normalises to **Debug** (the Nuke default locally). `--configuration Release` overrides it.
 - **Servers.** It reads the same `weasel_*_testing_database` variables the suites do, defaulting to the
@@ -622,7 +622,7 @@ await cmd.ExecuteNonQueryAsync();
 dotnet test src/Weasel.Sqlite.Tests/Weasel.Sqlite.Tests.csproj
 
 # Target specific framework
-dotnet test --framework net9.0
+dotnet test --framework net10.0
 ```
 
 ### Type Mappings

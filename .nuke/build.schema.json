@@ -130,7 +130,7 @@
         },
         "Framework": {
           "type": "string",
-          "description": "Target framework to run the tests under, e.g. net9.0. Default: every framework built"
+          "description": "Target framework to run the tests under, e.g. net10.0. Default: every framework built"
         },
         "GateLegs": {
           "type": "string",
