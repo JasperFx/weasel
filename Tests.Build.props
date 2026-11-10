@@ -12,7 +12,7 @@
         <IsPackable>false</IsPackable>
 
         <!-- Every database-backed suite shares schemas between target frameworks, so
-             running the net9.0 and net10.0 suites concurrently makes them drop each
+             running the net10.0 and net11.0 suites concurrently makes them drop each
              other's schemas mid-test. CI never hit this because each job names a
              single target framework explicitly, but a bare `dotnet test` locally
              does, and did so on the Postgres suite well before the xUnit v3

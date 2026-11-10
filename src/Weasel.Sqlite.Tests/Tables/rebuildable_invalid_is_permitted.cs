@@ -101,7 +101,10 @@ public class rebuildable_invalid_is_permitted
 
         var amount = await conn.CreateCommand("SELECT amount FROM pm_prices WHERE id = 1")
             .ExecuteScalarAsync();
-        Convert.ToDecimal(amount).ShouldBe(19.95m);
+        // SQLite returns the NUMERIC value as a double. Compare it as one: Convert.ToDecimal(double)
+        // keeps every digit of the binary value on .NET 11 (19.949999999999999...) where earlier
+        // runtimes rounded to 15 significant digits.
+        Convert.ToDouble(amount).ShouldBe(19.95d);
 
         var after = await PricesTable("NUMERIC").FindDeltaAsync(conn);
         after.Difference.ShouldBe(SchemaPatchDifference.None);

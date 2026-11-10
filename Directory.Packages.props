@@ -23,20 +23,16 @@
          GHSA-2m69-gcr7-jv3q) with 3.0.3, which ships the patched SQLite build. -->
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.1.3" />
-    <!-- EF Core versions are framework-conditional - see below -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="MySqlConnector" Version="2.6.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
     <PackageVersion Include="Npgsql" Version="9.0.4" />
-    <!-- Npgsql EF Core is framework-conditional - see below -->
     <PackageVersion Include="Npgsql.NetTopologySuite" Version="9.0.4" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Nuke.Common" Version="9.0.4" />
-    <!-- Oracle EF Core is framework-conditional - see below -->
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.7.0" />
-    <!-- Pomelo EF Core is framework-conditional - see below -->
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <!-- The assertion/attribute surface without the runner, for Weasel.Testing: a library of
@@ -49,26 +45,18 @@
        9.0.4 and Oracle.ManagedDataAccess.Core 23.7.0 pins 8.0.0; even SqlClient 7.1.1 still pins
        9.0.18. Weasel.SqlServer and Weasel.Oracle reference it directly so the patched floor lands
        in their published nuspecs. Drop once both drivers depend on a patched version. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="9.0.21" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <ItemGroup>
     <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
-  <!-- EF Core 9.x for net9.0 -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.1" />
-    <PackageVersion Include="FirebirdSql.EntityFrameworkCore.Firebird" Version="12.0.0" />
-    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
-    <PackageVersion Include="Oracle.EntityFrameworkCore" Version="9.23.60" />
-    <PackageVersion Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0-preview.2.efcore.9.0.0" />
-  </ItemGroup>
-  <!-- EF Core 10.x for net10.0 -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+  <!-- EF Core 10 is the floor on net10.0 and net11.0 alike (weasel#736): a stable package cannot
+       depend on an EF Core 11 prerelease, and EF Core 10 runs on the .NET 11 runtime. -->
+  <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
     <PackageVersion Include="FirebirdSql.EntityFrameworkCore.Firebird" Version="13.0.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageVersion Include="Oracle.EntityFrameworkCore" Version="10.23.26400" />
+    <!-- Pomelo.EntityFrameworkCore.MySql has no EF Core 10 release (latest is 9.0.0-preview.3), so
+         the MySQL EF tests stay compiled out; see the EF test project. -->
   </ItemGroup>
 </Project>

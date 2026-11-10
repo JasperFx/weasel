@@ -38,13 +38,13 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    # Oracle takes several minutes to become healthy on the net9.0 leg
+    # Oracle takes several minutes to become healthy on every leg
     timeout-minutes: 45
 
     strategy:
         matrix:
             framework:
-                - net9.0
+                - net11.0
                 - net10.0
 
     name: EF Core ${{ matrix.framework }}
@@ -103,18 +103,18 @@ jobs:
     # Oracle needs the init SQL in docker/oracle mounted to grant the weasel user
     # its schema privileges, which a GitHub service container cannot do - so it
     # comes up through docker compose, the same way ci-build-oracle.yml does it.
-    # Only net9.0 needs it: the Oracle EF provider has no net10.0 support, so the
-    # Oracle test folder is excluded from that build entirely.
+    # Every leg needs it: Oracle.EntityFrameworkCore 10 supports net10.0 and net11.0 alike.
     - name: Start Oracle via docker-compose
-      if: matrix.framework == 'net9.0'
       run: docker compose up -d oracle
 
     - name: Install .NET
       uses: actions/setup-dotnet@v5
       with:
         dotnet-version: |
-            9.0.x
             10.0.x
+            11.0.x
+        # .NET 11 is a release candidate until November
+        dotnet-quality: preview
 
     - name: Restore dependencies
       run: dotnet restore
@@ -125,15 +125,13 @@ jobs:
     # Waiting here rather than straight after `up -d` lets Oracle warm up during
     # the SDK install, restore and build.
     - name: Wait for Oracle to be healthy
-      if: matrix.framework == 'net9.0'
       run: |
         echo "Waiting for Oracle to be ready..."
         timeout 300 bash -c 'until docker compose exec -T oracle healthcheck.sh; do sleep 10; done'
         echo "Oracle is ready"
 
-    # No test filter: the Oracle and MySql suites are compiled out of the net10.0
-    # build (neither provider supports it yet), so each framework runs everything
-    # it actually built.
+    # No test filter: the MySql suite is compiled out of every build (Pomelo has no EF Core 10
+    # release yet), so each framework runs everything it actually built.
     # The ledger the supervisor balances lanes with, from the newest successful master run of this
     # workflow (bobcat#730: the ledger travels as a CI artifact, nothing is committed). Missing is
     # fine: the first run, or a new matrix leg, balances by test count.
@@ -167,5 +165,5 @@ jobs:
         if-no-files-found: ignore
 
     - name: Stop Oracle
-      if: always() && matrix.framework == 'net9.0'
+      if: always()
       run: docker compose down

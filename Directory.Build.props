@@ -5,7 +5,7 @@
         <LangVersion>13.0</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <TargetFrameworks>net9.0;net10.0</TargetFrameworks>
+        <TargetFrameworks>net10.0;net11.0</TargetFrameworks>
         <Authors>Jeremy D. Miller;Babu Annamalai;Oskar Dudycz</Authors>
         <PackageProjectUrl>https://github.com/JasperFx/weasel</PackageProjectUrl>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>

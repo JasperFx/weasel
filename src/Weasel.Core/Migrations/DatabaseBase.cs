@@ -252,7 +252,7 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
 
         var writer = new StringWriter();
         foreach (var scriptName in scriptNames)
-            await writer.WriteLineAsync(Migrator.ToExecuteScriptLine(scriptName)).ConfigureAwait(false);
+            await writer.WriteLineAsync(Migrator.ToExecuteScriptLine(scriptName).AsMemory(), ct).ConfigureAwait(false);
 
         var filename = directory.AppendPath("all.sql");
         await File.WriteAllTextAsync(filename, writer.ToString(), ct).ConfigureAwait(false);
