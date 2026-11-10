@@ -54,7 +54,7 @@ public class Function: FunctionBase
     {
         // The body goes inside a string literal, so its own quotes have to be doubled. Without
         // this, any function containing a string literal produced an unclosed-quote syntax error.
-        return $"EXEC sp_executesql N'{RawBody?.Replace("'", "''")}';";
+        return $"EXEC sp_executesql N'{RawBody?.TrimEnd().Replace("'", "''")}';";
     }
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)

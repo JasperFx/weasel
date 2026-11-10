@@ -27,6 +27,8 @@ public class round_trip_fidelity: IntegrationContext
         { "lower case keywords", "create or alter function functions.rt()\nreturns int as\nbegin\n    return 1;\nend;" },
         { "leading blank lines", "\n\n\nCREATE OR ALTER FUNCTION functions.rt()\nRETURNS int AS\nBEGIN\n    return 1;\nEND;" },
         { "blank lines inside", "CREATE OR ALTER FUNCTION functions.rt()\nRETURNS int AS\nBEGIN\n\n\n    return 1;\n\nEND;" },
+        { "trailing newline", "CREATE OR ALTER FUNCTION functions.rt()\nRETURNS int AS\nBEGIN\n    return 1;\nEND;\n" },
+        { "trailing crlf and blank lines", "CREATE OR ALTER FUNCTION functions.rt()\r\nRETURNS int AS\r\nBEGIN\r\n    return 1;\r\nEND\r\n\r\n" },
         { "trailing spaces on lines", "CREATE OR ALTER FUNCTION functions.rt()   \nRETURNS int AS   \nBEGIN   \n    return 1;   \nEND;" },
         { "line comment with an apostrophe", "CREATE OR ALTER FUNCTION functions.rt()\nRETURNS int AS\nBEGIN\n    -- it's fine\n    return 1;\nEND;" },
         { "block comment", "CREATE OR ALTER FUNCTION functions.rt()\nRETURNS int AS\nBEGIN\n    /* a  spaced   comment */\n    return 1;\nEND;" },
