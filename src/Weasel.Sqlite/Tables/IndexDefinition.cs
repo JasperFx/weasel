@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Text;
 using JasperFx.Core;
 using Weasel.Core;
@@ -8,8 +9,19 @@ namespace Weasel.Sqlite.Tables;
 /// Represents an index definition for SQLite tables.
 /// SQLite only supports B-tree indexes, but supports partial and expression indexes.
 /// </summary>
-public class IndexDefinition: ITableIndex
+public partial class IndexDefinition: ITableIndex
 {
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRegex();
+
+    [GeneratedRegex(@"\(\s+")]
+    private static partial Regex OpenParenSpacesRegex();
+
+    [GeneratedRegex(@"\s+\)")]
+    private static partial Regex SpacesCloseParenRegex();
+
+
     private string? _indexName;
 
     public IndexDefinition(string indexName)
@@ -299,9 +311,9 @@ public class IndexDefinition: ITableIndex
         sql = sql.Replace("main.", "", StringComparison.OrdinalIgnoreCase);
 
         // Normalize whitespace
-        sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+", " ");
-        sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\(\s+", "(");
-        sql = System.Text.RegularExpressions.Regex.Replace(sql, @"\s+\)", ")");
+        sql = WhitespaceRegex().Replace(sql, " ");
+        sql = OpenParenSpacesRegex().Replace(sql, "(");
+        sql = SpacesCloseParenRegex().Replace(sql, ")");
 
         // Remove parentheses for comparison (columns are inside parens)
         sql = sql.Replace("(", "").Replace(")", "");

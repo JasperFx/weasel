@@ -19,7 +19,7 @@ public class AssertCommand: JasperFxAsyncCommand<WeaselInput>
 
         // AnsiConsole is not safe for concurrent writers, so every write from inside the batch takes
         // this lock and a database's failure story (headline plus exception) lands as one unit.
-        var console = new object();
+        var console = new Lock();
 
         // db-assert has the identical many-database loop -- and the identical sequential pain at fleet
         // scale -- as db-apply, which is why the parallelism knob lives on WeaselInput and the shared

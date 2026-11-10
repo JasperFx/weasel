@@ -8,6 +8,17 @@ namespace Weasel.Oracle.Tables;
 
 public partial class Table
 {
+
+    [GeneratedRegex(@"\(\d+\)")]
+    private static partial Regex PrecisionRegex();
+
+    [GeneratedRegex("^\"([^\"]+)\"$")]
+    private static partial Regex BareQuotedIdentifierRegex();
+
+    [GeneratedRegex("\"([^\"]+)\"")]
+    private static partial Regex QuotedIdentifierRegex();
+
+
     private const string ColumnSql = @"
 SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, char_length, char_used, identity_column
 FROM all_tab_columns
@@ -432,7 +443,7 @@ ORDER BY ic.index_name, ic.column_position";
             {
                 // A descending key is a hidden SYS_NC...$ column whose expression is the real column,
                 // quoted: "PRIORITY". Anything else is a genuine expression, UPPER("NAME") say.
-                var bare = Regex.Match(expression.Trim(), "^\"([^\"]+)\"$");
+                var bare = BareQuotedIdentifierRegex().Match(expression.Trim());
                 if (bare.Success)
                 {
                     columnName = bare.Groups[1].Value;
@@ -441,7 +452,7 @@ ORDER BY ic.index_name, ic.column_position";
                 {
                     computed.Add(indexName);
 
-                    var match = Regex.Match(expression, "\"([^\"]+)\"");
+                    var match = QuotedIdentifierRegex().Match(expression);
                     if (match.Success)
                     {
                         columnName = match.Groups[1].Value;
@@ -590,7 +601,7 @@ ORDER BY ic.index_name, ic.column_position";
                 if (upperType.StartsWith("TIMESTAMP"))
                 {
                     // Strip precision like (6) from "TIMESTAMP(6) WITH TIME ZONE" -> "TIMESTAMP WITH TIME ZONE"
-                    var normalized = System.Text.RegularExpressions.Regex.Replace(upperType, @"\(\d+\)", "");
+                    var normalized = PrecisionRegex().Replace(upperType, "");
                     return normalized.Replace("  ", " "); // Clean up any double spaces
                 }
                 return dataType;

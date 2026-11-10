@@ -9,7 +9,7 @@ namespace Weasel.Core;
 ///     unknown to the expected table are never dropped (inline column checks
 ///     and third-party constraints stay untouched).
 /// </summary>
-public class TableCheckConstraint: INamed
+public partial class TableCheckConstraint: INamed
 {
     public TableCheckConstraint(string name, string expression)
     {
@@ -47,7 +47,7 @@ public class TableCheckConstraint: INamed
         }
 
         // strip ::type casts (PostgreSQL canonical output)
-        normalized = Regex.Replace(normalized, "::\"?[a-zA-Z_][a-zA-Z_ 0-9]*\"?(\\([0-9, ]*\\))?(\\[\\])?", "");
+        normalized = TypeCastRegex().Replace(normalized, "");
         // strip identifier quoting, grouping noise, and all whitespace — the
         // canonical form is only ever compared for equality, and the catalogs
         // rewrite operator spacing freely ("[Price] > 0" vs "([Price]>(0))")
@@ -57,10 +57,16 @@ public class TableCheckConstraint: INamed
             .Replace("]", "")
             .Replace("(", "")
             .Replace(")", "");
-        normalized = Regex.Replace(normalized, @"\s+", "");
+        normalized = WhitespaceRegex().Replace(normalized, "");
 
         return normalized.ToLowerInvariant();
     }
+
+    [GeneratedRegex("::\"?[a-zA-Z_][a-zA-Z_ 0-9]*\"?(\\([0-9, ]*\\))?(\\[\\])?")]
+    private static partial Regex TypeCastRegex();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRegex();
 
     public bool Matches(TableCheckConstraint other)
         => Name.Equals(other.Name, StringComparison.OrdinalIgnoreCase)

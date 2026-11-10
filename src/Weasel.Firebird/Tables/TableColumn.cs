@@ -5,14 +5,12 @@ using Weasel.Core;
 
 namespace Weasel.Firebird.Tables;
 
-public class TableColumn: ITableColumn
+public partial class TableColumn: ITableColumn
 {
-    private static readonly Regex CollateClause =
-        new(@"\s+COLLATE\s+(\S+)\s*$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
-    private static readonly Regex DefaultKeyword =
-        new(@"^\s*DEFAULT\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
+    [GeneratedRegex(@"\s+COLLATE\s+(\S+)\s*$", RegexOptions.IgnoreCase)]
+    private static partial Regex CollateClause();
+    [GeneratedRegex(@"^\s*DEFAULT\b", RegexOptions.IgnoreCase)]
+    private static partial Regex DefaultKeyword();
     public TableColumn(string name, string type)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -237,7 +235,7 @@ public class TableColumn: ITableColumn
             return null;
         }
 
-        var text = DefaultKeyword.Replace(expression!, "").Trim();
+        var text = DefaultKeyword().Replace(expression!, "").Trim();
 
         var builder = new StringBuilder(text.Length);
         var inLiteral = false;
@@ -280,7 +278,7 @@ public class TableColumn: ITableColumn
             return null;
         }
 
-        var expression = DefaultKeyword.Replace(source!, "").Trim();
+        var expression = DefaultKeyword().Replace(source!, "").Trim();
         return NormalizeDefault(expression) == null ? null : expression;
     }
 
@@ -288,7 +286,7 @@ public class TableColumn: ITableColumn
 
     private (string Type, string? Collation) splitCollation()
     {
-        var match = CollateClause.Match(Type);
+        var match = CollateClause().Match(Type);
         return match.Success ? (Type[..match.Index].TrimEnd(), match.Groups[1].Value) : (Type, null);
     }
 

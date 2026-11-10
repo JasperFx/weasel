@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Diagnostics;
 using JasperFx.Core;
 using JasperFx.Core.Reflection;
@@ -5,8 +6,16 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables;
 
-public class TableColumn: ITableColumn
+public partial class TableColumn: ITableColumn
 {
+
+    [GeneratedRegex(@"\([^)]*\)")]
+    private static partial Regex ParenthesizedRegex();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRegex();
+
+
     public TableColumn(string name, string type): this(name, type, false)
     {
     }
@@ -78,8 +87,8 @@ public class TableColumn: ITableColumn
         // Remove any parenthesized size/precision segment wherever it appears:
         // "varchar(200)" -> "varchar", but also mid-type forms like
         // "timestamp(3) with time zone" -> "timestamp with time zone"
-        var raw = System.Text.RegularExpressions.Regex.Replace(Type, @"\([^)]*\)", "");
-        return System.Text.RegularExpressions.Regex.Replace(raw, @"\s+", " ").Trim();
+        var raw = ParenthesizedRegex().Replace(Type, "");
+        return WhitespaceRegex().Replace(raw, " ").Trim();
     }
 
     public string Declaration()

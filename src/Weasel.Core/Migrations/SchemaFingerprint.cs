@@ -48,7 +48,8 @@ internal static class SchemaFingerprint
 
     public static string ComputeFingerprint(Migrator migrator, ISchemaObject[] objects)
     {
-        var writer = new StringWriter();
+        var builder = new StringBuilder();
+        var writer = new StringWriter(builder);
 
         // Sort for a stable hash regardless of feature registration order.
         foreach (var schemaObject in objects.OrderBy(x => x.Identifier.QualifiedName, StringComparer.Ordinal))
@@ -57,8 +58,26 @@ internal static class SchemaFingerprint
             schemaObject.WriteCreateStatement(migrator, writer);
         }
 
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(writer.ToString()));
-        return Convert.ToHexString(bytes);
+        // Hash the text a chunk at a time rather than materialising the whole script as a string and
+        // then again as a byte[]. The Encoder carries a surrogate pair split across two chunks.
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var encoder = Encoding.UTF8.GetEncoder();
+        Span<byte> buffer = stackalloc byte[1024];
+        foreach (var chunk in builder.GetChunks())
+        {
+            var chars = chunk.Span;
+            while (!chars.IsEmpty)
+            {
+                encoder.Convert(chars, buffer, false, out var charsUsed, out var bytesUsed, out _);
+                hash.AppendData(buffer[..bytesUsed]);
+                chars = chars[charsUsed..];
+            }
+        }
+
+        encoder.Convert(ReadOnlySpan<char>.Empty, buffer, true, out _, out var finalBytes, out _);
+        hash.AppendData(buffer[..finalBytes]);
+
+        return Convert.ToHexString(hash.GetHashAndReset());
     }
 
     /// <summary>

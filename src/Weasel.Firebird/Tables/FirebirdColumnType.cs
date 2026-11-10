@@ -27,7 +27,7 @@ namespace Weasel.Firebird.Tables;
 ///         switch at 25. Parsing a model therefore takes the version of the server it is compared with.
 ///     </para>
 /// </remarks>
-internal readonly record struct FirebirdColumnType(
+internal readonly partial record struct FirebirdColumnType(
     string Name,
     int? Length = null,
     int? Precision = null,
@@ -44,12 +44,16 @@ internal readonly record struct FirebirdColumnType(
     /// </summary>
     public const string NationalCharacterSet = "ISO8859_1";
 
-    private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
-    private static readonly Regex CollateClause = new(@"\sCOLLATE\s+(\S+)\s*$", RegexOptions.Compiled);
-    private static readonly Regex CharacterSetClause = new(@"\sCHARACTER\s+SET\s+(\S+)", RegexOptions.Compiled);
-    private static readonly Regex SegmentSizeClause = new(@"\sSEGMENT\s+SIZE\s+\d+", RegexOptions.Compiled);
-    private static readonly Regex SubTypeClause = new(@"\sSUB_TYPE\s+(\S+)", RegexOptions.Compiled);
-
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
+    [GeneratedRegex(@"\sCOLLATE\s+(\S+)\s*$")]
+    private static partial Regex CollateClause();
+    [GeneratedRegex(@"\sCHARACTER\s+SET\s+(\S+)")]
+    private static partial Regex CharacterSetClause();
+    [GeneratedRegex(@"\sSEGMENT\s+SIZE\s+\d+")]
+    private static partial Regex SegmentSizeClause();
+    [GeneratedRegex(@"\sSUB_TYPE\s+(\S+)")]
+    private static partial Regex SubTypeClause();
     private static readonly string[] IntegerRanks = ["SMALLINT", "INTEGER", "BIGINT", "INT128"];
 
     public bool IsCharacter => Name is "CHAR" or "VARCHAR";
@@ -166,10 +170,10 @@ internal readonly record struct FirebirdColumnType(
     /// </summary>
     public static FirebirdColumnType Parse(string type, FirebirdServerVersion? version = null)
     {
-        var text = " " + Whitespace.Replace(type.Trim(), " ").ToUpperInvariant();
+        var text = " " + Whitespace().Replace(type.Trim(), " ").ToUpperInvariant();
 
         string? collation = null;
-        var collate = CollateClause.Match(text);
+        var collate = CollateClause().Match(text);
         if (collate.Success)
         {
             collation = collate.Groups[1].Value;
@@ -177,7 +181,7 @@ internal readonly record struct FirebirdColumnType(
         }
 
         string? characterSet = null;
-        var charset = CharacterSetClause.Match(text);
+        var charset = CharacterSetClause().Match(text);
         if (charset.Success)
         {
             characterSet = charset.Groups[1].Value;
@@ -286,7 +290,7 @@ internal readonly record struct FirebirdColumnType(
             }
         }
 
-        var clause = SubTypeClause.Match(" " + SegmentSizeClause.Replace(" " + text, ""));
+        var clause = SubTypeClause().Match(" " + SegmentSizeClause().Replace(" " + text, ""));
         if (clause.Success)
         {
             subType = clause.Groups[1].Value;

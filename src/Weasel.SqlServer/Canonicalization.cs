@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace Weasel.SqlServer;
 
-internal static class Canonicalization
+internal static partial class Canonicalization
 {
     /// <summary>
     ///     The <c>CREATE [OR ALTER] FUNCTION</c> preamble, which is the one part of a body the
@@ -10,9 +10,8 @@ internal static class Canonicalization
     ///     removing it, so <c>CREATE OR ALTER FUNCTION</c> is stored as <c>CREATE</c>, three spaces,
     ///     <c>FUNCTION</c>.
     /// </summary>
-    private static readonly Regex CreatePreamble =
-        new(@"\b(CREATE)\s+(?:OR\s+ALTER\s+)?(FUNCTION)\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
+    [GeneratedRegex(@"\b(CREATE)\s+(?:OR\s+ALTER\s+)?(FUNCTION)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CreatePreamble();
     /// <summary>
     ///     The procedure counterpart of <see cref="CreatePreamble" />, in every spelling SQL Server
     ///     accepts: <c>PROC</c> or <c>PROCEDURE</c>, with or without <c>OR ALTER</c>.
@@ -25,10 +24,8 @@ internal static class Canonicalization
     ///     <c>Function.Body()</c> wraps its body in <c>EXEC sp_executesql</c>, which puts the
     ///     preamble mid-string; a procedure body starts with its own statement.
     /// </remarks>
-    private static readonly Regex ProcedurePreamble =
-        new(@"\A(?<lead>(?>(?:\s+|--[^\r\n]*|/\*.*?\*/)*))CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\b",
-            RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
-
+    [GeneratedRegex(@"\A(?<lead>(?>(?:\s+|--[^\r\n]*|/\*.*?\*/)*))CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\b", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex ProcedurePreamble();
     /// <summary>
     ///     Rewrite a procedure's leading <c>CREATE [OR ALTER] PROC[EDURE]</c> keyword to the
     ///     <c>CREATE OR ALTER PROCEDURE</c> form, which is the one spelling a rendered migration
@@ -36,7 +33,7 @@ internal static class Canonicalization
     ///     comes back unchanged.
     /// </summary>
     public static string ToCreateOrAlterProcedure(this string sql)
-        => ProcedurePreamble.Replace(sql, "${lead}CREATE OR ALTER PROCEDURE", 1);
+        => ProcedurePreamble().Replace(sql, "${lead}CREATE OR ALTER PROCEDURE", 1);
 
     /// <summary>
     ///     Reduce a procedure's leading <c>CREATE [OR ALTER] PROC[EDURE]</c> keyword to the bare
@@ -46,7 +43,7 @@ internal static class Canonicalization
     ///     applying it writes back the very text that does not match.
     /// </summary>
     public static string ToBareCreateProcedure(this string sql)
-        => ProcedurePreamble.Replace(sql, "${lead}CREATE PROCEDURE", 1);
+        => ProcedurePreamble().Replace(sql, "${lead}CREATE PROCEDURE", 1);
 
     /// <summary>
     ///     Normalize a T-SQL function body for comparison against what <c>sys.sql_modules</c> stores.
@@ -65,5 +62,5 @@ internal static class Canonicalization
     ///     </para>
     /// </remarks>
     public static string CanonicizeSql(this string sql)
-        => CreatePreamble.Replace(sql.Trim().Replace("\r\n", "\n"), "$1 $2").TrimEnd(';').TrimEnd();
+        => CreatePreamble().Replace(sql.Trim().Replace("\r\n", "\n"), "$1 $2").TrimEnd(';').TrimEnd();
 }

@@ -7,8 +7,22 @@ using Weasel.Core;
 
 namespace Weasel.Postgresql.Tables;
 
-public class IndexDefinition: ITableIndex
+public partial class IndexDefinition: ITableIndex
 {
+
+    [GeneratedRegex(@"('[^'\\]*(?:\\.[^'\\]*)*')|\s+")]
+    private static partial Regex QuotedOrWhitespaceRegex();
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRegex();
+
+    [GeneratedRegex(@"\(\s+")]
+    private static partial Regex OpenParenSpacesRegex();
+
+    [GeneratedRegex(@"\s+\)")]
+    private static partial Regex SpacesCloseParenRegex();
+
+
     public const string IndexCreationBeginComment = "--WEASEL_INDEX_CREATION_BEGIN";
     public const string IndexCreationEndComment = "--WEASEL_INDEX_CREATION_END";
     private const string JsonbPathOps = "jsonb_path_ops";
@@ -687,7 +701,7 @@ public class IndexDefinition: ITableIndex
                         // Trim redundant spaces, but not those that come in the text.
                         // Index with multiple column can look like:
                         // to_tsvector('english',((data ->> 'FirstName') || ' ' || (data ->> 'LastName')))
-                        expression = Regex.Replace(expression, @"('[^'\\]*(?:\\.[^'\\]*)*')|\s+", "$1");
+                        expression = QuotedOrWhitespaceRegex().Replace(expression, "$1");
                     }
 
                     break;
@@ -982,11 +996,11 @@ public class IndexDefinition: ITableIndex
         sql = sql.Replace($"{schema}.", "");
 
         // replace multiple spaces with single space
-        sql = Regex.Replace(sql, @"\s+", " ");
+        sql = WhitespaceRegex().Replace(sql, " ");
         // replace open parenthesis followed by one or more spaces to just open parenthesis
-        sql = Regex.Replace(sql, @"\(\s+", "(");
+        sql = OpenParenSpacesRegex().Replace(sql, "(");
         // replace one or more spaces followed by closed parenthesis to closed parenthesis
-        sql = Regex.Replace(sql, @"\s+\)", ")");
+        sql = SpacesCloseParenRegex().Replace(sql, ")");
         return sql.Replace("\"\"", "\"")
             .Replace("!=", "<>")
             .Replace("(", "")
