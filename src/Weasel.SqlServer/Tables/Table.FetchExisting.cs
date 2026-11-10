@@ -7,12 +7,7 @@ namespace Weasel.SqlServer.Tables;
 
 public partial class Table
 {
-    public override void ConfigureQueryCommand(DbCommandBuilder builder)
-    {
-        var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
-        var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
-
-        builder.Append($@"
+    private static readonly string IntrospectionSql = @"
 -- Columns come from sys.columns rather than information_schema.columns because the latter exposes
 -- no is_identity, and reports length only in characters -- it cannot express decimal(18,2) or
 -- datetime2(3) at all, so both read back as a bare type name.
@@ -30,7 +25,7 @@ from sys.columns c
     inner join sys.schemas s on s.schema_id = t.schema_id
     inner join sys.types tp on tp.user_type_id = c.user_type_id
     left join sys.default_constraints dc on dc.parent_object_id = c.object_id and dc.parent_column_id = c.column_id
-where s.name = @{schemaParam} and t.name = @{nameParam}
+where s.name = @schema and t.name = @name
 order by c.column_id;
 
 -- CONSTRAINT_COLUMN_USAGE cannot express key order, so the primary key comes from sys.index_columns
@@ -45,7 +40,7 @@ from sys.key_constraints kc
     inner join sys.indexes i on i.object_id = kc.parent_object_id and i.index_id = kc.unique_index_id
     inner join sys.index_columns ic on ic.object_id = i.object_id and ic.index_id = i.index_id
     inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
-where s.name = @{schemaParam} and t.name = @{nameParam} and kc.type = 'PK'
+where s.name = @schema and t.name = @name and kc.type = 'PK'
 order by ic.key_ordinal;
 
    select
@@ -66,8 +61,8 @@ order by ic.key_ordinal;
        inner join sys.columns c on fk.parent_object_id = c.object_id and fk.parent_column_id = c.column_id
        inner join sys.columns cfk on fk.referenced_object_id = cfk.object_id and fk.referenced_column_id = cfk.column_id
    where
-        s.name = @{schemaParam} and
-        t.name = @{nameParam}
+        s.name = @schema and
+        t.name = @name
    order by parent.name, fk.constraint_column_id;
 
 
@@ -86,8 +81,8 @@ from
     inner join sys.tables t on t.object_id = i.object_id
     inner join sys.schemas s on s.schema_id = t.schema_id
 where
-    t.name = @{nameParam} and
-    s.name = @{schemaParam} and
+    t.name = @name and
+    s.name = @schema and
     i.is_primary_key = 0 and
     -- A SQL Server 2025 JSON index IS in sys.indexes, but its sys.index_columns row carries
     -- key_ordinal = 0, which the column query below filters out. Read through here it would arrive
@@ -109,8 +104,8 @@ from
     inner join sys.schemas s on s.schema_id = t.schema_id
     inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
 where
-        t.name = @{nameParam} and
-        s.name = @{schemaParam} and
+        t.name = @name and
+        s.name = @schema and
         -- An index aligned with the table's partition scheme carries an implicit row for the
         -- partitioning column: key_ordinal 0, is_included_column 0, partition_ordinal >= 1. It is
         -- not a column the index declares, and reading it as one makes every aligned index compare
@@ -141,7 +136,7 @@ if object_id('sys.json_indexes') is not null
             left join sys.index_columns ic on ic.object_id = ji.object_id and ic.index_id = ji.index_id
             left join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
         where t.name = @name and s.name = @schema;',
-        N'@name sysname, @schema sysname', @name = @{nameParam}, @schema = @{schemaParam};
+        N'@name sysname, @schema sysname', @name = @name, @schema = @schema;
 else
     select cast(null as int) as index_id, cast(null as sysname) as name,
            cast(null as sysname) as column_name, cast(null as tinyint) as fill_factor,
@@ -156,7 +151,7 @@ if object_id('sys.json_index_paths') is not null
             inner join sys.schemas s on s.schema_id = t.schema_id
         where t.name = @name and s.name = @schema
         order by p.index_id;',
-        N'@name sysname, @schema sysname', @name = @{nameParam}, @schema = @{schemaParam};
+        N'@name sysname, @schema sysname', @name = @name, @schema = @schema;
 else
     select cast(null as int) as index_id, cast(null as nvarchar(max)) as path
     where 1 = 0;
@@ -179,22 +174,32 @@ from sys.tables tbl
     inner join sys.partition_parameters pp on pp.function_id = pf.function_id
     inner join sys.types pt on pt.user_type_id = pp.user_type_id
     left join sys.partition_range_values prv on prv.function_id = pf.function_id
-where sch.name = @{schemaParam} and tbl.name = @{nameParam}
+where sch.name = @schema and tbl.name = @name
 order by prv.boundary_id;
 
 select cc.name, cc.definition
 from sys.check_constraints cc
     inner join sys.tables t on t.object_id = cc.parent_object_id
     inner join sys.schemas s on s.schema_id = t.schema_id
-where s.name = @{schemaParam} and t.name = @{nameParam};
+where s.name = @schema and t.name = @name;
 
 select comp.name, comp.definition, comp.is_persisted
 from sys.computed_columns comp
     inner join sys.tables t on t.object_id = comp.object_id
     inner join sys.schemas s on s.schema_id = t.schema_id
-where s.name = @{schemaParam} and t.name = @{nameParam};
+where s.name = @schema and t.name = @name;
 
-");
+";
+
+    private static readonly string IntrospectionStatement =
+        $"exec sp_executesql N'{IntrospectionSql.Replace("'", "''")}', N'@schema sysname, @name sysname'";
+
+    public override void ConfigureQueryCommand(DbCommandBuilder builder)
+    {
+        var schemaParam = builder.AddParameter(Identifier.Schema).ParameterName;
+        var nameParam = builder.AddParameter(Identifier.Name).ParameterName;
+
+        builder.Append($"{IntrospectionStatement}, @schema = @{schemaParam}, @name = @{nameParam};");
     }
 
     public async Task<Table?> FetchExistingAsync(SqlConnection conn, CancellationToken ct = default)
