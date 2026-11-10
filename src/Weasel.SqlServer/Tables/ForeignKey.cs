@@ -29,6 +29,12 @@ public class ForeignKey: ForeignKeyBase
         set => _linkedNames = value.Select(SchemaUtils.Unbracket).ToArray();
     }
 
+    public bool? IsDisabled { get; set; }
+
+    public bool? IsNotForReplication { get; set; }
+
+    public bool? IsNotTrusted { get; set; }
+
 #pragma warning disable CS0618 // Type or member is obsolete
     /// <summary>
     /// The cascade action to take when a referenced row is deleted
@@ -109,14 +115,37 @@ public class ForeignKey: ForeignKeyBase
             return base.Equals(obj);
         }
 
-        return base.Equals(obj) || (NameComparer.Equals(Name, other.Name)
-                                    && Equals(LinkedTable, other.LinkedTable)
-                                    && NormalizeCascadeAction(DeleteAction) ==
-                                    NormalizeCascadeAction(other.DeleteAction)
-                                    && NormalizeCascadeAction(UpdateAction) ==
-                                    NormalizeCascadeAction(other.UpdateAction)
-                                    && SamePairs(other));
+        return (base.Equals(obj) || (NameComparer.Equals(Name, other.Name)
+                                     && Equals(LinkedTable, other.LinkedTable)
+                                     && NormalizeCascadeAction(DeleteAction) ==
+                                     NormalizeCascadeAction(other.DeleteAction)
+                                     && NormalizeCascadeAction(UpdateAction) ==
+                                     NormalizeCascadeAction(other.UpdateAction)
+                                     && SamePairs(other)))
+               && SameState(other);
     }
+
+    private bool SameState(ForeignKey other)
+        => pinnedMatch(IsDisabled, other.IsDisabled)
+           && pinnedMatch(IsNotForReplication, other.IsNotForReplication)
+           && pinnedMatch(IsNotTrusted, other.IsNotTrusted);
+
+    internal void AssertReachableState()
+    {
+        if (IsNotTrusted != false) return;
+
+        if (IsNotForReplication == true || IsDisabled == true)
+        {
+            throw new InvalidOperationException(
+                $"Foreign key {Name} pins IsNotTrusted = false together with "
+                + (IsNotForReplication == true ? "IsNotForReplication = true" : "IsDisabled = true")
+                + ", which SQL Server cannot hold: a NOT FOR REPLICATION or disabled foreign key is always untrusted. "
+                + "Leave IsNotTrusted unset or pin it to true.");
+        }
+    }
+
+    private static bool pinnedMatch(bool? left, bool? right)
+        => left is null || right is null || left == right;
 
     protected override Core.CascadeAction NormalizeCascadeAction(Core.CascadeAction action)
         => action == Core.CascadeAction.Restrict ? Core.CascadeAction.NoAction : action;
@@ -144,16 +173,26 @@ public class ForeignKey: ForeignKeyBase
     /// </remarks>
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
+        AssertReachableState();
+
         writer.WriteLine(
             $"IF OBJECT_ID(N'{SchemaUtils.EscapeLiteral(parent.Identifier.Schema)}.{SchemaUtils.EscapeLiteral(Name)}', N'F') IS NULL");
-        writer.WriteLine($"ALTER TABLE {parent.Identifier}");
+        writer.WriteLine(IsNotTrusted == true
+            ? $"ALTER TABLE {parent.Identifier} WITH NOCHECK"
+            : $"ALTER TABLE {parent.Identifier}");
         writer.WriteLine(
             $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteName).Join(", ")})");
         writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
         writer.WriteCascadeAction("ON DELETE", OnDelete);
         writer.WriteCascadeAction("ON UPDATE", OnUpdate);
+        if (IsNotForReplication == true) writer.Write(" NOT FOR REPLICATION");
         writer.Write(";");
         writer.WriteLine();
+
+        if (IsDisabled == true)
+        {
+            writer.WriteLine($"ALTER TABLE {parent.Identifier} NOCHECK CONSTRAINT {SchemaUtils.QuoteName(Name)};");
+        }
     }
 
     public void WriteDropStatement(Table parent, TextWriter writer)

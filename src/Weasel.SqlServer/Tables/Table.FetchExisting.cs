@@ -33,7 +33,8 @@ order by c.column_id;
 -- necessarily the table's column order.
 select
     c.name as COLUMN_NAME,
-    kc.name as CONSTRAINT_NAME
+    kc.name as CONSTRAINT_NAME,
+    i.type_desc
 from sys.key_constraints kc
     inner join sys.tables t on t.object_id = kc.parent_object_id
     inner join sys.schemas s on s.schema_id = t.schema_id
@@ -50,7 +51,10 @@ order by ic.key_ordinal;
           c.name,
           cfk.name as referenced_name,
           parent.delete_referential_action_desc,
-          parent.update_referential_action_desc
+          parent.update_referential_action_desc,
+          parent.is_disabled,
+          parent.is_not_for_replication,
+          parent.is_not_trusted
 
    from sys.foreign_key_columns fk
        inner join sys.foreign_keys parent on fk.constraint_object_id = parent.object_id
@@ -220,9 +224,10 @@ where s.name = @schema and t.name = @name;
 
         await readColumnsAsync(reader, existing, ct).ConfigureAwait(false);
 
-        var (pks, primaryKeyName) = await readPrimaryKeysAsync(reader, ct).ConfigureAwait(false);
+        var (pks, primaryKeyName, primaryKeyIsClustered) = await readPrimaryKeysAsync(reader, ct).ConfigureAwait(false);
         foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
         existing.PrimaryKeyName = primaryKeyName;
+        existing.PrimaryKeyIsClustered = primaryKeyIsClustered;
         // Declared key order, which for a composite key need not match the table's column order.
         existing.SetPrimaryKeyOrder(pks);
 
@@ -325,6 +330,9 @@ where s.name = @schema and t.name = @name;
             var fk = existing.FindOrCreateForeignKey(fkName);
             fk.LinkedTable = new SqlServerObjectName(schemaName, tableName);
             fk.ReadReferentialActions(onDelete, onUpdate);
+            fk.IsDisabled = await reader.GetFieldValueAsync<bool>(7, ct).ConfigureAwait(false);
+            fk.IsNotForReplication = await reader.GetFieldValueAsync<bool>(8, ct).ConfigureAwait(false);
+            fk.IsNotTrusted = await reader.GetFieldValueAsync<bool>(9, ct).ConfigureAwait(false);
 
             fk.LinkColumns(columnName, referencedName);
         }
@@ -549,20 +557,22 @@ where s.name = @schema and t.name = @name;
         }
     }
 
-    private static async Task<(List<string>, string)> readPrimaryKeysAsync(
+    private static async Task<(List<string>, string, bool?)> readPrimaryKeysAsync(
         DbDataReader reader,
         CancellationToken ct = default
     )
     {
         string? pkName = null;
+        bool? isClustered = null;
         var pks = new List<string>();
         await reader.NextResultAsync(ct).ConfigureAwait(false);
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             pks.Add(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false));
             pkName = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+            isClustered = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false) == "CLUSTERED";
         }
 
-        return (pks, pkName!);
+        return (pks, pkName!, isClustered);
     }
 }
