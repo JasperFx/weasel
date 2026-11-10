@@ -45,6 +45,7 @@ export default defineConfig({
             { text: 'Installation', link: '/guide/installation' },
             { text: 'Quick Start', link: '/guide/quickstart' },
             { text: 'Choosing a Schema Management Approach', link: '/guide/schema-management' },
+            { text: 'Migrating from 9.x to 10.0', link: '/migration-guide-10' },
             { text: 'Migrating from 8.x to 9.0', link: '/migration-guide' },
             { text: 'Upgrading to 9.48', link: '/release-9-48' },
             { text: 'Upgrading to 9.47', link: '/release-9-47' },
