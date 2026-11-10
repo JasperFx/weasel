@@ -38,11 +38,18 @@ public class Trigger: TriggerBase
 
     public bool IgnoreHeaderSpelling { get; set; }
 
+    public bool? IsDisabled { get; set; }
+
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         WriteDropStatement(migrator, writer);
 
         writer.WriteLine($"EXEC sp_executesql N'{SchemaUtils.EscapeLiteral(CreateStatement())}';");
+
+        if (IsDisabled == true)
+        {
+            writer.WriteLine($"DISABLE TRIGGER {Identifier} ON {Target};");
+        }
     }
 
     /// <summary>
@@ -78,7 +85,7 @@ public class Trigger: TriggerBase
         var nameParam = builder.AddParameter(Identifier.ToString()).ParameterName;
 
         builder.Append(
-            "SELECT sm.definition FROM sys.sql_modules AS sm "
+            "SELECT sm.definition, t.is_disabled FROM sys.sql_modules AS sm "
             + "INNER JOIN sys.triggers AS t ON t.object_id = sm.object_id "
             + $"WHERE t.object_id = OBJECT_ID(@{nameParam});");
     }
@@ -92,7 +99,10 @@ public class Trigger: TriggerBase
             return new SchemaObjectDelta(this, SchemaPatchDifference.Create);
         }
 
+        var existingIsDisabled = await reader.GetFieldValueAsync<bool>(1, ct).ConfigureAwait(false);
+
         return matches(existing)
+               && (IsDisabled is null || IsDisabled == existingIsDisabled)
             ? new SchemaObjectDelta(this, SchemaPatchDifference.None)
             : new SchemaObjectDelta(this, SchemaPatchDifference.Update);
     }
@@ -114,6 +124,20 @@ public class Trigger: TriggerBase
         await reader.CloseAsync().ConfigureAwait(false);
 
         return definition;
+    }
+
+    public async Task<bool?> FetchExistingIsDisabledAsync(SqlConnection conn, CancellationToken ct = default)
+    {
+        var builder = new DbCommandBuilder(conn);
+        ConfigureQueryCommand(builder);
+
+        await using var reader = await conn.ExecuteReaderAsync(builder, ct).ConfigureAwait(false);
+        bool? isDisabled = await readDefinitionAsync(reader, ct).ConfigureAwait(false) == null
+            ? null
+            : await reader.GetFieldValueAsync<bool>(1, ct).ConfigureAwait(false);
+        await reader.CloseAsync().ConfigureAwait(false);
+
+        return isDisabled;
     }
 
     public async Task<bool> ExistsInDatabaseAsync(SqlConnection conn, CancellationToken ct = default)
