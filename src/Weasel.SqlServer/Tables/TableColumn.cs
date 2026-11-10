@@ -143,10 +143,12 @@ public class TableColumn: ITableColumn
 
     internal void WriteDriftCorrections(Table parent, TableColumn actual, TextWriter writer)
     {
-        if (effectivelyNullable() != actual.effectivelyNullable())
+        var becomesNotNull = !effectivelyNullable() && actual.effectivelyNullable();
+        if (becomesNotNull && DefaultExpression.IsEmpty())
         {
+            var message = $"Cannot make {parent.Identifier.QualifiedName}.{Name} NOT NULL: it has NULL values and no default to fill them with.";
             writer.WriteLine(
-                $"alter table {parent.Identifier} alter column {QuotedName} {Type} {(effectivelyNullable() ? "NULL" : "NOT NULL")};");
+                $"if exists (select 1 from {parent.Identifier} where {QuotedName} is null) throw 50000, N'{SchemaUtils.EscapeLiteral(message)}', 1;");
         }
 
         if (canonicalDefault(DefaultExpression) != canonicalDefault(actual.DefaultExpression))
@@ -167,6 +169,17 @@ public class TableColumn: ITableColumn
             {
                 writer.WriteLine($"alter table {parent.Identifier} add default {DefaultExpression} for {QuotedName};");
             }
+        }
+
+        if (effectivelyNullable() != actual.effectivelyNullable())
+        {
+            if (becomesNotNull && DefaultExpression.IsNotEmpty())
+            {
+                writer.WriteLine($"update {parent.Identifier} set {QuotedName} = {DefaultExpression} where {QuotedName} is null;");
+            }
+
+            writer.WriteLine(
+                $"alter table {parent.Identifier} alter column {QuotedName} {Type} {(effectivelyNullable() ? "NULL" : "NOT NULL")};");
         }
     }
 

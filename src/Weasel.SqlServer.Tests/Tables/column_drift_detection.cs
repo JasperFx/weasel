@@ -88,4 +88,63 @@ public class column_drift_detection: IntegrationContext
 
         await AssertNoDeltasAfterPatching(table);
     }
+
+    private async Task<Table> nullableScoreWithNullRows(string? newDefault)
+    {
+        var existing = new Table("column_drift.people");
+        existing.AddColumn<int>("id").AsPrimaryKey();
+        existing.AddColumn<int>("score").AllowNulls();
+        await CreateSchemaObjectInDatabase(existing);
+        await theConnection.CreateCommand(
+            "insert into column_drift.people (id, score) values (1, null), (2, 7)").ExecuteNonQueryAsync();
+
+        var expected = new Table("column_drift.people");
+        expected.AddColumn<int>("id").AsPrimaryKey();
+        expected.AddColumn<int>("score").NotNull();
+        expected.ColumnFor("score")!.DefaultExpression = newDefault;
+        expected.DetectColumnDrift = true;
+        return expected;
+    }
+
+    [Fact]
+    public async Task making_a_column_not_null_fills_existing_nulls_from_the_new_default()
+    {
+        var table = await nullableScoreWithNullRows("0");
+
+        await AssertNoDeltasAfterPatching(table);
+
+        var scores = new List<int>();
+        await using var reader = await theConnection
+            .CreateCommand("select score from column_drift.people order by id").ExecuteReaderAsync();
+        while (await reader.ReadAsync()) scores.Add(reader.GetInt32(0));
+
+        scores.ShouldBe([0, 7]);
+    }
+
+    [Fact]
+    public async Task making_a_column_not_null_without_a_default_stops_before_changing_anything()
+    {
+        var table = await nullableScoreWithNullRows(null);
+
+        var delta = await table.FindDeltaAsync(theConnection);
+        var migration = new SchemaMigration(delta);
+
+        var ex = await Should.ThrowAsync<Exception>(() =>
+            new SqlServerMigrator().ApplyAllAsync(theConnection, migration, JasperFx.AutoCreate.CreateOrUpdate));
+        ex.ToString().ShouldContain("column_drift.people.score NOT NULL: it has NULL values and no default");
+
+        var stillNullable = (bool)(await theConnection.CreateCommand(
+            "select is_nullable from sys.columns where object_id = object_id('column_drift.people') and name = 'score'")
+            .ExecuteScalarAsync())!;
+        stillNullable.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task making_a_column_not_null_without_a_default_still_works_when_no_row_is_null()
+    {
+        var table = await nullableScoreWithNullRows(null);
+        await theConnection.CreateCommand("delete from column_drift.people where score is null").ExecuteNonQueryAsync();
+
+        await AssertNoDeltasAfterPatching(table);
+    }
 }
