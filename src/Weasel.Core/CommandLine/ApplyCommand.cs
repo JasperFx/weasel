@@ -38,7 +38,7 @@ public class ApplyCommand: JasperFxAsyncCommand<WeaselInput>
         // write from inside the batch goes through this lock, and everything belonging to one database
         // (its buffered DDL plus its completion line) is written under a single acquisition so it lands
         // as an attributable unit.
-        var console = new object();
+        var console = new Lock();
 
         // Only redirect the DDL when appliers actually run concurrently. At --parallel 1 the logger is
         // left alone so a long migration still streams its SQL live -- on a >90 minute restore-and-migrate

@@ -15,7 +15,7 @@ namespace Weasel.SqlServer;
 ///     batch runs once: nothing in Weasel emits a count, and repeating DDL is never what a migration
 ///     means.
 /// </remarks>
-public static class SqlServerBatchSplitter
+public static partial class SqlServerBatchSplitter
 {
     /// <summary>
     ///     What <see cref="Split" /> splits on, for the DDL writers that have to end a batch
@@ -40,17 +40,15 @@ public static class SqlServerBatchSplitter
     ///     <c>\r?</c> is what <c>\s</c> was quietly doing for CRLF input: <c>$</c> matches before the
     ///     <c>\n</c>, not before the <c>\r\n</c> pair, so the carriage return has to be consumed here.
     /// </remarks>
-    private static readonly Regex _separator = new(
-        @"^[ \t]*GO(?:[ \t]+\d+)?[ \t]*;?[ \t]*\r?$",
-        RegexOptions.Multiline | RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
+    [GeneratedRegex(@"^[ \t]*GO(?:[ \t]+\d+)?[ \t]*;?[ \t]*\r?$", RegexOptions.Multiline | RegexOptions.IgnoreCase)]
+    private static partial Regex _separator();
     /// <summary>
     ///     Does <paramref name="sql" /> contain a line that <see cref="Split" /> would treat as a batch
     ///     separator? Shares the one definition of a separator with <see cref="Split" /> on purpose: a
     ///     caller that refuses input on its own idea of what a <c>GO</c> line is could disagree with the
     ///     splitter, which is the only way such a refusal could be worse than no refusal at all.
     /// </summary>
-    internal static bool ContainsSeparator(string sql) => _separator.IsMatch(sql);
+    internal static bool ContainsSeparator(string sql) => _separator().IsMatch(sql);
 
     /// <summary>
     ///     The non-empty batches of <paramref name="sql" />, in order, each trimmed of surrounding
@@ -65,7 +63,7 @@ public static class SqlServerBatchSplitter
 
         var batches = new List<string>();
 
-        foreach (var candidate in _separator.Split(sql))
+        foreach (var candidate in _separator().Split(sql))
         {
             var batch = candidate.Trim();
             if (batch.Length > 0)

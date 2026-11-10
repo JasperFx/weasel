@@ -3,13 +3,15 @@ using JasperFx.Core;
 
 namespace Weasel.Postgresql;
 
-internal static class Canonicalization
+internal static partial class Canonicalization
 {
     public static string ReplaceMultiSpace(this string str, string newStr)
     {
-        var regex = new Regex("\\s+");
-        return regex.Replace(str, newStr);
+        return MultiSpaceRegex().Replace(str, newStr);
     }
+
+    [GeneratedRegex("\\s+")]
+    private static partial Regex MultiSpaceRegex();
 
 
     public static string CanonicizeSql(this string sql)

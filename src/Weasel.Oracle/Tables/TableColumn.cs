@@ -5,7 +5,7 @@ using Weasel.Core;
 
 namespace Weasel.Oracle.Tables;
 
-public class TableColumn: ITableColumn
+public partial class TableColumn: ITableColumn
 {
     private readonly bool _preserveCase;
 
@@ -185,9 +185,10 @@ public class TableColumn: ITableColumn
         return length.HasValue && length == column.StoredByteLength;
     }
 
-    private static readonly Regex Parenthesised = new(@"\([^)]*\)", RegexOptions.Compiled);
-    private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
-
+    [GeneratedRegex(@"\([^)]*\)")]
+    private static partial Regex Parenthesised();
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex Whitespace();
     /// <summary>
     ///     The name Oracle's catalog reports for a column declared as <paramref name="type" />, without
     ///     its sizes. Both sides of a comparison go through this, so a model may spell a type the way
@@ -213,7 +214,7 @@ public class TableColumn: ITableColumn
     {
         var name = collapse(type).StartsWith("TIMESTAMP", StringComparison.Ordinal)
             ? collapse(type.Split('(')[0])
-            : collapse(Parenthesised.Replace(type, " "));
+            : collapse(Parenthesised().Replace(type, " "));
 
         return OracleProvider.Instance.ConvertSynonyms(FoldAnsiName(name));
     }
@@ -252,7 +253,7 @@ public class TableColumn: ITableColumn
         };
     }
 
-    private static string collapse(string value) => Whitespace.Replace(value, " ").Trim().ToUpperInvariant();
+    private static string collapse(string value) => Whitespace().Replace(value, " ").Trim().ToUpperInvariant();
 
     public override bool Equals(object? obj)
     {

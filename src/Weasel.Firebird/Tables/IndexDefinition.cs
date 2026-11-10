@@ -5,10 +5,10 @@ using Weasel.Core;
 
 namespace Weasel.Firebird.Tables;
 
-public class IndexDefinition: ITableIndex
+public partial class IndexDefinition: ITableIndex
 {
-    private static readonly Regex WhereKeyword = new(@"^\s*WHERE\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-
+    [GeneratedRegex(@"^\s*WHERE\b", RegexOptions.IgnoreCase)]
+    private static partial Regex WhereKeyword();
     private readonly List<string> _columns = new();
     private string? _indexName;
 
@@ -260,5 +260,5 @@ public class IndexDefinition: ITableIndex
     ///     A condition source as Firebird 5 stores it, <c>WHERE b &gt; 0</c>, without the keyword.
     /// </summary>
     internal static string? ReadPredicate(string? source)
-        => source.IsEmpty() ? null : WhereKeyword.Replace(source!, "").Trim();
+        => source.IsEmpty() ? null : WhereKeyword().Replace(source!, "").Trim();
 }

@@ -16,10 +16,10 @@ namespace Weasel.Firebird;
 ///     introspection query can name a column only Firebird 5 has, and how to read back a type whose
 ///     storage changed between versions.
 /// </remarks>
-public readonly record struct FirebirdServerVersion(int Major, int Minor, int Patch)
+public readonly partial record struct FirebirdServerVersion(int Major, int Minor, int Patch)
 {
-    private static readonly Regex VersionPattern = new(@"(\d+)\.(\d+)(?:\.(\d+))?", RegexOptions.Compiled);
-
+    [GeneratedRegex(@"(\d+)\.(\d+)(?:\.(\d+))?")]
+    private static partial Regex VersionPattern();
     /// <summary>
     ///     Partial indexes (<c>CREATE INDEX … WHERE</c>) and <c>RDB$INDICES.RDB$CONDITION_SOURCE</c>
     ///     arrived in Firebird 5.
@@ -63,7 +63,7 @@ public readonly record struct FirebirdServerVersion(int Major, int Minor, int Pa
             return null;
         }
 
-        var match = VersionPattern.Match(text);
+        var match = VersionPattern().Match(text);
         if (!match.Success)
         {
             return null;

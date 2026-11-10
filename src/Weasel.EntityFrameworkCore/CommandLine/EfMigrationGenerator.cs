@@ -49,14 +49,13 @@ public record EfMigrationAddResult(
 ///     the engine behind the db-ef-migration command, kept separate so it is
 ///     directly testable and usable programmatically.
 /// </summary>
-public static class EfMigrationGenerator
+public static partial class EfMigrationGenerator
 {
     public const string SnapshotFileName = "weasel-schema-snapshot.json";
     public const string HistoryTableName = "__EFMigrationsHistory";
 
-    private static readonly Regex MigrationFilePattern =
-        new(@"^\d{14}_.+\.cs$", RegexOptions.Compiled);
-
+    [GeneratedRegex(@"^\d{14}_.+\.cs$")]
+    private static partial Regex MigrationFilePattern();
     /// <summary>
     ///     Detect the EF provider from the database's Migrator type. Only
     ///     PostgreSQL and SQL Server are supported for EF migration generation.
@@ -241,7 +240,7 @@ public static class EfMigrationGenerator
         return System.IO.Directory.EnumerateFiles(directory, "*.cs")
             .Select(Path.GetFileName)
             .OfType<string>()
-            .Where(x => MigrationFilePattern.IsMatch(x))
+            .Where(x => MigrationFilePattern().IsMatch(x))
             .Select(x => x[..^3])
             .OrderBy(x => x, StringComparer.Ordinal)
             .ToList();

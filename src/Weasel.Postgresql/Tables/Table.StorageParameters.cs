@@ -172,8 +172,11 @@ public partial class Table
     /// </summary>
     internal Dictionary<DbObjectName, OrderedDictionary> PartitionStorageParameters { get; } = new();
 
-    private static readonly Regex _parameterName = new("^[a-z_][a-z0-9_]*$", RegexOptions.Compiled);
-    private static readonly Regex _bareValue = new("^[A-Za-z0-9_.+-]+$", RegexOptions.Compiled);
+    [GeneratedRegex("^[a-z_][a-z0-9_]*$")]
+    private static partial Regex ParameterNameRegex();
+
+    [GeneratedRegex("^[A-Za-z0-9_.+-]+$")]
+    private static partial Regex BareValueRegex();
 
     internal bool HasStorageParameters => StorageParameters.Count > 0;
 
@@ -192,7 +195,7 @@ public partial class Table
                     $"Table '{Identifier}' declares the storage parameter '{name}'. toast.* storage parameters are not supported because they live on the TOAST relation, not on the table.");
             }
 
-            if (!_parameterName.IsMatch(name))
+            if (!ParameterNameRegex().IsMatch(name))
             {
                 throw new InvalidOperationException(
                     $"Table '{Identifier}' declares an invalid storage parameter name '{name}'.");
@@ -224,7 +227,7 @@ public partial class Table
         => string.Join(", ", parameters.Select(x => $"{x.Name} = {RenderStorageValue(x.Value)}"));
 
     private static string RenderStorageValue(string value)
-        => _bareValue.IsMatch(value) ? value : "'" + value.Replace("'", "''") + "'";
+        => BareValueRegex().IsMatch(value) ? value : "'" + value.Replace("'", "''") + "'";
 
     /// <summary>
     ///     <c> WITH (...)</c> for a CREATE TABLE statement, or an empty string when nothing is declared

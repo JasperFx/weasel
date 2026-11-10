@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Data;
 using ImTools;
 using JasperFx.Core;
@@ -7,8 +8,13 @@ using Weasel.Core;
 
 namespace Weasel.Oracle;
 
-public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, OracleDbType>
+public partial class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, OracleDbType>
 {
+
+    [GeneratedRegex(@"\(\d+\)")]
+    private static partial Regex PrecisionRegex();
+
+
     public const string EngineName = "Oracle";
     public static readonly OracleProvider Instance = new();
 
@@ -143,7 +149,7 @@ public class OracleProvider: DatabaseProvider<OracleCommand, OracleParameter, Or
         // Handle TIMESTAMP variants - normalize by stripping precision like (6)
         if (upper.StartsWith("TIMESTAMP"))
         {
-            var normalized = System.Text.RegularExpressions.Regex.Replace(upper, @"\(\d+\)", "");
+            var normalized = PrecisionRegex().Replace(upper, "");
             return normalized.Replace("  ", " ");
         }
 

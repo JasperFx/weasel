@@ -23,7 +23,7 @@ namespace Weasel.Core;
 ///         their engine supports without Weasel modelling any of it.
 ///     </para>
 /// </remarks>
-public abstract class StoredProcedureBase: SchemaObjectBase
+public abstract partial class StoredProcedureBase: SchemaObjectBase
 {
     protected StoredProcedureBase(DbObjectName identifier) : base(identifier)
     {
@@ -91,7 +91,7 @@ public abstract class StoredProcedureBase: SchemaObjectBase
 
     public static string Canonicize(string sql)
         => sql.ReadLines()
-            .Select(x => Whitespace.Replace(x, " ").Trim())
+            .Select(x => WhitespaceRegex().Replace(x, " ").Trim())
             .Where(x => x.IsNotEmpty())
             .Join(Environment.NewLine);
 
@@ -100,7 +100,8 @@ public abstract class StoredProcedureBase: SchemaObjectBase
     ///     a tab where the caller wrote a space, and none of these engines treat the difference as
     ///     meaningful.
     /// </summary>
-    private static readonly Regex Whitespace = new(@"\s+", RegexOptions.Compiled);
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRegex();
 
     public override async Task<ISchemaObjectDelta> CreateDeltaAsync(
         DbDataReader reader, CancellationToken ct = default)

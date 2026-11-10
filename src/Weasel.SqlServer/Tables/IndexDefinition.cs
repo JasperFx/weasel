@@ -5,8 +5,13 @@ using Weasel.Core;
 
 namespace Weasel.SqlServer.Tables;
 
-public class IndexDefinition: ITableIndex
+public partial class IndexDefinition: ITableIndex
 {
+
+    [GeneratedRegex(@"\s*([<>=!+\-*/,]+)\s*")]
+    private static partial Regex OperatorSpacingRegex();
+
+
     private readonly IList<string> _columns = new List<string>();
     private readonly IList<string> _includedColumns = new List<string>();
 
@@ -338,7 +343,7 @@ public class IndexDefinition: ITableIndex
             .TrimEnd(';');
 
         // Collapse the whitespace SQL Server adds or removes around operators and separators.
-        return Regex.Replace(sql, @"\s*([<>=!+\-*/,]+)\s*", "$1");
+        return OperatorSpacingRegex().Replace(sql, "$1");
     }
 
     public void AddColumn(string columnName)

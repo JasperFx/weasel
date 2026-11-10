@@ -297,12 +297,12 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
             if (close >= 0)
             {
                 var options = tableSql[(close + 1)..];
-                existing.WithoutRowId = _withoutRowId.IsMatch(options);
-                existing.StrictTypes = _strict.IsMatch(options);
+                existing.WithoutRowId = _withoutRowId().IsMatch(options);
+                existing.StrictTypes = _strict().IsMatch(options);
             }
         }
 
-        if (!_autoIncrement.IsMatch(tableSql) || existing.PrimaryKeyColumns.Count != 1)
+        if (!_autoIncrement().IsMatch(tableSql) || existing.PrimaryKeyColumns.Count != 1)
         {
             return;
         }
@@ -314,14 +314,12 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
         }
     }
 
-    private static readonly Regex _withoutRowId =
-        new(@"\bWITHOUT\s+ROWID\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-    private static readonly Regex _strict = new(@"\bSTRICT\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-    private static readonly Regex _autoIncrement =
-        new(@"\bAUTOINCREMENT\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
+    [GeneratedRegex(@"\bWITHOUT\s+ROWID\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex _withoutRowId();
+    [GeneratedRegex(@"\bSTRICT\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex _strict();
+    [GeneratedRegex(@"\bAUTOINCREMENT\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex _autoIncrement();
     private async Task readForeignKeysAsync(DbDataReader reader, Table existing, string? tableSql,
         CancellationToken ct = default)
     {
@@ -373,10 +371,8 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
         }
     }
 
-    private static readonly Regex _declaredForeignKey = new(
-        """CONSTRAINT\s+(?<name>"(?:[^"]|"")*"|\[[^\]]*\]|`(?:[^`]|``)*`|[A-Za-z_][A-Za-z0-9_$]*)\s+FOREIGN\s+KEY\s*\(\s*(?<columns>[^)]*)\)\s*REFERENCES\s+(?<table>"(?:[^"]|"")*"|\[[^\]]*\]|`(?:[^`]|``)*`|[A-Za-z_][A-Za-z0-9_$]*)""",
-        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
+    [GeneratedRegex("""CONSTRAINT\s+(?<name>"(?:[^"]|"")*"|\[[^\]]*\]|`(?:[^`]|``)*`|[A-Za-z_][A-Za-z0-9_$]*)\s+FOREIGN\s+KEY\s*\(\s*(?<columns>[^)]*)\)\s*REFERENCES\s+(?<table>"(?:[^"]|"")*"|\[[^\]]*\]|`(?:[^`]|``)*`|[A-Za-z_][A-Za-z0-9_$]*)""", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex _declaredForeignKey();
     /// <summary>
     ///     The names the table declares for its foreign keys, keyed by what identifies a constraint
     ///     in <c>pragma_foreign_key_list</c>: the referenced table and the dependent columns.
@@ -401,7 +397,7 @@ WHERE type = 'trigger' AND tbl_name = '{tableName}' AND sql IS NOT NULL;
             return names;
         }
 
-        foreach (Match match in _declaredForeignKey.Matches(tableSql))
+        foreach (Match match in _declaredForeignKey().Matches(tableSql))
         {
             var columns = match.Groups["columns"].Value.ToDelimitedArray(',');
             var key = foreignKeyKey(SchemaUtils.Unquote(match.Groups["table"].Value), columns);
