@@ -88,10 +88,9 @@ public class SystemTextJsonSerializer : ISerializer
     // polecat#273: the shared members inherited from Weasel.Core.ISerializer are intentionally
     // unannotated (Marten parity), so their reflection-based STJ bodies suppress the RUC/RDC warnings
     // here rather than propagating a caller-facing contract the base doesn't declare. AOT consumers
-    // supply a source-generator-backed ISerializer. The two string-based overloads below are
-    // store-level extensions (Polecat and Fisher declare them on their own ISerializer interfaces,
-    // not on the shared base), so they keep the propagating
-    // [RequiresUnreferencedCode]/[RequiresDynamicCode].
+    // supply a source-generator-backed ISerializer. That now includes the two string-based
+    // FromJson overloads, which moved onto the shared base in weasel#742 and so suppress like the
+    // rest instead of propagating [RequiresUnreferencedCode]/[RequiresDynamicCode].
     private const string SharedSerializerSuppression =
         "Reflection-based STJ serialize/deserialize is the Critter Stack stores' documented default; the shared Weasel.Core.ISerializer base is intentionally unannotated for Marten parity, so RUC/RDC is not propagated. AOT consumers supply a source-generator-backed ISerializer.";
 
@@ -231,15 +230,18 @@ public class SystemTextJsonSerializer : ISerializer
         }
     }
 
-    [RequiresUnreferencedCode("STJ JsonSerializer.Deserialize<T> uses reflection over T.")]
-    [RequiresDynamicCode("STJ JsonSerializer.Deserialize requires runtime code generation for non-source-generated types.")]
+    // Implements Weasel.Core.ISerializer.FromJson<T>(string) since weasel#742, so it carries the
+    // same suppression as every other member of that unannotated interface rather than RUC/RDC,
+    // which would be an IL2046/IL3051 annotation mismatch against the interface slot.
+    [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = SharedSerializerSuppression)]
+    [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = SharedSerializerSuppression)]
     public T FromJson<T>(string json)
     {
         return JsonSerializer.Deserialize<T>(json, _options)!;
     }
 
-    [RequiresUnreferencedCode("STJ JsonSerializer.Deserialize uses reflection over the supplied type.")]
-    [RequiresDynamicCode("STJ JsonSerializer.Deserialize requires runtime code generation for non-source-generated types.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = SharedSerializerSuppression)]
+    [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = SharedSerializerSuppression)]
     public object FromJson(Type type, string json)
     {
         return JsonSerializer.Deserialize(json, type, _options)!;
