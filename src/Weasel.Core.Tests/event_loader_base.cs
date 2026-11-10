@@ -164,6 +164,37 @@ public class event_loader_base: IDisposable
     }
 
     [Fact]
+    public async Task an_upcast_source_row_survives_a_filtered_shard()
+    {
+        // weasel#743: the projection declares the NEW type; rows written before the migration carry
+        // the OLD alias. Filtering on the declared set alone reads none of that history.
+        Append((1, "wanted_v1"), (2, "unwanted"), (3, "wanted"));
+
+        var registry = new StubRegistry(["wanted"]);
+        registry.Upcasters.Upcast(new RenamingUpcaster("wanted_v1", StubRegistry.TypeAt(0)));
+
+        var allowList = EventTypeAllowList.For(registry, [StubRegistry.TypeAt(0)]);
+        allowList.UpcastSourceAliases.ShouldBe(["wanted_v1"]);
+
+        var loader = LoaderFor(new EventLoaderOptions { EventTypes = allowList });
+        var page = await loader.LoadAsync(RequestFor(0, 10), CancellationToken.None);
+
+        page.Select(x => x.Sequence).ShouldBe([1, 3]);
+        loader.HydratedTypes.ShouldBe(["wanted_v1", "wanted"]);
+    }
+
+    private sealed class RenamingUpcaster(string sourceAlias, Type target): JasperFx.Events.Upcasting.IEventUpcaster
+    {
+        public string EventTypeName => sourceAlias;
+        public Type EventType => target;
+
+        public object Upcast(JasperFx.Events.Upcasting.IUpcastPayload payload) => throw new NotSupportedException();
+
+        public ValueTask<object> UpcastAsync(JasperFx.Events.Upcasting.IUpcastPayload payload, CancellationToken ct)
+            => throw new NotSupportedException();
+    }
+
+    [Fact]
     public async Task an_empty_allow_list_means_every_event_type()
     {
         Append((1, "a"), (2, "b"));
@@ -528,11 +559,13 @@ public class event_loader_base: IDisposable
             if (!query.EventTypes.IsEmpty)
             {
                 // In SQL, never after hydration.
-                var names = query.EventTypes.Aliases
+                // Upcast sources too, or the history an upcaster exists to read is filtered out.
+                var aliases = query.EventTypes.AliasesIncludingUpcastSources;
+                var names = aliases
                     .Select((_, i) => $"@type{i}")
                     .ToArray();
                 clauses.Add($"type in ({string.Join(", ", names)})");
-                parameters.AddRange(query.EventTypes.Aliases
+                parameters.AddRange(aliases
                     .Select((alias, i) => new EventPageParameter($"@type{i}", alias)));
             }
 
