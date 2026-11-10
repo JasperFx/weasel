@@ -51,7 +51,10 @@ order by ic.key_ordinal;
           c.name,
           cfk.name as referenced_name,
           parent.delete_referential_action_desc,
-          parent.update_referential_action_desc
+          parent.update_referential_action_desc,
+          parent.is_disabled,
+          parent.is_not_for_replication,
+          parent.is_not_trusted
 
    from sys.foreign_key_columns fk
        inner join sys.foreign_keys parent on fk.constraint_object_id = parent.object_id
@@ -327,6 +330,9 @@ where s.name = @schema and t.name = @name;
             var fk = existing.FindOrCreateForeignKey(fkName);
             fk.LinkedTable = new SqlServerObjectName(schemaName, tableName);
             fk.ReadReferentialActions(onDelete, onUpdate);
+            fk.IsDisabled = await reader.GetFieldValueAsync<bool>(7, ct).ConfigureAwait(false);
+            fk.IsNotForReplication = await reader.GetFieldValueAsync<bool>(8, ct).ConfigureAwait(false);
+            fk.IsNotTrusted = await reader.GetFieldValueAsync<bool>(9, ct).ConfigureAwait(false);
 
             fk.LinkColumns(columnName, referencedName);
         }
