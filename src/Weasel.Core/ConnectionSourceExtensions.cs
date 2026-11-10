@@ -11,6 +11,7 @@ public static class ConnectionSourceExtensions
     /// <param name="source"></param>
     /// <param name="sql"></param>
     /// <typeparam name="T"></typeparam>
+    [Obsolete("Use RunSqlAsync<T>: this blocks a thread on I/O. It will be removed in a later major version.")]
     public static void RunSql<T>(this IConnectionSource<T> source, string sql) where T : DbConnection
     {
         using var conn = source.CreateConnection();

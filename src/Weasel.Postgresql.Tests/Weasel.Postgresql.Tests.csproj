@@ -5,8 +5,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Npgsql" VersionOverride="10.0.0" />
-        <PackageReference Include="Npgsql.NetTopologySuite" VersionOverride="10.0.0" />
+        <PackageReference Include="Npgsql" />
+        <PackageReference Include="Npgsql.NetTopologySuite" />
         <PackageReference Include="NSubstitute" />
         <PackageReference Include="Shouldly" />
     </ItemGroup>
