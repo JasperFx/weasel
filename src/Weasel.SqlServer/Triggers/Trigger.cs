@@ -36,6 +36,8 @@ public class Trigger: TriggerBase
     {
     }
 
+    public bool IgnoreHeaderSpelling { get; set; }
+
     public override void WriteCreateStatement(Migrator migrator, TextWriter writer)
     {
         WriteDropStatement(migrator, writer);
@@ -90,9 +92,16 @@ public class Trigger: TriggerBase
             return new SchemaObjectDelta(this, SchemaPatchDifference.Create);
         }
 
-        return NormalizeBody(existing) == NormalizeBody(CreateStatement())
+        return matches(existing)
             ? new SchemaObjectDelta(this, SchemaPatchDifference.None)
             : new SchemaObjectDelta(this, SchemaPatchDifference.Update);
+    }
+
+    private bool matches(string existing)
+    {
+        if (NormalizeBody(existing) == NormalizeBody(CreateStatement())) return true;
+
+        return IgnoreHeaderSpelling && TriggerDefinition.Parse(existing) is { } parsed && parsed.Describes(this);
     }
 
     public async Task<string?> FetchExistingDefinitionAsync(SqlConnection conn, CancellationToken ct = default)
