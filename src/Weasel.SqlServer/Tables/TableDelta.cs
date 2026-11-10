@@ -70,6 +70,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
     protected override SchemaPatchDifference compare(Table expected, Table? actual)
     {
+        foreach (var foreignKey in expected.ForeignKeys) foreignKey.AssertReachableState();
+
         if (actual == null)
         {
             // Nothing below this point runs, so every ItemDelta has to be built here as well --

@@ -207,4 +207,43 @@ public class foreign_key_state: IntegrationContext
         (await catalogState()).ShouldContain("fk_inactive False False False");
         (await pinned.FindDeltaAsync(theConnection)).Difference.ShouldBe(SchemaPatchDifference.None);
     }
+
+    public static TheoryData<bool?, bool?> UnreachablePins => new()
+    {
+        { true, null },
+        { null, true },
+        { true, true }
+    };
+
+    [Theory]
+    [MemberData(nameof(UnreachablePins))]
+    public void a_trusted_pin_on_a_key_sql_server_keeps_untrusted_is_rejected_when_rendering(bool? disabled, bool? notForReplication)
+    {
+        var ex = Should.Throw<InvalidOperationException>(
+            () => key("plain", disabled, notForReplication, notTrusted: false).ToDDL(childModel()));
+
+        ex.Message.ShouldContain("fk_plain");
+        ex.Message.ShouldContain("IsNotTrusted");
+    }
+
+    [Theory]
+    [MemberData(nameof(UnreachablePins))]
+    public async Task a_trusted_pin_on_a_key_sql_server_keeps_untrusted_is_rejected_when_comparing(bool? disabled, bool? notForReplication)
+    {
+        await createChildWithPlainKey("plain");
+
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => childModel(key("plain", disabled, notForReplication, notTrusted: false)).FindDeltaAsync(theConnection));
+    }
+
+    [Theory]
+    [InlineData(null, true, null)]
+    [InlineData(null, true, true)]
+    [InlineData(true, null, true)]
+    [InlineData(false, false, false)]
+    [InlineData(null, null, false)]
+    public void a_reachable_pin_renders(bool? disabled, bool? notForReplication, bool? notTrusted)
+    {
+        Should.NotThrow(() => key("plain", disabled, notForReplication, notTrusted).ToDDL(childModel()));
+    }
 }

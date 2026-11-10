@@ -130,6 +130,20 @@ public class ForeignKey: ForeignKeyBase
            && pinnedMatch(IsNotForReplication, other.IsNotForReplication)
            && pinnedMatch(IsNotTrusted, other.IsNotTrusted);
 
+    internal void AssertReachableState()
+    {
+        if (IsNotTrusted != false) return;
+
+        if (IsNotForReplication == true || IsDisabled == true)
+        {
+            throw new InvalidOperationException(
+                $"Foreign key {Name} pins IsNotTrusted = false together with "
+                + (IsNotForReplication == true ? "IsNotForReplication = true" : "IsDisabled = true")
+                + ", which SQL Server cannot hold: a NOT FOR REPLICATION or disabled foreign key is always untrusted. "
+                + "Leave IsNotTrusted unset or pin it to true.");
+        }
+    }
+
     private static bool pinnedMatch(bool? left, bool? right)
         => left is null || right is null || left == right;
 
@@ -159,6 +173,8 @@ public class ForeignKey: ForeignKeyBase
     /// </remarks>
     public void WriteAddStatement(Table parent, TextWriter writer)
     {
+        AssertReachableState();
+
         writer.WriteLine(
             $"IF OBJECT_ID(N'{SchemaUtils.EscapeLiteral(parent.Identifier.Schema)}.{SchemaUtils.EscapeLiteral(Name)}', N'F') IS NULL");
         writer.WriteLine(IsNotTrusted == true
