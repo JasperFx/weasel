@@ -27,7 +27,8 @@ public interface IEventPagingDialect
 {
     /// <summary>
     /// The bounded page read: the events in <c>(Floor, Ceiling]</c> ordered by sequence, limited to
-    /// the batch size, with the tenant and event-type filters applied <b>in SQL</b>.
+    /// the batch size, with the tenant and event-type filters applied <b>in SQL</b> — including the
+    /// allow list's upcast sources; see <see cref="EventPageQuery.EventTypes"/>.
     /// </summary>
     /// <remarks>
     /// The column list is the dialect's and the store's joint business — whatever the loader's

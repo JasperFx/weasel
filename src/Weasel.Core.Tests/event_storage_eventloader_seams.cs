@@ -262,8 +262,10 @@ public class event_storage_eventloader_seams
         asyncEvent!.Data.ShouldBe(new OrderPlaced("old", 1));
         syncEvent!.Data.ShouldBe(new OrderPlaced("old", 1));
 
-        // The stored alias is preserved; the CLR name is the upcast target's.
+        // Both stored names are preserved as stored, as Polecat's loader does: the alias and the
+        // dotnet_type describe the ROW, while Data is the upcast target.
         asyncEvent.EventTypeName.ShouldBe("order_placed_v1");
+        asyncEvent.DotNetTypeName.ShouldBe(typeof(OrderPlacedV1).AssemblyQualifiedName);
     }
 
     [Fact]

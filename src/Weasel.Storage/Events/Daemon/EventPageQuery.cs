@@ -48,6 +48,13 @@ public sealed record EventPageQuery
     /// — see <see cref="EventTypeAllowList"/> for why filtering after hydration is not an
     /// acceptable substitute.
     /// </summary>
+    /// <remarks>
+    /// Render <see cref="EventTypeAllowList.AliasesIncludingUpcastSources"/> when matching on the
+    /// <c>type</c> column, or add an <c>or type in (...)</c> disjunct over
+    /// <see cref="EventTypeAllowList.UpcastSourceAliases"/> when matching on <c>dotnet_type</c>.
+    /// Rendering <see cref="EventTypeAllowList.Aliases"/> alone silently drops every row written
+    /// under a name an upcaster reads from (weasel#743).
+    /// </remarks>
     public EventTypeAllowList EventTypes { get; init; } = EventTypeAllowList.All;
 
     /// <summary>
