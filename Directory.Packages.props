@@ -22,26 +22,26 @@
     <!-- Override the transitive SQLitePCLRaw 2.1.11 (vulnerable native lib,
          GHSA-2m69-gcr7-jv3q) with 3.0.3, which ships the patched SQLite build. -->
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <!-- EF Core versions are framework-conditional - see below -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.18" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="MySqlConnector" Version="2.6.1" />
-    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" />
-    <PackageVersion Include="Npgsql" Version="9.0.4" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+    <PackageVersion Include="Npgsql" Version="10.0.3" />
     <!-- Npgsql EF Core is framework-conditional - see below -->
-    <PackageVersion Include="Npgsql.NetTopologySuite" Version="9.0.4" />
+    <PackageVersion Include="Npgsql.NetTopologySuite" Version="10.0.0" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Nuke.Common" Version="9.0.4" />
     <!-- Oracle EF Core is framework-conditional - see below -->
-    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.7.0" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.400" />
     <!-- Pomelo EF Core is framework-conditional - see below -->
     <PackageVersion Include="Shouldly" Version="4.3.0" />
-    <PackageVersion Include="xunit.v3" Version="3.2.2" />
+    <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <!-- The assertion/attribute surface without the runner, for Weasel.Testing: a library of
          shared test bases is not itself a test project and must not build as an Exe. -->
-    <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
+    <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
   <!-- Override the transitive System.Security.Cryptography.Pkcs (GHSA-846f-f764-76mx /
@@ -70,5 +70,6 @@
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
     <PackageVersion Include="FirebirdSql.EntityFrameworkCore.Firebird" Version="13.0.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <PackageVersion Include="Oracle.EntityFrameworkCore" Version="10.23.26400" />
   </ItemGroup>
 </Project>
