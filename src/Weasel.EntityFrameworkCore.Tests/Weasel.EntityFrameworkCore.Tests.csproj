@@ -14,14 +14,13 @@
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" />
         <PackageReference Include="FirebirdSql.EntityFrameworkCore.Firebird" />
-        <PackageReference Include="Oracle.EntityFrameworkCore" Condition="'$(TargetFramework)' != 'net10.0'" />
+        <PackageReference Include="Oracle.EntityFrameworkCore" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Condition="'$(TargetFramework)' != 'net10.0'" />
         <PackageReference Include="Shouldly" />
     </ItemGroup>
 
-    <!-- Exclude Oracle and MySql test files on net10.0 where those providers aren't available -->
+    <!-- Exclude MySql test files on net10.0 where Pomelo has no release -->
     <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
-        <Compile Remove="Oracle\**" />
         <Compile Remove="MySql\**" />
     </ItemGroup>
 
@@ -30,7 +29,7 @@
         <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
         <ProjectReference Include="..\Weasel.SqlServer\Weasel.SqlServer.csproj" />
         <ProjectReference Include="..\Weasel.Firebird\Weasel.Firebird.csproj" />
-        <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" Condition="'$(TargetFramework)' != 'net10.0'" />
+        <ProjectReference Include="..\Weasel.Oracle\Weasel.Oracle.csproj" />
         <ProjectReference Include="..\Weasel.MySql\Weasel.MySql.csproj" Condition="'$(TargetFramework)' != 'net10.0'" />
     </ItemGroup>
 
