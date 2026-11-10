@@ -29,7 +29,10 @@ namespace Weasel.Storage;
 ///         <c>varchar</c> tenant column overrides it (for instance setting
 ///         <see cref="System.Data.DbType.AnsiString" />).
 ///     </para>
-///     <para>No trailing <c>;</c>: the session separates statements.</para>
+///     <para>
+///         No trailing <c>;</c>: the session separates statements, so this belongs in a batch whose builder
+///         really splits commands — see <see cref="OperationBatchExecutor.Configure" />.
+///     </para>
 /// </remarks>
 public class WhereStorageOperation: IStorageOperation
 {

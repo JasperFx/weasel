@@ -173,6 +173,41 @@ public sealed class operation_batch_executor: IAsyncLifetime
     }
 
     [Fact]
+    public void configure_gives_each_unterminated_operation_its_own_batch_command()
+    {
+        // QueuedSqlOperation and WhereStorageOperation end without a ';', so they are only safe on a
+        // builder whose StartNewCommand really splits. Both DbBatch builders do; compiling needs no server.
+        IStorageOperation[] operations =
+        [
+            new QueuedSqlOperation("insert into things (id) values (?);", '?', 1),
+            new WhereStorageOperation(new DeleteHead(), typeof(string), new Literal("id = 1"), "t", null,
+                OperationRole.Deletion),
+            new QueuedSqlOperation("select 1", '?')
+        ];
+
+        var postgres = new Weasel.Postgresql.BatchBuilder();
+        OperationBatchExecutor.Configure(postgres, operations, theSession);
+        var npgsqlBatch = postgres.Compile();
+        npgsqlBatch.BatchCommands.Count.ShouldBe(3);
+        npgsqlBatch.BatchCommands[1].CommandText.ShouldStartWith("delete from things where tenant_id = ");
+
+        var sqlServer = new Weasel.SqlServer.BatchBuilder();
+        OperationBatchExecutor.Configure(sqlServer, operations, theSession);
+        sqlServer.Compile().BatchCommands.Count.ShouldBe(3);
+    }
+
+    private sealed class DeleteHead: IOperationFragment
+    {
+        public void Apply(ICommandBuilder builder) => builder.Append("delete from things");
+        public OperationRole Role() => OperationRole.Deletion;
+    }
+
+    private sealed class Literal(string sql): Weasel.Core.SqlGeneration.ISqlFragment
+    {
+        public void Apply(ICommandBuilder builder) => builder.Append(sql);
+    }
+
+    [Fact]
     public async Task an_empty_batch_never_opens_a_reader()
     {
         var opened = false;

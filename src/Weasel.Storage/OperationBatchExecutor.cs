@@ -51,6 +51,16 @@ public static class OperationBatchExecutor
     ///     Configure every operation into <paramref name="builder" />, separated by
     ///     <see cref="Weasel.Core.ICommandBuilder.StartNewCommand" />.
     /// </summary>
+    /// <remarks>
+    ///     ⚠️ This adds no terminator of its own, so <paramref name="builder" /> must be one whose
+    ///     <see cref="Weasel.Core.ICommandBuilder.StartNewCommand" /> really starts a new command: a
+    ///     <c>DbBatch</c> builder (Weasel.Postgresql's or Weasel.SqlServer's <c>BatchBuilder</c>), or the
+    ///     Oracle and Firebird builders. On a builder that concatenates into one command, where
+    ///     <c>StartNewCommand</c> is a no-op, an operation that does not terminate its own statement —
+    ///     <see cref="QueuedSqlOperation" /> and <see cref="WhereStorageOperation" /> do not — runs
+    ///     straight into the next one (the weasel#515 shape). Adding a <c>;</c> here is not the fix:
+    ///     Oracle and Firebird reject it. On such a provider, use <see cref="ExecuteEachAsync" />.
+    /// </remarks>
     public static void Configure(Weasel.Core.ICommandBuilder builder, IReadOnlyList<IStorageOperation> operations,
         IStorageSession session)
     {

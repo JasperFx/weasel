@@ -11,8 +11,9 @@ namespace Weasel.Storage;
 /// <remarks>
 ///     <para>
 ///         Each placeholder character in the text becomes one positional parameter, bound to the
-///         value at the same index; the counts must match. A trailing <c>;</c> is trimmed, because the
-///         session separates statements itself.
+///         value at the same index; the counts must match. A trailing <c>;</c> is trimmed: the session
+///         separates statements, so this belongs in a batch whose builder really splits commands — see
+///         <see cref="OperationBatchExecutor.Configure" />.
 ///     </para>
 ///     <para>
 ///         Values are bound by <see cref="BindParameter" />, which assigns the value (or
