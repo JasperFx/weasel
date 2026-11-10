@@ -33,7 +33,8 @@ order by c.column_id;
 -- necessarily the table's column order.
 select
     c.name as COLUMN_NAME,
-    kc.name as CONSTRAINT_NAME
+    kc.name as CONSTRAINT_NAME,
+    i.type_desc
 from sys.key_constraints kc
     inner join sys.tables t on t.object_id = kc.parent_object_id
     inner join sys.schemas s on s.schema_id = t.schema_id
@@ -220,9 +221,10 @@ where s.name = @schema and t.name = @name;
 
         await readColumnsAsync(reader, existing, ct).ConfigureAwait(false);
 
-        var (pks, primaryKeyName) = await readPrimaryKeysAsync(reader, ct).ConfigureAwait(false);
+        var (pks, primaryKeyName, primaryKeyIsClustered) = await readPrimaryKeysAsync(reader, ct).ConfigureAwait(false);
         foreach (var pkColumn in pks) existing.ColumnFor(pkColumn)!.IsPrimaryKey = true;
         existing.PrimaryKeyName = primaryKeyName;
+        existing.PrimaryKeyIsClustered = primaryKeyIsClustered;
         // Declared key order, which for a composite key need not match the table's column order.
         existing.SetPrimaryKeyOrder(pks);
 
@@ -549,20 +551,22 @@ where s.name = @schema and t.name = @name;
         }
     }
 
-    private static async Task<(List<string>, string)> readPrimaryKeysAsync(
+    private static async Task<(List<string>, string, bool?)> readPrimaryKeysAsync(
         DbDataReader reader,
         CancellationToken ct = default
     )
     {
         string? pkName = null;
+        bool? isClustered = null;
         var pks = new List<string>();
         await reader.NextResultAsync(ct).ConfigureAwait(false);
         while (await reader.ReadAsync(ct).ConfigureAwait(false))
         {
             pks.Add(await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false));
             pkName = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+            isClustered = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false) == "CLUSTERED";
         }
 
-        return (pks, pkName!);
+        return (pks, pkName!, isClustered);
     }
 }

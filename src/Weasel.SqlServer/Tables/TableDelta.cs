@@ -123,6 +123,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         {
             PrimaryKeyDifference = SchemaPatchDifference.Update;
         }
+        else if (expected.PrimaryKeyIsClustered is { } clustered && clustered != actual.PrimaryKeyIsClustered)
+        {
+            PrimaryKeyDifference = SchemaPatchDifference.Update;
+        }
 
         // RANGE partitioning round-trip. Only strategies that can migrate a boundary change in place are
         // handled here; a strategy that owns its boundaries purely at runtime (ManagedTenantPartitions,

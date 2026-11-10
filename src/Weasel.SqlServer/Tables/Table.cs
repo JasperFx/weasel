@@ -50,6 +50,8 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     /// <inheritdoc />
     protected override string NormalizeIdentifier(string name) => SchemaUtils.Unbracket(name);
 
+    public bool? PrimaryKeyIsClustered { get; set; }
+
     protected override string DefaultPrimaryKeyName()
         => $"pkey_{Identifier.Name}_{PrimaryKeyColumns.Join("_")}";
 
@@ -293,8 +295,15 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
     {
         // Bracketed: EF6 databases carry a primary key literally named "PK_dbo.__MigrationHistory",
         // and an unquoted dot ends the identifier.
+        var clustering = PrimaryKeyIsClustered switch
+        {
+            true => " CLUSTERED",
+            false => " NONCLUSTERED",
+            null => ""
+        };
+
         return
-            $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY ({PrimaryKeyColumns.Select(SchemaUtils.QuoteName).Join(", ")})";
+            $"CONSTRAINT {SchemaUtils.QuoteName(PrimaryKeyName)} PRIMARY KEY{clustering} ({PrimaryKeyColumns.Select(SchemaUtils.QuoteName).Join(", ")})";
     }
 
     internal static string CheckConstraintDeclaration(TableCheckConstraint constraint)
