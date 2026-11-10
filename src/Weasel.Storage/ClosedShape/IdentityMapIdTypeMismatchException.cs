@@ -7,9 +7,13 @@ namespace Weasel.Storage;
 ///     type, which is a mapping error rather than a missing document, so it is refused rather than
 ///     treated as a miss.
 /// </summary>
-public class DocumentIdTypeMismatchException: Exception
+/// <remarks>
+///     Not named <c>DocumentIdTypeMismatchException</c> on purpose: Marten has a public type by that
+///     name, and a Marten file importing both namespaces would no longer compile (CS0104).
+/// </remarks>
+public class IdentityMapIdTypeMismatchException: Exception
 {
-    public DocumentIdTypeMismatchException(Type documentType, Type idType)
+    public IdentityMapIdTypeMismatchException(Type documentType, Type idType)
         : base($"The identity map for document type {documentType.FullName} does not hold ids of type "
                + $"{idType.FullName}. Two storages disagree about the document's id type.")
     {

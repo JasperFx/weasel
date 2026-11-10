@@ -51,6 +51,13 @@ public sealed record ClosedShapeReadSql(string[] SelectFields, string SelectClau
 ///         <see cref="IClosedShapeDocumentStorage.Rules" />.
 ///     </para>
 ///     <para>
+///         <b>One rules object serves all four storages of a document type.</b>
+///         <see cref="ClosedShapeDocumentProviderFactory.Build{TDoc,TId}" /> hands the same instance to
+///         every tracking mode, so the members that take a storage are called once per storage with a
+///         different one each time. Do not cache the storage argument, and give the store's own
+///         interfaces on this object a storage parameter rather than a remembered storage.
+///     </para>
+///     <para>
 ///         Members with a default body are optional. Weasel does not ship breaking changes, so any member
 ///         added here later will carry a default body too.
 ///     </para>

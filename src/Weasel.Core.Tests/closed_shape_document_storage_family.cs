@@ -68,6 +68,41 @@ public class closed_shape_document_storage_family
         ((IClosedShapeDocumentStorage)provider.Lightweight).Rules.ShouldBeSameAs(rules);
     }
 
+    // ---- each leaf reads through its own selector family ----
+
+    [Theory]
+    [InlineData(ClosedShapeTrackingMode.QueryOnly, ConcurrencyMode.Optimistic, "FlatClosedShapeQueryOnlySelector`2")]
+    [InlineData(ClosedShapeTrackingMode.Lightweight, ConcurrencyMode.Off, "FlatUnversionedClosedShapeLightweightSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.Lightweight, ConcurrencyMode.Optimistic, "FlatOptimisticClosedShapeLightweightSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.Lightweight, ConcurrencyMode.Numeric, "FlatNumericClosedShapeLightweightSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.IdentityMap, ConcurrencyMode.Off, "FlatUnversionedClosedShapeIdentityMapSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.IdentityMap, ConcurrencyMode.Optimistic, "FlatOptimisticClosedShapeIdentityMapSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.IdentityMap, ConcurrencyMode.Numeric, "FlatNumericClosedShapeIdentityMapSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.DirtyTracking, ConcurrencyMode.Off, "FlatUnversionedClosedShapeDirtyTrackingSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.DirtyTracking, ConcurrencyMode.Optimistic, "FlatOptimisticClosedShapeDirtyTrackingSelector`2")]
+    [InlineData(ClosedShapeTrackingMode.DirtyTracking, ConcurrencyMode.Numeric, "FlatNumericClosedShapeDirtyTrackingSelector`2")]
+    public void each_leaf_builds_its_own_selector(ClosedShapeTrackingMode mode, ConcurrencyMode concurrency,
+        string expected)
+    {
+        build(mode, concurrency).BuildSelector(theSession).GetType().Name.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData(ConcurrencyMode.Optimistic)]
+    [InlineData(ConcurrencyMode.Numeric)]
+    public void a_shared_projection_session_gets_the_lightweight_selector_that_captures_no_versions(
+        ConcurrencyMode concurrency)
+    {
+        var rules = new FakeRules { SharedProjectionSession = true };
+
+        build(ClosedShapeTrackingMode.Lightweight, concurrency, rules).BuildSelector(theSession)
+            .ShouldBeOfType<FlatUnversionedClosedShapeLightweightSelector<Doc, Guid>>();
+
+        // Only Lightweight swaps: the identity-map modes keep their own selector.
+        build(ClosedShapeTrackingMode.IdentityMap, concurrency, rules).BuildSelector(theSession)
+            .ShouldNotBeOfType<FlatUnversionedClosedShapeLightweightSelector<Doc, Guid>>();
+    }
+
     // ---- identity map: Store ----
 
     [Theory]
@@ -114,7 +149,7 @@ public class closed_shape_document_storage_family
         var storage = build(ClosedShapeTrackingMode.IdentityMap);
         theSession.ItemMap[typeof(Doc)] = new Dictionary<string, Doc>();
 
-        Should.Throw<DocumentIdTypeMismatchException>(() => storage.Store(theSession, new Doc { Id = Guid.NewGuid() }));
+        Should.Throw<IdentityMapIdTypeMismatchException>(() => storage.Store(theSession, new Doc { Id = Guid.NewGuid() }));
     }
 
     [Fact]
@@ -123,9 +158,9 @@ public class closed_shape_document_storage_family
         var storage = build(ClosedShapeTrackingMode.IdentityMap);
         theSession.ItemMap[typeof(Doc)] = new Dictionary<string, Doc>();
 
-        await Should.ThrowAsync<DocumentIdTypeMismatchException>(() =>
+        await Should.ThrowAsync<IdentityMapIdTypeMismatchException>(() =>
             storage.LoadAsync(Guid.NewGuid(), theSession, CancellationToken.None));
-        await Should.ThrowAsync<DocumentIdTypeMismatchException>(() =>
+        await Should.ThrowAsync<IdentityMapIdTypeMismatchException>(() =>
             storage.LoadManyAsync([Guid.NewGuid()], theSession, CancellationToken.None));
     }
 
@@ -415,6 +450,9 @@ public class closed_shape_document_storage_family
         public int SharedVersions { get; private set; }
         public List<(OperationRole, bool)> WriteRequests { get; } = [];
         public string? NumericRevisionsNotSupportedReason { get; init; }
+        public bool SharedProjectionSession { get; init; }
+
+        public bool IsSharedProjectionSession(IStorageSession session) => SharedProjectionSession;
 
         public DbObjectName TableName { get; } = new("public", "docs");
         public TenancyStyle TenancyStyle => TenancyStyle.Single;

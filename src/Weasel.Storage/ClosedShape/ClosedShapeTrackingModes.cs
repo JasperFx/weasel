@@ -277,7 +277,7 @@ internal abstract class IdentityMapClosedShapeDocumentStorage<TDoc, TId>: Closed
         {
             if (items is not Dictionary<TId, TDoc> map)
             {
-                throw new DocumentIdTypeMismatchException(typeof(TDoc), typeof(TId));
+                throw new IdentityMapIdTypeMismatchException(typeof(TDoc), typeof(TId));
             }
 
             // Two instances of one document in one session, both stored, is a last-write-wins
@@ -308,7 +308,7 @@ internal abstract class IdentityMapClosedShapeDocumentStorage<TDoc, TId>: Closed
         {
             if (items is not Dictionary<TId, TDoc> map)
             {
-                throw new DocumentIdTypeMismatchException(typeof(TDoc), typeof(TId));
+                throw new IdentityMapIdTypeMismatchException(typeof(TDoc), typeof(TId));
             }
 
             if (map.TryGetValue(id, out var cached))
@@ -328,7 +328,7 @@ internal abstract class IdentityMapClosedShapeDocumentStorage<TDoc, TId>: Closed
         if (session.ItemMap.TryGetValue(typeof(TDoc), out var items))
         {
             map = items as Dictionary<TId, TDoc>
-                  ?? throw new DocumentIdTypeMismatchException(typeof(TDoc), typeof(TId));
+                  ?? throw new IdentityMapIdTypeMismatchException(typeof(TDoc), typeof(TId));
         }
         else
         {

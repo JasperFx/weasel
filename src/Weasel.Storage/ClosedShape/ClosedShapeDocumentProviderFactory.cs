@@ -7,8 +7,11 @@ namespace Weasel.Storage;
 ///     The leaf is chosen once here, so the storage never branches on either mode per call.
 /// </summary>
 /// <remarks>
-///     Generic in <typeparamref name="TDoc" /> and <typeparamref name="TId" /> all the way down and
-///     never closes a generic type at runtime, so it is safe under Native AOT for value-type ids.
+///     The factory closes no generic type itself: every leaf is constructed with the caller's
+///     <c>TDoc</c> and <c>TId</c>. A caller that holds the id type only as a <see cref="Type" />
+///     has to close <c>BuildStorage&lt;TDoc, TId&gt;</c> itself, and under Native AOT that cannot be
+///     done with <c>MakeGenericMethod</c> for a value-type id (see CLAUDE.md, "A Type-keyed seam
+///     cannot be a generic").
 /// </remarks>
 public static class ClosedShapeDocumentProviderFactory
 {
