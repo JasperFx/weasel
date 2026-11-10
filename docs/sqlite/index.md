@@ -74,3 +74,12 @@ await cmd.ExecuteNonQueryAsync();
 ```
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L16-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_quick_example' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
+
+## Native SQLite bundle
+
+Weasel.Sqlite references `Microsoft.Data.Sqlite` plus `SQLitePCLRaw.bundle_e_sqlite3` on the
+SQLitePCLRaw 3.0.x line (currently 3.0.5). `Microsoft.Data.Sqlite` 11 depends on that same bundle and
+version, so moving to it needs no change here: Weasel does not swap in `SQLite3MC.PCLRaw` (an encrypted
+build, which is a choice for an application to make) and does not cap `Microsoft.Data.Sqlite` below 11.
+An application that wants SQLite3MC can reference its provider package itself, since
+`SQLite3MC.PCLRaw.provider` is built on SQLitePCLRaw 3.0.x as well.

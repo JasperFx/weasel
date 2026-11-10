@@ -21,7 +21,11 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.9" />
     <!-- Override the transitive SQLitePCLRaw 2.1.11 (vulnerable native lib,
          GHSA-2m69-gcr7-jv3q) with 3.0.3, which ships the patched SQLite build. -->
-    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+    <!-- weasel#739: stay on the e_sqlite3 bundle, on the SQLitePCLRaw 3.0.x line.
+         Microsoft.Data.Sqlite 11.x itself depends on bundle_e_sqlite3 3.0.5, so this pin
+         is what 11 resolves to anyway: no SQLite3MC swap and no "M.D.S < 11" cap needed.
+         Keep this at or above whatever the newest Microsoft.Data.Sqlite we reference asks for. -->
+    <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
