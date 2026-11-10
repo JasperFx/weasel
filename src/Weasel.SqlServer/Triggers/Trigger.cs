@@ -101,7 +101,7 @@ public class Trigger: TriggerBase
 
         var existingIsDisabled = await reader.GetFieldValueAsync<bool>(1, ct).ConfigureAwait(false);
 
-        return matches(existing)
+        return NormalizeBody(existing) == NormalizeBody(CreateStatement())
                && (IsDisabled is null || IsDisabled == existingIsDisabled)
             ? new SchemaObjectDelta(this, SchemaPatchDifference.None)
             : new SchemaObjectDelta(this, SchemaPatchDifference.Update);
