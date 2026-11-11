@@ -144,13 +144,15 @@ public abstract class
 
 
     /// <summary>
-    ///     Write templated SQL to the supplied file name
+    ///     Write templated SQL to the supplied file name, creating its directory if it does not exist
     /// </summary>
     /// <param name="filename"></param>
     /// <param name="writeStep"></param>
     public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep,
         CancellationToken ct = default)
     {
+        FileSystem.CreateDirectoryIfNotExists(Path.GetDirectoryName(filename));
+
         await using var stream = new FileStream(filename, FileMode.Create);
         var writer = new StreamWriter(stream) { AutoFlush = true };
 
