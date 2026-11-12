@@ -111,6 +111,80 @@ public class range_partitioning_round_trip : IntegrationContext
         after.HasChanges().ShouldBeFalse();
     }
 
+    private async Task executeTwice(string script)
+    {
+        for (var run = 0; run < 2; run++)
+        {
+            foreach (var batch in SqlServerBatchSplitter.Split(script))
+            {
+                await theConnection.CreateCommand(batch).ExecuteNonQueryAsync();
+            }
+        }
+    }
+
+    /// <summary>
+    ///     <c>SPLIT RANGE</c> has no <c>IF NOT EXISTS</c>, so a rendered update script failed on its
+    ///     second run with a duplicate boundary, and the <c>MERGE RANGE</c> that rolls it back failed on
+    ///     the missing one.
+    /// </summary>
+    [Fact]
+    public async Task split_and_merge_scripts_run_twice_for_a_datetime_boundary()
+    {
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(MetricsTable(new DateTime(2026, 1, 1), new DateTime(2026, 2, 1)));
+
+        var rolledForward = MetricsTable(
+            new DateTime(2026, 1, 1), new DateTime(2026, 2, 1), new DateTime(2026, 3, 1));
+        var delta = await rolledForward.FindDeltaAsync(theConnection);
+
+        var update = new StringWriter();
+        delta.WriteUpdate(new SqlServerMigrator(), update);
+        await executeTwice(update.ToString());
+
+        (await PartitionCountAsync("metrics_sample")).ShouldBe(4);
+
+        var rollback = new StringWriter();
+        delta.WriteRollback(new SqlServerMigrator(), rollback);
+        await executeTwice(rollback.ToString());
+
+        (await PartitionCountAsync("metrics_sample")).ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task split_and_merge_scripts_run_twice_for_an_int_boundary()
+    {
+        Table buckets(params int[] boundaries)
+        {
+            var table = new Table("partitioning.buckets");
+            table.AddColumn<int>("id").AsPrimaryKey();
+            table.AddColumn<int>("bucket").NotNull().AsPrimaryKey();
+
+            var partitioning = table.PartitionByRange("bucket", "int");
+            foreach (var boundary in boundaries) partitioning.AddBoundary(boundary);
+
+            return table;
+        }
+
+        await ResetSchema();
+
+        await CreateSchemaObjectInDatabase(buckets(100, 200));
+
+        var delta = await buckets(100, 200, 300).FindDeltaAsync(theConnection);
+
+        var update = new StringWriter();
+        delta.WriteUpdate(new SqlServerMigrator(), update);
+        await executeTwice(update.ToString());
+
+        (await PartitionCountAsync("buckets")).ShouldBe(4);
+
+        var rollback = new StringWriter();
+        delta.WriteRollback(new SqlServerMigrator(), rollback);
+        await executeTwice(rollback.ToString());
+
+        (await PartitionCountAsync("buckets")).ShouldBe(3);
+    }
+
     [Fact]
     public async Task removing_a_boundary_is_a_rebuild()
     {

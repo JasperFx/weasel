@@ -132,8 +132,7 @@ public class RangePartitioning : ISplittablePartitioning
         {
             if (!actualSet.Contains(boundary))
             {
-                writer.WriteLine($"ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(Filegroup)};");
-                writer.WriteLine($"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({boundary});");
+                PartitionDdl.WriteSplit(writer, psName, pfName, Filegroup, boundary, SqlDataType);
             }
         }
     }
@@ -151,7 +150,7 @@ public class RangePartitioning : ISplittablePartitioning
         {
             if (!actualSet.Contains(boundary))
             {
-                writer.WriteLine($"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() MERGE RANGE ({boundary});");
+                PartitionDdl.WriteMerge(writer, pfName, boundary, SqlDataType);
             }
         }
     }

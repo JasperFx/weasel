@@ -70,6 +70,38 @@ internal static class PartitionDdl
     }
 
     /// <summary>
+    ///     Add one boundary with <c>SPLIT RANGE</c>, unless the function already has it. Neither
+    ///     <c>SPLIT RANGE</c> nor <c>MERGE RANGE</c> has an existence check of its own, so a rendered
+    ///     script failed on its second run with "Duplicate range boundary values are not allowed".
+    /// </summary>
+    internal static void WriteSplit(TextWriter writer, string psName, string pfName, string filegroup,
+        string boundary, string sqlDataType)
+    {
+        writer.WriteLine($"IF NOT {boundaryExists(pfName, boundary, sqlDataType)}");
+        writer.WriteLine("BEGIN");
+        writer.WriteLine($"    ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(filegroup)};");
+        writer.WriteLine($"    ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({boundary});");
+        writer.WriteLine("END");
+    }
+
+    /// <summary>
+    ///     Remove one boundary with <c>MERGE RANGE</c>, if the function still has it.
+    /// </summary>
+    internal static void WriteMerge(TextWriter writer, string pfName, string boundary, string sqlDataType)
+    {
+        writer.WriteLine($"IF {boundaryExists(pfName, boundary, sqlDataType)}");
+        writer.WriteLine($"    ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() MERGE RANGE ({boundary});");
+    }
+
+    // sys.partition_range_values holds each boundary as a sql_variant of the function's parameter type,
+    // so the literal is cast to that type rather than compared as text: '2026-03-01 00:00:00' and the
+    // stored datetime are the same boundary only once both are datetime.
+    private static string boundaryExists(string pfName, string boundary, string sqlDataType)
+        => "EXISTS (SELECT 1 FROM sys.partition_range_values rv " +
+           "INNER JOIN sys.partition_functions pf ON pf.function_id = rv.function_id " +
+           $"WHERE pf.name = '{SchemaUtils.EscapeLiteral(pfName)}' AND rv.value = CAST({boundary} AS {sqlDataType}))";
+
+    /// <summary>
     ///     The unconditional drop, for <see cref="ISqlServerPartitioning.WriteDropDdl" />: an explicit
     ///     request to remove the partition objects should say so when they are still in use rather than
     ///     silently leaving them behind.
