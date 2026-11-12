@@ -246,9 +246,53 @@ public class TableColumn: ITableColumn
     }
 
 
+    /// <summary>
+    ///     Change the column's type: drop its default constraint, alter the type and nullability, then
+    ///     put the model's default back.
+    /// </summary>
+    /// <remarks>
+    ///     <c>ALTER COLUMN</c> takes only a type and <c>NULL</c>/<c>NOT NULL</c>, so the full
+    ///     declaration, with its <c>DEFAULT</c>, was a syntax error. And SQL Server refuses to alter a
+    ///     column while a default constraint is bound to it ("The object 'DF__...' is dependent on
+    ///     column"). The constraint name is looked up at run time, in its own <c>EXEC</c>, for the
+    ///     reasons <see cref="DropColumnSql" /> gives. The lookup is written only when
+    ///     <paramref name="changeActual" /> has a default, so a plain type change is unchanged.
+    /// </remarks>
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
-        return $"alter table {table.Identifier} alter column {ToDeclaration()};";
+        var statements = new List<string>();
+
+        if (changeActual.DefaultExpression.IsNotEmpty())
+        {
+            statements.Add(dropDefaultConstraintSql(table));
+        }
+
+        statements.Add(
+            $"alter table {table.Identifier} alter column {QuotedName} {Type} {(effectivelyNullable() ? "NULL" : "NOT NULL")};");
+
+        if (DefaultExpression.IsNotEmpty())
+        {
+            statements.Add($"alter table {table.Identifier} add default {DefaultExpression} for {QuotedName};");
+        }
+
+        return statements.Join(Environment.NewLine);
+    }
+
+    private string dropDefaultConstraintSql(Table table)
+    {
+        var inner = $"""
+                           declare @constraint sysname;
+                           select @constraint = dc.name
+                           from sys.default_constraints dc
+                           inner join sys.columns c
+                               on c.object_id = dc.parent_object_id and c.column_id = dc.parent_column_id
+                           where dc.parent_object_id = object_id('{SchemaUtils.EscapeLiteral(table.Identifier.QualifiedName)}')
+                             and c.name = '{SchemaUtils.EscapeLiteral(Name)}';
+                           if @constraint is not null
+                               exec('alter table {table.Identifier} drop constraint [' + @constraint + ']');
+                           """;
+
+        return $"EXEC(N'{inner.Replace("'", "''")}');";
     }
 
     /// <summary>
