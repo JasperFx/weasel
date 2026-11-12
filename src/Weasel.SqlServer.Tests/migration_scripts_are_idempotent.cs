@@ -103,6 +103,93 @@ public class migration_scripts_are_idempotent: IntegrationContext
         await database.AssertDatabaseMatchesConfigurationAsync();
     }
 
+    /// <summary>
+    ///     The rest of the update path: a primary key added to a table that had none, a primary key
+    ///     whose columns (and so its name) changed, a dropped column that carried a default, a new
+    ///     check constraint and a new table type. Every one of these raised on a second run.
+    /// </summary>
+    [Fact]
+    public async Task the_rendered_update_script_for_keys_and_constraints_runs_twice()
+    {
+        await buildKeysDatabase(updated: false).ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildKeysDatabase(updated: true);
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var script = renderScript(database, migration);
+
+        await executeInBatches(script);
+        await executeInBatches(script);
+
+        await database.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    /// <summary>
+    ///     The same changes rolled back, twice: the actual primary keys go back on, the dropped column
+    ///     is re-added, and the table type the update created is dropped again.
+    /// </summary>
+    [Fact]
+    public async Task the_rendered_rollback_script_for_keys_and_constraints_runs_twice()
+    {
+        var initial = buildKeysDatabase(updated: false);
+        await initial.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildKeysDatabase(updated: true);
+        var migration = await database.CreateMigrationAsync();
+
+        await executeInBatches(renderScript(database, migration));
+
+        var writer = new StringWriter();
+        database.Migrator.WriteScript(writer, (rules, w) => migration.WriteAllRollbacks(w, rules));
+        var rollback = writer.ToString();
+
+        await executeInBatches(rollback);
+        await executeInBatches(rollback);
+
+        await initial.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    private static MigrationDatabase buildKeysDatabase(bool updated)
+    {
+        var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);
+
+        // no primary key at first, then one
+        var keyless = new Table(new SqlServerObjectName(SchemaName, "keyless"));
+        var keylessId = keyless.AddColumn<int>("id");
+        if (updated) keylessId.AsPrimaryKey();
+        database.AddTable(keyless);
+
+        // the key widens to a second column, which renames it
+        var widened = new Table(new SqlServerObjectName(SchemaName, "widened"));
+        widened.AddColumn<int>("id").AsPrimaryKey();
+        var code = widened.AddColumn<int>("code");
+        if (updated) code.AsPrimaryKey();
+        database.AddTable(widened);
+
+        var trimmed = new Table(new SqlServerObjectName(SchemaName, "trimmed"));
+        trimmed.AddColumn<int>("id").AsPrimaryKey();
+        if (updated)
+        {
+            trimmed.CheckConstraints.Add(new TableCheckConstraint("ck_trimmed_id", "id > 0"));
+        }
+        else
+        {
+            trimmed.AddColumn<int>("legacy").DefaultValue(5);
+        }
+
+        database.AddTable(trimmed);
+
+        if (updated)
+        {
+            var idList = new TableType(new SqlServerObjectName(SchemaName, "TrimmedIdList"));
+            idList.AddColumn<int>("ID");
+            database.Add(idList);
+        }
+
+        return database;
+    }
+
     private static MigrationDatabase buildDatabase(Action<Table>? alterChild = null)
     {
         var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);

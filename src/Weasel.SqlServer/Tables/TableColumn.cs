@@ -279,6 +279,10 @@ public class TableColumn: ITableColumn
     ///         drop the same way, but Weasel emits a default for any column that declares one, which
     ///         makes it the case that arises on its own.
     ///     </para>
+    ///     <para>
+    ///         The drop is <c>IF EXISTS</c> so a rendered migration script can be run more than once:
+    ///         on a second run the lookup finds no default and the column is already gone.
+    ///     </para>
     /// </remarks>
     public string DropColumnSql(Table table)
     {
@@ -293,7 +297,7 @@ public class TableColumn: ITableColumn
                        and c.name = '{SchemaUtils.EscapeLiteral(Name)}';
                      if @constraint is not null
                          exec('alter table {table.Identifier} drop constraint [' + @constraint + ']');
-                     alter table {table.Identifier} drop column {QuotedName};
+                     alter table {table.Identifier} drop column if exists {QuotedName};
                      """;
 
         return $"EXEC(N'{inner.Replace("'", "''")}');";
