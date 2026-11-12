@@ -130,18 +130,24 @@ public class JsonIndexDefinition: IndexDefinition
     /// <summary>
     ///     <c>CREATE JSON INDEX</c> requires <c>QUOTED_IDENTIFIER ON</c>, and a rendered migration
     ///     script cannot assume the session it will be run in has it. The existence guard also has to
-    ///     key on the TABLE rather than the index name: SQL Server permits only one JSON index per
+    ///     key on the COLUMN rather than the index name: SQL Server permits only one JSON index per
     ///     json column, so a differently-named one already present is a conflict rather than an
     ///     unrelated object, and <c>IF NOT EXISTS (… WHERE name = …)</c> would step straight into
-    ///     "a JSON index already exists on this column".
+    ///     "a JSON index already exists on this column". Not on the table either: a table can hold a
+    ///     JSON index on each of its json columns, and a table-wide guard skipped every one after the
+    ///     first.
     /// </summary>
     public override void WriteCreateStatement(Table parent, TextWriter writer)
     {
         var table = SchemaUtils.EscapeLiteral(parent.Identifier.QualifiedName);
+        var column = SchemaUtils.EscapeLiteral(SchemaUtils.Unbracket(ColumnName));
 
         writer.WriteLine("SET QUOTED_IDENTIFIER ON;");
         writer.WriteLine(
-            $"IF NOT EXISTS (SELECT 1 FROM sys.json_indexes WHERE object_id = OBJECT_ID(N'{table}'))");
+            "IF NOT EXISTS (SELECT 1 FROM sys.json_indexes ji " +
+            "INNER JOIN sys.index_columns ic ON ic.object_id = ji.object_id AND ic.index_id = ji.index_id " +
+            "INNER JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id " +
+            $"WHERE ji.object_id = OBJECT_ID(N'{table}') AND c.name = N'{column}')");
         writer.WriteLine($"    {ToDDL(parent)};");
     }
 }
