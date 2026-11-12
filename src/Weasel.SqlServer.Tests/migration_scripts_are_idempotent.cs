@@ -75,7 +75,35 @@ public class migration_scripts_are_idempotent: IntegrationContext
         exception.Message.ShouldContain("GO");
     }
 
-    private static MigrationDatabase buildDatabase()
+    /// <summary>
+    ///     The update path rather than the create path: an existing table gains a column and an index
+    ///     on it, and the rendered update script has to run twice. Unguarded, the second run fails on
+    ///     the column ("Column names in each table must be unique") before it reaches the index.
+    /// </summary>
+    [Fact]
+    public async Task the_rendered_update_script_runs_twice_and_matches_the_configuration()
+    {
+        await buildDatabase().ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildDatabase(child =>
+        {
+            child.AddColumn<string>("nickname").AddIndex(x => x.Name = "idx_child_nickname");
+            child.AddColumn<int>("rank").NotNull().DefaultValue(0);
+        });
+
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var script = renderScript(database, migration);
+        script.ShouldContain("IF COL_LENGTH(N'gh593.child', N'nickname') IS NULL");
+
+        await executeInBatches(script);
+        await executeInBatches(script);
+
+        await database.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    private static MigrationDatabase buildDatabase(Action<Table>? alterChild = null)
     {
         var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);
 
@@ -97,6 +125,7 @@ public class migration_scripts_are_idempotent: IntegrationContext
             x.Predicate = "[status]>5";
         });
         child.AddColumn<Guid>("parent_id").ForeignKeyTo(parent, "id");
+        alterChild?.Invoke(child);
         database.AddTable(child);
 
         var idList = new TableType(new SqlServerObjectName(SchemaName, "ChildIdList"));

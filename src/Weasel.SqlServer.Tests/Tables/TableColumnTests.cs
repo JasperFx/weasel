@@ -1,4 +1,5 @@
 using System.Globalization;
+using JasperFx.Core;
 using Shouldly;
 using Weasel.SqlServer.Tables;
 using Xunit;
@@ -116,8 +117,20 @@ public class TableColumnTests
         var table = new Table("people");
         var column = table.AddColumn<string>("name1").NotNull().Column;
 
-        column.AddColumnSql(table)
-            .ShouldBe("alter table dbo.people add name1 varchar(100) NOT NULL;");
+        column.AddColumnSql(table).ReadLines().ShouldBe([
+            "IF COL_LENGTH(N'dbo.people', N'name1') IS NULL",
+            "    alter table dbo.people add name1 varchar(100) NOT NULL;"
+        ]);
+    }
+
+    [Fact]
+    public void add_column_sql_escapes_the_guard_literals()
+    {
+        var table = new Table(new SqlServerObjectName("o'brien", "people"));
+        var column = table.AddColumn<string>("it's").Column;
+
+        column.AddColumnSql(table).ReadLines().First()
+            .ShouldBe("IF COL_LENGTH(N'o''brien.people', N'it''s') IS NULL");
     }
 
     [Fact]

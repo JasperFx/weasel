@@ -307,9 +307,22 @@ public class TableColumn: ITableColumn
         return AllowNulls || DefaultExpression.IsNotEmpty() || ComputedExpression.IsNotEmpty() || IsAutoNumber;
     }
 
+    /// <summary>
+    ///     The column addition guarded by an existence check, so a rendered migration script can be
+    ///     run more than once.
+    /// </summary>
+    /// <remarks>
+    ///     <c>ALTER TABLE ... ADD</c> has no <c>IF NOT EXISTS</c> of its own, and unguarded a second run
+    ///     raises "Column names in each table must be unique". The guard is evaluated when the batch
+    ///     runs, so a column dropped earlier in the same batch (the computed-column drop and re-add) is
+    ///     still added.
+    /// </remarks>
     public virtual string AddColumnSql(Table parent)
     {
-        return $"alter table {parent.Identifier} add {ToDeclaration()};";
+        return $"""
+                IF COL_LENGTH(N'{SchemaUtils.EscapeLiteral(parent.Identifier.QualifiedName)}', N'{SchemaUtils.EscapeLiteral(Name)}') IS NULL
+                    alter table {parent.Identifier} add {ToDeclaration()};
+                """;
     }
 
 
