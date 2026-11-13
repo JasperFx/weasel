@@ -129,8 +129,9 @@ public class TableColumnTests
         var table = new Table(new SqlServerObjectName("o'brien", "people"));
         var column = table.AddColumn<string>("it's").Column;
 
+        // The schema needs delimiting, so it is delimited inside the literal too, then escaped
         column.AddColumnSql(table).ReadLines().First()
-            .ShouldBe("IF COL_LENGTH(N'o''brien.people', N'it''s') IS NULL");
+            .ShouldBe("IF COL_LENGTH(N'[o''brien].people', N'it''s') IS NULL");
     }
 
     [Fact]

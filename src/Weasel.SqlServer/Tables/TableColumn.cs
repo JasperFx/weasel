@@ -319,12 +319,13 @@ public class TableColumn: ITableColumn
     ///     <c>ALTER TABLE ... ADD</c> has no <c>IF NOT EXISTS</c> of its own, and unguarded a second run
     ///     raises "Column names in each table must be unique". The guard is evaluated when the batch
     ///     runs, so a column dropped earlier in the same batch (the computed-column drop and re-add) is
-    ///     still added.
+    ///     still added. The table is delimited inside the literal, so a dotted name such as <c>[a.b]</c>
+    ///     is still found.
     /// </remarks>
     public virtual string AddColumnSql(Table parent)
     {
         return $"""
-                IF COL_LENGTH(N'{SchemaUtils.EscapeLiteral(parent.Identifier.QualifiedName)}', N'{SchemaUtils.EscapeLiteral(Name)}') IS NULL
+                IF COL_LENGTH(N'{SchemaUtils.EscapeLiteral(parent.Identifier.ToString())}', N'{SchemaUtils.EscapeLiteral(Name)}') IS NULL
                     alter table {parent.Identifier} add {ToDeclaration()};
                 """;
     }

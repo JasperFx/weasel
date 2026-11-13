@@ -150,6 +150,46 @@ public class migration_scripts_are_idempotent: IntegrationContext
         await initial.AssertDatabaseMatchesConfigurationAsync();
     }
 
+    /// <summary>
+    ///     The guards look the table up by name, so a name that needs delimiting has to be delimited
+    ///     inside the literal too. Undelimited, <c>OBJECT_ID(N'gh593.a.b')</c> is NULL: the column
+    ///     guard then fails open (and the second run raises), but the key-column nullability guard fails
+    ///     closed, skipping the <c>NOT NULL</c> alter on the first run so the key add after it fails.
+    /// </summary>
+    [Fact]
+    public async Task the_guards_find_a_table_whose_name_has_a_dot()
+    {
+        await buildDottedDatabase(updated: false).ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildDottedDatabase(updated: true);
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var script = renderScript(database, migration);
+
+        await executeInBatches(script);
+        await executeInBatches(script);
+
+        await database.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    private static MigrationDatabase buildDottedDatabase(bool updated)
+    {
+        var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);
+
+        var dotted = new Table(new SqlServerObjectName(SchemaName, "a.b"));
+        var id = dotted.AddColumn<int>("id");
+        if (updated)
+        {
+            id.AsPrimaryKey();
+            dotted.AddColumn<string>("nickname");
+        }
+
+        database.AddTable(dotted);
+
+        return database;
+    }
+
     private static MigrationDatabase buildKeysDatabase(bool updated)
     {
         var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);

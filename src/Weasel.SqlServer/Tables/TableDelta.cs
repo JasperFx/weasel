@@ -674,9 +674,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             if (actual == null || expected == null || !actual.AllowNulls || actual.IsPrimaryKey) continue;
 
             // On a second run the key added by the first one depends on the column, and SQL Server refuses
-            // to alter it even to the nullability it already has
+            // to alter it even to the nullability it already has. The table goes into OBJECT_ID delimited:
+            // undelimited, a dotted name such as [a.b] resolves to NULL, the guard reads false, and the alter
+            // is skipped on the first run too, so the key add after it fails on a nullable column
             writer.WriteLine(
-                $"IF COLUMNPROPERTY(OBJECT_ID(N'{SchemaUtils.EscapeLiteral(Expected.Identifier.QualifiedName)}'), N'{SchemaUtils.EscapeLiteral(expected.Name)}', 'AllowsNull') = 1");
+                $"IF COLUMNPROPERTY(OBJECT_ID(N'{SchemaUtils.EscapeLiteral(Expected.Identifier.ToString())}'), N'{SchemaUtils.EscapeLiteral(expected.Name)}', 'AllowsNull') = 1");
             writer.WriteLine($"    alter table {Expected.Identifier} alter column {expected.QuotedName} {expected.Type} NOT NULL;");
 
             // SQL Server checks the whole batch before running it, so the primary key would still see the
