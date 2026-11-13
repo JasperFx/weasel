@@ -6,51 +6,6 @@ namespace Weasel.Core.Tests.Sequences;
 
 public class HiloSequenceBaseTests
 {
-    /// <summary>
-    ///     Test double that supplies the "database I/O" the abstract base leaves
-    ///     open. Each "advance to next hi" just bumps an in-memory hi counter,
-    ///     matching what a real dialect does after a successful fetch.
-    /// </summary>
-    private class FakeHiloSequence: HiloSequenceBase
-    {
-        private long _nextHi;
-
-        public FakeHiloSequence(string entityName, IReadOnlyHiloSettings settings)
-            : base(entityName, settings)
-        {
-        }
-
-        public int AdvanceCount { get; private set; }
-
-        // Expose the protected hi-setter so a test can drive the "database
-        // returned a negative value, could not secure the next hi" branch.
-        public bool TrySetCurrentHiForTest(object? raw) => TrySetCurrentHi(raw);
-
-        public override Task AdvanceToNextHi(CancellationToken ct = default)
-        {
-            DoAdvance();
-            return Task.CompletedTask;
-        }
-
-        protected override void AdvanceToNextHiSync() => DoAdvance();
-
-        public override Task SetFloor(long floor)
-        {
-            // Mirror the dialect contract: ensure the next issued id clears the floor.
-            var pages = (long)Math.Ceiling((double)floor / MaxLo);
-            _nextHi = pages;
-            DoAdvance();
-            return Task.CompletedTask;
-        }
-
-        private void DoAdvance()
-        {
-            AdvanceCount++;
-            TrySetCurrentHi(_nextHi);
-            _nextHi++;
-        }
-    }
-
     private static FakeHiloSequence Sequence(int maxLo = 3)
         => new("things", new HiloSettings { MaxLo = maxLo });
 
