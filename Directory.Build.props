@@ -14,6 +14,17 @@
         <DebugType>embedded</DebugType>
         <IncludeSymbols>false</IncludeSymbols>
     </PropertyGroup>
+    <!--
+      Runtime-async (weasel#816, Critter Stack plan decision D4): ON by default for net11.0, as in Wolverine 7.0
+      (wolverine#5542). Opt out with -p:WeaselRuntimeAsync=false. net11.0 only: on net10.0 the compiler refuses it
+      (SYSLIB5007) and the runtime will not load it. Weasel has no runtime code generation, so this build switch
+      is the whole change. Changing it does not trigger a recompile, so clean bin/ and obj/ between a build with
+      it and a build without. Weasel.Core.Tests/runtime_async_defaults.cs pins the default.
+    -->
+    <PropertyGroup Condition="'$(WeaselRuntimeAsync)' != 'false' And '$(TargetFramework)' == 'net11.0'">
+        <Features>$(Features);runtime-async=on</Features>
+    </PropertyGroup>
+
     <ItemGroup>
         <PackageReference Include="DotNet.ReproducibleBuilds" PrivateAssets="All"/>
     </ItemGroup>

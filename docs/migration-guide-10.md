@@ -17,6 +17,7 @@ newly shipped storage family, and one obsolete method.
 | `Weasel.Storage` closed-shape document storage family | Additive; only matters if you build a document store on Weasel |
 | `ConnectionSourceExtensions.RunSql<T>` is `[Obsolete]` | Switch to `RunSqlAsync<T>` |
 | MySQL tests for the EF Core bridge are compiled out | No library change; Pomelo has no EF Core 10 release |
+| `net11.0` assemblies are compiled with runtime-async | None; opt out with `-p:WeaselRuntimeAsync=false` when building Weasel from source |
 
 ## Target frameworks
 
@@ -82,6 +83,20 @@ needs to move to EF Core 10 first.
 `Pomelo.EntityFrameworkCore.MySql` has no EF Core 10 release (its latest is `9.0.0-preview.3`), so the
 MySQL half of the EF Core bridge's test suite is compiled out. `Weasel.MySql` itself, on `MySqlConnector`, is
 unaffected.
+
+## Runtime-async on `net11.0`
+
+The `net11.0` build of every Weasel assembly is compiled with the C# compiler's **runtime-async** feature
+(Critter Stack plan decision D4, as in Wolverine 7.0 and JasperFx 3.0). The `net10.0` build is unchanged:
+`net10.0` cannot load runtime-async code.
+
+Nothing in your code changes. What you may notice on `net11.0` is how async code looks at runtime: async stack
+traces, debugger stepping, and APM agents or profilers that hook compiler-generated async state machines can
+behave differently, because those state machines are gone (async iterators keep theirs). Wolverine measured
+38–84% fewer allocations on its in-process lane with it on.
+
+If you build Weasel from source and need it off, pass `-p:WeaselRuntimeAsync=false`. The switch does not
+trigger a recompile, so clean `bin/` and `obj/` between a build with it and a build without.
 
 ## SQLite: the native bundle
 
