@@ -192,7 +192,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate() || primaryKeyRemoved();
         if (primaryKeyDroppedBeforeColumnChanges)
         {
-            writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
+            writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
         }
 
         // Missing columns
@@ -256,27 +256,27 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             case SchemaPatchDifference.Update:
                 if (!primaryKeyDroppedBeforeColumnChanges)
                 {
-                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
+                    writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
                 }
 
                 // A table that no longer declares a primary key only loses the old one
                 if (Expected.PrimaryKeyColumns.Count > 0)
                 {
                     writeNotNullForPrimaryKeyColumns(writer);
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                    writeAddPrimaryKey(Expected, Expected, writer);
                 }
 
                 break;
 
             case SchemaPatchDifference.Create:
                 writeNotNullForPrimaryKeyColumns(writer);
-                writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                writeAddPrimaryKey(Expected, Expected, writer);
                 break;
 
             case SchemaPatchDifference.None:
                 if (primaryKeyDroppedBeforeColumnChanges)
                 {
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Expected.PrimaryKeyDeclaration()};");
+                    writeAddPrimaryKey(Expected, Expected, writer);
                 }
                 break;
         }
@@ -355,11 +355,14 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         // Extras never appear here — unknown actual checks are filtered out of
         // the comparison entirely (see the delta construction)
         foreach (var check in CheckConstraints.Missing)
-            writer.WriteLine($"alter table {Expected.Identifier} add {Table.CheckConstraintDeclaration(check)};");
+        {
+            writer.WriteLine(constraintGuard(Expected, check.Name, "C"));
+            writer.WriteLine($"    alter table {Expected.Identifier} add {Table.CheckConstraintDeclaration(check)};");
+        }
 
         foreach (var change in CheckConstraints.Different)
         {
-            writer.WriteLine($"alter table {Expected.Identifier} drop constraint {SchemaUtils.BracketName(change.Actual.Name)};");
+            writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.BracketName(change.Actual.Name)};");
             writer.WriteLine($"alter table {Expected.Identifier} add {Table.CheckConstraintDeclaration(change.Expected)};");
         }
     }
@@ -458,7 +461,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                     writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
                 }
 
-                writer.WriteLine($"alter table {Expected.Identifier} add {Actual!.PrimaryKeyDeclaration()};");
+                writeAddPrimaryKey(Expected, Actual!, writer);
                 break;
 
             case SchemaPatchDifference.Create:
@@ -471,7 +474,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             case SchemaPatchDifference.None:
                 if (primaryKeyDroppedBeforeColumnChanges)
                 {
-                    writer.WriteLine($"alter table {Expected.Identifier} add {Actual!.PrimaryKeyDeclaration()};");
+                    writeAddPrimaryKey(Expected, Actual!, writer);
                 }
                 break;
         }
@@ -631,6 +634,27 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         CheckConstraints = ItemDelta<TableCheckConstraint>.AllMissing(expected.CheckConstraints);
     }
 
+    /// <summary>
+    ///     Add the table's primary key unless a key of that name is already there, so a rendered script
+    ///     can be run more than once.
+    /// </summary>
+    private static void writeAddPrimaryKey(Table table, Table declaring, TextWriter writer)
+    {
+        writer.WriteLine(constraintGuard(table, declaring.PrimaryKeyName, "PK"));
+        writer.WriteLine($"    alter table {table.Identifier} add {declaring.PrimaryKeyDeclaration()};");
+    }
+
+    /// <summary>
+    ///     <c>ADD CONSTRAINT</c> has no <c>IF NOT EXISTS</c>. Constraint names are unique per schema, so
+    ///     <c>OBJECT_ID</c> finds one by schema and name; both are delimited where needed, because a name
+    ///     like EF6's <c>PK_dbo.__MigrationHistory</c> would otherwise be read as two parts.
+    /// </summary>
+    private static string constraintGuard(Table table, string constraintName, string type)
+    {
+        var name = $"{SchemaUtils.QuoteName(table.Identifier.Schema)}.{SchemaUtils.QuoteName(constraintName)}";
+        return $"IF OBJECT_ID(N'{SchemaUtils.EscapeLiteral(name)}', N'{type}') IS NULL";
+    }
+
     private bool primaryKeyRemoved()
     {
         return PrimaryKeyDifference == SchemaPatchDifference.Update && Expected.PrimaryKeyColumns.Count == 0;
@@ -649,7 +673,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             var expected = Expected.ColumnFor(columnName);
             if (actual == null || expected == null || !actual.AllowNulls || actual.IsPrimaryKey) continue;
 
-            writer.WriteLine($"alter table {Expected.Identifier} alter column {expected.QuotedName} {expected.Type} NOT NULL;");
+            // On a second run the key added by the first one depends on the column, and SQL Server refuses
+            // to alter it even to the nullability it already has. The table goes into OBJECT_ID delimited:
+            // undelimited, a dotted name such as [a.b] resolves to NULL, the guard reads false, and the alter
+            // is skipped on the first run too, so the key add after it fails on a nullable column
+            writer.WriteLine(
+                $"IF COLUMNPROPERTY(OBJECT_ID(N'{SchemaUtils.EscapeLiteral(Expected.Identifier.ToString())}'), N'{SchemaUtils.EscapeLiteral(expected.Name)}', 'AllowsNull') = 1");
+            writer.WriteLine($"    alter table {Expected.Identifier} alter column {expected.QuotedName} {expected.Type} NOT NULL;");
 
             // SQL Server checks the whole batch before running it, so the primary key would still see the
             // column as nullable without a batch of its own

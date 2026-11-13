@@ -573,7 +573,7 @@ public class table_delta_sql_ordering
         delta.WriteUpdate(new SqlServerMigrator(), writer);
 
         var sql = writer.ToString();
-        var drop = $"alter table {expected.Identifier} drop constraint {actual.PrimaryKeyName};";
+        var drop = $"alter table {expected.Identifier} drop constraint if exists {actual.PrimaryKeyName};";
         var alter = $"alter table {expected.Identifier} alter column id nvarchar(100) NOT NULL;";
         var add = $"alter table {expected.Identifier} add CONSTRAINT {expected.PrimaryKeyName} PRIMARY KEY (id);";
 
@@ -582,5 +582,25 @@ public class table_delta_sql_ordering
             .ShouldBeGreaterThan(sql.IndexOf(drop, StringComparison.OrdinalIgnoreCase));
         sql.IndexOf(add, StringComparison.OrdinalIgnoreCase)
             .ShouldBeGreaterThan(sql.IndexOf(alter, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void primary_key_guard_delimits_a_dotted_key_name()
+    {
+        // EF6 names its history table's key "PK_dbo.__MigrationHistory"; bare inside OBJECT_ID the
+        // dot would split it into two name parts and the guard would never find the key
+        var actual = new Table("dbo.__MigrationHistory");
+        actual.AddColumn<string>("MigrationId");
+
+        var expected = new Table("dbo.__MigrationHistory");
+        expected.AddColumn<string>("MigrationId").AsPrimaryKey();
+        expected.PrimaryKeyName = "PK_dbo.__MigrationHistory";
+
+        var delta = new TableDelta(expected, actual);
+
+        var writer = new StringWriter();
+        delta.WriteUpdate(new SqlServerMigrator(), writer);
+
+        writer.ToString().ShouldContain("IF OBJECT_ID(N'dbo.[PK_dbo.__MigrationHistory]', N'PK') IS NULL");
     }
 }

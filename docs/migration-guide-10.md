@@ -135,6 +135,10 @@ you maintain a document or event store on Weasel, in which case:
 
 - Several static regular expressions are now source-generated (internal performance work).
 - The SQL Server table introspection query reuses one compiled plan.
+- Rendered SQL Server update and rollback scripts re-run cleanly, extending what 9.35 did for creation:
+  column adds are guarded by `COL_LENGTH`, primary key and check constraint adds by `OBJECT_ID`, and column,
+  primary key and table type drops use `IF EXISTS`. `TableColumn.AddColumnSql` now returns two lines, the
+  guard and the `alter table`; code that ran it through its own `SqlCommand` keeps working.
 - The Nuke build host targets `net10.0`. `./build.sh Pack`, `AotSmoke` and `LocalGate` are the local-train
   entry points; see `CLAUDE.md` in the repository.
 

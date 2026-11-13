@@ -279,6 +279,10 @@ public class TableColumn: ITableColumn
     ///         drop the same way, but Weasel emits a default for any column that declares one, which
     ///         makes it the case that arises on its own.
     ///     </para>
+    ///     <para>
+    ///         The drop is <c>IF EXISTS</c> so a rendered migration script can be run more than once:
+    ///         on a second run the lookup finds no default and the column is already gone.
+    ///     </para>
     /// </remarks>
     public string DropColumnSql(Table table)
     {
@@ -293,7 +297,7 @@ public class TableColumn: ITableColumn
                        and c.name = '{SchemaUtils.EscapeLiteral(Name)}';
                      if @constraint is not null
                          exec('alter table {table.Identifier} drop constraint [' + @constraint + ']');
-                     alter table {table.Identifier} drop column {QuotedName};
+                     alter table {table.Identifier} drop column if exists {QuotedName};
                      """;
 
         return $"EXEC(N'{inner.Replace("'", "''")}');";
@@ -307,9 +311,23 @@ public class TableColumn: ITableColumn
         return AllowNulls || DefaultExpression.IsNotEmpty() || ComputedExpression.IsNotEmpty() || IsAutoNumber;
     }
 
+    /// <summary>
+    ///     The column addition guarded by an existence check, so a rendered migration script can be
+    ///     run more than once.
+    /// </summary>
+    /// <remarks>
+    ///     <c>ALTER TABLE ... ADD</c> has no <c>IF NOT EXISTS</c> of its own, and unguarded a second run
+    ///     raises "Column names in each table must be unique". The guard is evaluated when the batch
+    ///     runs, so a column dropped earlier in the same batch (the computed-column drop and re-add) is
+    ///     still added. The table is delimited inside the literal, so a dotted name such as <c>[a.b]</c>
+    ///     is still found.
+    /// </remarks>
     public virtual string AddColumnSql(Table parent)
     {
-        return $"alter table {parent.Identifier} add {ToDeclaration()};";
+        return $"""
+                IF COL_LENGTH(N'{SchemaUtils.EscapeLiteral(parent.Identifier.ToString())}', N'{SchemaUtils.EscapeLiteral(Name)}') IS NULL
+                    alter table {parent.Identifier} add {ToDeclaration()};
+                """;
     }
 
 
