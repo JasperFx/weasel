@@ -37,6 +37,9 @@ public static class Program
         BenchmarkRunner.Run<ChangeTrackerBenchmarks>(config);
         BenchmarkRunner.Run<BatchBuilderBenchmarks>(config);
         BenchmarkRunner.Run<ParameterNamesBenchmarks>(config);
+        BenchmarkRunner.Run<ParameterTypeBenchmarks>(config);
+        BenchmarkRunner.Run<PostgresqlListParameterTypeBenchmarks>(config);
+        BenchmarkRunner.Run<FormattingBenchmarks>(config);
         BenchmarkRunner.Run<SchemaMigrationBenchmarks>(config);
         BenchmarkRunner.Run<JsonDeserializeBenchmarks>(config);
         BenchmarkRunner.Run<JsonReadBenchmarks>(config);
