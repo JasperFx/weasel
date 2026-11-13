@@ -147,6 +147,29 @@ you maintain a document or event store on Weasel, in which case:
 - The package is `IsAotCompatible`. As always, publish natively and run the result before believing an AOT
   claim; the analyzer cannot prove the runtime half.
 
+### Deriving the closed-shape storages
+
+The tracking-mode bases are public, so a store can derive them to carry its own storage interfaces
+(weasel#811): `QueryOnlyClosedShapeDocumentStorage<TDoc, TId>`,
+`LightweightClosedShapeDocumentStorage<TDoc, TId>`, `IdentityMapClosedShapeDocumentStorage<TDoc, TId>` and
+`DirtyTrackingClosedShapeDocumentStorage<TDoc, TId>`, over the abstract `ClosedShapeDocumentStorage<TDoc, TId>`.
+A derived class needs only a constructor: the base builds the write operations and the selector for the
+descriptor's concurrency mode. The nine concurrency-mode leaves the factory builds stay internal, and what
+the factory builds is unchanged.
+
+Store-specific behaviour stays on `IClosedShapeStorageRules<TDoc, TId>`, which gains defaulted members:
+
+| Member | For |
+| --- | --- |
+| `BuildUndeleteFragment`, `BuildUndeletion`, `BuildRestoration` | `UndeleteFragment`, `UndeleteForId` and `RestoreForId` on the storage. A restore promises a new version; an undelete does not |
+| `TryApplyMappedVersion`, `TryApplyMappedRevision` | The write half of `MappedVersionFor` / `MappedRevisionFor`, also on `IDocumentStorage<T>` with a `false` default |
+
+A hierarchy sub-class is `ClosedShapeSubClassDocumentStorage<TDoc, TRoot, TId>`, which wraps the root's storage
+and takes an `IClosedShapeSubClassRules<TDoc, TRoot, TId>` for the discriminator filter, the query filters and
+truncation. Build it with `ClosedShapeDocumentProviderFactory.BuildSubClass` or `BuildSubClassStorage`, or
+derive it. By default a sub-class truncate empties the **whole hierarchy's table**: answer `TruncateSql` if a
+sub-class truncate must leave sibling rows alone.
+
 ## Asynchronous Hi-Lo ids
 
 `ISequence` gains `ValueTask<long> NextLongAsync(CancellationToken)` and `ValueTask<int> NextIntAsync(CancellationToken)`
