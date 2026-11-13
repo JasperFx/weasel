@@ -186,8 +186,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
 
     public async Task WriteCreationScriptToFileAsync(string filename, CancellationToken ct = default)
     {
+        // Not FileSystem.CreateDirectoryIfNotExists: it skips any path without a separator, so the
+        // "out" of "out/dump.sql" was never created
         var directory = Path.GetDirectoryName(filename);
-        FileSystem.CreateDirectoryIfNotExists(directory);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
 
         await initializeSchemaWithNewConnection(ct).ConfigureAwait(false);
 
@@ -216,6 +221,13 @@ public abstract class DatabaseBase<TConnection>: IDatabase<TConnection>, IDataba
         applyPostProcessingIfAny();
 
         FileSystem.CleanDirectory(directory);
+
+        // CleanDirectory recreates the folder through FileSystem.CreateDirectoryIfNotExists, which
+        // skips a path without a separator, so a bare "scripts" was deleted and never made again
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
 
         await initializeSchemaWithNewConnection(ct).ConfigureAwait(false);
 
