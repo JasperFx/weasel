@@ -341,10 +341,37 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
         }
 
         values = determineClrTypesForParameterType(parameterType);
-
-        TypeMemo.Swap(d => d.AddOrUpdate(parameterType, values!));
+        rememberClrTypes(parameterType, values);
 
         return values;
+    }
+
+    // The memo writes below live in their own methods on purpose. A lambda that captures a
+    // method's parameter makes the compiler allocate its closure at the *top* of that method, so
+    // a lookup that hit the memo and never reached the Swap still paid for the closure: 32 bytes
+    // on every TryGetDbType / ToParameterType call, i.e. on every bound parameter (weasel#804).
+    private void rememberClrTypes(TParameterType parameterType, Type[] values)
+    {
+        TypeMemo.Swap(d => d.AddOrUpdate(parameterType, values));
+    }
+
+    /// <summary>
+    ///     Records <paramref name="databaseType" /> for <paramref name="type" /> in the database-type
+    ///     memo. Kept out of line so a caller's memo hit allocates no closure. weasel#804.
+    /// </summary>
+    protected void rememberDatabaseType(Type type, string? databaseType)
+    {
+        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
+    }
+
+    /// <summary>
+    ///     Records <paramref name="parameterType" /> for <paramref name="type" /> in the
+    ///     parameter-type memo — null meaning "looked up, unmapped". Kept out of line so a caller's
+    ///     memo hit allocates no closure. weasel#804.
+    /// </summary>
+    protected void rememberParameterType(Type type, TParameterType? parameterType)
+    {
+        ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, parameterType));
     }
 
     public abstract string GetDatabaseType(Type memberType, EnumStorage enumStyle);
@@ -395,7 +422,7 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
 
         if (type.IsNullable() && DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var inner))
         {
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, inner));
+            rememberDatabaseType(type, inner);
             return inner;
         }
 
@@ -418,7 +445,7 @@ public abstract class DatabaseProvider<TCommand, TParameter, TParameterType>
 
         if (type.IsNullable() && ParameterTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out var inner))
         {
-            ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, inner));
+            rememberParameterType(type, inner);
             return inner;
         }
 

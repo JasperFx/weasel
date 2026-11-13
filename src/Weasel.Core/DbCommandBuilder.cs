@@ -270,7 +270,7 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
         if (type.IsNullable() &&
             DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out string databaseType))
         {
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
+            rememberDatabaseType(type, databaseType);
             return databaseType;
         }
 
