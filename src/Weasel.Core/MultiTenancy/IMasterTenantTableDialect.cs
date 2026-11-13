@@ -22,7 +22,9 @@ namespace Weasel.Core.MultiTenancy;
 /// <item>
 /// <see cref="SelectEnabledTenants" /> returns <c>tenant_id</c> at ordinal 0 and
 /// <c>connection_string</c> at ordinal 1; <see cref="SelectDisabledTenantIds" /> and
-/// <see cref="SelectConnectionString" /> return a single column at ordinal 0.
+/// <see cref="SelectConnectionString" /> return a single column at ordinal 0;
+/// <see cref="SelectTenantRow" /> returns <c>connection_string</c> at ordinal 0 and the disabled
+/// flag at ordinal 1.
 /// </item>
 /// </list>
 /// </remarks>
@@ -66,6 +68,30 @@ public interface IMasterTenantTableDialect
     /// because everything else about the tenant is intact.
     /// </remarks>
     string SelectConnectionString(string qualifiedTableName);
+
+    /// <summary>
+    /// <c>connection_string</c> at ordinal 0 and the disabled flag at ordinal 1 for one tenant
+    /// (<c>@id</c>) <b>whether or not it is disabled</b>, or no row — so one read can tell
+    /// "no such tenant" from "that tenant is switched off" (weasel#809). Or null when this dialect
+    /// does not render it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the one statement that must <em>not</em> filter on the disabled flag, unlike
+    /// <see cref="SelectConnectionString" />: the base reads the flag and keeps a disabled tenant's
+    /// connection string to itself, so nothing routes to it. The flag may come back as any type
+    /// <see cref="Convert.ToBoolean(object)" /> accepts — a <c>boolean</c>, a <c>BIT</c> or an
+    /// integer.
+    /// </para>
+    /// <para>
+    /// <b>The default is null rather than a guess</b>, because this interface cannot know a
+    /// dialect's column names, and null is an answer a stale implementer cannot be mistaken for
+    /// giving on purpose. A dialect that leaves it null still distinguishes disabled from unknown —
+    /// the base falls back to <see cref="SelectConnectionString" /> and, only when that finds
+    /// nothing, <see cref="SelectDisabledTenantIds" /> — at the cost of a second round trip on a miss.
+    /// </para>
+    /// </remarks>
+    string? SelectTenantRow(string qualifiedTableName) => null;
 
     /// <summary>
     /// Insert or update a tenant's connection string (<c>@id</c>, <c>@connection</c>).

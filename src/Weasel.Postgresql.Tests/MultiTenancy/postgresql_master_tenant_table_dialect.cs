@@ -141,6 +141,42 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
     }
 
     [Fact]
+    public async Task disabled_is_told_apart_from_unknown_in_one_read()
+    {
+        // weasel#809: SelectTenantRow reads the boolean flag rather than filtering on it.
+        PostgresqlMasterTenantTableDialect.Instance.SelectTenantRow("public.mt_tenant_databases").ShouldNotBeNull();
+
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("red", "Host=red");
+        await tenancy.AddDatabaseRecordAsync("blue", "Host=blue");
+        await tenancy.DisableTenantAsync("blue");
+
+        var red = await tenancy.LookupTenantAsync("red");
+        red.Status.ShouldBe(MasterTenantStatus.Enabled);
+        red.ConnectionString.ShouldNotBeNull().ShouldStartWith("Host=red");
+
+        (await tenancy.LookupTenantAsync("blue")).ShouldBe(new MasterTenantLookup(MasterTenantStatus.Disabled, null));
+        (await tenancy.LookupTenantAsync("nobody")).ShouldBe(new MasterTenantLookup(MasterTenantStatus.Unknown, null));
+    }
+
+    [Fact]
+    public async Task a_refresh_evicts_a_tenant_another_node_disabled_or_removed()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("red", "Host=red");
+        await tenancy.AddDatabaseRecordAsync("blue", "Host=blue");
+        await tenancy.AddDatabaseRecordAsync("green", "Host=green");
+
+        var otherNode = TenancyFor();
+        await otherNode.DisableTenantAsync("blue");
+        await otherNode.DeleteDatabaseRecordAsync("green");
+
+        (await tenancy.BuildDatabasesAsync()).Select(x => x.TenantId).ShouldBe(["red"]);
+        tenancy.FindCachedDatabase("blue").ShouldBeNull();
+        tenancy.FindCachedDatabase("green").ShouldBeNull();
+    }
+
+    [Fact]
     public void the_qualified_name_quotes_what_needs_quoting()
     {
         var dialect = PostgresqlMasterTenantTableDialect.Instance;

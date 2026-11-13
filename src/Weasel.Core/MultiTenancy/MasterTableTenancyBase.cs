@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using JasperFx;
 using JasperFx.Descriptors;
 using JasperFx.MultiTenancy;
@@ -232,19 +233,39 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     // ------------------------------------------------------------------------------------------
 
     /// <summary>
-    /// Read every enabled tenant from the control table, refreshing the cache, and return the
-    /// databases this tenancy now knows about.
+    /// Read every enabled tenant from the control table, bring the cache into line with it, and
+    /// return the databases this tenancy now knows about.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Idempotent: a tenant already cached under the same connection string keeps its existing
     /// database rather than getting a new one, so calling this on a schedule does not churn
     /// connection pools. A tenant whose connection string has <em>changed</em> is rebuilt, and the
     /// database it replaces is disposed.
+    /// </para>
+    /// <para>
+    /// <b>A cached tenant the table no longer offers is evicted</b> (weasel#809), through
+    /// <see cref="EvictStaleTenantAsync" />: one whose row was deleted, or disabled, by another
+    /// process or node. This used to only add, so such a tenant stayed cached here — and went on
+    /// resolving — until the process restarted; that is the bug Polecat fixed on its own in
+    /// polecat#871 / polecat#849. Disabling or removing a tenant through <em>this</em> instance
+    /// still evicts immediately; this is how every other instance finds out, the next time it reads
+    /// the table.
+    /// </para>
+    /// <para>
+    /// Only tenants cached <em>before</em> the read are candidates, and only while their cache
+    /// entry is still the one that was there then — so a tenant added or resolved on this instance
+    /// while the read was in flight is not evicted on the strength of a read that could not have
+    /// seen it.
+    /// </para>
     /// </remarks>
     public async Task<IReadOnlyList<TDatabase>> BuildDatabasesAsync(CancellationToken token = default)
     {
         await ProvisionControlTableAsync(token).ConfigureAwait(false);
         await SeedDatabasesAsync(token).ConfigureAwait(false);
+
+        // Taken before the read: anything cached after it may be newer than what the read sees.
+        var cachedBeforeRead = _databases.ToArray();
 
         var rows = await ExecuteAsync(async ct =>
         {
@@ -263,10 +284,13 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
             return list;
         }, token).ConfigureAwait(false);
 
+        var enabled = new HashSet<string>(_databases.Comparer);
+
         foreach (var (rawTenantId, rawConnectionString) in rows)
         {
             var tenantId = CorrectTenantId(rawTenantId);
             var connectionString = Options.CorrectConnectionString(rawConnectionString);
+            enabled.Add(tenantId);
 
             var replaced = default(TDatabase);
 
@@ -289,8 +313,69 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
             }
         }
 
+        foreach (var (tenantId, entry) in cachedBeforeRead)
+        {
+            if (enabled.Contains(tenantId))
+            {
+                continue;
+            }
+
+            // Re-checked against the live cache: an entry replaced since the snapshot is newer than
+            // the read, and is left alone.
+            if (_databases.TryGetValue(tenantId, out var current) && ReferenceEquals(current, entry))
+            {
+                await EvictStaleTenantAsync(tenantId, entry.Database, token).ConfigureAwait(false);
+            }
+        }
+
         return AllDatabases();
     }
+
+    /// <summary>
+    /// Called by <see cref="BuildDatabasesAsync" /> for each cached tenant the control table no
+    /// longer offers as enabled — its row deleted, or disabled, since this instance cached it. The
+    /// default evicts it from the cache and disposes its database through
+    /// <see cref="DisposeDatabaseAsync" />.
+    /// </summary>
+    /// <param name="tenantId">The tenant id, as cached (already through <see cref="CorrectTenantId" />).</param>
+    /// <param name="database">The tenant's cached database.</param>
+    /// <param name="token">The token <see cref="BuildDatabasesAsync" /> was called with.</param>
+    /// <remarks>
+    /// <para>
+    /// Override to do something alongside the eviction — stop the tenant's projection agents, or tell
+    /// a second cache the store keeps (Fisher's <c>OnTenantRevoked</c>) — and call the base to evict.
+    /// Removed and disabled are not told apart here, because the read that found the tenant missing
+    /// was of enabled rows only; <see cref="LookupTenantAsync" /> says which, at the cost of a read.
+    /// </para>
+    /// <para>
+    /// An override that does not call the base keeps the tenant cached, which is the behaviour before
+    /// weasel#809 — a tenant disabled or removed elsewhere goes on resolving here.
+    /// </para>
+    /// <para>
+    /// The base's eviction is conditional: it removes the cache entry only if it still holds
+    /// <paramref name="database" />, so a tenant re-added on this instance in the meantime survives.
+    /// </para>
+    /// </remarks>
+    protected virtual async ValueTask EvictStaleTenantAsync(string tenantId, TDatabase database, CancellationToken token)
+    {
+        if (_databases.TryGetValue(tenantId, out var entry)
+            && ReferenceEquals(entry.Database, database)
+            && _databases.TryRemove(new KeyValuePair<string, TenantEntry>(tenantId, entry)))
+        {
+            await DisposeDatabaseAsync(database).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// Evict one tenant from the cache and dispose its database through
+    /// <see cref="DisposeDatabaseAsync" />, without touching the control table. Returns whether
+    /// anything was cached for it.
+    /// </summary>
+    /// <remarks>
+    /// The tenant resolves again on next access if its row is still there and enabled — this is a
+    /// cache operation, not a lifecycle one. To stop a tenant resolving, disable or delete it.
+    /// </remarks>
+    protected ValueTask<bool> EvictTenantAsync(string tenantId) => EvictAsync(CorrectTenantId(tenantId));
 
     /// <summary>Every tenant database currently cached.</summary>
     public IReadOnlyList<TDatabase> AllDatabases() =>
@@ -305,9 +390,10 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// </summary>
     /// <remarks>
     /// Unknown and disabled are deliberately the same answer <em>here</em> — a disabled tenant is
-    /// not routable, which is what disabling means — but a caller turning this into an exception
-    /// should throw <see cref="UnknownTenantIdException" /> so it is the same failure an
-    /// unregistered tenant produces, rather than something a caller has to handle twice.
+    /// not routable, which is what disabling means. A caller that needs to tell them apart, to
+    /// refuse a disabled tenant with <c>DisabledTenantException</c> as Marten, Polecat and Fisher do,
+    /// uses <see cref="ResolveTenantAsync" /> instead, and <see cref="CreateTenantRefusal" /> for
+    /// the exception.
     /// </remarks>
     public async ValueTask<TDatabase?> TryFindDatabaseAsync(string tenantId, CancellationToken token = default)
     {
@@ -354,6 +440,137 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
             ? null
             : Options.CorrectConnectionString(connectionString);
     }
+
+    /// <summary>
+    /// Read one tenant's row from the control table, bypassing the cache, and say whether it is
+    /// unknown, disabled or enabled — with its connection string (application name applied) only
+    /// when enabled.
+    /// </summary>
+    /// <remarks>
+    /// One round trip through <see cref="IMasterTenantTableDialect.SelectTenantRow" />. A dialect
+    /// that does not render it costs a second read on a miss: the enabled-only
+    /// <see cref="IMasterTenantTableDialect.SelectConnectionString" /> first, then
+    /// <see cref="IMasterTenantTableDialect.SelectDisabledTenantIds" /> to tell disabled from unknown.
+    /// A row with an empty connection string is reported as unknown, as it always has been.
+    /// </remarks>
+    public async Task<MasterTenantLookup> LookupTenantAsync(string tenantId, CancellationToken token = default)
+    {
+        tenantId = CorrectTenantId(tenantId);
+        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+
+        var sql = Dialect.SelectTenantRow(QualifiedTableName);
+        if (sql is null)
+        {
+            return await LookupTenantWithoutRowReadAsync(tenantId, token).ConfigureAwait(false);
+        }
+
+        var (found, connectionString, disabled) = await ExecuteAsync(async ct =>
+        {
+            await using var conn = await MasterDataSource.OpenConnectionAsync(ct).ConfigureAwait(false);
+            await using var cmd = CreateCommand(conn, sql, ("@id", tenantId));
+            await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+
+            if (!await reader.ReadAsync(ct).ConfigureAwait(false))
+            {
+                return (false, (string?)null, false);
+            }
+
+            var value = await reader.IsDBNullAsync(0, ct).ConfigureAwait(false) ? null : reader.GetString(0);
+            var flag = !await reader.IsDBNullAsync(1, ct).ConfigureAwait(false)
+                       && Convert.ToBoolean(reader.GetValue(1), CultureInfo.InvariantCulture);
+
+            await reader.CloseAsync().ConfigureAwait(false);
+            return (true, value, flag);
+        }, token).ConfigureAwait(false);
+
+        if (!found)
+        {
+            return new MasterTenantLookup(MasterTenantStatus.Unknown, null);
+        }
+
+        if (disabled)
+        {
+            return new MasterTenantLookup(MasterTenantStatus.Disabled, null);
+        }
+
+        return string.IsNullOrEmpty(connectionString)
+            ? new MasterTenantLookup(MasterTenantStatus.Unknown, null)
+            : new MasterTenantLookup(MasterTenantStatus.Enabled, Options.CorrectConnectionString(connectionString));
+    }
+
+    private async Task<MasterTenantLookup> LookupTenantWithoutRowReadAsync(string tenantId, CancellationToken token)
+    {
+        var connectionString = await LookupConnectionStringAsync(tenantId, token).ConfigureAwait(false);
+        if (connectionString is not null)
+        {
+            return new MasterTenantLookup(MasterTenantStatus.Enabled, connectionString);
+        }
+
+        var disabled = await AllDisabledAsync(token).ConfigureAwait(false);
+        return disabled.Any(id => _databases.Comparer.Equals(CorrectTenantId(id), tenantId))
+            ? new MasterTenantLookup(MasterTenantStatus.Disabled, null)
+            : new MasterTenantLookup(MasterTenantStatus.Unknown, null);
+    }
+
+    /// <summary>
+    /// Resolve a tenant's database the way <see cref="TryFindDatabaseAsync" /> does — from the
+    /// cache, reading the control table when it is not cached and caching what it finds — but say
+    /// <em>why</em> when there is nothing to route to: unknown, or disabled.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is the seam for a store that refuses the two differently (polecat#655, marten#5479):
+    /// <code>
+    /// var resolution = await ResolveTenantAsync(tenantId, token);
+    /// return resolution.Database ?? throw CreateTenantRefusal(tenantId, resolution.Status);
+    /// </code>
+    /// </para>
+    /// <para>
+    /// A cached tenant is <see cref="MasterTenantStatus.Enabled" /> without a read. That is right
+    /// because disabling or deleting evicts on this instance, and <see cref="BuildDatabasesAsync" />
+    /// evicts what another instance disabled or deleted.
+    /// </para>
+    /// </remarks>
+    public async ValueTask<MasterTenantResolution<TDatabase>> ResolveTenantAsync(
+        string tenantId, CancellationToken token = default)
+    {
+        tenantId = CorrectTenantId(tenantId);
+
+        if (_databases.TryGetValue(tenantId, out var cached))
+        {
+            return new MasterTenantResolution<TDatabase>(MasterTenantStatus.Enabled, cached.Database);
+        }
+
+        var lookup = await LookupTenantAsync(tenantId, token).ConfigureAwait(false);
+        if (lookup.Status != MasterTenantStatus.Enabled)
+        {
+            return new MasterTenantResolution<TDatabase>(lookup.Status, null);
+        }
+
+        var connectionString = lookup.ConnectionString!;
+        var database = _databases.GetOrAdd(tenantId,
+            id => new TenantEntry(connectionString, BuildDatabase(id, connectionString))).Database;
+
+        return new MasterTenantResolution<TDatabase>(MasterTenantStatus.Enabled, database);
+    }
+
+    /// <summary>
+    /// The exception refusing a tenant this tenancy will not route to. Used by
+    /// <see cref="ITenantedSource{T}.FindAsync" />, and by a store turning a
+    /// <see cref="ResolveTenantAsync" /> miss into an exception.
+    /// </summary>
+    /// <param name="tenantId">The tenant id that was refused.</param>
+    /// <param name="status">
+    /// Why: <see cref="MasterTenantStatus.Unknown" /> or <see cref="MasterTenantStatus.Disabled" />.
+    /// </param>
+    /// <remarks>
+    /// The default is <see cref="UnknownTenantIdException" /> for both, which is what the base has
+    /// always thrown. A store that tells them apart overrides this to return
+    /// <c>DisabledTenantException</c> for <see cref="MasterTenantStatus.Disabled" />; it derives from
+    /// <see cref="UnknownTenantIdException" />, so a caller catching the old type keeps catching.
+    /// </remarks>
+    protected virtual UnknownTenantIdException CreateTenantRefusal(string tenantId, MasterTenantStatus status) =>
+        new(tenantId);
 
     /// <summary>The tenant ids currently disabled.</summary>
     public async Task<IReadOnlyList<string>> AllDisabledAsync(CancellationToken token = default)
@@ -616,21 +833,21 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     // the concrete API should stay the cancellable one. Both stores wrote this adapter by hand; it
     // is the single largest block the lift removes from each.
 
-    async ValueTask<string> ITenantedSource<string>.FindAsync(string tenantId) =>
-        await LookupConnectionStringAsync(tenantId, CancellationToken.None).ConfigureAwait(false)
-        ?? throw new UnknownTenantIdException(tenantId);
-
-    async Task ITenantedSource<string>.RefreshAsync()
+    async ValueTask<string> ITenantedSource<string>.FindAsync(string tenantId)
     {
-        // Clear rather than merge: the point of a refresh is to drop tenants that have since been
-        // removed or disabled, and a merge would keep serving them from cache forever.
-        foreach (var tenantId in _databases.Keys.ToList())
-        {
-            await EvictAsync(tenantId).ConfigureAwait(false);
-        }
+        var lookup = await LookupTenantAsync(tenantId, CancellationToken.None).ConfigureAwait(false);
 
-        await BuildDatabasesAsync(CancellationToken.None).ConfigureAwait(false);
+        // The refusal is the store's to choose (weasel#809), and defaults to UnknownTenantIdException
+        // for both unknown and disabled, which is what this has always thrown.
+        return lookup.ConnectionString ?? throw CreateTenantRefusal(CorrectTenantId(tenantId), lookup.Status);
     }
+
+    // The point of a refresh is to drop tenants that have since been removed or disabled, and
+    // BuildDatabasesAsync now does exactly that (weasel#809). This used to evict every tenant first,
+    // which dropped the stale ones too but also disposed every live tenant's database -- and its
+    // connection pool -- out from under sessions still using it, and bypassed EvictStaleTenantAsync.
+    async Task ITenantedSource<string>.RefreshAsync() =>
+        await BuildDatabasesAsync(CancellationToken.None).ConfigureAwait(false);
 
     /// <summary>
     /// The tenant identifiers currently active. Deliberately not the connection strings, which
@@ -672,12 +889,15 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, token).ConfigureAwait(false);
 
-    private async ValueTask EvictAsync(string tenantId)
+    private async ValueTask<bool> EvictAsync(string tenantId)
     {
-        if (_databases.TryRemove(tenantId, out var entry))
+        if (!_databases.TryRemove(tenantId, out var entry))
         {
-            await DisposeDatabaseAsync(entry.Database).ConfigureAwait(false);
+            return false;
         }
+
+        await DisposeDatabaseAsync(entry.Database).ConfigureAwait(false);
+        return true;
     }
 
     [SuppressMessage("Reliability", "CA2100:Review SQL queries for security vulnerabilities",
@@ -745,5 +965,12 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         GC.SuppressFinalize(this);
     }
 
-    private sealed record TenantEntry(string ConnectionString, TDatabase Database);
+    // A class, not a record: eviction removes an entry only if it is still the *same* entry, and a
+    // record's value equality would let a re-added tenant with the same connection string -- and a
+    // TDatabase that is itself a record, as Fisher's is -- be mistaken for the stale one.
+    private sealed class TenantEntry(string connectionString, TDatabase database)
+    {
+        public string ConnectionString { get; } = connectionString;
+        public TDatabase Database { get; } = database;
+    }
 }
