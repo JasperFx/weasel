@@ -72,4 +72,54 @@ public static class ClosedShapeDocumentProviderFactory
             BuildStorage(ClosedShapeTrackingMode.Lightweight, descriptor, rules),
             BuildStorage(ClosedShapeTrackingMode.IdentityMap, descriptor, rules),
             BuildStorage(ClosedShapeTrackingMode.DirtyTracking, descriptor, rules));
+
+    /// <summary>
+    ///     The storage for a hierarchy sub-class in one tracking mode: <paramref name="root" />, the
+    ///     root type's storage in that mode, wrapped so its reads narrow to <typeparamref name="TDoc" />
+    ///     (weasel#811). A store that needs its own interfaces on the sub-class storage derives
+    ///     <see cref="ClosedShapeSubClassDocumentStorage{TDoc,TRoot,TId}" /> and constructs it instead.
+    /// </summary>
+    /// <remarks>
+    ///     Like every method here this closes no generic type itself. <typeparamref name="TDoc" /> and
+    ///     <typeparamref name="TRoot" /> are document types and so reference types, but a value-type
+    ///     <typeparamref name="TId" /> still cannot be closed with <c>MakeGenericMethod</c> under Native
+    ///     AOT; a caller holding the types as <see cref="Type" />s has to reach this from a context where
+    ///     the id type is already a type argument.
+    /// </remarks>
+    public static IDocumentStorage<TDoc, TId> BuildSubClassStorage<TDoc, TRoot, TId>(IDocumentStorage<TRoot, TId> root,
+        IClosedShapeSubClassRules<TDoc, TRoot, TId> rules)
+        where TDoc : notnull, TRoot
+        where TRoot : notnull
+        where TId : notnull
+        => new ClosedShapeSubClassDocumentStorage<TDoc, TRoot, TId>(root, rules);
+
+    /// <summary>
+    ///     All four tracking modes of a hierarchy sub-class, each wrapping the root's storage in the same
+    ///     mode (weasel#811). One rules object serves all four.
+    /// </summary>
+    /// <exception cref="ArgumentException">
+    ///     A slot of <paramref name="root" /> is not an <see cref="IDocumentStorage{T,TId}" /> keyed by
+    ///     <typeparamref name="TId" />.
+    /// </exception>
+    public static DocumentProvider<TDoc> BuildSubClass<TDoc, TRoot, TId>(DocumentProvider<TRoot> root,
+        IClosedShapeSubClassRules<TDoc, TRoot, TId> rules)
+        where TDoc : notnull, TRoot
+        where TRoot : notnull
+        where TId : notnull
+    {
+        ArgumentNullException.ThrowIfNull(root);
+        ArgumentNullException.ThrowIfNull(rules);
+
+        return new DocumentProvider<TDoc>(
+            BuildSubClassStorage(keyed(root.QueryOnly), rules),
+            BuildSubClassStorage(keyed(root.Lightweight), rules),
+            BuildSubClassStorage(keyed(root.IdentityMap), rules),
+            BuildSubClassStorage(keyed(root.DirtyTracking), rules));
+
+        static IDocumentStorage<TRoot, TId> keyed(IDocumentStorage<TRoot> storage)
+            => storage as IDocumentStorage<TRoot, TId>
+               ?? throw new ArgumentException(
+                   $"The {typeof(TRoot).Name} storage {storage.GetType().Name} is keyed by {storage.IdType.Name}, not {typeof(TId).Name}.",
+                   nameof(root));
+    }
 }

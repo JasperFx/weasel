@@ -72,6 +72,27 @@ public interface IDocumentStorage<T>: IDocumentStorage where T : notnull
     /// </summary>
     long? MappedRevisionFor(T document) => null;
 
+    /// <summary>
+    ///     Write <paramref name="version" /> onto the document's mapped optimistic-concurrency member:
+    ///     the write half of <see cref="MappedVersionFor" />, for a session's
+    ///     <c>UpdateExpectedVersion</c>, which names the expectation by assigning it to the document.
+    ///     Returns false when the mapping carries no mapped version member.
+    /// </summary>
+    /// <remarks>
+    ///     Defaults to false so this stays additive (weasel#811): a storage that predates it answers as
+    ///     one with no mapped member did before, which is the behaviour it already had. A storage that
+    ///     wraps another (a hierarchy sub-class wrapping its root, say) must forward this explicitly,
+    ///     as with <see cref="MappedVersionFor" />: leaving it out compiles and quietly answers false.
+    /// </remarks>
+    bool TryApplyMappedVersion(T document, Guid version) => false;
+
+    /// <summary>
+    ///     Write <paramref name="revision" /> onto the document's mapped numeric-revision member,
+    ///     narrowing to the member's own width. Returns false when the mapping carries no mapped
+    ///     revision member. See <see cref="TryApplyMappedVersion" />.
+    /// </summary>
+    bool TryApplyMappedRevision(T document, long revision) => false;
+
     void Store(IStorageSession session, T document);
     void Store(IStorageSession session, T document, Guid? version);
     void Store(IStorageSession session, T document, long revision);

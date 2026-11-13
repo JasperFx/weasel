@@ -406,7 +406,7 @@ public class closed_shape_document_storage_family
     private static DocumentStorageDescriptor<Doc, Guid> descriptor(ConcurrencyMode concurrency)
         => descriptor<Doc>(concurrency, d => d.Id);
 
-    private static DocumentStorageDescriptor<T, Guid> descriptor<T>(ConcurrencyMode concurrency, Func<T, Guid> id)
+    internal static DocumentStorageDescriptor<T, Guid> descriptor<T>(ConcurrencyMode concurrency, Func<T, Guid> id)
         where T : notnull
         => new(new GuidIdentification<T>(id), Substitute.For<IStorageSerializer>(), Substitute.For<IStorageDialect>(),
             [], [], [], [], "upsert", "insert", "update", "overwrite", false, concurrency, null, null, -1, null, -1,
@@ -425,7 +425,7 @@ public class closed_shape_document_storage_family
         public override int GetHashCode() => Id.GetHashCode();
     }
 
-    private sealed class GuidIdentification<T>(Func<T, Guid> id): IIdentification<T, Guid>
+    internal sealed class GuidIdentification<T>(Func<T, Guid> id): IIdentification<T, Guid>
     {
         public Guid Identity(T document) => id(document);
         public Guid AssignIfMissing(T document, ISequenceSource sequences) => id(document);
@@ -445,7 +445,7 @@ public class closed_shape_document_storage_family
 
     private class FakeRules: FakeRules<Doc>;
 
-    private class FakeRules<T>: IClosedShapeStorageRules<T, Guid> where T : notnull
+    internal class FakeRules<T>: IClosedShapeStorageRules<T, Guid> where T : notnull
     {
         public int SharedVersions { get; private set; }
         public List<(OperationRole, bool)> WriteRequests { get; } = [];
@@ -491,7 +491,7 @@ public class closed_shape_document_storage_family
     }
 
     /// <summary>A session with a real item map, change-tracker list, and version-tracker substitute.</summary>
-    private sealed class FakeSession: IStorageSession
+    internal sealed class FakeSession: IStorageSession
     {
         public List<(object, object)> Added { get; } = [];
         public int Reads { get; private set; }
