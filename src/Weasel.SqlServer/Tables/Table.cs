@@ -179,7 +179,9 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         }
         else
         {
-            writer.WriteLine("IF OBJECT_ID('{0}') IS NULL", SchemaUtils.EscapeLiteral(Identifier.QualifiedName));
+            // N'' so a non-Latin name survives the literal, and 'U' so a view or synonym of the same
+            // name fails the create loudly instead of skipping it
+            writer.WriteLine("IF OBJECT_ID(N'{0}', N'U') IS NULL", SchemaUtils.EscapeLiteral(Identifier.QualifiedName));
             writer.WriteLine("BEGIN");
             writer.WriteLine("CREATE TABLE {0} (", Identifier);
         }

@@ -95,6 +95,19 @@ await table.ApplyChangesAsync(connection);
 This is the recommended way to "roll forward" a time-series table month over month: keep extending the
 declared boundary list and let migration add the new partitions.
 
+Each split is guarded by a lookup in `sys.partition_range_values`, and the `MERGE RANGE` that rolls it
+back is guarded the same way, so a rendered migration script can be run more than once. The boundary is
+cast to the partition function's type before it is compared, because the catalog stores it as a
+`sql_variant`:
+
+```sql
+IF NOT EXISTS (SELECT 1 FROM sys.partition_range_values rv INNER JOIN sys.partition_functions pf ON pf.function_id = rv.function_id WHERE pf.name = 'pf_metrics_sample_bucket_end' AND rv.value = CAST('2026-03-01 00:00:00' AS datetime))
+BEGIN
+    ALTER PARTITION SCHEME [ps_metrics_sample_bucket_end] NEXT USED [PRIMARY];
+    ALTER PARTITION FUNCTION [pf_metrics_sample_bucket_end]() SPLIT RANGE ('2026-03-01 00:00:00');
+END
+```
+
 ### Rebuilds
 
 Changing the partition **column** or **data type**, or *removing* a boundary that exists in the database,

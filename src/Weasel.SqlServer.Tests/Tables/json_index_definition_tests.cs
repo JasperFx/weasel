@@ -199,4 +199,35 @@ public class json_index_definition_tests: IntegrationContext
         existing!.Indexes.OfType<JsonIndexDefinition>().Single()
             .OptimizeForArraySearch.ShouldBeTrue();
     }
+
+    /// <summary>
+    ///     SQL Server allows one JSON index per json column, and many per table. The existence guard
+    ///     used to key on the table alone, so the second column's index was skipped on the very first
+    ///     run and the table never matched its model.
+    /// </summary>
+    [Fact]
+    public async Task each_json_column_gets_its_own_index()
+    {
+        if (!await ServerHasJsonIndexes()) return;
+
+        await ResetSchema();
+
+        var table = TableWithJsonIndex();
+        table.AddColumn("extra", "json").NotNull();
+        table.Indexes.Add(new JsonIndexDefinition("jidx_docs_extra", "extra"));
+
+        await CreateSchemaObjectInDatabase(table);
+
+        var existing = await table.FetchExistingAsync(theConnection);
+        existing!.Indexes.OfType<JsonIndexDefinition>().Select(x => x.Name).OrderBy(x => x)
+            .ShouldBe(["jidx_docs", "jidx_docs_extra"]);
+
+        // and the guard still holds on a second run of the same create
+        var writer = new StringWriter();
+        table.WriteCreateStatement(new SqlServerMigrator(), writer);
+        foreach (var batch in SqlServerBatchSplitter.Split(writer.ToString()))
+        {
+            await theConnection.CreateCommand(batch).ExecuteNonQueryAsync();
+        }
+    }
 }

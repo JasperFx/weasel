@@ -164,14 +164,13 @@ The same holds for update and rollback scripts against a table that already exis
 | Make a key column `NOT NULL` | `IF COLUMNPROPERTY(..., 'AllowsNull') = 1` |
 | Add a check constraint | `IF OBJECT_ID(N'schema.check_name', N'C') IS NULL` |
 | Drop a table type | `DROP TYPE IF EXISTS` |
+| Add a partition boundary (`SPLIT RANGE`) | `IF NOT EXISTS` the boundary in `sys.partition_range_values` |
+| Remove a partition boundary (`MERGE RANGE`) | `IF EXISTS` the boundary in `sys.partition_range_values` |
 
 ```sql
 IF COL_LENGTH(N'dbo.people', N'nickname') IS NULL
     alter table dbo.people add nickname varchar(100) NULL;
 ```
-
-A partition boundary added with `SPLIT RANGE`, or removed again with `MERGE RANGE`, is not guarded
-yet: a second run fails on the duplicate or missing boundary.
 
 `DROP INDEX IF EXISTS`, the other `IF EXISTS` drops and `CREATE OR ALTER` require **SQL Server
 2016 SP1 or later**.
