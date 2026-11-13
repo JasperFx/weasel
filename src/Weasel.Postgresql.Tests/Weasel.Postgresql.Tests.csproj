@@ -16,6 +16,8 @@
         <!-- The union type-test dialects (weasel#744) live in Weasel.Storage; their live run is here. -->
         <ProjectReference Include="..\Weasel.Storage\Weasel.Storage.csproj" />
         <Compile Include="..\Weasel.Core.Tests\Storage\UnionSqlScenarios.cs" Link="Storage\UnionSqlScenarios.cs" />
+        <!-- weasel#810: the batch executor's live run uses the same hand-rolled operations. -->
+        <Compile Include="..\Weasel.Core.Tests\Storage\StorageTestSupport.cs" Link="Storage\StorageTestSupport.cs" />
         <ProjectReference Include="..\Weasel.Testing\Weasel.Testing.csproj" />
     </ItemGroup>
 

@@ -95,3 +95,57 @@ internal static class FakeTracker
         return tracker;
     }
 }
+
+/// <summary>
+///     weasel#810: a store's adapter, which wraps an operation and executes its SQL as its own — and
+///     so cannot carry the wrapped one's <see cref="NoDataReturnedCall" /> or
+///     <see cref="IExceptionTransform" /> itself.
+/// </summary>
+internal sealed class FakeWrapper(IStorageOperation inner): IStorageOperation, IStorageOperationWrapper
+{
+    public IStorageOperation Inner => inner;
+
+    public Type DocumentType => inner.DocumentType;
+    public OperationRole Role() => inner.Role();
+
+    public void ConfigureCommand(ICommandBuilder builder, IStorageSession session)
+        => inner.ConfigureCommand(builder, session);
+
+    public Task PostprocessAsync(DbDataReader reader, IList<Exception> exceptions, CancellationToken token)
+        => inner.PostprocessAsync(reader, exceptions, token);
+}
+
+/// <summary>
+///     weasel#810: records what <see cref="OperationBatchExecutor" /> tells a listener, in order.
+/// </summary>
+internal sealed class RecordingListener: IOperationBatchListener
+{
+    public List<string> Events { get; } = [];
+    public List<OperationBatchCommand> Commands { get; } = [];
+    public List<Exception> Failures { get; } = [];
+
+    /// <summary>What <see cref="TryTransform" /> answers with; null declines.</summary>
+    public Exception? Replacement { get; set; }
+
+    public void BeforeExecute(OperationBatchCommand command)
+    {
+        Events.Add("before");
+        Commands.Add(command);
+    }
+
+    public void OnSuccess(OperationBatchCommand command) => Events.Add("success");
+
+    public void OnFailure(OperationBatchCommand command, Exception exception)
+    {
+        Events.Add("failure");
+        Failures.Add(exception);
+    }
+
+    public bool TryTransform(OperationBatchCommand command, Exception exception,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Exception? transformed)
+    {
+        Events.Add("transform");
+        transformed = Replacement;
+        return transformed is not null;
+    }
+}
