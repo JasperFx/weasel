@@ -17,12 +17,58 @@ public class script_files_create_their_directory: IDisposable
     private readonly string _root =
         Path.Combine(Path.GetTempPath(), "weasel-script-files", Guid.NewGuid().ToString("N"));
 
+    /// <summary>
+    ///     A relative folder one level deep, as in <c>db-patch migrations/patch.sql</c>. Its directory
+    ///     part has no separator in it, which is the case <c>FileSystem.CreateDirectoryIfNotExists</c>
+    ///     silently skips, so it needs a test of its own: an absolute path always has a separator.
+    /// </summary>
+    private readonly string _relative = "weasel-script-files-" + Guid.NewGuid().ToString("N");
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
         {
             Directory.Delete(_root, true);
         }
+
+        if (Directory.Exists(_relative))
+        {
+            Directory.Delete(_relative, true);
+        }
+    }
+
+    /// <summary>
+    ///     <c>db-patch</c> itself roots a relative path at <see cref="AppContext.BaseDirectory" /> before it
+    ///     gets here, but <see cref="Migrator.WriteTemplatedFile" /> is public and is what
+    ///     <c>db-dump --by-feature</c> writes through, so it takes a relative path as given.
+    /// </summary>
+    [Fact]
+    public async Task a_templated_file_creates_a_relative_directory()
+    {
+        var filename = Path.Combine(_relative, "patch.sql");
+
+        await new Sqlite.SqliteMigrator().WriteTemplatedFile(filename, (_, w) => w.WriteLine("select 1;"));
+
+        File.Exists(filename).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task a_creation_script_creates_a_relative_directory()
+    {
+        var filename = Path.Combine(_relative, "dump.sql");
+
+        await new ScriptedDatabase().WriteCreationScriptToFileAsync(filename);
+
+        File.ReadAllText(filename).ShouldContain("CREATE TABLE");
+    }
+
+    [Fact]
+    public async Task scripts_by_type_create_a_relative_directory()
+    {
+        await new ScriptedDatabase().WriteScriptsByTypeAsync(_relative);
+
+        File.Exists(Path.Combine(_relative, "things.sql")).ShouldBeTrue();
+        File.Exists(Path.Combine(_relative, "all.sql")).ShouldBeTrue();
     }
 
     /// <summary>
