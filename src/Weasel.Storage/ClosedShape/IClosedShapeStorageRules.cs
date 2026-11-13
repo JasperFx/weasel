@@ -44,11 +44,16 @@ public sealed record ClosedShapeReadSql(string[] SelectFields, string SelectClau
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <b>A store's own storage interfaces live here, not on the storage.</b> The storage classes are
-///         Weasel's and are not open for derivation, so a store that needs more from a storage than
-///         <see cref="IDocumentStorage{T,TId}" /> offers (LINQ handlers, batch-load SQL, bulk-insert
-///         hooks) implements that interface on its rules object and reaches it through
-///         <see cref="IClosedShapeDocumentStorage.Rules" />.
+///         <b>A store's own storage interfaces can live here or on a subclass.</b> A store that needs more
+///         from a storage than <see cref="IDocumentStorage{T,TId}" /> offers (LINQ handlers, batch-load
+///         SQL, bulk-insert hooks) either implements that interface on its rules object and reaches it
+///         through <see cref="IClosedShapeDocumentStorage.Rules" />, or derives from one of the public
+///         tracking-mode bases (<see cref="QueryOnlyClosedShapeDocumentStorage{TDoc,TId}" />,
+///         <see cref="LightweightClosedShapeDocumentStorage{TDoc,TId}" />,
+///         <see cref="IdentityMapClosedShapeDocumentStorage{TDoc,TId}" />,
+///         <see cref="DirtyTrackingClosedShapeDocumentStorage{TDoc,TId}" />) and implements it there, so
+///         call sites that type-test the storage keep working (weasel#811). Behaviour still belongs on
+///         the rules object either way: the bases read every store-specific decision from it.
 ///     </para>
 ///     <para>
 ///         <b>One rules object serves all four storages of a document type.</b>
@@ -69,8 +74,10 @@ public interface IClosedShapeStorageRules<TDoc, TId>
     /// <summary>The document table.</summary>
     DbObjectName TableName { get; }
 
+    /// <summary>Whether the document table is single-tenant or conjoined.</summary>
     TenancyStyle TenancyStyle { get; }
 
+    /// <summary>The members duplicated into columns of their own.</summary>
     IReadOnlyList<IDuplicatedField> DuplicatedFields { get; }
 
     /// <summary>The read SQL for one tracking mode. Called once per storage, at construction.</summary>
@@ -119,6 +126,65 @@ public interface IClosedShapeStorageRules<TDoc, TId>
 
     /// <summary>The document's mapped numeric-revision member, if it has one. Default: none.</summary>
     long? MappedRevisionFor(TDoc document) => null;
+
+    /// <summary>
+    ///     Write <paramref name="version" /> onto the document's mapped optimistic-version member, the
+    ///     write half of <see cref="MappedVersionFor" /> (weasel#811). Return false when the document
+    ///     type has no mapped version member. Default: false.
+    /// </summary>
+    /// <remarks>
+    ///     A session's <c>UpdateExpectedVersion</c> names the expectation by assigning it to the
+    ///     document and then storing it; for a member mapped with <c>Metadata.Version.MapTo(...)</c>
+    ///     rather than declared through a marker interface there is nowhere else for that assignment to
+    ///     land. Implement this together with <see cref="MappedVersionFor" />: answering one and not the
+    ///     other leaves a mapped member readable but not writable.
+    /// </remarks>
+    bool TryApplyMappedVersion(TDoc document, Guid version) => false;
+
+    /// <summary>
+    ///     Write <paramref name="revision" /> onto the document's mapped numeric-revision member,
+    ///     narrowing to the member's own width. Return false when the document type has no mapped
+    ///     revision member. Default: false. See <see cref="TryApplyMappedVersion" />.
+    /// </summary>
+    bool TryApplyMappedRevision(TDoc document, long revision) => false;
+
+    /// <summary>
+    ///     The fragment a criteria-based undelete writes, e.g.
+    ///     <c>update … set is_deleted = false, deleted_at = null</c>, or null when the document type
+    ///     is not soft-deleted. Called once per storage, at construction. Default: null.
+    /// </summary>
+    IOperationFragment? BuildUndeleteFragment(IDocumentStorage<TDoc, TId> storage) => null;
+
+    /// <summary>
+    ///     The operation that brings one soft-deleted document back, leaving its body, version and
+    ///     revision as they are; or null when the document type is not soft-deleted and so has nothing
+    ///     to bring back. Default: null for every document type, so a store that soft-deletes
+    ///     implements this to support undelete by id (weasel#811).
+    /// </summary>
+    /// <param name="storage">The storage asking.</param>
+    /// <param name="undeleteFragment">
+    ///     The storage's <see cref="BuildUndeleteFragment" /> result, which may be null.
+    /// </param>
+    /// <param name="id">The document's id.</param>
+    /// <param name="byIdFilter">The dialect's id filter for <paramref name="id" />.</param>
+    /// <param name="tenantId">The tenant; the store adds its tenant filter for a conjoined type.</param>
+    IStorageOperation? BuildUndeletion(IDocumentStorage<TDoc, TId> storage, IOperationFragment? undeleteFragment,
+        TId id, ISqlFragment byIdFilter, string tenantId) => null;
+
+    /// <summary>
+    ///     The operation that restores one soft-deleted document <b>live with a new version</b>: the
+    ///     undelete plus whatever columns a write moves (last-modified, the Guid version, the numeric
+    ///     revision), so a writer holding the pre-delete version is refused afterwards. Null when the
+    ///     document type is not soft-deleted. Default: null, which is not the same as an undelete:
+    ///     a store that has only <see cref="BuildUndeletion" /> must not answer this with it, because
+    ///     the caller was promised a new version.
+    /// </summary>
+    /// <param name="storage">The storage asking.</param>
+    /// <param name="id">The document's id.</param>
+    /// <param name="byIdFilter">The dialect's id filter for <paramref name="id" />.</param>
+    /// <param name="tenantId">The tenant; the store adds its tenant filter for a conjoined type.</param>
+    IStorageOperation? BuildRestoration(IDocumentStorage<TDoc, TId> storage, TId id, ISqlFragment byIdFilter,
+        string tenantId) => null;
 
     /// <summary>
     ///     The descriptor a write operation is built over. Default: the storage's own. A store whose
