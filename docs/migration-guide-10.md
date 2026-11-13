@@ -16,7 +16,9 @@ newly shipped storage family, and one obsolete method.
 | `Weasel.Sqlite` stays on the `e_sqlite3` bundle, SQLitePCLRaw 3.0.x | None, unless you choose a different bundle |
 | `Weasel.Storage` closed-shape document storage family | Additive; only matters if you build a document store on Weasel |
 | `ConnectionSourceExtensions.RunSql<T>` is `[Obsolete]` | Switch to `RunSqlAsync<T>` |
+| `ISequence.NextLongAsync` / `NextIntAsync` for Hi-Lo ids | Additive; only matters if you build a store on Weasel |
 | MySQL tests for the EF Core bridge are compiled out | No library change; Pomelo has no EF Core 10 release |
+| `net11.0` assemblies are compiled with runtime-async | None; opt out with `-p:WeaselRuntimeAsync=false` when building Weasel from source |
 
 ## Target frameworks
 
@@ -83,6 +85,20 @@ needs to move to EF Core 10 first.
 MySQL half of the EF Core bridge's test suite is compiled out. `Weasel.MySql` itself, on `MySqlConnector`, is
 unaffected.
 
+## Runtime-async on `net11.0`
+
+The `net11.0` build of every Weasel assembly is compiled with the C# compiler's **runtime-async** feature
+(Critter Stack plan decision D4, as in Wolverine 7.0 and JasperFx 3.0). The `net10.0` build is unchanged:
+`net10.0` cannot load runtime-async code.
+
+Nothing in your code changes. What you may notice on `net11.0` is how async code looks at runtime: async stack
+traces, debugger stepping, and APM agents or profilers that hook compiler-generated async state machines can
+behave differently, because those state machines are gone (async iterators keep theirs). Wolverine measured
+38–84% fewer allocations on its in-process lane with it on.
+
+If you build Weasel from source and need it off, pass `-p:WeaselRuntimeAsync=false`. The switch does not
+trigger a recompile, so clean `bin/` and `obj/` between a build with it and a build without.
+
 ## SQLite: the native bundle
 
 `Weasel.Sqlite` references `Microsoft.Data.Sqlite` plus `SQLitePCLRaw.bundle_e_sqlite3` on the SQLitePCLRaw
@@ -130,6 +146,46 @@ you maintain a document or event store on Weasel, in which case:
   `IdentityMapIdTypeMismatchException`.
 - The package is `IsAotCompatible`. As always, publish natively and run the result before believing an AOT
   claim; the analyzer cannot prove the runtime half.
+
+### Deriving the closed-shape storages
+
+The tracking-mode bases are public, so a store can derive them to carry its own storage interfaces
+(weasel#811): `QueryOnlyClosedShapeDocumentStorage<TDoc, TId>`,
+`LightweightClosedShapeDocumentStorage<TDoc, TId>`, `IdentityMapClosedShapeDocumentStorage<TDoc, TId>` and
+`DirtyTrackingClosedShapeDocumentStorage<TDoc, TId>`, over the abstract `ClosedShapeDocumentStorage<TDoc, TId>`.
+A derived class needs only a constructor: the base builds the write operations and the selector for the
+descriptor's concurrency mode. The nine concurrency-mode leaves the factory builds stay internal, and what
+the factory builds is unchanged.
+
+Store-specific behaviour stays on `IClosedShapeStorageRules<TDoc, TId>`, which gains defaulted members:
+
+| Member | For |
+| --- | --- |
+| `BuildUndeleteFragment`, `BuildUndeletion`, `BuildRestoration` | `UndeleteFragment`, `UndeleteForId` and `RestoreForId` on the storage. A restore promises a new version; an undelete does not |
+| `TryApplyMappedVersion`, `TryApplyMappedRevision` | The write half of `MappedVersionFor` / `MappedRevisionFor`, also on `IDocumentStorage<T>` with a `false` default |
+
+A hierarchy sub-class is `ClosedShapeSubClassDocumentStorage<TDoc, TRoot, TId>`, which wraps the root's storage
+and takes an `IClosedShapeSubClassRules<TDoc, TRoot, TId>` for the discriminator filter, the query filters and
+truncation. Build it with `ClosedShapeDocumentProviderFactory.BuildSubClass` or `BuildSubClassStorage`, or
+derive it. By default a sub-class truncate empties the **whole hierarchy's table**: answer `TruncateSql` if a
+sub-class truncate must leave sibling rows alone.
+
+## Asynchronous Hi-Lo ids
+
+`ISequence` gains `ValueTask<long> NextLongAsync(CancellationToken)` and `ValueTask<int> NextIntAsync(CancellationToken)`
+([weasel#808](https://github.com/JasperFx/weasel/issues/808)). On `HiloSequenceBase` they fetch an exhausted
+allocation through the existing asynchronous `AdvanceToNextHi`, so a Marten or Polecat sequence gets real
+asynchronous I/O with no change to its subclass, and they complete synchronously whenever the id is pure
+arithmetic. `NextLong` and `NextLongAsync` share one gate, so the two can be mixed on one instance without a
+duplicate id.
+
+Both are additive. An `ISequence` that implements neither gets a default that calls its own `NextLong`: a real id,
+but obtained synchronously. Two things a `HiloSequenceBase` subclass should know:
+
+- The gate is now a `SemaphoreSlim` rather than a `System.Threading.Lock`, and is not re-entrant: an
+  `AdvanceToNextHi` or `AdvanceToNextHiSync` override must not call back into `NextLong` or `NextLongAsync`.
+- `AdvanceToNextHi` is now also called from `NextLongAsync`, while the gate is held, so it should honor its
+  `CancellationToken`. `AdvanceToNextHiSync` stays only for the synchronous `NextLong`.
 
 ## Behavior and build changes that need no code
 

@@ -55,6 +55,7 @@ public class NpgsqlTypeMapping
 public class NpgsqlTypeMappingRegistry: IEnumerable<NpgsqlTypeMapping>
 {
     private readonly ConcurrentDictionary<NpgsqlDbType, NpgsqlTypeMapping> _values;
+    private int _version;
 
     public NpgsqlTypeMappingRegistry(IDictionary<NpgsqlDbType, NpgsqlTypeMapping> seed)
     {
@@ -64,8 +65,21 @@ public class NpgsqlTypeMappingRegistry: IEnumerable<NpgsqlTypeMapping>
     public NpgsqlTypeMapping this[NpgsqlDbType key]
     {
         get => _values[key];
-        set => _values[key] = value;
+        set
+        {
+            _values[key] = value;
+
+            // After the write, so a reader that sampled the old version before scanning is told
+            // to scan again. weasel#804.
+            Interlocked.Increment(ref _version);
+        }
     }
+
+    /// <summary>
+    ///     Changes on every registration. Lets <see cref="PostgresqlProvider" /> remember that a
+    ///     type had no mapping without losing a mapping registered for it later. weasel#804.
+    /// </summary>
+    internal int Version => Volatile.Read(ref _version);
 
     public int Count => _values.Count;
 

@@ -172,10 +172,11 @@ public partial class OracleProvider: DatabaseProvider<OracleCommand, OracleParam
             throw new NotSupportedException(DateOnlyAndTimeOnlyRefusal(type));
         }
 
+        // Recurse through determineParameterType, never through ToParameterType, which throws for
+        // an unmapped type and so made TryGetDbType throw too. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // Measured against a live server rather than reasoned about: what every provider did here
@@ -208,10 +209,11 @@ public partial class OracleProvider: DatabaseProvider<OracleCommand, OracleParam
             return true;
         }
 
+        // An unmapped open generic leaves the closed type unmapped, so it defers rather than
+        // throwing out of TryGetDbType. weasel#826.
         if (type.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         dbType = OracleDbType.Varchar2;

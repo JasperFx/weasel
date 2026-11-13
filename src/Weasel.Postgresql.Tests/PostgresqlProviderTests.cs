@@ -69,6 +69,36 @@ public class PostgresqlProviderTests
         PostgresqlProvider.Instance.HasTypeMapping(typeof(UnmappedTarget)).ShouldBeFalse();
     }
 
+    // The provider remembers that a type had no mapping, so it stops rescanning the registry on
+    // every lookup -- but the rescan was also what let a mapping registered *after* the first
+    // lookup take effect. The remembered miss is keyed on the registry's version, and this pins
+    // that it still gives way to a later registration. weasel#804.
+    [Fact]
+    public void a_mapping_registered_after_a_type_was_found_unmapped_still_takes_effect()
+    {
+        PostgresqlProvider.Instance.TryGetDbType(typeof(LateMappedTarget)).ShouldBeNull();
+
+        // Asked twice, so the second answer comes from the remembered miss rather than a scan.
+        PostgresqlProvider.Instance.TryGetDbType(typeof(LateMappedTarget)).ShouldBeNull();
+
+        var original = NpgsqlTypeMapper.Mappings[NpgsqlDbType.Citext];
+        try
+        {
+            NpgsqlTypeMapper.Mappings[NpgsqlDbType.Citext] =
+                new NpgsqlTypeMapping(NpgsqlDbType.Citext, DbType.String, "citext", typeof(LateMappedTarget));
+
+            PostgresqlProvider.Instance.TryGetDbType(typeof(LateMappedTarget)).ShouldBe(NpgsqlDbType.Citext);
+        }
+        finally
+        {
+            NpgsqlTypeMapper.Mappings[NpgsqlDbType.Citext] = original;
+        }
+    }
+
+    public class LateMappedTarget
+    {
+    }
+
     public class MappedTarget
     {
     }

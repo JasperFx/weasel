@@ -62,9 +62,13 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
         }
 
         var value = GetTypeMapping(type)?.DataTypeName;
-        DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, value));
+        rememberDatabaseType(type, value);
         return value;
     }
+
+    // Types the mapping registry was scanned for and had no NpgsqlDbType, stamped with the
+    // registry version that scan saw. See ResolveNpgsqlDbType. weasel#804.
+    private readonly Ref<ImHashMap<Type, int>> _unmappedParameterTypes = Ref.Of(ImHashMap<Type, int>.Empty);
 
     private NpgsqlDbType? ResolveNpgsqlDbType(Type type)
     {
@@ -75,9 +79,40 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             return cached;
         }
 
+        // The memo cannot tell "never asked" from "asked, and the registry had nothing", because
+        // it stores the null either way. So every type that falls through to the rest of
+        // determineParameterType -- an enum, an array, a List<T>, a nullable enum -- used to scan
+        // the whole registry again on every lookup: ConcurrentDictionary.Values takes every lock
+        // and copies the collection, then a linear LastOrDefault over ~80 mappings, then a memo
+        // swap. Measured at 450-1,050 ns and 0.9-1.9 KB per lookup, against ~6 ns and nothing
+        // for a type the memo holds (weasel#804; ParameterTypeBenchmarks in Weasel.Benchmarks).
+        //
+        // The rescan is not purely waste: it is what lets a mapping registered through
+        // NpgsqlTypeMapper.Mappings *after* a type was first looked up take effect. Keying the
+        // negative answer on the registry's version keeps exactly that -- any registration
+        // invalidates every remembered miss -- and the scan is skipped only when it would read
+        // the same registry it read last time.
+        var version = NpgsqlTypeMapper.Mappings.Version;
+        if (_unmappedParameterTypes.Value.TryFind(type, out var scannedAt) && scannedAt == version)
+        {
+            return null;
+        }
+
         var value = GetTypeMapping(type)?.NpgsqlDbType;
-        ParameterTypeMemo.Swap(d => d.AddOrUpdate(type, value));
+        rememberParameterType(type, value);
+
+        if (value == null)
+        {
+            rememberUnmapped(type, version);
+        }
+
         return value;
+    }
+
+    // Out of line so that the lookup above allocates no closure when it never writes. weasel#804.
+    private void rememberUnmapped(Type type, int version)
+    {
+        _unmappedParameterTypes.Swap(d => d.AddOrUpdate(type, version));
     }
 
     protected override Type[] determineClrTypesForParameterType(NpgsqlDbType dbType)
@@ -222,10 +257,12 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             return true;
         }
 
+        // Every recursion below goes through determineParameterType, never through ToParameterType:
+        // the latter throws for an unmapped type, which made TryGetDbType throw for a Nullable<T>,
+        // array, sequence or range of one, and for IEnumerable<int> itself. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // Integer was already right for the AsInteger column, so this is the same answer by a
@@ -246,8 +283,15 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
                 return true;
             }
 
-            dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType()!);
-            return true;
+            // An array of an unmapped element is unmapped itself; Npgsql infers it or refuses it.
+            if (determineParameterType(type.GetElementType()!, out var elementType))
+            {
+                dbType = NpgsqlDbType.Array | elementType;
+                return true;
+            }
+
+            dbType = NpgsqlDbType.Unknown;
+            return false;
         }
 
         var typeInfo = type.GetTypeInfo();
@@ -256,16 +300,29 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             x.GetTypeInfo().IsGenericType && x.IsGenericEnumerable()
         );
 
+        // A sequence of an unmapped element -- Dictionary<string, int> is a sequence of
+        // KeyValuePair -- carries on to the branches below rather than throwing. The self check
+        // stops a type that enumerates itself from recursing until the stack runs out.
         if (ilist != null)
         {
-            dbType = NpgsqlDbType.Array | ToParameterType(ilist.GetGenericArguments()[0]);
-            return true;
+            var element = ilist.GetGenericArguments()[0];
+            if (element != type && determineParameterType(element, out var elementType))
+            {
+                dbType = NpgsqlDbType.Array | elementType;
+                return true;
+            }
         }
 
         if (typeInfo.IsGenericType && type.GetGenericTypeDefinition() == typeof(NpgsqlRange<>))
         {
-            dbType = NpgsqlDbType.Range | ToParameterType(type.GetGenericArguments()[0]);
-            return true;
+            if (determineParameterType(type.GetGenericArguments()[0], out var boundType))
+            {
+                dbType = NpgsqlDbType.Range | boundType;
+                return true;
+            }
+
+            dbType = NpgsqlDbType.Unknown;
+            return false;
         }
 
         if (type == typeof(DBNull))
@@ -276,8 +333,7 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
 
         if (typeInfo.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         dbType = NpgsqlDbType.Unknown;

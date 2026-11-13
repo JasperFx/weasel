@@ -1,3 +1,4 @@
+using System.Collections.Frozen;
 using JasperFx.Core;
 using Weasel.Core;
 
@@ -53,10 +54,40 @@ public sealed class SqlServerIdentifierRules: IdentifierRules
         return true;
     }
 
+    /// <summary>
+    ///     Whether the name is one of SQL Server's reserved keywords, compared the way it always has
+    ///     been: case-insensitively under the invariant culture.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         A name made only of printable ASCII goes through a hash lookup; anything else takes the
+    ///         original linear, culture-aware scan (weasel#825). The scan cost about 2 µs per name and
+    ///         every quoted identifier paid it, which was most of the gap between SQL Server's DDL
+    ///         generation and PostgreSQL's.
+    ///     </para>
+    ///     <para>
+    ///         The line is printable ASCII, not ASCII, and that is load-bearing. Every keyword is
+    ///         printable ASCII, and for two such strings an ordinal ignore-case comparison agrees with
+    ///         the invariant culture's. It does not for the ASCII control characters: the invariant
+    ///         culture treats most of them as ignorable, so <c>"ADD\0"</c> has always been reserved.
+    ///         The same goes beyond ASCII — zero-width characters vanish and <c>"Oﬀ"</c> (a ligature)
+    ///         matches <c>OFF</c> — which is why everything outside the range keeps the scan.
+    ///         <c>reserved_word_detection_is_unchanged</c> pins those answers against the pre-#825 code.
+    ///     </para>
+    /// </remarks>
     public override bool IsReservedWord(string name)
-        => ReservedKeywords.Contains(name, StringComparer.InvariantCultureIgnoreCase);
+    {
+        if (name is null)
+        {
+            return false;
+        }
 
-    private static readonly string[] ReservedKeywords =
+        return name.AsSpan().ContainsAnyExceptInRange(' ', '~')
+            ? ReservedKeywords.Contains(name, StringComparer.InvariantCultureIgnoreCase)
+            : PrintableAsciiKeywords.Contains(name);
+    }
+
+    internal static readonly string[] ReservedKeywords =
     [
         "ADD",
         "EXTERNAL",
@@ -245,6 +276,13 @@ public sealed class SqlServerIdentifierRules: IdentifierRules
         "PROC",
         "RANK"
     ];
+
+    /// <summary>
+    ///     The fast path's lookup. Declared after <see cref="ReservedKeywords" /> because static
+    ///     initializers run in textual order.
+    /// </summary>
+    private static readonly FrozenSet<string> PrintableAsciiKeywords =
+        ReservedKeywords.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>

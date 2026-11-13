@@ -114,10 +114,11 @@ public class MySqlProvider: DatabaseProvider<MySqlCommand, MySqlParameter, MySql
             return true;
         }
 
+        // Recurse through determineParameterType, never through ToParameterType, which throws for
+        // an unmapped type and so made TryGetDbType throw too. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // Enums and arrays keep the VarChar catch-all they have always resolved to. The Int32
@@ -153,10 +154,11 @@ public class MySqlProvider: DatabaseProvider<MySqlCommand, MySqlParameter, MySql
             return true;
         }
 
+        // An unmapped open generic leaves the closed type unmapped, so it defers rather than
+        // throwing out of TryGetDbType. weasel#826.
         if (type.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         dbType = MySqlDbType.VarChar;

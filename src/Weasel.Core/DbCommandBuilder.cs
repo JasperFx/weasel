@@ -179,10 +179,11 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
             return true;
         }
 
+        // Recurse through determineParameterType, never through ToParameterType, which throws for
+        // an unmapped type and so made TryGetDbType throw too. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // Enums and arrays keep the catch-all they have always resolved to. Reviving the
@@ -200,10 +201,11 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
             return true;
         }
 
+        // An unmapped open generic leaves the closed type unmapped, so it defers rather than
+        // throwing out of TryGetDbType. weasel#826.
         if (type.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         dbType = DbType.Object;
@@ -270,7 +272,7 @@ internal class DbDatabaseProvider: DatabaseProvider<DbCommand, DbParameter, DbTy
         if (type.IsNullable() &&
             DatabaseTypeMemo.Value.TryFind(type.GetInnerTypeFromNullable(), out string databaseType))
         {
-            DatabaseTypeMemo.Swap(d => d.AddOrUpdate(type, databaseType));
+            rememberDatabaseType(type, databaseType);
             return databaseType;
         }
 

@@ -132,10 +132,12 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
             return true;
         }
 
+        // Recurse through determineParameterType, never through ToParameterType: the latter throws
+        // for an unmapped type, which turned TryGetDbType's "I don't know" into an exception for a
+        // Nullable<T> of an unmapped struct. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // Measured against a live server rather than reasoned about: what every provider did here
@@ -169,10 +171,12 @@ public class SqlServerProvider: DatabaseProvider<SqlCommand, SqlParameter, SqlDb
             return true;
         }
 
+        // A mapping registered against the open generic covers every closing of it. When there is
+        // none, the closed type is unmapped and defers like any other: List<int> used to reach
+        // ToParameterType(typeof(List<>)) here, which threw out of TryGetDbType. weasel#826.
         if (type.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         dbType = System.Data.SqlDbType.Variant;

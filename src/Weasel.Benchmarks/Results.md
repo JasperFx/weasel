@@ -220,3 +220,128 @@ Two smaller findings from the same probe, recorded so nobody has to rediscover t
 - `GetFieldValueAsync<TextReader>` throws `NullReferenceException` on SQL Server 2025's native
   `json` column under `CommandBehavior.SequentialAccess`. It works on `nvarchar(max)`, and it works
   on `json` under `CommandBehavior.Default`. Prefer the synchronous `GetTextReader`.
+
+## Parameter-type lookup (weasel#804)
+
+`TryGetDbType(Type)`, once per bound parameter on the LINQ `CommandParameter` path and on
+`AddNamedParameter` / `AddParameters`. Recorded 2026-11-13 on the machine above, but under
+**.NET 10.0.14** (SDK 11.0.100) and the checked-in short job (3 warmup + 5 measured iterations):
+
+```bash
+dotnet run -c Release -f net10.0 --project src/Weasel.Benchmarks -- --filter '*ParameterTypeBenchmarks*'
+```
+
+The issue proposed freezing the map (`FrozenDictionary`) or making it copy-on-write. It was already
+copy-on-write — an `ImHashMap` behind a `Ref`, read lock-free — and the `FrozenDictionary` row below
+is the ceiling for freezing it: about 2 ns, which the memo matches once the two real defects are
+fixed. Neither defect was the data structure.
+
+| Type | PostgreSQL before | PostgreSQL after | SQL Server before | SQL Server after | Frozen ceiling |
+|---|---:|---:|---:|---:|---:|
+| `int` | 5.9 ns / 64 B | 1.1 ns / 0 B | 4.5 ns / 32 B | 2.3 ns / 0 B | 2.0 ns / 0 B |
+| `long` | 6.8 ns / 64 B | 1.7 ns / 0 B | 4.1 ns / 32 B | 1.6 ns / 0 B | 2.0 ns / 0 B |
+| `string` | 6.1 ns / 64 B | 1.6 ns / 0 B | 4.5 ns / 32 B | 2.6 ns / 0 B | 2.0 ns / 0 B |
+| `Guid` | 6.4 ns / 64 B | 1.6 ns / 0 B | 5.2 ns / 32 B | 1.8 ns / 0 B | 2.0 ns / 0 B |
+| `DateTime` | 6.8 ns / 64 B | 2.3 ns / 0 B | 4.4 ns / 32 B | 2.3 ns / 0 B | 2.0 ns / 0 B |
+| `DateTimeOffset` | 6.7 ns / 64 B | 2.2 ns / 0 B | 3.3 ns / 32 B | 0.9 ns / 0 B | 2.3 ns / 0 B |
+| `bool` | 6.0 ns / 64 B | 1.1 ns / 0 B | 4.1 ns / 32 B | 2.2 ns / 0 B | 2.1 ns / 0 B |
+| `decimal` | 6.3 ns / 64 B | 2.0 ns / 0 B | 4.2 ns / 32 B | 1.7 ns / 0 B | 2.0 ns / 0 B |
+| `int?` | 6.5 ns / 64 B | 1.9 ns / 0 B | 5.0 ns / 32 B | 2.3 ns / 0 B | 2.0 ns / 0 B |
+| enum | **468.9 ns / 968 B** | 9.7 ns / 0 B | 18.4 ns / 64 B | 10.3 ns / 0 B | 2.0 ns / 0 B |
+| enum? | **1,038.1 ns / 1,872 B** | 42.8 ns / 32 B | 79.4 ns / 160 B | 79.9 ns / 64 B | 2.4 ns / 0 B |
+| `int[]` | **455.2 ns / 936 B** | 9.5 ns / 0 B | 6.4 ns / 32 B | 3.9 ns / 0 B | 2.1 ns / 0 B |
+| `string[]` | **454.9 ns / 936 B** | 10.4 ns / 0 B | 6.5 ns / 32 B | 3.8 ns / 0 B | 2.0 ns / 0 B |
+| `List<int>` (PostgreSQL only) | **582.4 ns / 1.13 KB** | 134.3 ns / 184 B | — | — | — |
+
+The two defects:
+
+- **Every lookup allocated a closure, hit or miss.** The memo helpers wrote back through
+  `Swap(d => d.AddOrUpdate(type, ...))`, and a lambda that captures a method's *parameter* makes the
+  compiler allocate its closure at the top of the method — so a memo hit that never reached the
+  `Swap` still paid 32 bytes, and PostgreSQL, with a second such method, paid 64. Moving the writes
+  into their own methods takes every memo hit to zero on all six providers
+  (`Weasel.Core.Tests/parameter_type_lookups_do_not_allocate.cs` holds them there).
+- **PostgreSQL rescanned the Npgsql mapping registry for every enum and array, every time.** The memo
+  stores "Npgsql has no mapping" as null and could not tell it from "never asked", so those types
+  took every lock on a `ConcurrentDictionary`, copied its values and walked ~80 mappings with
+  `LastOrDefault` on each lookup. The miss is now remembered, stamped with the registry's version, so
+  a mapping registered later still takes effect — which is the only reason the rescan was there.
+
+What is left: a nullable *unmapped* type still allocates once per lookup in JasperFx's
+`GetInnerTypeFromNullable` (a `GetGenericArguments()` array) — 32 B on PostgreSQL's enum?, 64 B on
+SQL Server's — and `List<T>` still enumerates `ImplementedInterfaces` on PostgreSQL. Neither is
+common enough to be worth a change. SQL Server's `TryGetDbType(typeof(List<int>))` **throws**
+rather than returning null, which is why it has no row; that is a behaviour question, not a
+performance one.
+
+## String formatting on the command and DDL paths (weasel#805)
+
+Same machine, runtime and job as the section above.
+
+```bash
+dotnet run -c Release -f net10.0 --project src/Weasel.Benchmarks -- --filter '*FormattingBenchmarks*'
+```
+
+| Path | Mean | Allocated |
+|---|---:|---:|
+| PostgreSQL `CommandBuilder`: 10 params + `Compile` | 245.9 ns | 3,456 B |
+| SQL Server `CommandBuilder`: 10 params + `Compile` | 285.2 ns | 3,224 B |
+| `PostgresqlObjectName.ToString()` | 379.7 ns | 240 B |
+| `SqlServerObjectName.ToString()` | 4,294.9 ns | 56 B |
+| PostgreSQL `Table.WriteCreateStatement` (10 cols, 2 idx, 1 fk) | 9,386 ns | 20,617 B |
+| SQL Server `Table.WriteCreateStatement` (10 cols, 2 idx, 1 fk) | 88,187 ns | 17,696 B |
+| PostgreSQL `TableDelta.WriteUpdate` (+2 cols, +2 idx, +1 fk) | 4,743 ns | 9,249 B |
+| SQL Server `TableDelta.WriteUpdate` (+2 cols, +2 idx, +1 fk) | 62,604 ns | 9,088 B |
+
+**No formatting change was justified.** On the per-command path there is no number-to-string
+formatting left to convert: parameter names come from the #558 table (0 B), PostgreSQL's `$N` goes
+through `StringBuilder.Append(int)`, which already formats into the builder's buffer, and what the
+command rows allocate is the driver's command and parameter objects plus the one SQL string
+`Compile` has to produce. On the DDL path the interpolations are of identifier *strings*, and an
+interpolated number already formats through `DefaultInterpolatedStringHandler` without an
+intermediate string; the DDL runs once per migrated object, not per command.
+
+The SQL Server rows are an order of magnitude slower than PostgreSQL's, and that is not formatting
+either: `SqlServerIdentifierRules.IsReservedWord` is a linear `Contains` over ~185 keywords with
+`StringComparer.InvariantCultureIgnoreCase`, measured at 4.1-4.7 us per identifier quoted. It is a
+DDL-time cost and a separate change, because an ordinal comparison is not a drop-in replacement for a
+culture-aware one.
+---
+
+## SQL Server reserved-word check (weasel#825)
+
+`IdentifierQuotingBenchmarks`. Every identifier SQL Server's DDL quotes asks
+`SqlServerIdentifierRules.IsReservedWord` first, and that was a linear `Contains` over the 186-entry
+keyword list under `StringComparer.InvariantCultureIgnoreCase` — about 2 µs a name, or 0.8 µs for a
+keyword near the front of the list. A name made only of printable ASCII now goes through a
+`FrozenSet` with `OrdinalIgnoreCase`; anything else still takes the original scan, so every answer
+is unchanged (`reserved_word_detection_is_unchanged` in Weasel.SqlServer.Tests pins them).
+
+Short job (`--filter '*IdentifierQuoting*'`), Release, .NET 10.0.14 on the Apple M5 Max above,
+recorded 2026-11-13. Both columns in one sitting, same machine.
+
+| Benchmark | Before | After | Allocated (both) |
+|---|---:|---:|---:|
+| `IsReservedWord("select")` — ASCII keyword | 768.1 ns | 5.8 ns | 0 B |
+| `IsReservedWord("mt_doc_user")` — ASCII name | 1,919.5 ns | 3.8 ns | 0 B |
+| `IsReservedWord("Grüße")` — non-ASCII, still the scan | 1,999.8 ns | 2,011.9 ns | 0 B |
+| `SqlServerObjectName.ToString()` | 4,066.8 ns | 23.6 ns | 56 B |
+| SqlServer `Table.WriteCreateStatement` (10 cols, 2 idx, 1 fk) | 85,000.9 ns | 2,030.8 ns | 17,696 B / 17,736 B |
+| SqlServer `TableDelta.WriteUpdate` (+2 cols, +2 idx, +1 fk) | 55,463.4 ns | 1,109.8 ns | 9,088 B |
+| *PostgresqlObjectName.ToString() (yardstick)* | *378.4 ns* | *381.4 ns* | *240 B* |
+| *Postgresql `Table.WriteCreateStatement` (yardstick)* | *9,106.0 ns* | *9,125.5 ns* | *20,617 B* |
+
+SQL Server's DDL generation went from about 10x slower than PostgreSQL's to about 4x faster: the
+keyword scan was essentially all of its cost. The 40 B on `WriteCreateStatement` is per-operation
+amortization noise from a 40x change in operations per iteration, not a new allocation.
+
+**Why the line is printable ASCII and not ASCII.** The invariant culture treats most ASCII control
+characters (U+0000–U+0008, U+000E–U+001F, U+007F) as ignorable, so `"ADD\0"` has always been
+reserved, and an ordinal lookup over all of ASCII would have said otherwise. Beyond ASCII, U+00AD,
+U+200B, U+FEFF and U+FFF9–U+FFFB vanish the same way and `"Oﬀ"` (U+FB00) matches `OFF`. Those inputs
+keep the scan. Measured with ICU on macOS; the pinning test compares against the old code rather
+than against hard-coded answers, so it holds whatever the platform's collation data says.
+
+PostgreSQL's keyword sets are already hashed, but under `InvariantCultureIgnoreCase`, which hashes a
+sort key — a likely, unmeasured, share of `PostgresqlObjectName.ToString()`'s 380 ns. The same
+split would apply there if it turns out to matter.

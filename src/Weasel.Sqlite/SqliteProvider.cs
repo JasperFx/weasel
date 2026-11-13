@@ -175,10 +175,11 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
             return true;
         }
 
+        // Recurse through determineParameterType, never through ToParameterType, which throws for
+        // an unmapped type and so made TryGetDbType throw too. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // Enums and arrays keep the TEXT catch-all they have always resolved to. The Integer
@@ -214,10 +215,11 @@ public class SqliteProvider: DatabaseProvider<SqliteCommand, SqliteParameter, Sq
             return true;
         }
 
+        // An unmapped open generic leaves the closed type unmapped, so it defers rather than
+        // throwing out of TryGetDbType. weasel#826.
         if (type.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         // Default to TEXT for complex types (JSON storage)

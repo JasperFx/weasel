@@ -590,6 +590,252 @@ public class master_table_tenancy: IAsyncDisposable
         (await RowsAsync()).ShouldBeEmpty();
     }
 
+    // ------------------------------------------------------------------------------------------
+    // weasel#809 -- a refresh evicts what another node removed or disabled
+    // ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task building_databases_evicts_a_tenant_removed_by_another_node()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        var green = tenancy.FindCachedDatabase("green")!;
+
+        // Another node removes it. This one's cache knows nothing about that.
+        await TenancyFor().DeleteDatabaseRecordAsync("green");
+        tenancy.FindCachedDatabase("green").ShouldBeSameAs(green);
+
+        var databases = await tenancy.BuildDatabasesAsync();
+
+        // polecat#871 / #849: this used to only add, so a removed tenant went on resolving here
+        // from cache until the process restarted.
+        databases.Select(x => x.TenantId).ShouldBe(["blue"]);
+        tenancy.FindCachedDatabase("green").ShouldBeNull();
+        (await tenancy.TryFindDatabaseAsync("green")).ShouldBeNull();
+        green.Disposed.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task building_databases_evicts_a_tenant_disabled_by_another_node()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        var blue = tenancy.FindCachedDatabase("blue")!;
+        var green = tenancy.FindCachedDatabase("green")!;
+
+        await TenancyFor().DisableTenantAsync("green");
+
+        var databases = await tenancy.BuildDatabasesAsync();
+
+        databases.Select(x => x.TenantId).ShouldBe(["blue"]);
+        tenancy.FindCachedDatabase("green").ShouldBeNull();
+        green.Disposed.ShouldBeTrue();
+
+        // The tenant that is still enabled keeps its database: evicting is not churning.
+        tenancy.FindCachedDatabase("blue").ShouldBeSameAs(blue);
+        blue.Disposed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task the_stale_tenant_hook_is_called_for_each_evicted_tenant_and_only_those()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        await tenancy.AddDatabaseRecordAsync("red", "Data Source=red.db");
+        var green = tenancy.FindCachedDatabase("green")!;
+        var red = tenancy.FindCachedDatabase("red")!;
+
+        var other = TenancyFor();
+        await other.DisableTenantAsync("green");
+        await other.DeleteDatabaseRecordAsync("red");
+
+        await tenancy.BuildDatabasesAsync();
+
+        tenancy.StaleEvictions.OrderBy(x => x.TenantId).ShouldBe([("green", green), ("red", red)]);
+
+        // Nothing is stale on a second read.
+        tenancy.StaleEvictions.Clear();
+        await tenancy.BuildDatabasesAsync();
+        tenancy.StaleEvictions.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task an_override_that_skips_the_base_eviction_keeps_the_tenant_cached()
+    {
+        // The pre-#809 behaviour, for a store that wants it -- the hook decides.
+        var tenancy = TenancyFor();
+        tenancy.KeepStaleTenants = true;
+        await tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        var green = tenancy.FindCachedDatabase("green")!;
+
+        await TenancyFor().DeleteDatabaseRecordAsync("green");
+        await tenancy.BuildDatabasesAsync();
+
+        tenancy.StaleEvictions.Select(x => x.TenantId).ShouldBe(["green"]);
+        tenancy.FindCachedDatabase("green").ShouldBeSameAs(green);
+        green.Disposed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task a_tenant_re_added_while_the_table_is_being_read_is_not_evicted()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        var first = tenancy.FindCachedDatabase("green")!;
+
+        await TenancyFor().DeleteDatabaseRecordAsync("green");
+
+        // Re-added on this node after the read has come back without it, and before the read's
+        // result is applied. The read cannot have seen it, so it must not evict it.
+        tenancy.AfterNextExecute = () => tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+
+        await tenancy.BuildDatabasesAsync();
+
+        var current = tenancy.FindCachedDatabase("green");
+        current.ShouldNotBeNull();
+        current.ShouldNotBeSameAs(first);
+        current.Disposed.ShouldBeFalse();
+        tenancy.StaleEvictions.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task refreshing_keeps_a_live_tenants_database()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        var blue = tenancy.FindCachedDatabase("blue")!;
+
+        await ((ITenantedSource<string>)tenancy).RefreshAsync();
+
+        // A refresh used to evict everything and rebuild, disposing a live tenant's database (and
+        // its connection pool) out from under sessions still using it.
+        tenancy.FindCachedDatabase("blue").ShouldBeSameAs(blue);
+        blue.Disposed.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task evicting_a_tenant_drops_the_cache_entry_and_leaves_the_record()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        var blue = tenancy.FindCachedDatabase("blue")!;
+
+        (await tenancy.EvictForTestAsync("blue")).ShouldBeTrue();
+        (await tenancy.EvictForTestAsync("blue")).ShouldBeFalse();
+
+        tenancy.FindCachedDatabase("blue").ShouldBeNull();
+        blue.Disposed.ShouldBeTrue();
+        (await RowsAsync()).ShouldBe([("blue", "Data Source=blue.db", false)]);
+
+        // A cache operation, not a lifecycle one: the tenant resolves again.
+        (await tenancy.TryFindDatabaseAsync("blue")).ShouldNotBeNull();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // weasel#809 -- disabled is not unknown
+    // ------------------------------------------------------------------------------------------
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task a_lookup_tells_unknown_disabled_and_enabled_apart(bool dialectRendersRowRead)
+    {
+        // false: a dialect written before SelectTenantRow existed, which the base answers with two
+        // reads instead of one.
+        var tenancy = TenancyFor();
+        tenancy.DialectRendersRowRead = dialectRendersRowRead;
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        await tenancy.DisableTenantAsync("green");
+
+        (await tenancy.LookupTenantAsync("blue"))
+            .ShouldBe(new MasterTenantLookup(MasterTenantStatus.Enabled, "Data Source=blue.db"));
+
+        // The connection string is withheld, so a caller that only null-checks cannot route to it.
+        (await tenancy.LookupTenantAsync("green"))
+            .ShouldBe(new MasterTenantLookup(MasterTenantStatus.Disabled, null));
+
+        (await tenancy.LookupTenantAsync("nobody"))
+            .ShouldBe(new MasterTenantLookup(MasterTenantStatus.Unknown, null));
+    }
+
+    [Fact]
+    public async Task a_lookup_applies_the_tenant_id_correction()
+    {
+        var tenancy = TenancyFor();
+        tenancy.LowerCaseTenantIds = true;
+        tenancy.DialectRendersRowRead = false;
+        await tenancy.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        await tenancy.DisableTenantAsync("green");
+
+        (await tenancy.LookupTenantAsync("GREEN")).Status.ShouldBe(MasterTenantStatus.Disabled);
+    }
+
+    [Fact]
+    public async Task resolving_a_tenant_says_why_there_is_nothing_to_route_to()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await writer.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        await writer.DisableTenantAsync("green");
+
+        // A second node, with an empty cache.
+        var tenancy = TenancyFor();
+
+        var blue = await tenancy.ResolveTenantAsync("blue");
+        blue.Status.ShouldBe(MasterTenantStatus.Enabled);
+        blue.Database.ShouldNotBeNull().ConnectionString.ShouldBe("Data Source=blue.db");
+
+        // Cached, as TryFindDatabaseAsync would have.
+        tenancy.FindCachedDatabase("blue").ShouldBeSameAs(blue.Database);
+        (await tenancy.ResolveTenantAsync("blue")).Database.ShouldBeSameAs(blue.Database);
+
+        (await tenancy.ResolveTenantAsync("green"))
+            .ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Disabled, null));
+        (await tenancy.ResolveTenantAsync("nobody"))
+            .ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Unknown, null));
+
+        // Neither refusal is cached.
+        tenancy.AllTenantIds().ShouldBe(["blue"]);
+    }
+
+    [Fact]
+    public async Task the_refusal_hook_lets_a_store_refuse_a_disabled_tenant_as_disabled()
+    {
+        var tenancy = TenancyFor();
+        tenancy.RefuseDisabledAsDisabled = true;
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.DisableTenantAsync("blue");
+
+        ITenantedSource<string> source = tenancy;
+
+        // What Marten and Polecat throw today (marten#5479, polecat#655). It derives from
+        // UnknownTenantIdException, so the default's callers keep catching.
+        await Should.ThrowAsync<DisabledTenantException>(async () => await source.FindAsync("blue"));
+
+        var unknown = await Should.ThrowAsync<UnknownTenantIdException>(async () => await source.FindAsync("nobody"));
+        unknown.ShouldNotBeOfType<DisabledTenantException>();
+
+        tenancy.Refusals.ShouldBe([("blue", MasterTenantStatus.Disabled), ("nobody", MasterTenantStatus.Unknown)]);
+    }
+
+    [Fact]
+    public async Task the_default_refusal_is_still_unknown_for_a_disabled_tenant()
+    {
+        // Additive only: a store that does not override the hook throws what it always did.
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.DisableTenantAsync("blue");
+
+        ITenantedSource<string> source = tenancy;
+
+        var refusal = await Should.ThrowAsync<UnknownTenantIdException>(async () => await source.FindAsync("blue"));
+        refusal.ShouldBeOfType<UnknownTenantIdException>();
+    }
+
     #region test doubles
 
     /// <summary>Stands in for a store's own database type.</summary>
@@ -642,6 +888,13 @@ public class master_table_tenancy: IAsyncDisposable
         public string SelectConnectionString(string qualifiedTableName) =>
             $"select connection_string from {qualifiedTableName} where tenant_id = @id and is_disabled = 0";
 
+        /// <summary>False stands in for a dialect written before the member existed.</summary>
+        public bool RendersRowRead { get; set; } = true;
+
+        public string? SelectTenantRow(string qualifiedTableName) => RendersRowRead
+            ? $"select connection_string, is_disabled from {qualifiedTableName} where tenant_id = @id"
+            : null;
+
         public string UpsertTenant(string qualifiedTableName) =>
             $"""
              insert into {qualifiedTableName} (tenant_id, connection_string, is_disabled)
@@ -675,6 +928,28 @@ public class master_table_tenancy: IAsyncDisposable
         public int ProvisioningAttempts => _dialect.CreateControlTableCalls;
         public bool LowerCaseTenantIds { get; set; }
 
+        public bool DialectRendersRowRead
+        {
+            get => _dialect.RendersRowRead;
+            set => _dialect.RendersRowRead = value;
+        }
+
+        /// <summary>Every call to the stale-tenant hook.</summary>
+        public List<(string TenantId, TestDatabase Database)> StaleEvictions { get; } = [];
+
+        /// <summary>Skip the base eviction in the stale-tenant hook.</summary>
+        public bool KeepStaleTenants { get; set; }
+
+        /// <summary>Refuse a disabled tenant with DisabledTenantException, as Marten and Polecat do.</summary>
+        public bool RefuseDisabledAsDisabled { get; set; }
+
+        public List<(string TenantId, MasterTenantStatus Status)> Refusals { get; } = [];
+
+        /// <summary>Run once, after the next control-plane call has completed.</summary>
+        public Func<Task>? AfterNextExecute { get; set; }
+
+        public ValueTask<bool> EvictForTestAsync(string tenantId) => EvictTenantAsync(tenantId);
+
         protected override SqliteDataSource BuildDataSource(string connectionString) => new(connectionString);
 
         protected override TestDatabase BuildDatabase(string tenantId, string connectionString) =>
@@ -683,11 +958,40 @@ public class master_table_tenancy: IAsyncDisposable
         protected override string CorrectTenantId(string tenantId) =>
             LowerCaseTenantIds ? tenantId.ToLowerInvariant() : tenantId;
 
-        protected override Task<T> ExecuteAsync<T>(
+        protected override async ValueTask EvictStaleTenantAsync(
+            string tenantId, TestDatabase database, CancellationToken token)
+        {
+            StaleEvictions.Add((tenantId, database));
+
+            if (!KeepStaleTenants)
+            {
+                await base.EvictStaleTenantAsync(tenantId, database, token);
+            }
+        }
+
+        protected override UnknownTenantIdException CreateTenantRefusal(string tenantId, MasterTenantStatus status)
+        {
+            Refusals.Add((tenantId, status));
+
+            return RefuseDisabledAsDisabled && status == MasterTenantStatus.Disabled
+                ? new DisabledTenantException(tenantId)
+                : base.CreateTenantRefusal(tenantId, status);
+        }
+
+        protected override async Task<T> ExecuteAsync<T>(
             Func<CancellationToken, Task<T>> operation, CancellationToken token)
         {
             Interlocked.Increment(ref _executions);
-            return base.ExecuteAsync(operation, token);
+            var result = await base.ExecuteAsync(operation, token);
+
+            var after = AfterNextExecute;
+            if (after is not null)
+            {
+                AfterNextExecute = null;
+                await after();
+            }
+
+            return result;
         }
     }
 
