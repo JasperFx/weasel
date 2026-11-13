@@ -16,6 +16,7 @@ newly shipped storage family, and one obsolete method.
 | `Weasel.Sqlite` stays on the `e_sqlite3` bundle, SQLitePCLRaw 3.0.x | None, unless you choose a different bundle |
 | `Weasel.Storage` closed-shape document storage family | Additive; only matters if you build a document store on Weasel |
 | `ConnectionSourceExtensions.RunSql<T>` is `[Obsolete]` | Switch to `RunSqlAsync<T>` |
+| `ISequence.NextLongAsync` / `NextIntAsync` for Hi-Lo ids | Additive; only matters if you build a store on Weasel |
 | MySQL tests for the EF Core bridge are compiled out | No library change; Pomelo has no EF Core 10 release |
 | `net11.0` assemblies are compiled with runtime-async | None; opt out with `-p:WeaselRuntimeAsync=false` when building Weasel from source |
 
@@ -145,6 +146,23 @@ you maintain a document or event store on Weasel, in which case:
   `IdentityMapIdTypeMismatchException`.
 - The package is `IsAotCompatible`. As always, publish natively and run the result before believing an AOT
   claim; the analyzer cannot prove the runtime half.
+
+## Asynchronous Hi-Lo ids
+
+`ISequence` gains `ValueTask<long> NextLongAsync(CancellationToken)` and `ValueTask<int> NextIntAsync(CancellationToken)`
+([weasel#808](https://github.com/JasperFx/weasel/issues/808)). On `HiloSequenceBase` they fetch an exhausted
+allocation through the existing asynchronous `AdvanceToNextHi`, so a Marten or Polecat sequence gets real
+asynchronous I/O with no change to its subclass, and they complete synchronously whenever the id is pure
+arithmetic. `NextLong` and `NextLongAsync` share one gate, so the two can be mixed on one instance without a
+duplicate id.
+
+Both are additive. An `ISequence` that implements neither gets a default that calls its own `NextLong`: a real id,
+but obtained synchronously. Two things a `HiloSequenceBase` subclass should know:
+
+- The gate is now a `SemaphoreSlim` rather than a `System.Threading.Lock`, and is not re-entrant: an
+  `AdvanceToNextHi` or `AdvanceToNextHiSync` override must not call back into `NextLong` or `NextLongAsync`.
+- `AdvanceToNextHi` is now also called from `NextLongAsync`, while the gate is held, so it should honor its
+  `CancellationToken`. `AdvanceToNextHiSync` stays only for the synchronous `NextLong`.
 
 ## Behavior and build changes that need no code
 
