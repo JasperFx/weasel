@@ -257,10 +257,12 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             return true;
         }
 
+        // Every recursion below goes through determineParameterType, never through ToParameterType:
+        // the latter throws for an unmapped type, which made TryGetDbType throw for a Nullable<T>,
+        // array, sequence or range of one, and for IEnumerable<int> itself. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // Integer was already right for the AsInteger column, so this is the same answer by a
@@ -281,8 +283,15 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
                 return true;
             }
 
-            dbType = NpgsqlDbType.Array | ToParameterType(type.GetElementType()!);
-            return true;
+            // An array of an unmapped element is unmapped itself; Npgsql infers it or refuses it.
+            if (determineParameterType(type.GetElementType()!, out var elementType))
+            {
+                dbType = NpgsqlDbType.Array | elementType;
+                return true;
+            }
+
+            dbType = NpgsqlDbType.Unknown;
+            return false;
         }
 
         var typeInfo = type.GetTypeInfo();
@@ -291,16 +300,29 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
             x.GetTypeInfo().IsGenericType && x.IsGenericEnumerable()
         );
 
+        // A sequence of an unmapped element -- Dictionary<string, int> is a sequence of
+        // KeyValuePair -- carries on to the branches below rather than throwing. The self check
+        // stops a type that enumerates itself from recursing until the stack runs out.
         if (ilist != null)
         {
-            dbType = NpgsqlDbType.Array | ToParameterType(ilist.GetGenericArguments()[0]);
-            return true;
+            var element = ilist.GetGenericArguments()[0];
+            if (element != type && determineParameterType(element, out var elementType))
+            {
+                dbType = NpgsqlDbType.Array | elementType;
+                return true;
+            }
         }
 
         if (typeInfo.IsGenericType && type.GetGenericTypeDefinition() == typeof(NpgsqlRange<>))
         {
-            dbType = NpgsqlDbType.Range | ToParameterType(type.GetGenericArguments()[0]);
-            return true;
+            if (determineParameterType(type.GetGenericArguments()[0], out var boundType))
+            {
+                dbType = NpgsqlDbType.Range | boundType;
+                return true;
+            }
+
+            dbType = NpgsqlDbType.Unknown;
+            return false;
         }
 
         if (type == typeof(DBNull))
@@ -311,8 +333,7 @@ public class PostgresqlProvider: DatabaseProvider<NpgsqlCommand, NpgsqlParameter
 
         if (typeInfo.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         dbType = NpgsqlDbType.Unknown;

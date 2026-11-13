@@ -87,10 +87,11 @@ public class FirebirdProvider: DatabaseProvider<FbCommand, FbParameter, FbDbType
             return true;
         }
 
+        // Recurse through determineParameterType, never through ToParameterType, which throws for
+        // an unmapped type and so made TryGetDbType throw too. weasel#826.
         if (type.IsNullable())
         {
-            dbType = ToParameterType(type.GetInnerTypeFromNullable());
-            return true;
+            return determineParameterType(type.GetInnerTypeFromNullable(), out dbType);
         }
 
         // As on PostgreSQL: the same answer for an int-backed enum, by the shared route, so that a
@@ -113,10 +114,11 @@ public class FirebirdProvider: DatabaseProvider<FbCommand, FbParameter, FbDbType
             return true;
         }
 
+        // An unmapped open generic leaves the closed type unmapped, so it defers rather than
+        // throwing out of TryGetDbType. weasel#826.
         if (type.IsConstructedGenericType)
         {
-            dbType = ToParameterType(type.GetGenericTypeDefinition());
-            return true;
+            return determineParameterType(type.GetGenericTypeDefinition(), out dbType);
         }
 
         dbType = FbDbType.VarChar;
