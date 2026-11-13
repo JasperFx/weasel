@@ -153,7 +153,28 @@ as `CREATE OR ALTER`, and index drops use `DROP INDEX IF EXISTS`. Running the sa
 against the same database is a no-op the second time rather than a failure, which matters because
 one unguarded object aborts every statement after it.
 
-`DROP INDEX IF EXISTS` and `CREATE OR ALTER` require **SQL Server 2016 SP1 or later**.
+The same holds for update and rollback scripts against a table that already exists:
+
+| Statement | Guard |
+| --- | --- |
+| Add a column | `IF COL_LENGTH(N'schema.table', N'column') IS NULL` |
+| Drop a column | `DROP COLUMN IF EXISTS` |
+| Add a primary key | `IF OBJECT_ID(N'schema.key_name', N'PK') IS NULL` |
+| Drop a primary key | `DROP CONSTRAINT IF EXISTS` |
+| Make a key column `NOT NULL` | `IF COLUMNPROPERTY(..., 'AllowsNull') = 1` |
+| Add a check constraint | `IF OBJECT_ID(N'schema.check_name', N'C') IS NULL` |
+| Drop a table type | `DROP TYPE IF EXISTS` |
+
+```sql
+IF COL_LENGTH(N'dbo.people', N'nickname') IS NULL
+    alter table dbo.people add nickname varchar(100) NULL;
+```
+
+A partition boundary added with `SPLIT RANGE`, or removed again with `MERGE RANGE`, is not guarded
+yet: a second run fails on the duplicate or missing boundary.
+
+`DROP INDEX IF EXISTS`, the other `IF EXISTS` drops and `CREATE OR ALTER` require **SQL Server
+2016 SP1 or later**.
 
 ## Identifiers
 

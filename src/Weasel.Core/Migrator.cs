@@ -144,13 +144,21 @@ public abstract class
 
 
     /// <summary>
-    ///     Write templated SQL to the supplied file name
+    ///     Write templated SQL to the supplied file name, creating its directory if it does not exist
     /// </summary>
     /// <param name="filename"></param>
     /// <param name="writeStep"></param>
     public async Task WriteTemplatedFile(string filename, Action<Migrator, TextWriter> writeStep,
         CancellationToken ct = default)
     {
+        // Not FileSystem.CreateDirectoryIfNotExists: it skips any path without a separator, so the
+        // "migrations" of "migrations/patch.sql" was never created
+        var directory = Path.GetDirectoryName(filename);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
         await using var stream = new FileStream(filename, FileMode.Create);
         var writer = new StreamWriter(stream) { AutoFlush = true };
 

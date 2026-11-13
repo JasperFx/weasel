@@ -111,6 +111,15 @@ The matching drop is `DROP INDEX IF EXISTS`, so both halves of a migration can b
 forms, and the `CREATE OR ALTER` used for procedures, need SQL Server 2016 SP1 or later. See
 [batch separators and re-runnable scripts](/sqlserver/#batch-separators-and-re-runnable-scripts).
 
+Changes to a table that already exists are guarded the same way. A new column is added only when
+`COL_LENGTH` finds no column of that name, a dropped column uses `DROP COLUMN IF EXISTS`, and
+primary keys and check constraints are looked up by name before they are added:
+
+```sql
+IF COL_LENGTH(N'dbo.users', N'nickname') IS NULL
+    alter table dbo.users add nickname varchar(100) NULL;
+```
+
 ## Delta Detection
 
 Compare the expected table definition against the actual database state:

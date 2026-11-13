@@ -34,9 +34,13 @@ public class TableType: ISchemaObject
         writer.WriteLine(")");
     }
 
+    /// <summary>
+    ///     <c>IF EXISTS</c> for the same reason the create is guarded: a rolled-back script can be run
+    ///     again.
+    /// </summary>
     public void WriteDropStatement(Migrator rules, TextWriter writer)
     {
-        writer.WriteLine($"drop type {Identifier};");
+        writer.WriteLine($"drop type if exists {Identifier};");
     }
 
     public void ConfigureQueryCommand(DbCommandBuilder builder)

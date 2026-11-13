@@ -75,7 +75,162 @@ public class migration_scripts_are_idempotent: IntegrationContext
         exception.Message.ShouldContain("GO");
     }
 
-    private static MigrationDatabase buildDatabase()
+    /// <summary>
+    ///     The update path rather than the create path: an existing table gains a column and an index
+    ///     on it, and the rendered update script has to run twice. Unguarded, the second run fails on
+    ///     the column ("Column names in each table must be unique") before it reaches the index.
+    /// </summary>
+    [Fact]
+    public async Task the_rendered_update_script_runs_twice_and_matches_the_configuration()
+    {
+        await buildDatabase().ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildDatabase(child =>
+        {
+            child.AddColumn<string>("nickname").AddIndex(x => x.Name = "idx_child_nickname");
+            child.AddColumn<int>("rank").NotNull().DefaultValue(0);
+        });
+
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var script = renderScript(database, migration);
+        script.ShouldContain("IF COL_LENGTH(N'gh593.child', N'nickname') IS NULL");
+
+        await executeInBatches(script);
+        await executeInBatches(script);
+
+        await database.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    /// <summary>
+    ///     The rest of the update path: a primary key added to a table that had none, a primary key
+    ///     whose columns (and so its name) changed, a dropped column that carried a default, a new
+    ///     check constraint and a new table type. Every one of these raised on a second run.
+    /// </summary>
+    [Fact]
+    public async Task the_rendered_update_script_for_keys_and_constraints_runs_twice()
+    {
+        await buildKeysDatabase(updated: false).ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildKeysDatabase(updated: true);
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var script = renderScript(database, migration);
+
+        await executeInBatches(script);
+        await executeInBatches(script);
+
+        await database.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    /// <summary>
+    ///     The same changes rolled back, twice: the actual primary keys go back on, the dropped column
+    ///     is re-added, and the table type the update created is dropped again.
+    /// </summary>
+    [Fact]
+    public async Task the_rendered_rollback_script_for_keys_and_constraints_runs_twice()
+    {
+        var initial = buildKeysDatabase(updated: false);
+        await initial.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildKeysDatabase(updated: true);
+        var migration = await database.CreateMigrationAsync();
+
+        await executeInBatches(renderScript(database, migration));
+
+        var writer = new StringWriter();
+        database.Migrator.WriteScript(writer, (rules, w) => migration.WriteAllRollbacks(w, rules));
+        var rollback = writer.ToString();
+
+        await executeInBatches(rollback);
+        await executeInBatches(rollback);
+
+        await initial.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    /// <summary>
+    ///     The guards look the table up by name, so a name that needs delimiting has to be delimited
+    ///     inside the literal too. Undelimited, <c>OBJECT_ID(N'gh593.a.b')</c> is NULL: the column
+    ///     guard then fails open (and the second run raises), but the key-column nullability guard fails
+    ///     closed, skipping the <c>NOT NULL</c> alter on the first run so the key add after it fails.
+    /// </summary>
+    [Fact]
+    public async Task the_guards_find_a_table_whose_name_has_a_dot()
+    {
+        await buildDottedDatabase(updated: false).ApplyAllConfiguredChangesToDatabaseAsync();
+
+        var database = buildDottedDatabase(updated: true);
+        var migration = await database.CreateMigrationAsync();
+        migration.Difference.ShouldBe(SchemaPatchDifference.Update);
+
+        var script = renderScript(database, migration);
+
+        await executeInBatches(script);
+        await executeInBatches(script);
+
+        await database.AssertDatabaseMatchesConfigurationAsync();
+    }
+
+    private static MigrationDatabase buildDottedDatabase(bool updated)
+    {
+        var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);
+
+        var dotted = new Table(new SqlServerObjectName(SchemaName, "a.b"));
+        var id = dotted.AddColumn<int>("id");
+        if (updated)
+        {
+            id.AsPrimaryKey();
+            dotted.AddColumn<string>("nickname");
+        }
+
+        database.AddTable(dotted);
+
+        return database;
+    }
+
+    private static MigrationDatabase buildKeysDatabase(bool updated)
+    {
+        var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);
+
+        // no primary key at first, then one
+        var keyless = new Table(new SqlServerObjectName(SchemaName, "keyless"));
+        var keylessId = keyless.AddColumn<int>("id");
+        if (updated) keylessId.AsPrimaryKey();
+        database.AddTable(keyless);
+
+        // the key widens to a second column, which renames it
+        var widened = new Table(new SqlServerObjectName(SchemaName, "widened"));
+        widened.AddColumn<int>("id").AsPrimaryKey();
+        var code = widened.AddColumn<int>("code");
+        if (updated) code.AsPrimaryKey();
+        database.AddTable(widened);
+
+        var trimmed = new Table(new SqlServerObjectName(SchemaName, "trimmed"));
+        trimmed.AddColumn<int>("id").AsPrimaryKey();
+        if (updated)
+        {
+            trimmed.CheckConstraints.Add(new TableCheckConstraint("ck_trimmed_id", "id > 0"));
+        }
+        else
+        {
+            trimmed.AddColumn<int>("legacy").DefaultValue(5);
+        }
+
+        database.AddTable(trimmed);
+
+        if (updated)
+        {
+            var idList = new TableType(new SqlServerObjectName(SchemaName, "TrimmedIdList"));
+            idList.AddColumn<int>("ID");
+            database.Add(idList);
+        }
+
+        return database;
+    }
+
+    private static MigrationDatabase buildDatabase(Action<Table>? alterChild = null)
     {
         var database = new MigrationDatabase("gh593", ConnectionSource.ConnectionString);
 
@@ -97,6 +252,7 @@ public class migration_scripts_are_idempotent: IntegrationContext
             x.Predicate = "[status]>5";
         });
         child.AddColumn<Guid>("parent_id").ForeignKeyTo(parent, "id");
+        alterChild?.Invoke(child);
         database.AddTable(child);
 
         var idList = new TableType(new SqlServerObjectName(SchemaName, "ChildIdList"));
