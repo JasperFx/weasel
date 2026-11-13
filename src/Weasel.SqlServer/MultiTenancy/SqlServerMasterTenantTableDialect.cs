@@ -75,6 +75,10 @@ public class SqlServerMasterTenantTableDialect: IMasterTenantTableDialect
     public virtual string SelectConnectionString(string qualifiedTableName) =>
         $"SELECT {ConnectionStringColumn} FROM {qualifiedTableName} WHERE {TenantIdColumn} = @id AND {DisabledColumn} = 0;";
 
+    /// <inheritdoc />
+    public virtual string? SelectTenantRow(string qualifiedTableName) =>
+        $"SELECT {ConnectionStringColumn}, {DisabledColumn} FROM {qualifiedTableName} WHERE {TenantIdColumn} = @id;";
+
     // A MERGE must be terminated by a semicolon; SQL Server refuses it otherwise.
     public virtual string UpsertTenant(string qualifiedTableName) =>
         $"""

@@ -85,6 +85,10 @@ public class PostgresqlMasterTenantTableDialect: IMasterTenantTableDialect
     public virtual string SelectConnectionString(string qualifiedTableName) =>
         $"select {ConnectionStringColumn} from {qualifiedTableName} where {TenantIdColumn} = @id and {DisabledColumn} = false";
 
+    /// <inheritdoc />
+    public virtual string? SelectTenantRow(string qualifiedTableName) =>
+        $"select {ConnectionStringColumn}, {DisabledColumn} from {qualifiedTableName} where {TenantIdColumn} = @id";
+
     public virtual string UpsertTenant(string qualifiedTableName) =>
         $"insert into {qualifiedTableName} ({TenantIdColumn}, {ConnectionStringColumn}) values (@id, @connection) " +
         $"on conflict ({TenantIdColumn}) do update set {ConnectionStringColumn} = excluded.{ConnectionStringColumn}";
