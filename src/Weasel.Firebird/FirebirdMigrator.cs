@@ -808,13 +808,48 @@ public class FirebirdMigrator: Migrator
             }
 
             if (firebird.SQLSTATE == "40001"
-                || HasErrorNumber(firebird, 335544665, 335544631, 335544510, 335544345, 335544336, 335544451))
+                || HasErrorNumber(firebird, 335544665, 335544631, 335544510, 335544345, 335544336, 335544451)
+                || IsDdlThatRacedARewrite(errorNumbers(firebird)))
             {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /// <summary>
+    ///     A <c>CREATE OR ALTER</c> that itself tripped over a source BLOB a racing rewrite had just
+    ///     orphaned: "BLOB not found" (<see cref="BlobNotFound" />) inside "unsuccessful metadata update"
+    ///     (335544351). Seen on Firebird 3 in CI as <c>CREATE OR ALTER VIEW RACE_VIEW failed / BLOB not
+    ///     found</c> from <c>racing_create_or_alter</c>; the statement leaves the same object however
+    ///     often it runs, so it is retried like any other lost race.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Both numbers are required. "BLOB not found" alone is a raced <em>read</em> of the catalog
+    ///         (weasel#723), answered by reading again through <see cref="IsConcurrentIntrospectionFailure" />,
+    ///         never by re-running DDL; and 335544351 alone heads every failed DDL statement, including
+    ///         ones that can only fail again. A read never carries 335544351.
+    ///     </para>
+    ///     <para>
+    ///         Takes the numbers rather than an <see cref="FbException" />, which has no public
+    ///         constructor, so the rule can be asserted directly; the race itself would not reproduce on a
+    ///         fast local machine.
+    ///     </para>
+    /// </remarks>
+    internal static bool IsDdlThatRacedARewrite(IReadOnlyCollection<int> errorNumbers)
+        => errorNumbers.Contains(335544351) && errorNumbers.Contains(BlobNotFound);
+
+    private static IReadOnlyCollection<int> errorNumbers(FbException exception)
+    {
+        var numbers = new List<int> { exception.ErrorCode };
+        foreach (FbError error in exception.Errors)
+        {
+            numbers.Add(error.Number);
+        }
+
+        return numbers;
     }
 
     internal static bool HasErrorNumber(FbException exception, params int[] numbers)
