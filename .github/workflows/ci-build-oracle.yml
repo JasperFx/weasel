@@ -4,7 +4,7 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
+    branches: [ master, "9.0" ]
 
 # A re-pushed pull request branch supersedes its predecessor, so cancel the older run instead of
 # letting it hold a slot (weasel#611). JasperFx is on the Free org plan, where the concurrent-job

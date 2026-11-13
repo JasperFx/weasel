@@ -25,7 +25,7 @@ on:
       - 'package-lock.json'
       - '.github/workflows/ci-docs.yml'
   pull_request:
-    branches: [ master ]
+    branches: [ master, "9.0" ]
     paths:
       - 'docs/**'
       # The mdsnippets sources. Every one of the 223 `<!-- snippet: ... -->` names in docs/ resolves
