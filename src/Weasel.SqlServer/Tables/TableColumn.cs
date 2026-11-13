@@ -255,14 +255,16 @@ public class TableColumn: ITableColumn
     ///     declaration, with its <c>DEFAULT</c>, was a syntax error. And SQL Server refuses to alter a
     ///     column while a default constraint is bound to it ("The object 'DF__...' is dependent on
     ///     column"). The constraint name is looked up at run time, in its own <c>EXEC</c>, for the
-    ///     reasons <see cref="DropColumnSql" /> gives. The lookup is written only when
-    ///     <paramref name="changeActual" /> has a default, so a plain type change is unchanged.
+    ///     reasons <see cref="DropColumnSql" /> gives. The lookup is written only when either side has a
+    ///     default, so a plain type change is unchanged.
     /// </remarks>
     public virtual string AlterColumnTypeSql(Table table, TableColumn changeActual)
     {
         var statements = new List<string>();
 
-        if (changeActual.DefaultExpression.IsNotEmpty())
+        // Also when only the model has a default: a second run of the script finds the one the first
+        // run bound, and both the ALTER COLUMN and the re-add below would refuse it
+        if (changeActual.DefaultExpression.IsNotEmpty() || DefaultExpression.IsNotEmpty())
         {
             statements.Add(dropDefaultConstraintSql(table));
         }
@@ -286,7 +288,7 @@ public class TableColumn: ITableColumn
                            from sys.default_constraints dc
                            inner join sys.columns c
                                on c.object_id = dc.parent_object_id and c.column_id = dc.parent_column_id
-                           where dc.parent_object_id = object_id('{SchemaUtils.EscapeLiteral(table.Identifier.QualifiedName)}')
+                           where dc.parent_object_id = object_id('{SchemaUtils.EscapeLiteral(table.Identifier.ToString())}')
                              and c.name = '{SchemaUtils.EscapeLiteral(Name)}';
                            if @constraint is not null
                                exec('alter table {table.Identifier} drop constraint [' + @constraint + ']');

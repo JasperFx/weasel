@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using JasperFx;
 using Shouldly;
 using Weasel.Core;
@@ -92,5 +93,40 @@ public class changing_a_column_type_with_a_default: IntegrationContext
 
         (await defaultDefinitionAsync()).ShouldBeNull();
         (await SchemaMigration.DetermineAsync(theConnection, after)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    /// <summary>
+    ///     A default the model adds during a type change: the rendered update has to survive a second
+    ///     run, which finds the default the first run bound and so has to drop it before the
+    ///     <c>ALTER COLUMN</c> and the re-add ("Column already has a DEFAULT bound to it").
+    /// </summary>
+    [Theory]
+    [InlineData(null, 7)]
+    [InlineData(5, 7)]
+    [InlineData(5, null)]
+    public async Task the_rendered_update_runs_twice(int? before, int? after)
+    {
+        await ResetSchema();
+        await migrate(scores("int", before));
+
+        var expected = scores("bigint", after);
+        var migration = await SchemaMigration.DetermineAsync(theConnection, expected);
+        var writer = new StringWriter();
+        migration.WriteAllUpdates(writer, new SqlServerMigrator(), AutoCreate.CreateOrUpdate);
+        var script = writer.ToString();
+
+        await executeInBatches(script);
+        await executeInBatches(script);
+
+        (await SchemaMigration.DetermineAsync(theConnection, expected)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    private async Task executeInBatches(string script)
+    {
+        foreach (var batch in Regex.Split(script, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(batch)) continue;
+            await theConnection.CreateCommand(batch).ExecuteNonQueryAsync();
+        }
     }
 }
