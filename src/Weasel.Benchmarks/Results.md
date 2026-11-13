@@ -306,3 +306,42 @@ either: `SqlServerIdentifierRules.IsReservedWord` is a linear `Contains` over ~1
 `StringComparer.InvariantCultureIgnoreCase`, measured at 4.1-4.7 us per identifier quoted. It is a
 DDL-time cost and a separate change, because an ordinal comparison is not a drop-in replacement for a
 culture-aware one.
+---
+
+## SQL Server reserved-word check (weasel#825)
+
+`IdentifierQuotingBenchmarks`. Every identifier SQL Server's DDL quotes asks
+`SqlServerIdentifierRules.IsReservedWord` first, and that was a linear `Contains` over the 186-entry
+keyword list under `StringComparer.InvariantCultureIgnoreCase` — about 2 µs a name, or 0.8 µs for a
+keyword near the front of the list. A name made only of printable ASCII now goes through a
+`FrozenSet` with `OrdinalIgnoreCase`; anything else still takes the original scan, so every answer
+is unchanged (`reserved_word_detection_is_unchanged` in Weasel.SqlServer.Tests pins them).
+
+Short job (`--filter '*IdentifierQuoting*'`), Release, .NET 10.0.14 on the Apple M5 Max above,
+recorded 2026-11-13. Both columns in one sitting, same machine.
+
+| Benchmark | Before | After | Allocated (both) |
+|---|---:|---:|---:|
+| `IsReservedWord("select")` — ASCII keyword | 768.1 ns | 5.8 ns | 0 B |
+| `IsReservedWord("mt_doc_user")` — ASCII name | 1,919.5 ns | 3.8 ns | 0 B |
+| `IsReservedWord("Grüße")` — non-ASCII, still the scan | 1,999.8 ns | 2,011.9 ns | 0 B |
+| `SqlServerObjectName.ToString()` | 4,066.8 ns | 23.6 ns | 56 B |
+| SqlServer `Table.WriteCreateStatement` (10 cols, 2 idx, 1 fk) | 85,000.9 ns | 2,030.8 ns | 17,696 B / 17,736 B |
+| SqlServer `TableDelta.WriteUpdate` (+2 cols, +2 idx, +1 fk) | 55,463.4 ns | 1,109.8 ns | 9,088 B |
+| *PostgresqlObjectName.ToString() (yardstick)* | *378.4 ns* | *381.4 ns* | *240 B* |
+| *Postgresql `Table.WriteCreateStatement` (yardstick)* | *9,106.0 ns* | *9,125.5 ns* | *20,617 B* |
+
+SQL Server's DDL generation went from about 10x slower than PostgreSQL's to about 4x faster: the
+keyword scan was essentially all of its cost. The 40 B on `WriteCreateStatement` is per-operation
+amortization noise from a 40x change in operations per iteration, not a new allocation.
+
+**Why the line is printable ASCII and not ASCII.** The invariant culture treats most ASCII control
+characters (U+0000–U+0008, U+000E–U+001F, U+007F) as ignorable, so `"ADD\0"` has always been
+reserved, and an ordinal lookup over all of ASCII would have said otherwise. Beyond ASCII, U+00AD,
+U+200B, U+FEFF and U+FFF9–U+FFFB vanish the same way and `"Oﬀ"` (U+FB00) matches `OFF`. Those inputs
+keep the scan. Measured with ICU on macOS; the pinning test compares against the old code rather
+than against hard-coded answers, so it holds whatever the platform's collation data says.
+
+PostgreSQL's keyword sets are already hashed, but under `InvariantCultureIgnoreCase`, which hashes a
+sort key — a likely, unmeasured, share of `PostgresqlObjectName.ToString()`'s 380 ns. The same
+split would apply there if it turns out to matter.
