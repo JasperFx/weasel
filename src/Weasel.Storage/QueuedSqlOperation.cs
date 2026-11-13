@@ -28,7 +28,8 @@ namespace Weasel.Storage;
 ///     <para>
 ///         ⚠️ Marked <see cref="NoDataReturnedCall" />, so a <see cref="ResultSetWalk.SkipNoDataReturned" />
 ///         walk does not advance past it. Queued SQL that <em>returns rows</em> would misalign every
-///         operation after it under that walk.
+///         operation after it under that walk; executed with <see cref="OperationBatchOptions" />, the batch
+///         is refused with a <see cref="SurplusResultSetsException" /> instead.
 ///     </para>
 /// </remarks>
 public class QueuedSqlOperation: IStorageOperation, NoDataReturnedCall
