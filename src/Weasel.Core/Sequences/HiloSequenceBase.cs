@@ -20,13 +20,21 @@ namespace Weasel.Core.Sequences;
 /// </summary>
 public abstract class HiloSequenceBase: ISequence
 {
-    // weasel#808: one gate for the lo-allocation / hi-advance critical section,
-    // shared by NextLong and NextLongAsync so a synchronous and an asynchronous
-    // caller can never both advance the hi or hand out the same id. It was a
-    // System.Threading.Lock, which cannot be held across an await. Unlike that
-    // Lock, a SemaphoreSlim is not re-entrant: an AdvanceToNextHi /
-    // AdvanceToNextHiSync override must not call back into NextLong(Async).
-    private readonly SemaphoreSlim _gate = new(1, 1);
+    // weasel#833: three locks, none of them held by a synchronous caller across asynchronous work.
+    //
+    // _state guards CurrentHi / CurrentLo: the check-and-issue of an id and the install of a new
+    // block. It is held for arithmetic only, never across I/O or an await.
+    //
+    // _syncAdvance serializes the synchronous advances among themselves, and _asyncAdvance the
+    // asynchronous ones. weasel#808 had one SemaphoreSlim for both, held across the await of
+    // AdvanceToNextHi, so a synchronous NextLong could block a thread-pool thread on asynchronous
+    // work -- Marten's, for one, awaits an in-flight prefetch -- which is how thread-pool starvation
+    // starts (marten#5969). Now a synchronous caller that finds an asynchronous advance in flight
+    // advances by itself instead of waiting for it. The database hands each advance a block of its
+    // own, so the cost is a gap, never a duplicate.
+    private readonly Lock _state = new();
+    private readonly Lock _syncAdvance = new();
+    private readonly SemaphoreSlim _asyncAdvance = new(1, 1);
 
     protected HiloSequenceBase(string entityName, IReadOnlyHiloSettings settings)
     {
@@ -76,26 +84,40 @@ public abstract class HiloSequenceBase: ISequence
     ///     <see cref="NextLongAsync" /> from asynchronous code.
     /// </summary>
     /// <remarks>
+    ///     <para>
     ///     Safe to call concurrently with itself and with <see cref="NextLongAsync" />
-    ///     on the same instance. If an asynchronous caller is part way through an
-    ///     advance, this blocks until that advance completes and then issues an id
-    ///     from the allocation it fetched.
+    ///     on the same instance; no two calls ever return the same id.
+    ///     </para>
+    ///     <para>
+    ///     This never waits on asynchronous work (weasel#833). It blocks only for its own
+    ///     <see cref="AdvanceToNextHiSync" /> or another synchronous caller's. If an
+    ///     asynchronous caller is part way through an advance, this advances by itself rather
+    ///     than wait for it, so both reserve a block and whichever is installed second replaces
+    ///     the other: the rest of the first block is a gap in the ids.
+    ///     </para>
     /// </remarks>
     public long NextLong()
     {
-        _gate.Wait();
-        try
+        if (tryIssue(out var id))
         {
-            if (ShouldAdvanceHi())
-            {
-                AdvanceToNextHiSync();
-            }
-
-            return AdvanceValue();
+            return id;
         }
-        finally
+
+        lock (_syncAdvance)
         {
-            _gate.Release();
+            while (true)
+            {
+                // Re-checked after taking the advance lock: another synchronous caller, or an
+                // asynchronous one, may have installed a block while this one waited.
+                if (tryIssue(out id))
+                {
+                    return id;
+                }
+
+                var before = snapshot();
+                AdvanceToNextHiSync();
+                assertTheAdvanceInstalledABlock(before, nameof(AdvanceToNextHiSync));
+            }
         }
     }
 
@@ -105,24 +127,26 @@ public abstract class HiloSequenceBase: ISequence
     ///     allocation is exhausted (weasel#808).
     /// </summary>
     /// <param name="ct">
-    ///     Cancels the wait for the gate and is passed to <see cref="AdvanceToNextHi" />.
-    ///     A token that is already cancelled yields a cancelled task without issuing an
-    ///     id. A cancelled call never consumes an id and leaves the gate free.
+    ///     Cancels the wait for another asynchronous advance and is passed to
+    ///     <see cref="AdvanceToNextHi" />. A token that is already cancelled yields a
+    ///     cancelled task without issuing an id. A cancelled call never consumes an id.
     /// </param>
     /// <remarks>
     ///     <para>
-    ///     Shares one gate with <see cref="NextLong" />, so synchronous and asynchronous
-    ///     callers can be mixed on one instance without duplicate ids or a double advance.
-    ///     When the current allocation still has room, and nobody else holds the gate,
-    ///     this completes synchronously without allocating — the arithmetic path costs
-    ///     an uncontended semaphore acquire and release, as <see cref="NextLong" /> does.
+    ///     Can be mixed with <see cref="NextLong" /> on one instance without a duplicate id.
+    ///     When the current allocation still has room this completes synchronously without
+    ///     allocating — the arithmetic path costs one short lock, as <see cref="NextLong" />'s does.
+    ///     </para>
+    ///     <para>
+    ///     Concurrent asynchronous callers share one advance: the others await it rather
+    ///     than each reserving a block. Nothing is held across the await that a synchronous
+    ///     <see cref="NextLong" /> would wait on (weasel#833); a synchronous caller that needs
+    ///     a block meanwhile reserves its own, as described there.
     ///     </para>
     ///     <para>
     ///     <see cref="AdvanceToNextHi" /> is invoked with no
     ///     <see cref="SynchronizationContext" />, so its continuations never queue to the
-    ///     caller's context. That matters because a synchronous <see cref="NextLong" />
-    ///     on a single-threaded context would otherwise block the very thread the advance
-    ///     needs to finish on.
+    ///     caller's context.
     ///     </para>
     /// </remarks>
     public ValueTask<long> NextLongAsync(CancellationToken ct = default)
@@ -132,25 +156,11 @@ public abstract class HiloSequenceBase: ISequence
             return ValueTask.FromCanceled<long>(ct);
         }
 
-        // Fast path: the gate is free and the current allocation has room, so the id
-        // is pure arithmetic and the call completes synchronously. A zero timeout
-        // never blocks: it takes the gate only if it is free right now.
-#pragma warning disable VSTHRD103
-        var acquired = _gate.Wait(0, CancellationToken.None);
-#pragma warning restore VSTHRD103
-        if (acquired)
+        // Fast path: the current allocation has room, so the id is pure arithmetic and the
+        // call completes synchronously.
+        if (tryIssue(out var id))
         {
-            try
-            {
-                if (!ShouldAdvanceHi())
-                {
-                    return new ValueTask<long>(AdvanceValue());
-                }
-            }
-            finally
-            {
-                _gate.Release();
-            }
+            return new ValueTask<long>(id);
         }
 
         return nextLongWithAdvanceAsync(ct);
@@ -158,23 +168,69 @@ public abstract class HiloSequenceBase: ISequence
 
     private async ValueTask<long> nextLongWithAdvanceAsync(CancellationToken ct)
     {
-        await _gate.WaitAsync(ct).ConfigureAwait(false);
+        // Awaited, never blocked on, and only asynchronous callers ever wait for it.
+        await _asyncAdvance.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            // Re-checked under the gate: another caller may have advanced the hi
-            // between the fast path's check and this acquire.
-            if (ShouldAdvanceHi())
+            while (true)
             {
-                await startAdvanceWithoutContext(ct).ConfigureAwait(false);
-            }
+                // Re-checked after taking the advance gate: another caller may have
+                // installed a block between the fast path's check and this acquire.
+                if (tryIssue(out var id))
+                {
+                    return id;
+                }
 
-            return AdvanceValue();
+                var before = snapshot();
+                await startAdvanceWithoutContext(ct).ConfigureAwait(false);
+                assertTheAdvanceInstalledABlock(before, nameof(AdvanceToNextHi));
+            }
         }
         finally
         {
-            _gate.Release();
+            _asyncAdvance.Release();
         }
     }
+
+    private bool tryIssue(out long id)
+    {
+        lock (_state)
+        {
+            if (ShouldAdvanceHi())
+            {
+                id = 0;
+                return false;
+            }
+
+            id = AdvanceValue();
+            return true;
+        }
+    }
+
+    private (long Hi, int Lo) snapshot()
+    {
+        lock (_state)
+        {
+            return (CurrentHi, CurrentLo);
+        }
+    }
+
+    // An advance has to install a block or throw. Once the advance no longer holds a lock that
+    // every caller waits on, one that returns having done neither would otherwise be retried
+    // forever, a database round trip at a time. A concurrent install from the other path changes
+    // the state as well, which correctly counts as progress: the loop then simply checks again.
+    private void assertTheAdvanceInstalledABlock((long Hi, int Lo) before, string advance)
+    {
+        var after = snapshot();
+        if (after == before && needsAdvance(after))
+        {
+            throw new InvalidOperationException(
+                $"{GetType().FullName}.{advance} returned without installing a new Hi-Lo block for '{EntityName}'. " +
+                $"An advance must either install one through {nameof(TrySetCurrentHi)} or throw.");
+        }
+    }
+
+    private bool needsAdvance((long Hi, int Lo) state) => state.Hi < 0 || state.Lo > MaxLo;
 
     private Task startAdvanceWithoutContext(CancellationToken ct)
     {
@@ -237,20 +293,31 @@ public abstract class HiloSequenceBase: ISequence
     ///     Apply a freshly-fetched "hi" value (the raw scalar from the dialect's
     ///     database call). The database is expected to return a negative value
     ///     when it could not atomically secure the next hi; in that case this
-    ///     returns false and the caller should retry. On success the lo offset is
-    ///     reset to 1.
+    ///     returns false, leaves the current block as it was, and the caller should
+    ///     retry. On success the lo offset is reset to 1.
     /// </summary>
+    /// <remarks>
+    ///     The new hi and lo are installed together, atomically with respect to the ids
+    ///     <see cref="NextLong" /> and <see cref="NextLongAsync" /> issue. A negative value
+    ///     no longer overwrites <see cref="CurrentHi" /> (weasel#833): with a synchronous and
+    ///     an asynchronous advance able to overlap, one advance's failed attempt would
+    ///     otherwise throw away the block the other had just installed.
+    /// </remarks>
     protected bool TrySetCurrentHi(object? raw)
     {
-        CurrentHi = Convert.ToInt64(raw);
-
-        if (0 <= CurrentHi)
+        var hi = Convert.ToInt64(raw);
+        if (hi < 0)
         {
-            CurrentLo = 1;
-            return true;
+            return false;
         }
 
-        return false;
+        lock (_state)
+        {
+            CurrentHi = hi;
+            CurrentLo = 1;
+        }
+
+        return true;
     }
 
     /// <summary>
@@ -260,21 +327,26 @@ public abstract class HiloSequenceBase: ISequence
     ///     if it can't be secured. Dialect-specific (PostgreSQL stored function vs
     ///     SQL Server optimistic update).
     ///     <para>
-    ///     Invoked from <see cref="NextLongAsync" />, under the gate it shares with
-    ///     <see cref="NextLong" />, when the current lo allocation is exhausted
-    ///     (weasel#808) — so it must not call back into either. It should honor
-    ///     <paramref name="ct" />, and should not rely on a
-    ///     <see cref="SynchronizationContext" />: <see cref="NextLongAsync" /> invokes it
-    ///     with none.
+    ///     Invoked from <see cref="NextLongAsync" /> when the current lo allocation is
+    ///     exhausted (weasel#808). Never runs concurrently with itself on one instance,
+    ///     but since weasel#833 it can overlap an <see cref="AdvanceToNextHiSync" />: each
+    ///     must reserve a block of its own from the database and install it through
+    ///     <see cref="TrySetCurrentHi" />. It must install a block or throw; it should honor
+    ///     <paramref name="ct" />, must not call back into <see cref="NextLongAsync" />, and
+    ///     should not rely on a <see cref="SynchronizationContext" />:
+    ///     <see cref="NextLongAsync" /> invokes it with none.
     ///     </para>
     /// </summary>
     public abstract Task AdvanceToNextHi(CancellationToken ct = default);
 
     /// <summary>
     ///     Synchronous counterpart to <see cref="AdvanceToNextHi" />, invoked from
-    ///     <see cref="NextLong" /> under the gate when the current lo allocation is
-    ///     exhausted. Retained for the synchronous path only: once every consumer
-    ///     issues ids through <see cref="NextLongAsync" /> it can go (weasel#808).
+    ///     <see cref="NextLong" /> when the current lo allocation is exhausted. Never runs
+    ///     concurrently with itself on one instance, but can overlap an
+    ///     <see cref="AdvanceToNextHi" /> (weasel#833); it must not wait for one. It must
+    ///     install a block through <see cref="TrySetCurrentHi" /> or throw. Retained for
+    ///     the synchronous path only: once every consumer issues ids through
+    ///     <see cref="NextLongAsync" /> it can go (weasel#808).
     /// </summary>
     protected abstract void AdvanceToNextHiSync();
 

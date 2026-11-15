@@ -8,13 +8,24 @@ namespace Weasel.Core.Tests.Sequences;
 ///     matching what a real dialect does after a successful fetch.
 /// </summary>
 /// <remarks>
-///     The hi counter is deliberately not thread-safe: the base class's gate is the
-///     only thing standing between two concurrent advances, so a broken gate shows up
-///     as a duplicated or skipped block of ids.
+///     <para>
+///     The hi counter is atomic, as the database's is: since weasel#833 a synchronous and an
+///     asynchronous advance may overlap by design, and each must get a block of its own.
+///     </para>
+///     <para>
+///     Two advances on the <i>same</i> path must still never overlap, so the fake counts it when
+///     they do (<see cref="SamePathOverlaps" />), with a spin inside the advance to widen the window.
+///     </para>
 /// </remarks>
 internal sealed class FakeHiloSequence: HiloSequenceBase
 {
     private long _nextHi;
+    private int _advanceCount;
+    private int _asyncAdvanceCount;
+    private int _syncAdvanceCount;
+    private int _asyncInFlight;
+    private int _syncInFlight;
+    private int _samePathOverlaps;
 
     public FakeHiloSequence(string entityName, IReadOnlyHiloSettings settings)
         : base(entityName, settings)
@@ -22,13 +33,24 @@ internal sealed class FakeHiloSequence: HiloSequenceBase
     }
 
     /// <summary>Every advance, from either path or from <see cref="SetFloor" />.</summary>
-    public int AdvanceCount { get; private set; }
+    public int AdvanceCount => Volatile.Read(ref _advanceCount);
 
     /// <summary>Advances made through the asynchronous <see cref="AdvanceToNextHi" />.</summary>
-    public int AsyncAdvanceCount { get; private set; }
+    public int AsyncAdvanceCount => Volatile.Read(ref _asyncAdvanceCount);
 
     /// <summary>Advances made through the synchronous <see cref="AdvanceToNextHiSync" />.</summary>
-    public int SyncAdvanceCount { get; private set; }
+    public int SyncAdvanceCount => Volatile.Read(ref _syncAdvanceCount);
+
+    /// <summary>
+    ///     How often an advance started while another on the same path was still running. The base
+    ///     class must keep this at zero.
+    /// </summary>
+    public int SamePathOverlaps => Volatile.Read(ref _samePathOverlaps);
+
+    /// <summary>
+    ///     When set, an advance does its I/O and then installs nothing, as a broken subclass would.
+    /// </summary>
+    public bool InstallNothing { get; set; }
 
     /// <summary>
     ///     Stands in for the asynchronous database round trip. It is awaited with
@@ -46,41 +68,68 @@ internal sealed class FakeHiloSequence: HiloSequenceBase
 
     public override async Task AdvanceToNextHi(CancellationToken ct = default)
     {
-        if (AsyncIo != null)
+        enter(ref _asyncInFlight);
+        try
         {
-            await AsyncIo(ct).ConfigureAwait(true);
-        }
+            if (AsyncIo != null)
+            {
+                await AsyncIo(ct).ConfigureAwait(true);
+            }
 
-        AsyncAdvanceCount++;
-        DoAdvance();
+            Interlocked.Increment(ref _asyncAdvanceCount);
+            DoAdvance();
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _asyncInFlight);
+        }
     }
 
     protected override void AdvanceToNextHiSync()
     {
-        SyncIo?.Invoke();
-        SyncAdvanceCount++;
-        DoAdvance();
+        enter(ref _syncInFlight);
+        try
+        {
+            SyncIo?.Invoke();
+            Interlocked.Increment(ref _syncAdvanceCount);
+            DoAdvance();
+        }
+        finally
+        {
+            Interlocked.Decrement(ref _syncInFlight);
+        }
+    }
+
+    private void enter(ref int inFlight)
+    {
+        if (Interlocked.Increment(ref inFlight) > 1)
+        {
+            Interlocked.Increment(ref _samePathOverlaps);
+        }
     }
 
     public override Task SetFloor(long floor)
     {
         // Mirror the dialect contract: ensure the next issued id clears the floor.
         var pages = (long)Math.Ceiling((double)floor / MaxLo);
-        _nextHi = pages;
+        Interlocked.Exchange(ref _nextHi, pages);
         DoAdvance();
         return Task.CompletedTask;
     }
 
     private void DoAdvance()
     {
-        AdvanceCount++;
-        var hi = _nextHi;
+        Interlocked.Increment(ref _advanceCount);
 
-        // Widen the window between reading and writing the hi counter, so that two
-        // advances which are not serialized by the gate collide.
+        // Reserve the block the way the database does: atomically, one per advance.
+        var hi = Interlocked.Increment(ref _nextHi) - 1;
+
+        // Widen the window an advance is in flight for, so two on one path would overlap.
         Thread.SpinWait(50);
 
-        TrySetCurrentHi(hi);
-        _nextHi = hi + 1;
+        if (!InstallNothing)
+        {
+            TrySetCurrentHi(hi);
+        }
     }
 }

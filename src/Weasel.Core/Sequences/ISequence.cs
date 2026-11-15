@@ -46,9 +46,10 @@ public interface ISequence
     /// </param>
     /// <remarks>
     ///     <para>
-    ///     <see cref="HiloSequenceBase" /> implements this with real asynchronous I/O,
-    ///     sharing one gate with <see cref="NextLong" /> so synchronous and asynchronous
-    ///     callers on the same instance never both advance the hi.
+    ///     <see cref="HiloSequenceBase" /> implements this with real asynchronous I/O.
+    ///     Synchronous and asynchronous callers can be mixed on one instance without a
+    ///     duplicate id, and a synchronous <see cref="NextLong" /> never waits on this
+    ///     method's asynchronous work (weasel#833).
     ///     </para>
     ///     <para>
     ///     <b>Stale implementers.</b> An <see cref="ISequence" /> compiled before this

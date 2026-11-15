@@ -126,7 +126,7 @@ public class hilo_sequence_issues_ids_asynchronously
     }
 
     [Fact]
-    public async Task cancelling_a_caller_waiting_for_the_gate_consumes_nothing()
+    public async Task cancelling_a_caller_waiting_for_another_async_advance_consumes_nothing()
     {
         var seq = Sequence(maxLo: 3);
         var fetched = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -215,13 +215,15 @@ public class hilo_sequence_issues_ids_asynchronously
 
         ids.Count.ShouldBe(total);
         ids.Distinct().Count().ShouldBe(total, "an id was handed out twice");
+        ids.Min().ShouldBeGreaterThan(0);
 
-        // Every advance was used to the end before the next one, so the ids are exactly
-        // 1..total and there was exactly one advance per block: no double advance
-        // skipped a block, and no two advances fetched the same hi.
-        ids.Min().ShouldBe(1);
-        ids.Max().ShouldBe(total);
-        seq.AdvanceCount.ShouldBe((int)Math.Ceiling((double)total / maxLo));
+        // weasel#833 changed what this can assert. Before it, one gate serialized every advance,
+        // so the ids were exactly 1..total with one advance per block. Now a synchronous caller
+        // that finds an asynchronous advance in flight reserves a block of its own rather than
+        // wait for it, so an overlap leaves a gap. What still holds: every id came from a block
+        // some advance reserved, and no two advances on the same path ever overlapped.
+        ids.Max().ShouldBeLessThanOrEqualTo((long)seq.AdvanceCount * maxLo);
+        seq.SamePathOverlaps.ShouldBe(0);
 
         // Both paths really did advance, so the test covered the mix it claims to.
         seq.SyncAdvanceCount.ShouldBeGreaterThan(0);
@@ -231,9 +233,10 @@ public class hilo_sequence_issues_ids_asynchronously
     [Fact]
     public async Task a_synchronous_caller_on_a_single_threaded_context_does_not_deadlock_an_async_advance()
     {
-        // The async advance below awaits with ConfigureAwait(true). If it captured the
-        // context, its continuation would queue to the one thread that the synchronous
-        // NextLong is blocking on the gate, and neither would ever finish.
+        // The async advance below awaits with ConfigureAwait(true). Under weasel#808 the
+        // synchronous NextLong waited for that advance, so had it captured the context, its
+        // continuation would have queued to the one thread NextLong was blocking. Since
+        // weasel#833 NextLong does not wait for it at all: it reserves the next block itself.
         var seq = Sequence(maxLo: 3);
         seq.AsyncIo = _ => Task.Delay(50);
 
@@ -256,8 +259,11 @@ public class hilo_sequence_issues_ids_asynchronously
         }, null);
 
         var (asyncId, syncId) = await outcome.Task.WaitAsync(Patience);
-        (await asyncId.WaitAsync(Patience)).ShouldBe(1);
-        syncId.ShouldBe(2);
+
+        // The synchronous caller reserved hi 0 while the asynchronous advance was still in its
+        // delay; the asynchronous one then reserved hi 1 and issued that block's first id.
+        syncId.ShouldBe(1);
+        (await asyncId.WaitAsync(Patience)).ShouldBe(4);
     }
 
     [Fact]
