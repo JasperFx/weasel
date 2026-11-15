@@ -70,6 +70,23 @@ internal sealed class FakeTransformingOperation(string sql, Exception replacemen
     }
 }
 
+/// <summary>
+///     A statement with no result set of its own whose transform claims every exception, as one matching
+///     by error code alone would (weasel#832).
+/// </summary>
+internal sealed class FakeNoDataTransformingOperation(string sql, Exception replacement)
+    : FakeOperation(OperationRole.Other, null, sql), NoDataReturnedCall, IExceptionTransform
+{
+    public override Task PostprocessAsync(DbDataReader reader, IList<Exception> exceptions, CancellationToken token)
+        => Task.CompletedTask;
+
+    public bool TryTransform(Exception original, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Exception? transformed)
+    {
+        transformed = replacement;
+        return true;
+    }
+}
+
 internal sealed class FakeDocumentOperation(object document, OperationRole role, IChangeTracker? tracker = null)
     : FakeOperation(role, document.GetType()), IDocumentStorageOperation
 {

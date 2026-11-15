@@ -197,6 +197,14 @@ but obtained synchronously. Two things a `HiloSequenceBase` subclass should know
   guard and the `alter table`; code that ran it through its own `SqlCommand` keeps working.
 - The Nuke build host targets `net10.0`. `./build.sh Pack`, `AotSmoke` and `LocalGate` are the local-train
   entry points; see `CLAUDE.md` in the repository.
+- `Weasel.Storage.OperationBatchExecutor.ExecuteAsync` lets only the operation whose statement raised a provider
+  error translate it ([weasel#832](https://github.com/JasperFx/weasel/issues/832)). It used to offer the error to
+  every operation in order whenever the driver did not name the failing command — on Npgsql, always — so an
+  operation matching by error code alone could claim another statement's error. The failing statement is now
+  found from where the reader was when the error surfaced, and an error no candidate translates is rethrown as
+  itself rather than offered to the rest of the batch. On PostgreSQL, pass
+  `OperationBatchOptions.StatementCompletion = NpgsqlStatementCompletion.HasCompleted` to tell apart a run of
+  statements that return no rows; without it they are asked in statement order. `ExecuteEachAsync` is unchanged.
 
 ## Dependency lockstep
 

@@ -52,6 +52,34 @@ public sealed class OperationBatchOptions
     ///     <see langword="null" /> by default, which costs nothing.
     /// </summary>
     public IOperationBatchListener? Listener { get; init; }
+
+    /// <summary>
+    ///     Whether a <see cref="System.Data.Common.DbBatchCommand" /> has completed in the batch now
+    ///     executing: <see langword="true" /> if it has, <see langword="false" /> if it has not,
+    ///     <see langword="null" /> when the command says nothing either way — a statement that cannot fail,
+    ///     such as an empty one, whose completion the driver may not record. <see langword="null" /> by
+    ///     default.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Used only by the <see cref="System.Data.Common.DbBatch" /> overload of
+    ///         <see cref="OperationBatchExecutor" />'s <c>ExecuteAsync</c>, only when the driver does not name
+    ///         the failing command, and only when an error surfaced while the reader was executing several
+    ///         statements without a result set of their own. The driver runs them in order and stops at the
+    ///         first error, so the first that never completed is the failing one, and only its operation may
+    ///         translate it (weasel#832). A command answering <see langword="null" /> is passed over. Without
+    ///         this, or when no command in the run answers <see langword="false" />, those operations are
+    ///         asked in statement order.
+    ///     </para>
+    ///     <para>
+    ///         For Npgsql, pass <c>Weasel.Postgresql.NpgsqlStatementCompletion.HasCompleted</c>. Npgsql never
+    ///         resets a command's completion, so the executor ignores this for a batch in which any command
+    ///         already reports itself complete before it runs: a re-executed batch falls back to statement
+    ///         order. A batch re-executed <em>inside</em> the store's <c>executeReader</c> callback, by a
+    ///         retry, looks to the executor like a first execution; such a store should leave this unset.
+    ///     </para>
+    /// </remarks>
+    public Func<System.Data.Common.DbBatchCommand, bool?>? StatementCompletion { get; init; }
 }
 
 /// <summary>
