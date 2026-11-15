@@ -66,4 +66,32 @@ public interface IStorageDialect
     ///     scalar / strong-typed-id inner type.
     /// </summary>
     void SetIdParameterType(DbParameter parameter, Type rawSqlType);
+
+    /// <summary>
+    ///     Bind <paramref name="value" /> — a slice of a pooled buffer — as the value of a binary
+    ///     parameter whose type <see cref="SetParameterType" /> has already set to
+    ///     <see cref="StorageColumnType.Binary" />, without copying it where the driver allows (weasel#831).
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Drivers disagree on what a binary parameter accepts besides <c>byte[]</c> (measured): Npgsql
+    ///         takes <see cref="ReadOnlyMemory{T}" /> for <c>bytea</c> as it is; Microsoft.Data.SqlClient
+    ///         takes a <see cref="System.IO.Stream" /> over the slice, but not the memory itself;
+    ///         Microsoft.Data.Sqlite takes only a <c>byte[]</c>.
+    ///     </para>
+    ///     <para>
+    ///         The memory belongs to a buffer the operation returns to its pool only when it is disposed,
+    ///         after the whole unit of work, retries included. Bind it, or a view over it; never keep it
+    ///         past the command.
+    ///     </para>
+    ///     <para>
+    ///         The default copies the slice into a new array, which every driver accepts. It is correct,
+    ///         and costs the pooling its saving, so a dialect whose driver can bind a slice should override
+    ///         it. A dialect compiled before this member existed gets the copy.
+    ///     </para>
+    /// </remarks>
+    void SetBinaryParameterValue(DbParameter parameter, ReadOnlyMemory<byte> value)
+    {
+        parameter.Value = value.ToArray();
+    }
 }

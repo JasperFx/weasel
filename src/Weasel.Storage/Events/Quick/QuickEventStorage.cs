@@ -30,7 +30,8 @@ internal sealed class QuickEventStorage<TId>: EventStorage<TId>
             _descriptor.SerializeEventBdata,
             _descriptor.Dialect,
             stream,
-            @event);
+            @event,
+            _descriptor.WriteEventBdata);
 
     public override IStorageOperation QuickAppendEventWithVersion(StreamAction stream, IEvent @event)
     {
@@ -43,7 +44,8 @@ internal sealed class QuickEventStorage<TId>: EventStorage<TId>
             _descriptor.SerializeEventBdata,
             _descriptor.Dialect,
             stream,
-            @event);
+            @event,
+            _descriptor.WriteEventBdata);
 
         return _descriptor.AppendEventSqlReturnsSequence
             ? new QuickAppendEventWithVersionReadingSequenceOperation(operation)

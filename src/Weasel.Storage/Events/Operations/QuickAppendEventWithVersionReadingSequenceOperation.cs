@@ -21,7 +21,7 @@ namespace Weasel.Storage;
 /// no-data operation rather than deriving from it because <see cref="NoDataReturnedCall"/> sits on
 /// <see cref="AppendEventOperationBase"/>, and that marker is what tells the batch reader not to read a result.
 /// </remarks>
-internal sealed class QuickAppendEventWithVersionReadingSequenceOperation: IStorageOperation, IExceptionTransform
+internal sealed class QuickAppendEventWithVersionReadingSequenceOperation: IStorageOperation, IExceptionTransform, IDisposable
 {
     private readonly QuickAppendEventWithVersionOperation _inner;
 
@@ -39,6 +39,10 @@ internal sealed class QuickAppendEventWithVersionReadingSequenceOperation: IStor
     {
         _inner.ConfigureCommand(builder, session);
     }
+
+    // weasel#831: the inner operation may hold a pooled bdata buffer; a store disposes what it was handed,
+    // which is this wrapper.
+    public void Dispose() => _inner.Dispose();
 
     public async Task PostprocessAsync(DbDataReader reader, IList<Exception> exceptions, CancellationToken token)
     {

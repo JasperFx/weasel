@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Buffers;
 using JasperFx.Events;
 using Weasel.Core;
 
@@ -22,16 +23,21 @@ namespace Weasel.Storage;
 /// binder array excludes the sequence binder. The SQL prefix/suffix + binder set
 /// are passed in by the calling storage class so this single operation covers all
 /// three Quick/QWST/Rich-replay variants.
+/// <para>
+/// Disposable since weasel#831: with the descriptor's <c>WriteEventBdata</c> set, the <c>bdata</c>
+/// parameter is a slice of a pooled buffer this operation holds until it is disposed, after the unit of
+/// work.
+/// </para>
 /// </remarks>
-internal sealed class QuickAppendEventWithVersionOperation: AppendEventOperationBase
+internal sealed class QuickAppendEventWithVersionOperation: AppendEventOperationBase, IDisposable
 {
     private readonly string _appendEventSqlPrefix;
     private readonly string _appendEventSqlSuffix;
     private readonly IEventMetadataBinder[] _metadataBinders;
     private readonly bool _isGuidStreamIdentity;
     private readonly Func<IEvent, string> _serializeEventData;
-    private readonly Func<IEvent, byte[]?> _serializeEventBdata;
     private readonly IStorageDialect _dialect;
+    private EventBdataParameter _bdata;
 
     public QuickAppendEventWithVersionOperation(
         string appendEventSqlPrefix,
@@ -42,7 +48,8 @@ internal sealed class QuickAppendEventWithVersionOperation: AppendEventOperation
         Func<IEvent, byte[]?> serializeEventBdata,
         IStorageDialect dialect,
         StreamAction stream,
-        IEvent e)
+        IEvent e,
+        Func<IEvent, IBufferWriter<byte>, bool>? writeEventBdata = null)
         : base(stream, e)
     {
         _appendEventSqlPrefix = appendEventSqlPrefix;
@@ -50,9 +57,11 @@ internal sealed class QuickAppendEventWithVersionOperation: AppendEventOperation
         _metadataBinders = metadataBinders;
         _isGuidStreamIdentity = isGuidStreamIdentity;
         _serializeEventData = serializeEventData;
-        _serializeEventBdata = serializeEventBdata;
         _dialect = dialect;
+        _bdata = new EventBdataParameter(serializeEventBdata, writeEventBdata);
     }
+
+    public void Dispose() => _bdata.Release();
 
     public override void ConfigureCommand(ICommandBuilder builder, IStorageSession session)
     {
@@ -69,10 +78,9 @@ internal sealed class QuickAppendEventWithVersionOperation: AppendEventOperation
         dialect.SetParameterType(pb.AppendParameter(Event.DotNetTypeName), StorageColumnType.String);
 
         // bdata bytea (nullable). NULL for JSON-serialized events; bytes for
-        // binary-serialized events. The neutral AppendParameter writes a null
-        // byte[] as DBNull.
-        var bdataBytes = _serializeEventBdata(Event);
-        dialect.SetParameterType(pb.AppendParameter(bdataBytes), StorageColumnType.Binary);
+        // binary-serialized events -- from a pooled buffer when the store supplies
+        // WriteEventBdata (weasel#831).
+        _bdata.Append(pb, dialect, Event);
 
         dialect.SetParameterType(pb.AppendParameter(Event.Id), StorageColumnType.Guid);
 

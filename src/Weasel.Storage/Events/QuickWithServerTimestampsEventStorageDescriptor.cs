@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Buffers;
 using JasperFx.Events;
 using Weasel.Core;
 
@@ -51,6 +52,30 @@ public sealed class QuickWithServerTimestampsEventStorageDescriptor
     ///     <c>null</c> — see <see cref="QuickEventStorageDescriptor.SerializeEventBdata"/>.
     /// </summary>
     public Func<IEvent, byte[]?> SerializeEventBdata { get; }
+
+    /// <summary>
+    ///     Optional, buffer-based counterpart of <see cref="SerializeEventBdata" /> (weasel#831): writes a
+    ///     binary-serialized event's payload into the supplied writer and returns <see langword="true" />,
+    ///     or returns <see langword="false" />, writing nothing, for a JSON-serialized event, whose
+    ///     <c>bdata</c> is NULL. <see langword="null" /> (the default) keeps <see cref="SerializeEventBdata" />.
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         When set, the per-event operations built from this descriptor (append, side-effect replay,
+    ///         tombstones) write each payload into a buffer rented from a pool and bind a slice of it through
+    ///         <see cref="IStorageDialect.SetBinaryParameterValue" />, instead of binding a fresh exact-length
+    ///         array per event. Wire it to <c>IEventBinarySerializer.Serialize(Type, object, IBufferWriter&lt;byte&gt;)</c>.
+    ///     </para>
+    ///     <para>
+    ///         ⚠️ <b>The store must dispose those operations, and only after the whole unit of work</b> —
+    ///         retries included — has finished with them: <c>if (operation is IDisposable d) d.Dispose()</c>
+    ///         in a <c>finally</c>, as Marten's <c>SaveChangesAsync</c> does. Disposing returns the buffer to
+    ///         the pool; returning it while a retry can still re-execute the batch writes another payload's
+    ///         bytes (marten#5262). An operation that is never disposed is only collected, unpooled. Override
+    ///         <see cref="IStorageDialect.SetBinaryParameterValue" /> too, or every slice is copied.
+    ///     </para>
+    /// </remarks>
+    public Func<IEvent, IBufferWriter<byte>, bool>? WriteEventBdata { get; init; }
 
     /// <summary>Guid stream identity (writeId) vs string identity (writeKey).</summary>
     public bool IsGuidStreamIdentity { get; init; }

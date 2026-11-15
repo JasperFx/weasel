@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using JasperFx.Events;
 using Weasel.Core;
 
@@ -13,15 +14,24 @@ namespace Weasel.Storage;
 /// lockstep with the SQL prefix's column order). Relocated from Marten's
 /// <c>Marten.EventStorage.Rich.RichAppendEventOperation</c> (event E3).
 /// </summary>
-internal sealed class RichAppendEventOperation: AppendEventOperationBase
+/// <remarks>
+/// Disposable since weasel#831: with <see cref="RichEventStorageDescriptor.WriteEventBdata"/> set, the
+/// <c>bdata</c> parameter is a slice of a pooled buffer this operation holds until it is disposed, after
+/// the unit of work.
+/// </remarks>
+internal sealed class RichAppendEventOperation: AppendEventOperationBase, IDisposable
 {
     private readonly RichEventStorageDescriptor _descriptor;
+    private EventBdataParameter _bdata;
 
     public RichAppendEventOperation(RichEventStorageDescriptor descriptor, StreamAction stream, IEvent e)
         : base(stream, e, descriptor.TransformAppendEventException)
     {
         _descriptor = descriptor;
+        _bdata = new EventBdataParameter(descriptor.SerializeEventBdata, descriptor.WriteEventBdata);
     }
+
+    public void Dispose() => _bdata.Release();
 
     public override void ConfigureCommand(ICommandBuilder builder, IStorageSession session)
     {
@@ -42,10 +52,9 @@ internal sealed class RichAppendEventOperation: AppendEventOperationBase
         dialect.SetParameterType(pb.AppendParameter(Event.DotNetTypeName), StorageColumnType.String);
 
         // bdata bytea (nullable): NULL for JSON-serialized events, payload for
-        // binary-serialized events. The neutral AppendParameter writes a null
-        // byte[] as DBNull.
-        var bdataBytes = _descriptor.SerializeEventBdata(Event);
-        dialect.SetParameterType(pb.AppendParameter(bdataBytes), StorageColumnType.Binary);
+        // binary-serialized events -- from a pooled buffer when the store supplies
+        // WriteEventBdata (weasel#831).
+        _bdata.Append(pb, dialect, Event);
 
         dialect.SetParameterType(pb.AppendParameter(Event.Id), StorageColumnType.Guid);
 
