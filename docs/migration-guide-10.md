@@ -147,6 +147,29 @@ you maintain a document or event store on Weasel, in which case:
 - The package is `IsAotCompatible`. As always, publish natively and run the result before believing an AOT
   claim; the analyzer cannot prove the runtime half.
 
+### Pooled `bdata` for per-event appends
+
+The Rich, Quick and QuickWithServerTimestamps event-storage descriptors gain an optional
+`WriteEventBdata` slot, `Func<IEvent, IBufferWriter<byte>, bool>`
+([weasel#831](https://github.com/JasperFx/weasel/issues/831)). When a store sets it, the per-event operations
+Weasel builds (the Rich append, side-effect replay, and tombstones) write each binary event's payload into a
+buffer rented from `ArrayPool<byte>.Shared` and bind a slice of it, instead of binding a fresh
+`SerializeEventBdata` array per event. Return `false`, writing nothing, for a JSON event. Wire it to
+`IEventBinarySerializer.Serialize(Type, object, IBufferWriter<byte>)` from JasperFx 3.3.
+
+Leaving it `null` keeps today's behaviour exactly. A store that sets it must also:
+
+- **Dispose the operations after the whole unit of work**, retries included:
+  `if (operation is IDisposable d) d.Dispose()` in a `finally`, as Marten's `SaveChangesAsync` does. That is what
+  returns the buffer. Returning it while a retry can still re-execute the batch writes another payload's bytes
+  (marten#5262). An operation that is never disposed is only collected, unpooled; a wrapping operation must
+  forward `Dispose`.
+- **Override `IStorageDialect.SetBinaryParameterValue`** so the slice is bound without a copy. The new member
+  defaults to copying it into an array, which every driver accepts. Measured: Npgsql binds a
+  `ReadOnlyMemory<byte>` for `bytea` as it is; Microsoft.Data.SqlClient needs a `Stream` over the slice
+  (`new MemoryStream(array, offset, count, writable: false)`); Microsoft.Data.Sqlite takes only a `byte[]`, so a
+  SQLite store gains nothing from the slot.
+
 ### Deriving the closed-shape storages
 
 The tracking-mode bases are public, so a store can derive them to carry its own storage interfaces

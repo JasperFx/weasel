@@ -38,7 +38,8 @@ internal sealed class RichEventStorage<TId>: EventStorage<TId>
             _descriptor.SerializeEventBdata,
             _descriptor.Dialect,
             stream,
-            @event);
+            @event,
+            _descriptor.WriteEventBdata);
 
     public override IStorageOperation QuickAppendEvents(StreamAction stream)
         => throw new NotSupportedException(
