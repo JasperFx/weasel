@@ -176,16 +176,24 @@ sub-class truncate must leave sibling rows alone.
 ([weasel#808](https://github.com/JasperFx/weasel/issues/808)). On `HiloSequenceBase` they fetch an exhausted
 allocation through the existing asynchronous `AdvanceToNextHi`, so a Marten or Polecat sequence gets real
 asynchronous I/O with no change to its subclass, and they complete synchronously whenever the id is pure
-arithmetic. `NextLong` and `NextLongAsync` share one gate, so the two can be mixed on one instance without a
-duplicate id.
+arithmetic. `NextLong` and `NextLongAsync` can be mixed on one instance without a duplicate id, and a synchronous
+`NextLong` never waits on `NextLongAsync`'s asynchronous work
+([weasel#833](https://github.com/JasperFx/weasel/issues/833)): a thread blocked on asynchronous work is how a
+burst of synchronous callers starves the thread pool.
 
 Both are additive. An `ISequence` that implements neither gets a default that calls its own `NextLong`: a real id,
-but obtained synchronously. Two things a `HiloSequenceBase` subclass should know:
+but obtained synchronously. Three things a `HiloSequenceBase` subclass should know:
 
-- The gate is now a `SemaphoreSlim` rather than a `System.Threading.Lock`, and is not re-entrant: an
-  `AdvanceToNextHi` or `AdvanceToNextHiSync` override must not call back into `NextLong` or `NextLongAsync`.
-- `AdvanceToNextHi` is now also called from `NextLongAsync`, while the gate is held, so it should honor its
-  `CancellationToken`. `AdvanceToNextHiSync` stays only for the synchronous `NextLong`.
+- An `AdvanceToNextHi` never overlaps another `AdvanceToNextHi` on one instance, nor an `AdvanceToNextHiSync`
+  another `AdvanceToNextHiSync`, but the two **can overlap each other**. A synchronous caller that needs a block
+  while an asynchronous advance is in flight reserves one of its own rather than wait. Each must reserve its
+  block from the database and install it through `TrySetCurrentHi`; whichever installs second wins, and the rest
+  of the other block is a gap in the ids, never a duplicate.
+- An advance must install a block or throw. One that returns having done neither now throws
+  `InvalidOperationException`, where it used to issue an id from a block it never reserved.
+- `TrySetCurrentHi` with a negative value now returns `false` without touching `CurrentHi`, so one advance's
+  failed attempt cannot throw away the block another advance just installed. An override must still not call
+  back into `NextLong` or `NextLongAsync`, and `AdvanceToNextHi` should honor its `CancellationToken`.
 
 ## Behavior and build changes that need no code
 
