@@ -86,11 +86,16 @@ public sealed class operation_batch_executor: IAsyncLifetime
     [Fact]
     public async Task a_provider_exception_is_offered_to_the_operations_transforms()
     {
+        // Rewritten for weasel#832. This used two plain INSERTs under AdvanceAfterEach, a walk that says
+        // every operation owns a result set, while neither returned one. Both therefore ran when the
+        // reader opened, and the second's error was found only because every operation was asked in
+        // order. The reader's position now decides, which is only meaningful when the walk is truthful,
+        // so each statement here returns its row.
         var replacement = new InvalidOperationException("mapped");
         IStorageOperation[] operations =
         [
-            new FakeOperation(OperationRole.Other, sql: "insert into things (id) values (1);"),
-            new FakeTransformingOperation("insert into things (id) values (1);", replacement)
+            new FakeOperation(OperationRole.Other, sql: "insert into things (id) values (1) returning id;"),
+            new FakeTransformingOperation("insert into things (id) values (1) returning id;", replacement)
         ];
 
         var thrown = await Should.ThrowAsync<InvalidOperationException>(() =>
@@ -98,6 +103,76 @@ public sealed class operation_batch_executor: IAsyncLifetime
                 CancellationToken.None));
 
         thrown.ShouldBeSameAs(replacement);
+    }
+
+    [Fact]
+    public async Task the_operation_whose_statement_failed_translates_not_the_first_that_recognises_the_error()
+    {
+        // weasel#832: both transforms claim anything. The first operation's statement succeeded; it used
+        // to win anyway, by being asked first.
+        var notMine = new InvalidOperationException("the first operation's");
+        var mine = new InvalidOperationException("the failing operation's");
+        IStorageOperation[] operations =
+        [
+            new FakeTransformingOperation("insert into things (id) values (1) returning id;", notMine),
+            new FakeTransformingOperation("insert into things (id) values (1) returning id;", mine)
+        ];
+
+        (await Should.ThrowAsync<InvalidOperationException>(() =>
+                OperationBatchExecutor.ExecuteAsync(operations, batchOf(operations), ResultSetWalk.AdvanceAfterEach,
+                    CancellationToken.None)))
+            .ShouldBeSameAs(mine);
+    }
+
+    [Fact]
+    public async Task an_error_its_own_operation_does_not_translate_is_offered_to_no_other()
+    {
+        // weasel#832: the fallback is the untranslated error, never the rest of the batch.
+        IStorageOperation[] operations =
+        [
+            new FakeTransformingOperation("insert into things (id) values (1) returning id;",
+                new InvalidOperationException("the first operation's")),
+            new FakeOperation(OperationRole.Insert, sql: "insert into things (id) values (1) returning id;")
+        ];
+
+        await Should.ThrowAsync<SqliteException>(() =>
+            OperationBatchExecutor.ExecuteAsync(operations, batchOf(operations), ResultSetWalk.AdvanceAfterEach,
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task an_error_raised_behind_the_last_result_set_is_not_translated_by_its_owner()
+    {
+        // The drain executes the statements after the last result set, so only their operations may
+        // translate what it throws -- not the operation that owned the last result set.
+        var mine = new InvalidOperationException("the failing operation's");
+        IStorageOperation[] operations =
+        [
+            new FakeTransformingOperation("select 1;", new InvalidOperationException("the owner's")),
+            new FakeNoDataOperation("insert into things (id) values (1);"),
+            new FakeNoDataTransformingOperation("insert into things (id) values (1);", mine)
+        ];
+
+        (await Should.ThrowAsync<InvalidOperationException>(() =>
+                OperationBatchExecutor.ExecuteAsync(operations, batchOf(operations),
+                    ResultSetWalk.SkipNoDataReturned, CancellationToken.None)))
+            .ShouldBeSameAs(mine);
+    }
+
+    [Fact]
+    public async Task an_error_raised_while_the_reader_opens_is_not_translated_by_an_operation_after_it()
+    {
+        // Opening the reader executes up to the first result set; an operation after that never ran.
+        IStorageOperation[] operations =
+        [
+            new FakeNoDataOperation("insert into things (id) values (1);"),
+            new FakeOperation(OperationRole.Insert, sql: "insert into things (id) values (1) returning id;"),
+            new FakeTransformingOperation("select 1;", new InvalidOperationException("never ran"))
+        ];
+
+        await Should.ThrowAsync<SqliteException>(() =>
+            OperationBatchExecutor.ExecuteAsync(operations, batchOf(operations), ResultSetWalk.SkipNoDataReturned,
+                CancellationToken.None));
     }
 
     [Fact]

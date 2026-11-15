@@ -65,8 +65,21 @@ public enum ResultSetWalk
 ///         The overloads taking a <see cref="ResultSetWalk" /> are the original surface and keep its
 ///         behaviour, except that the <see cref="ResultSetWalk.SkipNoDataReturned" /> walk now drains the
 ///         reader. The overloads taking <see cref="OperationBatchOptions" /> add the surplus-result-set
-///         guard (on by default), the listener, and — given the <see cref="DbBatch" /> — exception
-///         transformation by the operation whose command actually failed.
+///         guard (on by default) and the listener.
+///     </para>
+///     <para>
+///         <b>Which operation translates a provider exception (weasel#832).</b> Only one whose statement
+///         could have raised it. A driver that names the failing <see cref="DbBatchCommand" />
+///         (<see cref="DbException.BatchCommand" />; Microsoft.Data.SqlClient does) settles it. Otherwise
+///         the reader's position does: an error surfaces from the call that executed its statement —
+///         postprocessing operation <c>i</c> means operation <c>i</c>; advancing to the next result set
+///         means the statements from the one after the last result set up to the next; opening the reader
+///         means the statements up to the first result set; the drain means those after the last. That is
+///         exact for a statement with a result set of its own and otherwise narrows the error to a run of
+///         statements without one, within which <see cref="OperationBatchOptions.StatementCompletion" />
+///         picks the one that never completed, or statement order decides. An error that surfaces with no
+///         statement executing is translated by no operation. Before weasel#832 it was offered to every
+///         operation in order, and the first that recognised it won, whichever statement raised it.
 ///     </para>
 /// </remarks>
 public static class OperationBatchExecutor
@@ -110,9 +123,10 @@ public static class OperationBatchExecutor
     ///     against it, and throw what went wrong.
     /// </summary>
     /// <remarks>
-    ///     A provider exception thrown while executing, walking or draining the reader is offered to each
-    ///     operation's <see cref="IExceptionTransform" /> in order, and the first that accepts it wins;
-    ///     the original is rethrown with its stack trace when none does. Exceptions an operation's
+    ///     A provider exception thrown while executing, walking or draining the reader is offered to the
+    ///     <see cref="IExceptionTransform" /> of the operations whose statements could have raised it, in
+    ///     statement order, as the class remarks describe; the original is rethrown with its stack trace
+    ///     when none accepts it. Exceptions an operation's
     ///     postprocessing <em>collects</em> (a concurrency miss, say) are thrown after the walk: one as
     ///     itself, several as an <see cref="AggregateException" />. Surplus result sets are drained
     ///     silently; the <see cref="OperationBatchOptions" /> overload refuses them.
@@ -135,8 +149,8 @@ public static class OperationBatchExecutor
     ///     As <see cref="ExecuteAsync(IReadOnlyList{IStorageOperation}, Func{CancellationToken, Task{DbDataReader}}, ResultSetWalk, CancellationToken)" />,
     ///     plus <see cref="OperationBatchOptions.SurplusResultSets" /> and
     ///     <see cref="OperationBatchOptions.Listener" />, whose <see cref="OperationBatchCommand" /> carries
-    ///     no provider object. A provider exception is offered to the operations' transforms in order,
-    ///     then to the listener's.
+    ///     no provider object. A provider exception is offered to the transforms of the operations whose
+    ///     statements could have raised it, then to the listener's.
     /// </remarks>
     public static async Task ExecuteAsync(IReadOnlyList<IStorageOperation> operations,
         Func<CancellationToken, Task<DbDataReader>> executeReader, OperationBatchOptions options,
@@ -167,9 +181,11 @@ public static class OperationBatchExecutor
     ///         is offered to <em>that</em> command's operation only, when the batch has exactly one command
     ///         per operation — so a batch that starts a new stream beside an existing one reports the
     ///         collision against the stream that collided, not the first operation able to recognise the
-    ///         error (polecat#781). Otherwise every operation is asked in order. The listener is asked after.
-    ///         Whether the command is named is the driver's call: Microsoft.Data.SqlClient names it, while
-    ///         Npgsql 10.0.3 was measured leaving it null for an error a later statement raised.
+    ///         error (polecat#781). Whether the command is named is the driver's call: Microsoft.Data.SqlClient
+    ///         names it, while Npgsql 10.0.3 was measured leaving it null for every statement, the first
+    ///         included. Otherwise the reader's position decides, narrowed within a run of statements without
+    ///         a result set by <see cref="OperationBatchOptions.StatementCompletion" /> when one is given
+    ///         (weasel#832; see the class remarks). The listener is asked after.
     ///     </para>
     /// </remarks>
     public static async Task ExecuteAsync(DbBatch batch, IReadOnlyList<IStorageOperation> operations,
@@ -182,7 +198,7 @@ public static class OperationBatchExecutor
         ArgumentNullException.ThrowIfNull(options);
 
         await executeBatchAsync(operations, batch, null, t => executeReader(batch, t), options.Walk,
-            options.SurplusResultSets, options.Listener, token).ConfigureAwait(false);
+            options.SurplusResultSets, options.Listener, token, options.StatementCompletion).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -193,8 +209,8 @@ public static class OperationBatchExecutor
     /// <remarks>
     ///     For a provider whose builder concatenates statements into one command. The listener's
     ///     <see cref="OperationBatchCommand.Command" /> is <paramref name="command" />; the executor does
-    ///     not dispose it. A provider exception is offered to the operations' transforms in order, then to
-    ///     the listener's.
+    ///     not dispose it. A provider exception is offered to the transforms of the operations whose
+    ///     statements could have raised it, by the reader's position, then to the listener's.
     /// </remarks>
     public static async Task ExecuteAsync(DbCommand command, IReadOnlyList<IStorageOperation> operations,
         Func<DbCommand, CancellationToken, Task<DbDataReader>> executeReader, OperationBatchOptions options,
@@ -211,7 +227,8 @@ public static class OperationBatchExecutor
 
     private static async Task executeBatchAsync(IReadOnlyList<IStorageOperation> operations, DbBatch? batch,
         DbCommand? command, Func<CancellationToken, Task<DbDataReader>> executeReader, ResultSetWalk walk,
-        SurplusResultSetPolicy surplus, IOperationBatchListener? listener, CancellationToken token)
+        SurplusResultSetPolicy surplus, IOperationBatchListener? listener, CancellationToken token,
+        Func<DbBatchCommand, bool?>? statementCompletion = null)
     {
         if (operations.Count == 0)
         {
@@ -221,21 +238,28 @@ public static class OperationBatchExecutor
         var context = listener is null ? null : new OperationBatchCommand(operations, batch, command);
         var exceptions = new List<Exception>();
 
+        // weasel#832: which operations' statements the reader is executing at any moment, so that an
+        // error is translated only by an operation that could have raised it.
+        var window = new StatementWindow();
+        var completion = readableCompletion(batch, operations, statementCompletion);
+
         listener?.BeforeExecute(context!);
 
         try
         {
+            // Opening the reader executes every statement up to the first one that returns a result set.
+            window.Set(0, nextResultSetOwner(operations, walk, -1));
             var reader = await executeReader(token).ConfigureAwait(false);
             await using (reader.ConfigureAwait(false))
             {
-                await walkAsync(reader, operations, exceptions, walk, surplus, token).ConfigureAwait(false);
+                await walkAsync(reader, operations, exceptions, walk, surplus, window, token).ConfigureAwait(false);
             }
         }
         catch (Exception e)
         {
             listener?.OnFailure(context!, e);
 
-            if (tryTransformBatch(operations, batch, e, out var transformed)
+            if (tryTransformBatch(operations, batch, window, completion, e, out var transformed)
                 || tryTransformWithListener(listener, context, e, out transformed))
             {
                 ExceptionDispatchInfo.Capture(transformed).Throw();
@@ -397,7 +421,8 @@ public static class OperationBatchExecutor
         ArgumentNullException.ThrowIfNull(operations);
         ArgumentNullException.ThrowIfNull(exceptions);
 
-        await walkAsync(reader, operations, exceptions, walk, SurplusResultSetPolicy.Ignore, token).ConfigureAwait(false);
+        await walkAsync(reader, operations, exceptions, walk, SurplusResultSetPolicy.Ignore, null, token)
+            .ConfigureAwait(false);
     }
 
     /// <summary>
@@ -418,48 +443,76 @@ public static class OperationBatchExecutor
         ArgumentNullException.ThrowIfNull(exceptions);
         ArgumentNullException.ThrowIfNull(options);
 
-        await walkAsync(reader, operations, exceptions, options.Walk, options.SurplusResultSets, token).ConfigureAwait(false);
+        await walkAsync(reader, operations, exceptions, options.Walk, options.SurplusResultSets, null, token)
+            .ConfigureAwait(false);
     }
 
     private static async Task walkAsync(DbDataReader reader, IReadOnlyList<IStorageOperation> operations,
         IList<Exception> exceptions, ResultSetWalk walk, SurplusResultSetPolicy surplusPolicy,
-        CancellationToken token)
+        StatementWindow? window, CancellationToken token)
     {
         // The reader opens on the first result set in the batch, wherever in the batch that is, so the
         // first operation to own one reads without advancing and every later one advances first. That
         // leaves the reader ON the last owned result set, where the drain's count starts.
-        var owners = 0;
+        var lastOwner = -1;
 
         for (var i = 0; i < operations.Count; i++)
         {
             var operation = operations[i];
 
-            if (walk == ResultSetWalk.SkipNoDataReturned && !ReturnsResultSet(operation))
+            if (!ownsResultSet(operation, walk))
             {
                 continue;
             }
 
-            if (owners > 0)
+            if (lastOwner >= 0)
             {
+                // weasel#832: advancing executes every statement after the last owner up to and including
+                // this one, and it is one of THOSE that raised anything thrown here -- not the operation
+                // the reader just left.
+                window?.Set(lastOwner + 1, i);
                 await reader.NextResultAsync(token).ConfigureAwait(false);
             }
 
+            window?.Set(i, i);
             await operation.PostprocessAsync(reader, exceptions, token).ConfigureAwait(false);
-            owners++;
+            lastOwner = i;
         }
 
         // weasel#810 / polecat#273 E2b: always drain, so an error raised by a statement behind the last
         // owned result set is thrown here instead of being swallowed by the reader's disposal (SQL
         // Server, Microsoft.Data.Sqlite) or thrown from it, past the transforms (Npgsql).
+        window?.Set(lastOwner + 1, operations.Count - 1);
         var surplus = await drainAsync(reader, token).ConfigureAwait(false);
+        window?.Clear();
 
         // polecat#831: a set nobody declared means some operation read another statement's rows. Only
         // after the drain, because a SQL error in the batch is the better answer. A batch in which no
         // operation reads a result set has nothing to misread.
-        if (surplusPolicy == SurplusResultSetPolicy.Throw && owners > 0 && surplus > 0)
+        if (surplusPolicy == SurplusResultSetPolicy.Throw && lastOwner >= 0 && surplus > 0)
         {
             throw new SurplusResultSetsException(surplus);
         }
+    }
+
+    private static bool ownsResultSet(IStorageOperation operation, ResultSetWalk walk)
+        => walk == ResultSetWalk.AdvanceAfterEach || ReturnsResultSet(operation);
+
+    /// <summary>
+    ///     The first operation after <paramref name="index" /> that owns a result set, or the last operation
+    ///     when none does: how far the reader executes the batch when it opens or advances.
+    /// </summary>
+    private static int nextResultSetOwner(IReadOnlyList<IStorageOperation> operations, ResultSetWalk walk, int index)
+    {
+        for (var i = index + 1; i < operations.Count; i++)
+        {
+            if (ownsResultSet(operations[i], walk))
+            {
+                return i;
+            }
+        }
+
+        return operations.Count - 1;
     }
 
     private static async Task<int> drainAsync(DbDataReader reader, CancellationToken token)
@@ -509,6 +562,12 @@ public static class OperationBatchExecutor
     ///     Offer <paramref name="exception" /> to each operation's <see cref="IExceptionTransform" />, in
     ///     order; the first that maps it wins.
     /// </summary>
+    /// <remarks>
+    ///     Knows nothing of which statement raised the error, so an operation whose translation matches by
+    ///     error code alone can claim another statement's error. The <c>ExecuteAsync</c> overloads no longer
+    ///     use it (weasel#832); a store with a loop of its own should ask only the operations that could
+    ///     have raised the error.
+    /// </remarks>
     public static bool TryTransform(IEnumerable<IStorageOperation> operations, Exception exception,
         out Exception transformed)
     {
@@ -558,7 +617,8 @@ public static class OperationBatchExecutor
     }
 
     private static bool tryTransformBatch(IReadOnlyList<IStorageOperation> operations, DbBatch? batch,
-        Exception exception, out Exception transformed)
+        StatementWindow window, Func<DbBatchCommand, bool?>? completion, Exception exception,
+        out Exception transformed)
     {
         // polecat#781: when the driver names the failing batch command and commands map one-to-one onto
         // operations, only the operation that owns it may translate the error.
@@ -574,7 +634,81 @@ public static class OperationBatchExecutor
             }
         }
 
-        return TryTransform(operations, exception, out transformed);
+        // weasel#832: otherwise -- and Npgsql never names it -- only the operations whose statements the
+        // reader was executing when the error surfaced may translate it. Offering it to every operation
+        // in order let the first that recognised the error claim it, whichever statement raised it.
+        var (start, end) = (window.Start, window.End);
+        if (start > end)
+        {
+            // Nothing was executing, so no operation can own the error
+            transformed = exception;
+            return false;
+        }
+
+        if (start < end && completion is not null)
+        {
+            // Several statements ran in this window. The driver executes them in order and stops at the
+            // first error, so the failing one is the first that never completed. A command the completion
+            // says nothing about (null) is passed over. Finding none keeps the window, in statement order.
+            for (var i = start; i <= end; i++)
+            {
+                if (completion(batch!.BatchCommands[i]) == false)
+                {
+                    (start, end) = (i, i);
+                    break;
+                }
+            }
+        }
+
+        for (var i = start; i <= end; i++)
+        {
+            if (TryTransform(operations[i], exception, out transformed))
+            {
+                return true;
+            }
+        }
+
+        transformed = exception;
+        return false;
+    }
+
+    /// <summary>
+    ///     <paramref name="statementCompletion" />, when it can be trusted for this execution: the batch maps
+    ///     one command per operation, and no command reports itself complete before the batch has run. A
+    ///     driver that keeps a command's completion from an earlier execution (Npgsql never resets it) would
+    ///     otherwise name a statement an earlier run completed.
+    /// </summary>
+    private static Func<DbBatchCommand, bool?>? readableCompletion(DbBatch? batch,
+        IReadOnlyList<IStorageOperation> operations, Func<DbBatchCommand, bool?>? statementCompletion)
+    {
+        if (statementCompletion is null || batch is null || batch.BatchCommands.Count != operations.Count)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < batch.BatchCommands.Count; i++)
+        {
+            if (statementCompletion(batch.BatchCommands[i]) == true)
+            {
+                return null;
+            }
+        }
+
+        return statementCompletion;
+    }
+
+    /// <summary>
+    ///     weasel#832: the operations, by index, whose statements the reader is executing right now.
+    ///     <see cref="End" /> below <see cref="Start" /> means none.
+    /// </summary>
+    private sealed class StatementWindow
+    {
+        public int Start { get; private set; }
+        public int End { get; private set; } = -1;
+
+        public void Set(int start, int end) => (Start, End) = (start, end);
+
+        public void Clear() => (Start, End) = (0, -1);
     }
 
     private static bool tryTransformWithListener(IOperationBatchListener? listener, OperationBatchCommand? command,

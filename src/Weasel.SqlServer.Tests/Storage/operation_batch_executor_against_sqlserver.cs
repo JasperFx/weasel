@@ -130,6 +130,27 @@ public class operation_batch_executor_against_sqlserver
     }
 
     [Fact]
+    public async Task a_named_command_settles_a_run_of_statements_the_reader_s_position_cannot_tell_apart()
+    {
+        // weasel#832: both statements run when the reader opens, so position alone would ask both in
+        // statement order and the first would claim the error. SqlClient names the failing command, which
+        // the executor prefers to the position.
+        await using var connection = await openAsync();
+        var mine = new InvalidOperationException("the failing operation's");
+        IStorageOperation[] operations =
+        [
+            new FakeNoDataTransformingOperation("declare @x int = 1", new InvalidOperationException("the first operation's")),
+            new FakeNoDataTransformingOperation(Fail, mine)
+        ];
+        var batch = compile(connection, operations);
+
+        (await Should.ThrowAsync<InvalidOperationException>(() =>
+                OperationBatchExecutor.ExecuteAsync(batch, operations, execute, OperationBatchOptions.Default,
+                    TestContext.Current.CancellationToken)))
+            .ShouldBeSameAs(mine);
+    }
+
+    [Fact]
     public async Task the_listener_reports_success_once_the_batch_is_drained()
     {
         await using var connection = await openAsync();
