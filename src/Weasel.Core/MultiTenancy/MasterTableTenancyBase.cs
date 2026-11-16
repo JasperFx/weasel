@@ -63,8 +63,8 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     // weasel#838: set once any entry point's ProvisionControlTableAsync -- the store's override
     // included -- has returned, so TryResolveTenant knows the table is there without provisioning
     // it, which it cannot do synchronously (Marten provisions through its own async migration).
-    // weasel#850: or once TryProvisionControlTableSynchronously has returned true. One flag for both
-    // paths: once it is set, neither provisions again.
+    // weasel#850: or once TryProvisionControlTableSynchronously has returned true. It only tells the
+    // synchronous path it may read; the asynchronous entry points provision as they always have.
     private volatile bool _controlTableReady;
 
     // weasel#850: serializes TryProvisionControlTableSynchronously against itself. A Lock rather than
@@ -729,8 +729,10 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// (weasel#850).
     /// </summary>
     /// <returns>
-    /// True when the control table is there and may be read: the base then treats it as provisioned
-    /// on both paths, so <see cref="ProvisionControlTableAsync" /> is never called after it. False to
+    /// True when the control table is there and may be read: <see cref="TryResolveTenant" /> then
+    /// stops asking and reads, as it does once an asynchronous entry point has provisioned. The
+    /// asynchronous entry points are unaffected and call <see cref="ProvisionControlTableAsync" />
+    /// as they always have. False to
     /// decline; this is asked again on the next uncached <see cref="TryResolveTenant" />, so an
     /// override that can never provision synchronously should answer cheaply, and one that has a
     /// lasting reason to decline should remember it itself.
@@ -1024,11 +1026,6 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// awaiting anything should also override <see cref="TryProvisionControlTableSynchronously" />,
     /// or <see cref="TryResolveTenant" /> declines until this has run once.
     /// </para>
-    /// <para>
-    /// Once it has returned, or <see cref="TryProvisionControlTableSynchronously" /> has returned
-    /// true, the entry points stop calling it. Concurrent first calls can each reach it, which is why
-    /// it guards itself.
-    /// </para>
     /// </remarks>
     protected virtual async Task ProvisionControlTableAsync(CancellationToken token)
     {
@@ -1072,15 +1069,9 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
 
     // Every entry point provisions through here rather than calling the virtual directly, so the
     // synchronous path can tell the table is there once any of them -- whatever the store's override
-    // does -- has returned. weasel#850: and so that once the synchronous seam has provisioned it, the
-    // asynchronous path does not provision it again; one flag, read by both.
+    // does -- has returned.
     private async Task ensureControlTableAsync(CancellationToken token)
     {
-        if (_controlTableReady)
-        {
-            return;
-        }
-
         await ProvisionControlTableAsync(token).ConfigureAwait(false);
         _controlTableReady = true;
     }
