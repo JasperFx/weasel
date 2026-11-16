@@ -54,6 +54,10 @@ public sealed record EventPageQuery
     /// <see cref="EventTypeAllowList.UpcastSourceAliases"/> when matching on <c>dotnet_type</c>.
     /// Rendering <see cref="EventTypeAllowList.Aliases"/> alone silently drops every row written
     /// under a name an upcaster reads from (weasel#743).
+    /// <para>
+    /// The list can be long, and the dialect must render it whatever its length: bind it as one
+    /// parameter, not one per name. See <see cref="IEventPagingDialect"/> (weasel#846).
+    /// </para>
     /// </remarks>
     public EventTypeAllowList EventTypes { get; init; } = EventTypeAllowList.All;
 

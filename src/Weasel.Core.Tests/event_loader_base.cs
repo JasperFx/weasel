@@ -147,6 +147,25 @@ public class event_loader_base: IDisposable
     // ----------------------------------------------------------------------------------------
 
     [Fact]
+    public async Task an_allow_list_of_2500_names_passes_through_the_base_to_the_dialect()
+    {
+        // weasel#846: the base hands the dialect the whole list and filters nothing itself. Rendering a
+        // list of any length is the dialect's contract; SQL Server's version of this test is the one
+        // with a cap to get past.
+        Append((1, Weasel.Core.Tests.StorageHelpers.LargeEventTypeAllowList.AliasAt(0)), (2, "unwanted"),
+            (3, Weasel.Core.Tests.StorageHelpers.LargeEventTypeAllowList.AliasAt(2499)));
+
+        var allowList = Weasel.Core.Tests.StorageHelpers.LargeEventTypeAllowList.Build();
+        var loader = LoaderFor(new EventLoaderOptions { EventTypes = allowList });
+
+        var page = await loader.LoadAsync(RequestFor(0, 10), CancellationToken.None);
+
+        page.Select(x => x.Sequence).ShouldBe([1, 3]);
+        loader.PageQueries.Single().EventTypes.ShouldBeSameAs(allowList);
+    }
+
+
+    [Fact]
     public async Task the_event_type_filter_is_applied_in_sql_not_after_hydration()
     {
         Append((1, "wanted"), (2, "unwanted"), (3, "wanted"), (4, "unwanted"));

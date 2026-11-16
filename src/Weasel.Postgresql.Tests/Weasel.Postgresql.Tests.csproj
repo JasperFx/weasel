@@ -18,6 +18,7 @@
         <Compile Include="..\Weasel.Core.Tests\Storage\UnionSqlScenarios.cs" Link="Storage\UnionSqlScenarios.cs" />
         <!-- weasel#810: the batch executor's live run uses the same hand-rolled operations. -->
         <Compile Include="..\Weasel.Core.Tests\Storage\StorageTestSupport.cs" Link="Storage\StorageTestSupport.cs" />
+        <Compile Include="..\Weasel.Core.Tests\Storage\LargeEventTypeAllowList.cs" Link="Storage\LargeEventTypeAllowList.cs" />
         <!-- weasel#831: the pooled bdata retry runs the same binary-event dialect. -->
         <Compile Include="..\Weasel.Core.Tests\Storage\BinaryEventSupport.cs" Link="Storage\BinaryEventSupport.cs" />
         <ProjectReference Include="..\Weasel.Testing\Weasel.Testing.csproj" />
