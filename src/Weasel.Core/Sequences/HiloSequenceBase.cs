@@ -21,7 +21,11 @@ public abstract class HiloSequenceBase: ISequence
 {
     // System.Threading.Lock (net9+) — guards the lo-allocation / hi-advance
     // critical section in NextLong so concurrent id requests don't hand out
-    // duplicates or race the hi advance.
+    // duplicates or race the hi advance. TrySetCurrentHi takes it too (weasel#849), so
+    // an install from outside NextLong -- SetFloor, or AdvanceToNextHi called directly --
+    // waits for a NextLong in progress instead of interleaving with it. Lock is
+    // reentrant, so NextLong's own install, made under the lock through
+    // AdvanceToNextHiSync, is unaffected.
     private readonly Lock _lock = new();
 
     protected HiloSequenceBase(string entityName, IReadOnlyHiloSettings settings)
@@ -108,17 +112,30 @@ public abstract class HiloSequenceBase: ISequence
     ///     returns false and the caller should retry. On success the lo offset is
     ///     reset to 1.
     /// </summary>
+    /// <remarks>
+    ///     Serialized with <see cref="NextLong" /> (weasel#849). A call from outside
+    ///     <see cref="NextLong" />, such as a subclass's <see cref="SetFloor" />, waits for
+    ///     a <see cref="NextLong" /> in progress, including its
+    ///     <see cref="AdvanceToNextHiSync" /> round trip, and installs after it. Without
+    ///     that, an advance that reserved its block under the old floor could install it
+    ///     on top of the floor's block once <see cref="SetFloor" /> had returned, and ids
+    ///     below the floor would follow; and an id could be built from the new hi and the
+    ///     old lo, or the reverse, repeating one already issued.
+    /// </remarks>
     protected bool TrySetCurrentHi(object? raw)
     {
-        CurrentHi = Convert.ToInt64(raw);
-
-        if (0 <= CurrentHi)
+        lock (_lock)
         {
-            CurrentLo = 1;
-            return true;
-        }
+            CurrentHi = Convert.ToInt64(raw);
 
-        return false;
+            if (0 <= CurrentHi)
+            {
+                CurrentLo = 1;
+                return true;
+            }
+
+            return false;
+        }
     }
 
     /// <summary>
@@ -135,6 +152,12 @@ public abstract class HiloSequenceBase: ISequence
     ///     <see cref="NextLong" /> under the lock when the current lo allocation is
     ///     exhausted.
     /// </summary>
+    /// <remarks>
+    ///     It must install its block from the calling thread. Since weasel#849
+    ///     <see cref="TrySetCurrentHi" /> takes the same lock, so blocking here on
+    ///     asynchronous work whose continuation calls <see cref="TrySetCurrentHi" /> on
+    ///     another thread would deadlock.
+    /// </remarks>
     protected abstract void AdvanceToNextHiSync();
 
     /// <inheritdoc />
