@@ -263,6 +263,14 @@ but obtained synchronously. Three things a `HiloSequenceBase` subclass should kn
   Code that reads `UpcastSourceAliases` for anything other than that second disjunct should not assume it is
   disjoint from `Aliases`.
 
+- Weasel.Sqlite now depends on Microsoft.Data.Sqlite **10.0.15** ([weasel#857](https://github.com/JasperFx/weasel/issues/857)).
+  Up to 10.0.12 its connection pool could lend one native SQLite handle to two open connections when opens of
+  one database raced (dotnet/efcore#39008). The symptoms were a transaction that "has completed" under you,
+  "unable to delete/modify user-function due to active statements" from `Dispose`, or a process crash in
+  SQLitePCLRaw's rollback hook. 10.0.13 fixed it upstream, and NuGet resolves the new floor for any
+  application that referenced an older version transitively. That fixes connections an application opens
+  itself too, not just Weasel's. SQLitePCLRaw stays on 3.0.5.
+
 ## Dependency lockstep
 
 | Weasel | JasperFx | JasperFx.Events | Marten | Polecat | Fisher | Wolverine |
