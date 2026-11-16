@@ -22,6 +22,29 @@ namespace Weasel.Storage;
 /// <c>@name</c> placeholders, but Postgres wants an explicit <c>NpgsqlDbType.Bigint</c> on the
 /// bounds to keep the planner on an index scan, and only the dialect can say so.
 /// </para>
+/// <para>
+/// <b>A dialect must render an event-type allow list of any length in one statement</b>
+/// (weasel#846). <see cref="EventLoaderBase"/> has no client-side filter to fall back on, by design
+/// (see <see cref="EventTypeAllowList"/>), so a list the provider refuses fails the shard. Binding one
+/// parameter per name is the trap: SQL Server refuses any request with more than 2,100 parameters, so
+/// a shard reading a few thousand event types would die with an <c>SqlException</c>. Bind the whole list
+/// as <b>one</b> parameter and expand it server-side instead:
+/// </para>
+/// <list type="bullet">
+/// <item>SQL Server: <c>type in (select value from openjson(@types) with (value varchar(500) '$'))</c>,
+/// with <c>@types</c> a JSON array. Give the <c>with</c> clause the column's own type: OPENJSON's
+/// default <c>nvarchar(max)</c> compared with a <c>varchar</c> column converts the column and loses the
+/// index seek.</item>
+/// <item>PostgreSQL: <c>type = any(@types)</c>, with <c>@types</c> a <c>text[]</c>.</item>
+/// <item>SQLite: <c>type in (select value from json_each(@types))</c>. SQLite's own cap is 32,766
+/// variables, so one parameter per name only fails much later, but the same shape avoids it.</item>
+/// </list>
+/// <para>
+/// A dialect matching on <c>dotnet_type</c> binds <see cref="EventTypeAllowList.DotNetTypeNames"/> the
+/// same way, plus one more parameter for <see cref="EventTypeAllowList.UpcastSourceAliases"/>. The
+/// skip-ahead probe takes the same filter. <c>LargeEventTypeAllowList</c> in Weasel's own test suite
+/// renders a 2,500-name list through a dialect against SQL Server.
+/// </para>
 /// </remarks>
 public interface IEventPagingDialect
 {
