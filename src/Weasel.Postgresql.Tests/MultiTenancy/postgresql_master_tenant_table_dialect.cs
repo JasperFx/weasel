@@ -35,11 +35,11 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
         await base.DisposeAsync();
     }
 
-    private TestTenancy TenancyFor()
+    private TestTenancy TenancyFor(string? connectionString = null)
     {
         var tenancy = new TestTenancy(new MasterTableTenancyOptions<NpgsqlDataSource>(PostgresqlProvider.Instance)
         {
-            ConnectionString = ConnectionSource.ConnectionString, SchemaName = SchemaName
+            ConnectionString = connectionString ?? ConnectionSource.ConnectionString, SchemaName = SchemaName
         });
 
         _tenancies.Add(tenancy);
@@ -177,6 +177,64 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
     }
 
     [Fact]
+    public async Task a_tenant_resolves_synchronously_against_the_server()
+    {
+        // weasel#838: one blocking read, for a store's synchronous GetTenant.
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("red", "Host=red");
+        await writer.AddDatabaseRecordAsync("blue", "Host=blue");
+        await writer.DisableTenantAsync("blue");
+
+        var tenancy = TenancyFor();
+        await tenancy.AllDisabledAsync(); // provisions, as any asynchronous call does
+
+        tenancy.TryResolveTenant("red", out var red).ShouldBeTrue();
+        red.Status.ShouldBe(MasterTenantStatus.Enabled);
+        red.Database.ShouldNotBeNull().ConnectionString.ShouldStartWith("Host=red");
+        tenancy.FindCachedDatabase("red").ShouldBeSameAs(red.Database);
+
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+        blue.ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Disabled, null));
+
+        tenancy.TryResolveTenant("nobody", out var nobody).ShouldBeTrue();
+        nobody.ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Unknown, null));
+    }
+
+    [Fact]
+    public async Task a_multiplexing_data_source_hands_resolution_back_to_the_asynchronous_path()
+    {
+        // Npgsql refuses synchronous commands under multiplexing.
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("red", "Host=red");
+
+        var tenancy = TenancyFor(ConnectionSource.ConnectionString + ";Multiplexing=true");
+        await tenancy.AllDisabledAsync();
+
+        tenancy.TryResolveTenant("red", out var resolution).ShouldBeFalse();
+        resolution.ShouldBe(default);
+        tenancy.SynchronousReadAttempts.ShouldBe(0, "the connection string says multiplexing, so nothing is tried");
+
+        (await tenancy.ResolveTenantAsync("red")).Status.ShouldBe(MasterTenantStatus.Enabled);
+    }
+
+    [Fact]
+    public async Task npgsqls_refusal_is_caught_when_the_connection_string_check_is_overridden()
+    {
+        // The safety net under the check: a store whose override says yes regardless still falls
+        // back on the driver's NotSupportedException, rather than throwing it at a caller.
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("red", "Host=red");
+
+        var tenancy = TenancyFor(ConnectionSource.ConnectionString + ";Multiplexing=true");
+        tenancy.ClaimSynchronousReads = true;
+        await tenancy.AllDisabledAsync();
+
+        tenancy.TryResolveTenant("red", out _).ShouldBeFalse();
+        tenancy.TryResolveTenant("red", out _).ShouldBeFalse();
+        tenancy.SynchronousReadAttempts.ShouldBe(1, "the refusal is remembered");
+    }
+
+    [Fact]
     public void the_qualified_name_quotes_what_needs_quoting()
     {
         var dialect = PostgresqlMasterTenantTableDialect.Instance;
@@ -196,5 +254,18 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
 
         protected override TestDatabase BuildDatabase(string tenantId, string connectionString) =>
             new(tenantId, connectionString);
+
+        public int SynchronousReadAttempts { get; private set; }
+
+        public bool ClaimSynchronousReads { get; set; }
+
+        protected override bool SupportsSynchronousControlTableReads =>
+            ClaimSynchronousReads || base.SupportsSynchronousControlTableReads;
+
+        protected override T ExecuteSynchronously<T>(Func<T> operation)
+        {
+            SynchronousReadAttempts++;
+            return base.ExecuteSynchronously(operation);
+        }
     }
 }

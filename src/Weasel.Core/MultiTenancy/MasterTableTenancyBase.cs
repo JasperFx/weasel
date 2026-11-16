@@ -60,6 +60,15 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     private volatile bool _controlTableProvisioned;
     private volatile bool _seeded;
 
+    // weasel#838: set once any entry point's ProvisionControlTableAsync -- the store's override
+    // included -- has returned, so TryResolveTenant knows the table is there without provisioning
+    // it, which it cannot do synchronously (Marten provisions through its own async migration).
+    private volatile bool _controlTableReady;
+
+    // weasel#838: whether the control-plane data source takes synchronous I/O. Null until first
+    // asked; false once it has refused (Npgsql with Multiplexing=true).
+    private bool? _synchronousReads;
+
     /// <param name="options">
     /// The shared options — master connection string or data source, schema name, application name,
     /// <see cref="MasterTableTenancyOptions{T}.AutoCreate" /> override and seed databases.
@@ -261,7 +270,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// </remarks>
     public async Task<IReadOnlyList<TDatabase>> BuildDatabasesAsync(CancellationToken token = default)
     {
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
         await SeedDatabasesAsync(token).ConfigureAwait(false);
 
         // Taken before the read: anything cached after it may be newer than what the read sees.
@@ -425,7 +434,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     public async Task<string?> LookupConnectionStringAsync(string tenantId, CancellationToken token = default)
     {
         tenantId = CorrectTenantId(tenantId);
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         var connectionString = await ExecuteAsync(async ct =>
         {
@@ -456,7 +465,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     public async Task<MasterTenantLookup> LookupTenantAsync(string tenantId, CancellationToken token = default)
     {
         tenantId = CorrectTenantId(tenantId);
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         var sql = Dialect.SelectTenantRow(QualifiedTableName);
         if (sql is null)
@@ -483,6 +492,11 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
             return (true, value, flag);
         }, token).ConfigureAwait(false);
 
+        return toLookup(found, connectionString, disabled);
+    }
+
+    private MasterTenantLookup toLookup(bool found, string? connectionString, bool disabled)
+    {
         if (!found)
         {
             return new MasterTenantLookup(MasterTenantStatus.Unknown, null);
@@ -555,6 +569,160 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     }
 
     /// <summary>
+    /// Resolve a tenant's database <b>synchronously</b> — from the cache, or with one blocking read
+    /// of the control table — when that can be done without waiting on asynchronous work. Returns
+    /// false, touching nothing, when it cannot; the caller then resolves through
+    /// <see cref="ResolveTenantAsync" /> (weasel#838).
+    /// </summary>
+    /// <param name="tenantId">The tenant id, before <see cref="CorrectTenantId" />.</param>
+    /// <param name="resolution">
+    /// When this returns true, the same answer <see cref="ResolveTenantAsync" /> would give, and a
+    /// tenant it finds enabled is cached in the same cache, so the two paths see one set of tenants.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// For a store's synchronous tenant lookup, which otherwise has to block a thread on
+    /// <see cref="ResolveTenantAsync" /> for every uncached tenant. Under a burst of cold tenants
+    /// from pool threads that is thread-pool starvation (marten#5985). The read here is
+    /// <see cref="DbDataSource.OpenConnection" /> and one statement through
+    /// <see cref="IMasterTenantTableDialect.SelectTenantRow" />, run inside
+    /// <see cref="ExecuteSynchronously{T}" />; there is no <see cref="Task" /> anywhere in it.
+    /// </para>
+    /// <code>
+    /// if (!TryResolveTenant(tenantId, out var resolution))
+    /// {
+    ///     resolution = ResolveTenantAsync(tenantId).AsTask().GetAwaiter().GetResult();
+    /// }
+    /// return resolution.Database ?? throw CreateTenantRefusal(tenantId, resolution.Status);
+    /// </code>
+    /// <para>
+    /// A cached tenant always resolves here. An uncached one returns false — the fallback — when:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>No entry point has provisioned the control table yet. Provisioning is asynchronous
+    /// (<see cref="ProvisionControlTableAsync" />, which a store may override with its own
+    /// migration), so this never does it; any asynchronous call, <see cref="BuildDatabasesAsync" />
+    /// at start-up included, makes every later call eligible.</item>
+    /// <item>The control-plane data source does not take synchronous I/O
+    /// (<see cref="SupportsSynchronousControlTableReads" />): Npgsql refuses it when
+    /// <c>Multiplexing=true</c>. A <see cref="NotSupportedException" /> from the read itself is taken
+    /// as the same refusal, and remembered.</item>
+    /// <item>The dialect does not render <see cref="IMasterTenantTableDialect.SelectTenantRow" />, so
+    /// telling a disabled tenant from an unknown one would take a second read.</item>
+    /// </list>
+    /// <para>
+    /// Any other failure of the read — the database is down, the table is missing under
+    /// <see cref="AutoCreate.None" /> — is thrown, as <see cref="ResolveTenantAsync" /> would throw it.
+    /// </para>
+    /// </remarks>
+    public bool TryResolveTenant(string tenantId, out MasterTenantResolution<TDatabase> resolution)
+    {
+        tenantId = CorrectTenantId(tenantId);
+
+        if (_databases.TryGetValue(tenantId, out var cached))
+        {
+            resolution = new MasterTenantResolution<TDatabase>(MasterTenantStatus.Enabled, cached.Database);
+            return true;
+        }
+
+        resolution = default;
+
+        var sql = Dialect.SelectTenantRow(QualifiedTableName);
+        if (sql is null || !_controlTableReady || !canReadSynchronously())
+        {
+            return false;
+        }
+
+        (bool Found, string? ConnectionString, bool Disabled) row;
+        try
+        {
+            row = ExecuteSynchronously(() => readTenantRow(sql, tenantId));
+        }
+        catch (NotSupportedException)
+        {
+            // Npgsql's "Synchronous command execution is not supported when multiplexing is on",
+            // for a data source whose connection string did not say so where it could be read.
+            _synchronousReads = false;
+            return false;
+        }
+
+        var lookup = toLookup(row.Found, row.ConnectionString, row.Disabled);
+        if (lookup.Status != MasterTenantStatus.Enabled)
+        {
+            resolution = new MasterTenantResolution<TDatabase>(lookup.Status, null);
+            return true;
+        }
+
+        var connectionString = lookup.ConnectionString!;
+        var database = _databases.GetOrAdd(tenantId,
+            id => new TenantEntry(connectionString, BuildDatabase(id, connectionString))).Database;
+
+        resolution = new MasterTenantResolution<TDatabase>(MasterTenantStatus.Enabled, database);
+        return true;
+    }
+
+    /// <summary>
+    /// Whether the control-plane data source takes synchronous I/O, for
+    /// <see cref="TryResolveTenant" />. Asked once per instance.
+    /// </summary>
+    /// <remarks>
+    /// The default reads the data source's connection string and answers false when it sets
+    /// <c>Multiplexing=true</c>, which Npgsql refuses synchronous commands under; every other
+    /// provider ignores the keyword. Override where a store knows better, for example from its own
+    /// data source's settings.
+    /// </remarks>
+    protected virtual bool SupportsSynchronousControlTableReads
+    {
+        get
+        {
+            var builder = new DbConnectionStringBuilder();
+            try
+            {
+                builder.ConnectionString = MasterDataSource.ConnectionString;
+            }
+            catch (ArgumentException)
+            {
+                // Not in the generic key=value form, so nothing here can be read from it.
+                return true;
+            }
+
+            return !(builder.TryGetValue("Multiplexing", out var value)
+                     && bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out var multiplexing)
+                     && multiplexing);
+        }
+    }
+
+    /// <summary>
+    /// Run one synchronous control-plane operation, for <see cref="TryResolveTenant" />. The default
+    /// just runs it; override to wrap it in the store's resilience pipeline, as
+    /// <see cref="ExecuteAsync{T}" /> is for the asynchronous calls.
+    /// </summary>
+    /// <remarks>
+    /// An override must not block on asynchronous work here — that is the whole point of the
+    /// synchronous path. A pipeline with no synchronous form should leave this alone rather than
+    /// wrap it in sync-over-async.
+    /// </remarks>
+    protected virtual T ExecuteSynchronously<T>(Func<T> operation) => operation();
+
+    private bool canReadSynchronously() => _synchronousReads ??= SupportsSynchronousControlTableReads;
+
+    private (bool Found, string? ConnectionString, bool Disabled) readTenantRow(string sql, string tenantId)
+    {
+        using var conn = MasterDataSource.OpenConnection();
+        using var cmd = CreateCommand(conn, sql, ("@id", tenantId));
+        using var reader = cmd.ExecuteReader();
+
+        if (!reader.Read())
+        {
+            return (false, null, false);
+        }
+
+        var value = reader.IsDBNull(0) ? null : reader.GetString(0);
+        var flag = !reader.IsDBNull(1) && Convert.ToBoolean(reader.GetValue(1), CultureInfo.InvariantCulture);
+        return (true, value, flag);
+    }
+
+    /// <summary>
     /// The exception refusing a tenant this tenancy will not route to. Used by
     /// <see cref="ITenantedSource{T}.FindAsync" />, and by a store turning a
     /// <see cref="ResolveTenantAsync" /> miss into an exception.
@@ -575,7 +743,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// <summary>The tenant ids currently disabled.</summary>
     public async Task<IReadOnlyList<string>> AllDisabledAsync(CancellationToken token = default)
     {
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         return await ExecuteAsync(async ct =>
         {
@@ -610,7 +778,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
         tenantId = CorrectTenantId(tenantId);
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         await ExecuteAsync(async ct =>
         {
@@ -647,7 +815,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         tenantId = CorrectTenantId(tenantId);
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         // Evicted before the delete, not after: a caller racing this must not be handed a database
         // for a record that is on its way out.
@@ -666,7 +834,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// <summary>Remove every tenant record and empty the cache.</summary>
     public async Task ClearAllDatabaseRecordsAsync(CancellationToken token = default)
     {
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         foreach (var tenantId in _databases.Keys.ToList())
         {
@@ -691,7 +859,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         tenantId = CorrectTenantId(tenantId);
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         await SetDisabledAsync(tenantId, true, token).ConfigureAwait(false);
 
@@ -706,7 +874,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         tenantId = CorrectTenantId(tenantId);
-        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        await ensureControlTableAsync(token).ConfigureAwait(false);
 
         await SetDisabledAsync(tenantId, false, token).ConfigureAwait(false);
 
@@ -776,6 +944,15 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         {
             _provisioning.Release();
         }
+    }
+
+    // Every entry point provisions through here rather than calling the virtual directly, so the
+    // synchronous path can tell the table is there once any of them -- whatever the store's override
+    // does -- has returned.
+    private async Task ensureControlTableAsync(CancellationToken token)
+    {
+        await ProvisionControlTableAsync(token).ConfigureAwait(false);
+        _controlTableReady = true;
     }
 
     /// <summary>
