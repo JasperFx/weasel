@@ -46,6 +46,16 @@ namespace Weasel.Storage;
 /// upcasting exists to read, and reports itself caught up (fisher#191, polecat#561).
 /// </item>
 /// </list>
+/// <para>
+/// <b>An abstract or interface type anywhere on the list makes it <see cref="All"/></b>
+/// (weasel#845). A stored row carries its concrete type, never <c>IDomainEvent</c>, so an alias built
+/// for an interface — from <c>IncludeType&lt;IDomainEvent&gt;()</c>, or a projection's
+/// <c>Apply(IDomainEvent e)</c> — matches nothing, and the pushed-down filter would exclude every
+/// event that implements it. The shard reads a short page, claims the ceiling, and reports itself
+/// caught up with nothing logged. Reading everything and letting the projection or subscription do its
+/// own type dispatch after hydration is Marten's rule too. Expanding the interface to its registered
+/// implementers instead would keep the push-down, but would quietly miss one not registered yet.
+/// </para>
 /// </remarks>
 public sealed class EventTypeAllowList
 {
@@ -202,12 +212,17 @@ public sealed class EventTypeAllowList
     /// <summary>
     /// Build the allow list for an explicit set of event types.
     /// </summary>
+    /// <remarks>
+    /// Returns <see cref="All"/> when the list is empty, and when any type on it can never be the
+    /// type a stored row carries — an interface, an abstract class, or <see cref="object"/> — since a
+    /// filter on its alias would match nothing that implements or derives from it (weasel#845).
+    /// </remarks>
     public static EventTypeAllowList For(IEventRegistry registry, IReadOnlyList<Type> eventTypes)
     {
         ArgumentNullException.ThrowIfNull(registry);
         ArgumentNullException.ThrowIfNull(eventTypes);
 
-        if (eventTypes.Count == 0)
+        if (eventTypes.Count == 0 || eventTypes.Any(CannotBeAStoredType))
         {
             return All;
         }
@@ -236,6 +251,19 @@ public sealed class EventTypeAllowList
         return new EventTypeAllowList(aliases, dotNetTypeNames,
             UpcastSourcesFor((registry as EventRegistry)?.Upcasters, eventTypes, aliases));
     }
+
+    /// <summary>
+    /// True for a type no stored event row can carry as its own: an interface, an abstract class, or
+    /// <see cref="object"/>. Such a type on an allow list means "everything implementing this", which
+    /// an alias filter cannot express (weasel#845).
+    /// </summary>
+    /// <remarks>
+    /// A <em>concrete</em> base class with derived event types is not caught here, as it is not by
+    /// Marten's rule either: the base class can be stored under its own alias, and nothing short of
+    /// knowing every subclass, registered or not, says whether rows also carry the subclasses.
+    /// </remarks>
+    public static bool CannotBeAStoredType(Type eventType) =>
+        eventType.IsInterface || eventType.IsAbstract || eventType == typeof(object);
 
     private static IReadOnlyList<string> UpcastSourcesFor(UpcastingRegistry? upcasters,
         IReadOnlyList<Type> eventTypes, List<string> aliases)
