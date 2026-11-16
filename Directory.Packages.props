@@ -18,7 +18,13 @@
     <PackageVersion Include="JasperFx" Version="3.0.0" />
     <PackageVersion Include="JasperFx.Events" Version="3.0.0" />
     <PackageVersion Include="JasperFx.SourceGenerator" Version="3.0.0" />
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.9" />
+    <!-- weasel#857: 10.0.13 is the first with dotnet/efcore#39012. Up to 10.0.12 the pool could lend one
+         native handle to two open connections when opens raced (an Activate that published _active before
+         its owner, read by a concurrent ReclaimLeakedConnections), failing as a "completed" transaction,
+         "unable to delete/modify user-function", or a crash in SQLitePCLRaw's rollback hook bridge.
+         Pinned instead of locking around Open in Weasel, so connections applications open themselves are
+         fixed too. no_pooled_handle_is_lent_to_two_open_connections guards it: do not go below 10.0.13. -->
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <!-- Override the transitive SQLitePCLRaw 2.1.11 (vulnerable native lib,
          GHSA-2m69-gcr7-jv3q) with 3.0.3, which ships the patched SQLite build. -->
     <!-- weasel#739: stay on the e_sqlite3 bundle, on the SQLitePCLRaw 3.0.x line.
