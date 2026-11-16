@@ -836,6 +836,161 @@ public class master_table_tenancy: IAsyncDisposable
         refusal.ShouldBeOfType<UnknownTenantIdException>();
     }
 
+    // ------------------------------------------------------------------------------------------
+    // weasel#838 -- synchronous resolution
+    // ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task a_tenant_resolves_synchronously_without_the_asynchronous_path()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await writer.AddDatabaseRecordAsync("green", "Data Source=green.db");
+        await writer.DisableTenantAsync("green");
+
+        // A second node, with an empty cache, that has provisioned the table on some earlier call.
+        var tenancy = TenancyFor();
+        await tenancy.AllDisabledAsync();
+        var asynchronous = tenancy.Executions;
+
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+        blue.Status.ShouldBe(MasterTenantStatus.Enabled);
+        blue.Database.ShouldNotBeNull().ConnectionString.ShouldBe("Data Source=blue.db");
+
+        tenancy.TryResolveTenant("green", out var green).ShouldBeTrue();
+        green.ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Disabled, null));
+
+        tenancy.TryResolveTenant("nobody", out var nobody).ShouldBeTrue();
+        nobody.ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Unknown, null));
+
+        // One synchronous read each, and nothing through ExecuteAsync.
+        tenancy.SynchronousExecutions.ShouldBe(3);
+        tenancy.Executions.ShouldBe(asynchronous);
+
+        // The one cache: the asynchronous path and the cache readers see what the synchronous path added.
+        tenancy.AllTenantIds().ShouldBe(["blue"]);
+        tenancy.FindCachedDatabase("blue").ShouldBeSameAs(blue.Database);
+        (await tenancy.ResolveTenantAsync("blue")).Database.ShouldBeSameAs(blue.Database);
+        tenancy.AllDatabases().ShouldBe([blue.Database]);
+    }
+
+    [Fact]
+    public async Task a_cached_tenant_resolves_synchronously_with_no_read()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        var cached = tenancy.FindCachedDatabase("blue");
+
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+
+        blue.Database.ShouldBeSameAs(cached);
+        tenancy.SynchronousExecutions.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task what_the_synchronous_path_caches_is_evicted_like_anything_else()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.EvictForTestAsync("blue");
+
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+
+        var otherNode = TenancyFor();
+        await otherNode.DisableTenantAsync("blue");
+        await tenancy.BuildDatabasesAsync();
+
+        tenancy.FindCachedDatabase("blue").ShouldBeNull();
+        blue.Database.ShouldNotBeNull().Disposed.ShouldBeTrue();
+        tenancy.TryResolveTenant("blue", out var again).ShouldBeTrue();
+        again.Status.ShouldBe(MasterTenantStatus.Disabled);
+    }
+
+    [Fact]
+    public async Task before_the_control_table_is_provisioned_it_falls_back()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+
+        // Provisioning is asynchronous and a store may override it, so the synchronous path never
+        // does it: a fresh instance hands the first resolution back to the asynchronous path.
+        var tenancy = TenancyFor();
+        tenancy.TryResolveTenant("blue", out var resolution).ShouldBeFalse();
+        resolution.ShouldBe(default);
+        tenancy.SynchronousExecutions.ShouldBe(0);
+        tenancy.AllTenantIds().ShouldBeEmpty();
+
+        // Any asynchronous entry point makes every later call eligible.
+        (await tenancy.ResolveTenantAsync("nobody")).Status.ShouldBe(MasterTenantStatus.Unknown);
+        tenancy.TryResolveTenant("blue", out resolution).ShouldBeTrue();
+        resolution.Status.ShouldBe(MasterTenantStatus.Enabled);
+    }
+
+    [Fact]
+    public async Task a_dialect_without_the_row_read_falls_back()
+    {
+        var tenancy = TenancyFor();
+        tenancy.DialectRendersRowRead = false;
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.EvictForTestAsync("blue");
+
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.SynchronousExecutions.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task a_data_source_that_refuses_synchronous_io_falls_back_and_is_remembered()
+    {
+        var tenancy = TenancyFor();
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.EvictForTestAsync("blue");
+
+        // What Npgsql throws for a synchronous command under Multiplexing=true.
+        tenancy.RefuseSynchronousIo = true;
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+
+        tenancy.RefuseSynchronousIo = false;
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.SynchronousExecutions.ShouldBe(1);
+
+        (await tenancy.ResolveTenantAsync("blue")).Status.ShouldBe(MasterTenantStatus.Enabled);
+    }
+
+    [Fact]
+    public async Task a_store_that_says_it_has_no_synchronous_io_is_never_read_synchronously()
+    {
+        var tenancy = TenancyFor();
+        tenancy.SynchronousReadsSupported = false;
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.EvictForTestAsync("blue");
+
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.SynchronousExecutions.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task the_synchronous_path_applies_the_tenant_id_correction()
+    {
+        var tenancy = TenancyFor();
+        tenancy.LowerCaseTenantIds = true;
+        await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+        await tenancy.EvictForTestAsync("blue");
+
+        tenancy.TryResolveTenant("BLUE", out var blue).ShouldBeTrue();
+        blue.Status.ShouldBe(MasterTenantStatus.Enabled);
+        tenancy.AllTenantIds().ShouldBe(["blue"]);
+    }
+
+    [Fact]
+    public async Task any_other_failure_of_the_read_is_thrown()
+    {
+        // The schema is the operator's and nobody created the table.
+        var tenancy = TenancyFor(o => o.AutoCreate = AutoCreate.None);
+        await Should.ThrowAsync<SqliteException>(async () => await tenancy.AllDisabledAsync());
+
+        Should.Throw<SqliteException>(() => tenancy.TryResolveTenant("blue", out _));
+    }
+
     #region test doubles
 
     /// <summary>Stands in for a store's own database type.</summary>
@@ -925,6 +1080,27 @@ public class master_table_tenancy: IAsyncDisposable
             : base(options, "tenants", dialect) => _dialect = dialect;
 
         public int Executions => _executions;
+
+        /// <summary>Every synchronous control-plane call, through ExecuteSynchronously.</summary>
+        public int SynchronousExecutions { get; private set; }
+
+        /// <summary>Throw what Npgsql throws for a synchronous command under multiplexing.</summary>
+        public bool RefuseSynchronousIo { get; set; }
+
+        public bool SynchronousReadsSupported { get; set; } = true;
+
+        protected override bool SupportsSynchronousControlTableReads => SynchronousReadsSupported;
+
+        protected override T ExecuteSynchronously<T>(Func<T> operation)
+        {
+            SynchronousExecutions++;
+            if (RefuseSynchronousIo)
+            {
+                throw new NotSupportedException("Synchronous command execution is not supported when multiplexing is on");
+            }
+
+            return base.ExecuteSynchronously(operation);
+        }
         public int ProvisioningAttempts => _dialect.CreateControlTableCalls;
         public bool LowerCaseTenantIds { get; set; }
 

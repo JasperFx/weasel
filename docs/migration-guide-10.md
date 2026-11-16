@@ -15,6 +15,7 @@ newly shipped storage family, and one obsolete method.
 | EF Core 10 is the floor for `Weasel.EntityFrameworkCore` | Pin bump; EF Core 10 also runs on the .NET 11 runtime |
 | `Weasel.Sqlite` stays on the `e_sqlite3` bundle, SQLitePCLRaw 3.0.x | None, unless you choose a different bundle |
 | `Weasel.Storage` closed-shape document storage family | Additive; only matters if you build a document store on Weasel |
+| `MasterTableTenancyBase.TryResolveTenant`: synchronous tenant resolution, no `Task` in the chain ([weasel#838](https://github.com/JasperFx/weasel/issues/838)) | Additive; a store's synchronous tenant lookup can stop blocking on `ResolveTenantAsync` |
 | `ConnectionSourceExtensions.RunSql<T>` is `[Obsolete]` | Switch to `RunSqlAsync<T>` |
 | `ISequence.NextLongAsync` / `NextIntAsync` for Hi-Lo ids | Additive; only matters if you build a store on Weasel |
 | MySQL tests for the EF Core bridge are compiled out | No library change; Pomelo has no EF Core 10 release |
