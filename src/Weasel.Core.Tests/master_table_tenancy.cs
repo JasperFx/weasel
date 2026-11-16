@@ -991,6 +991,218 @@ public class master_table_tenancy: IAsyncDisposable
         Should.Throw<SqliteException>(() => tenancy.TryResolveTenant("blue", out _));
     }
 
+    // ------------------------------------------------------------------------------------------
+    // weasel#850 -- provisioning the control table synchronously
+    // ------------------------------------------------------------------------------------------
+
+    [Fact]
+    public void by_default_a_cold_tenancy_does_not_provision_synchronously_and_falls_back()
+    {
+        var tenancy = TenancyFor();
+
+        tenancy.TryResolveTenant("blue", out var resolution).ShouldBeFalse();
+        resolution.ShouldBe(default);
+
+        tenancy.SynchronousExecutions.ShouldBe(0);
+        tenancy.ProvisioningAttempts.ShouldBe(0);
+        File.Exists(_path).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task a_store_that_provisions_synchronously_resolves_a_cold_tenant_with_no_asynchronous_call()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+
+        // A fresh node -- the first requests after a deploy -- that nothing asynchronous has touched.
+        var tenancy = TenancyFor();
+        tenancy.SynchronousProvisioning = tenancy.ProvisionControlTableForTest;
+
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+        blue.Status.ShouldBe(MasterTenantStatus.Enabled);
+        blue.Database.ShouldNotBeNull().ConnectionString.ShouldBe("Data Source=blue.db");
+
+        tenancy.TryResolveTenant("nobody", out var nobody).ShouldBeTrue();
+        nobody.Status.ShouldBe(MasterTenantStatus.Unknown);
+
+        // Asked once, and nothing went through the asynchronous path.
+        tenancy.SynchronousProvisioningCalls.ShouldBe(1);
+        tenancy.Executions.ShouldBe(0);
+
+        // The asynchronous entry points still work, and still provision as they always have: the
+        // seam only stands in for them on the synchronous path.
+        (await tenancy.ResolveTenantAsync("blue")).Database.ShouldBeSameAs(blue.Database);
+        await tenancy.AllDisabledAsync();
+        tenancy.AsynchronousProvisioningCalls.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public void the_synchronous_seam_can_create_the_control_table_itself()
+    {
+        var tenancy = TenancyFor();
+        tenancy.SynchronousProvisioning = tenancy.ProvisionControlTableForTest;
+
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+
+        blue.Status.ShouldBe(MasterTenantStatus.Unknown);
+        tenancy.ProvisioningAttempts.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task once_the_asynchronous_path_has_provisioned_the_synchronous_seam_is_never_asked()
+    {
+        var tenancy = TenancyFor();
+        tenancy.SynchronousProvisioning = () => throw new InvalidOperationException("never asked");
+        await tenancy.AllDisabledAsync();
+
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+        blue.Status.ShouldBe(MasterTenantStatus.Unknown);
+        tenancy.SynchronousProvisioningCalls.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task a_store_that_declines_synchronous_provisioning_is_asked_again_on_every_cold_call()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+
+        var tenancy = TenancyFor();
+        var ready = false;
+        tenancy.SynchronousProvisioning = () => ready;
+
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.SynchronousProvisioningCalls.ShouldBe(3);
+        tenancy.SynchronousExecutions.ShouldBe(0);
+
+        // A decline is not remembered, so a store whose answer changes is heard.
+        ready = true;
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+        blue.Status.ShouldBe(MasterTenantStatus.Enabled);
+        tenancy.SynchronousProvisioningCalls.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task a_seam_that_refuses_synchronous_io_falls_back_and_is_not_asked_again()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+
+        var tenancy = TenancyFor();
+        tenancy.SynchronousProvisioning = () =>
+            throw new NotSupportedException("Synchronous command execution is not supported when multiplexing is on");
+
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.SynchronousProvisioningCalls.ShouldBe(1);
+
+        // Remembered as a refusal to provision, not to read: once the asynchronous path has
+        // provisioned the table, reads are eligible again.
+        (await tenancy.ResolveTenantAsync("nobody")).Status.ShouldBe(MasterTenantStatus.Unknown);
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+        blue.Status.ShouldBe(MasterTenantStatus.Enabled);
+    }
+
+    [Fact]
+    public async Task any_other_failure_of_synchronous_provisioning_is_thrown_and_not_remembered()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+
+        var tenancy = TenancyFor();
+        var fail = true;
+        tenancy.SynchronousProvisioning = () => fail ? throw new InvalidOperationException("the database is down") : true;
+
+        Should.Throw<InvalidOperationException>(() => tenancy.TryResolveTenant("blue", out _));
+
+        fail = false;
+        tenancy.TryResolveTenant("blue", out var blue).ShouldBeTrue();
+        blue.Status.ShouldBe(MasterTenantStatus.Enabled);
+        tenancy.SynchronousProvisioningCalls.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task a_store_without_synchronous_reads_is_never_asked_to_provision_synchronously()
+    {
+        var writer = TenancyFor();
+        await writer.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
+
+        var tenancy = TenancyFor();
+        tenancy.SynchronousReadsSupported = false;
+        tenancy.SynchronousProvisioning = () => true;
+
+        tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
+        tenancy.SynchronousProvisioningCalls.ShouldBe(0);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task a_burst_of_cold_callers_runs_the_synchronous_seam_one_at_a_time(bool provisions)
+    {
+        const int callers = 16;
+
+        var writer = TenancyFor();
+        for (var i = 0; i < callers; i++)
+        {
+            await writer.AddDatabaseRecordAsync($"t{i}", $"Data Source=t{i}.db");
+        }
+
+        var tenancy = TenancyFor();
+        var inFlight = 0;
+        var mostInFlight = 0;
+        tenancy.SynchronousProvisioning = () =>
+        {
+            var now = Interlocked.Increment(ref inFlight);
+            InterlockedMax(ref mostInFlight, now);
+
+            // Long enough that every caller arrives while the first is still in here.
+            Thread.Sleep(50);
+
+            Interlocked.Decrement(ref inFlight);
+            return provisions && tenancy.ProvisionControlTableForTest();
+        };
+
+        var results = new bool[callers];
+        using var start = new Barrier(callers);
+        var threads = Enumerable.Range(0, callers).Select(i => new Thread(() =>
+        {
+            start.SignalAndWait();
+            results[i] = tenancy.TryResolveTenant($"t{i}", out _);
+        })).ToList();
+
+        foreach (var thread in threads) thread.Start();
+        foreach (var thread in threads) thread.Join();
+
+        mostInFlight.ShouldBe(1);
+
+        if (provisions)
+        {
+            // Everybody who waited re-checks and finds the table ready: provisioned once.
+            results.ShouldAllBe(x => x);
+            tenancy.SynchronousProvisioningCalls.ShouldBe(1);
+            tenancy.AllTenantIds().Count.ShouldBe(callers);
+        }
+        else
+        {
+            // A decline is not shared with the callers that waited: each asks in turn.
+            results.ShouldAllBe(x => !x);
+            tenancy.SynchronousProvisioningCalls.ShouldBe(callers);
+        }
+    }
+
+    private static void InterlockedMax(ref int target, int value)
+    {
+        var current = Volatile.Read(ref target);
+        while (value > current)
+        {
+            var seen = Interlocked.CompareExchange(ref target, value, current);
+            if (seen == current) return;
+            current = seen;
+        }
+    }
+
     #region test doubles
 
     /// <summary>Stands in for a store's own database type.</summary>
@@ -1012,8 +1224,8 @@ public class master_table_tenancy: IAsyncDisposable
     {
         /// <summary>
         /// How many times the base actually rendered the control-table DDL. Counted here rather
-        /// than around <c>ProvisionControlTableAsync</c>, which is called on every entry point and
-        /// returns early once provisioned — so counting the calls would say nothing.
+        /// than around <c>ProvisionControlTableAsync</c>, which concurrent first calls can each reach
+        /// and which returns early once provisioned — so counting the calls would say little.
         /// </summary>
         public int CreateControlTableCalls { get; private set; }
 
@@ -1102,6 +1314,49 @@ public class master_table_tenancy: IAsyncDisposable
             return base.ExecuteSynchronously(operation);
         }
         public int ProvisioningAttempts => _dialect.CreateControlTableCalls;
+
+        /// <summary>Stands in for a store's synchronous provisioning; null keeps the base's default.</summary>
+        public Func<bool>? SynchronousProvisioning { get; set; }
+
+        private int _synchronousProvisioningCalls;
+        public int SynchronousProvisioningCalls => Volatile.Read(ref _synchronousProvisioningCalls);
+
+        private int _asynchronousProvisioningCalls;
+
+        /// <summary>
+        /// Every call the entry points make to ProvisionControlTableAsync, whether or not it then
+        /// returns early -- which is what says whether the asynchronous path provisions again.
+        /// </summary>
+        public int AsynchronousProvisioningCalls => Volatile.Read(ref _asynchronousProvisioningCalls);
+
+        protected override bool TryProvisionControlTableSynchronously()
+        {
+            var provisioning = SynchronousProvisioning;
+            if (provisioning is null)
+            {
+                return base.TryProvisionControlTableSynchronously();
+            }
+
+            Interlocked.Increment(ref _synchronousProvisioningCalls);
+            return provisioning();
+        }
+
+        protected override Task ProvisionControlTableAsync(CancellationToken token)
+        {
+            Interlocked.Increment(ref _asynchronousProvisioningCalls);
+            return base.ProvisionControlTableAsync(token);
+        }
+
+        /// <summary>The dialect's idempotent DDL, run with blocking I/O, as a store's override would.</summary>
+        public bool ProvisionControlTableForTest()
+        {
+            using var conn = MasterDataSource.OpenConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = Dialect.CreateControlTable(Options.SchemaName, TableName, QualifiedTableName);
+            cmd.ExecuteNonQuery();
+            return true;
+        }
+
         public bool LowerCaseTenantIds { get; set; }
 
         public bool DialectRendersRowRead

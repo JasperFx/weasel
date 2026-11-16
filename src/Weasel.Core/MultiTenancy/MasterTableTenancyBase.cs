@@ -63,7 +63,19 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     // weasel#838: set once any entry point's ProvisionControlTableAsync -- the store's override
     // included -- has returned, so TryResolveTenant knows the table is there without provisioning
     // it, which it cannot do synchronously (Marten provisions through its own async migration).
+    // weasel#850: or once TryProvisionControlTableSynchronously has returned true. It only tells the
+    // synchronous path it may read; the asynchronous entry points provision as they always have.
     private volatile bool _controlTableReady;
+
+    // weasel#850: serializes TryProvisionControlTableSynchronously against itself. A Lock rather than
+    // _provisioning, because a thread waiting here waits on synchronous I/O another thread is doing,
+    // which needs no pool thread to finish; waiting on _provisioning could be waiting on an await.
+    private readonly Lock _synchronousProvisioningLock = new();
+
+    // weasel#850: set when TryProvisionControlTableSynchronously threw NotSupportedException, so a
+    // burst does not throw and catch it once per call. Reads stay eligible once an asynchronous entry
+    // point has provisioned the table.
+    private volatile bool _synchronousProvisioningRefused;
 
     // weasel#838: whether the control-plane data source takes synchronous I/O. Null until first
     // asked; false once it has refused (Npgsql with Multiplexing=true).
@@ -599,20 +611,23 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// A cached tenant always resolves here. An uncached one returns false — the fallback — when:
     /// </para>
     /// <list type="bullet">
-    /// <item>No entry point has provisioned the control table yet. Provisioning is asynchronous
-    /// (<see cref="ProvisionControlTableAsync" />, which a store may override with its own
-    /// migration), so this never does it; any asynchronous call, <see cref="BuildDatabasesAsync" />
-    /// at start-up included, makes every later call eligible.</item>
+    /// <item>The dialect does not render <see cref="IMasterTenantTableDialect.SelectTenantRow" />, so
+    /// telling a disabled tenant from an unknown one would take a second read.</item>
     /// <item>The control-plane data source does not take synchronous I/O
     /// (<see cref="SupportsSynchronousControlTableReads" />): Npgsql refuses it when
     /// <c>Multiplexing=true</c>. A <see cref="NotSupportedException" /> from the read itself is taken
     /// as the same refusal, and remembered.</item>
-    /// <item>The dialect does not render <see cref="IMasterTenantTableDialect.SelectTenantRow" />, so
-    /// telling a disabled tenant from an unknown one would take a second read.</item>
+    /// <item>No entry point has provisioned the control table yet, and the store cannot provision it
+    /// synchronously. <see cref="ProvisionControlTableAsync" /> is asynchronous, so this never calls
+    /// it; it asks <see cref="TryProvisionControlTableSynchronously" /> instead, which declines by
+    /// default (weasel#850). Any asynchronous call, <see cref="BuildDatabasesAsync" /> at start-up
+    /// included, or one <c>true</c> from that seam makes every later call eligible.</item>
     /// </list>
     /// <para>
     /// Any other failure of the read — the database is down, the table is missing under
     /// <see cref="AutoCreate.None" /> — is thrown, as <see cref="ResolveTenantAsync" /> would throw it.
+    /// So is any failure of <see cref="TryProvisionControlTableSynchronously" /> other than a
+    /// <see cref="NotSupportedException" />, as the asynchronous path throws a failed provisioning.
     /// </para>
     /// </remarks>
     public bool TryResolveTenant(string tenantId, out MasterTenantResolution<TDatabase> resolution)
@@ -627,8 +642,10 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
 
         resolution = default;
 
+        // The read is checked for first: provisioning synchronously is only worth doing when the
+        // read that follows it can be done synchronously too.
         var sql = Dialect.SelectTenantRow(QualifiedTableName);
-        if (sql is null || !_controlTableReady || !canReadSynchronously())
+        if (sql is null || !canReadSynchronously() || !ensureControlTableSynchronously())
         {
             return false;
         }
@@ -704,7 +721,109 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// </remarks>
     protected virtual T ExecuteSynchronously<T>(Func<T> operation) => operation();
 
+    /// <summary>
+    /// Provision the control table <b>without awaiting anything</b>, for
+    /// <see cref="TryResolveTenant" /> in a process where no asynchronous entry point has run yet.
+    /// Return true once the table is known to be there; return false to keep declining, which sends
+    /// the caller to <see cref="ResolveTenantAsync" /> as before. The default returns false
+    /// (weasel#850).
+    /// </summary>
+    /// <returns>
+    /// True when the control table is there and may be read: <see cref="TryResolveTenant" /> then
+    /// stops asking and reads, as it does once an asynchronous entry point has provisioned. The
+    /// asynchronous entry points are unaffected and call <see cref="ProvisionControlTableAsync" />
+    /// as they always have. False to
+    /// decline; this is asked again on the next uncached <see cref="TryResolveTenant" />, so an
+    /// override that can never provision synchronously should answer cheaply, and one that has a
+    /// lasting reason to decline should remember it itself.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// Without this, <see cref="TryResolveTenant" /> declines every uncached tenant until something
+    /// asynchronous has provisioned the table, so a cold process whose first touch is synchronous —
+    /// the first requests after a deploy — blocks a thread on <see cref="ResolveTenantAsync" /> for
+    /// each of them, which is the thread-pool starvation the synchronous path exists to avoid.
+    /// </para>
+    /// <para>
+    /// An override must do with synchronous I/O what its <see cref="ProvisionControlTableAsync" />
+    /// does, or less: nothing at all when the schema is the operator's
+    /// (<see cref="EffectiveAutoCreate" /> is <see cref="AutoCreate.None" />), otherwise the same
+    /// idempotent DDL or migration, one blocking statement at a time. It must not block on a
+    /// <see cref="Task" /> — not its own, not <see cref="ProvisionControlTableAsync" />'s, not a
+    /// semaphore an asynchronous provisioning holds across an <c>await</c>. When it cannot avoid
+    /// that, it returns false. It is not run inside <see cref="ExecuteSynchronously{T}" />; an
+    /// override that wants the store's resilience pipeline applies it itself.
+    /// </para>
+    /// <para>
+    /// <b>Concurrency.</b> The base never runs this concurrently with itself: calls are serialized
+    /// on one lock, and a caller that waited re-checks whether the table became ready before asking
+    /// again, so a burst of cold callers provisions once. Waiting on that lock is waiting on
+    /// synchronous I/O another thread is doing, which needs no pool thread to complete. It <i>can</i>
+    /// run while <see cref="ProvisionControlTableAsync" /> runs on another thread — the asynchronous
+    /// path cannot take a synchronous lock — so the two must tolerate overlapping: idempotent DDL,
+    /// as <see cref="IMasterTenantTableDialect.CreateControlTable" /> already has to be, makes that
+    /// harmless. An override sharing a "provisioned" flag with its asynchronous override should set
+    /// it only after it succeeds, as the base sets its own.
+    /// </para>
+    /// <para>
+    /// <b>Failure.</b> A <see cref="NotSupportedException" /> — a driver refusing synchronous I/O —
+    /// declines, and is remembered: the seam is not asked again on this instance, though reads become
+    /// eligible once an asynchronous entry point provisions the table. Any other exception
+    /// propagates out of <see cref="TryResolveTenant" />, as a failed provisioning propagates out of
+    /// the asynchronous entry points, and nothing is remembered, so the next call asks again.
+    /// </para>
+    /// </remarks>
+    protected virtual bool TryProvisionControlTableSynchronously() => false;
+
     private bool canReadSynchronously() => _synchronousReads ??= SupportsSynchronousControlTableReads;
+
+    // weasel#850: the synchronous counterpart of ensureControlTableAsync, publishing the same flag.
+    private bool ensureControlTableSynchronously()
+    {
+        if (_controlTableReady)
+        {
+            return true;
+        }
+
+        if (_synchronousProvisioningRefused)
+        {
+            return false;
+        }
+
+        lock (_synchronousProvisioningLock)
+        {
+            // Another caller may have provisioned while this one waited, on either path.
+            if (_controlTableReady)
+            {
+                return true;
+            }
+
+            if (_synchronousProvisioningRefused)
+            {
+                return false;
+            }
+
+            bool provisioned;
+            try
+            {
+                provisioned = TryProvisionControlTableSynchronously();
+            }
+            catch (NotSupportedException)
+            {
+                // The same refusal TryResolveTenant takes from the read: the driver will not do
+                // synchronous I/O here, so do not throw and catch it once per call of a burst.
+                _synchronousProvisioningRefused = true;
+                return false;
+            }
+
+            if (provisioned)
+            {
+                _controlTableReady = true;
+            }
+
+            return provisioned;
+        }
+    }
 
     private (bool Found, string? ConnectionString, bool Disabled) readTenantRow(string sql, string tenantId)
     {
@@ -903,7 +1022,9 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// </para>
     /// <para>
     /// Override to run the store's own Weasel migration for the table instead, as Marten does; an
-    /// override that does so never calls the dialect's DDL.
+    /// override that does so never calls the dialect's DDL. A store that can do the same without
+    /// awaiting anything should also override <see cref="TryProvisionControlTableSynchronously" />,
+    /// or <see cref="TryResolveTenant" /> declines until this has run once.
     /// </para>
     /// </remarks>
     protected virtual async Task ProvisionControlTableAsync(CancellationToken token)
