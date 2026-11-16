@@ -36,6 +36,17 @@ public abstract class HiloSequenceBase: ISequence
     private readonly Lock _syncAdvance = new();
     private readonly SemaphoreSlim _asyncAdvance = new(1, 1);
 
+    // Ordering after an overlap. Each install of a block bumps _installs (under _state), and every
+    // advance records the count it started at in _advanceStartedAt, which reaches the subclass's
+    // TrySetCurrentHi through the execution context -- across the await, on the asynchronous path.
+    // When another advance installed a block in the meantime and this one's block is not above it,
+    // installing it would hand out ids behind ones already issued (marten#5984's CI caught 2137
+    // followed by 2134), so the block is dropped as a gap instead. Outside an overlap
+    // TrySetCurrentHi installs whatever it is given, as it always has, so a sequence whose database
+    // row was reset below it keeps working. Holds the count + 1, so 0 means "not in an advance".
+    private readonly AsyncLocal<long> _advanceStartedAt = new();
+    private long _installs;
+
     protected HiloSequenceBase(string entityName, IReadOnlyHiloSettings settings)
     {
         EntityName = entityName;
@@ -92,8 +103,10 @@ public abstract class HiloSequenceBase: ISequence
     ///     This never waits on asynchronous work (weasel#833). It blocks only for its own
     ///     <see cref="AdvanceToNextHiSync" /> or another synchronous caller's. If an
     ///     asynchronous caller is part way through an advance, this advances by itself rather
-    ///     than wait for it, so both reserve a block and whichever is installed second replaces
-    ///     the other: the rest of the first block is a gap in the ids.
+    ///     than wait for it, so both reserve a block. The higher of the two is the one issued
+    ///     from: if it is installed first, the lower one is dropped when it arrives, rather than
+    ///     issue ids behind ones already handed out. Either way the rest of the other block is a
+    ///     gap in the ids, never a duplicate, and the ids one instance issues only increase.
     ///     </para>
     /// </remarks>
     public long NextLong()
@@ -115,7 +128,16 @@ public abstract class HiloSequenceBase: ISequence
                 }
 
                 var before = snapshot();
-                AdvanceToNextHiSync();
+                _advanceStartedAt.Value = before.Installs + 1;
+                try
+                {
+                    AdvanceToNextHiSync();
+                }
+                finally
+                {
+                    _advanceStartedAt.Value = 0;
+                }
+
                 assertTheAdvanceInstalledABlock(before, nameof(AdvanceToNextHiSync));
             }
         }
@@ -182,7 +204,19 @@ public abstract class HiloSequenceBase: ISequence
                 }
 
                 var before = snapshot();
-                await startAdvanceWithoutContext(ct).ConfigureAwait(false);
+
+                // Set inside this async method, so it flows into AdvanceToNextHi and its
+                // continuations, and is gone again once this method returns to its caller.
+                _advanceStartedAt.Value = before.Installs + 1;
+                try
+                {
+                    await startAdvanceWithoutContext(ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    _advanceStartedAt.Value = 0;
+                }
+
                 assertTheAdvanceInstalledABlock(before, nameof(AdvanceToNextHi));
             }
         }
@@ -207,11 +241,11 @@ public abstract class HiloSequenceBase: ISequence
         }
     }
 
-    private (long Hi, int Lo) snapshot()
+    private (long Hi, int Lo, long Installs) snapshot()
     {
         lock (_state)
         {
-            return (CurrentHi, CurrentLo);
+            return (CurrentHi, CurrentLo, _installs);
         }
     }
 
@@ -219,10 +253,12 @@ public abstract class HiloSequenceBase: ISequence
     // every caller waits on, one that returns having done neither would otherwise be retried
     // forever, a database round trip at a time. A concurrent install from the other path changes
     // the state as well, which correctly counts as progress: the loop then simply checks again.
-    private void assertTheAdvanceInstalledABlock((long Hi, int Lo) before, string advance)
+    // That includes an advance whose own block was dropped because the other path installed a
+    // higher one while it was in flight.
+    private void assertTheAdvanceInstalledABlock((long Hi, int Lo, long Installs) before, string advance)
     {
         var after = snapshot();
-        if (after == before && needsAdvance(after))
+        if (after.Installs == before.Installs && needsAdvance(after.Hi, after.Lo))
         {
             throw new InvalidOperationException(
                 $"{GetType().FullName}.{advance} returned without installing a new Hi-Lo block for '{EntityName}'. " +
@@ -230,7 +266,7 @@ public abstract class HiloSequenceBase: ISequence
         }
     }
 
-    private bool needsAdvance((long Hi, int Lo) state) => state.Hi < 0 || state.Lo > MaxLo;
+    private bool needsAdvance(long hi, int lo) => hi < 0 || lo > MaxLo;
 
     private Task startAdvanceWithoutContext(CancellationToken ct)
     {
@@ -302,6 +338,14 @@ public abstract class HiloSequenceBase: ISequence
     ///     no longer overwrites <see cref="CurrentHi" /> (weasel#833): with a synchronous and
     ///     an asynchronous advance able to overlap, one advance's failed attempt would
     ///     otherwise throw away the block the other had just installed.
+    ///     <para>
+    ///     Ids issued by one instance only increase across an overlap. When another advance
+    ///     installed a block while the calling advance was in flight, and <paramref name="raw" />
+    ///     is not above it, the block is dropped instead of installed: the rest of it is a gap.
+    ///     That still returns <c>true</c>, since there is nothing for the advance to retry.
+    ///     Outside an overlap, and outside an advance (from <see cref="SetFloor" />, say), the
+    ///     value is installed as given, lower than the current one or not.
+    ///     </para>
     /// </remarks>
     protected bool TrySetCurrentHi(object? raw)
     {
@@ -311,10 +355,20 @@ public abstract class HiloSequenceBase: ISequence
             return false;
         }
 
+        var startedAt = _advanceStartedAt.Value - 1;
+
         lock (_state)
         {
+            // Another advance installed a block since this one began, and this block is not above
+            // it: installing it would issue ids behind ones already handed out.
+            if (startedAt >= 0 && _installs > startedAt && CurrentHi >= 0 && hi <= CurrentHi)
+            {
+                return true;
+            }
+
             CurrentHi = hi;
             CurrentLo = 1;
+            _installs++;
         }
 
         return true;

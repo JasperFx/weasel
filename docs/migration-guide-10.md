@@ -210,8 +210,10 @@ but obtained synchronously. Three things a `HiloSequenceBase` subclass should kn
 - An `AdvanceToNextHi` never overlaps another `AdvanceToNextHi` on one instance, nor an `AdvanceToNextHiSync`
   another `AdvanceToNextHiSync`, but the two **can overlap each other**. A synchronous caller that needs a block
   while an asynchronous advance is in flight reserves one of its own rather than wait. Each must reserve its
-  block from the database and install it through `TrySetCurrentHi`; whichever installs second wins, and the rest
-  of the other block is a gap in the ids, never a duplicate.
+  block from the database and install it through `TrySetCurrentHi`. The ids one instance issues still only
+  increase: a block that comes back after the other advance installed a higher one is dropped rather than
+  installed, and `TrySetCurrentHi` returns `true` for it all the same. The rest of the unused block is a gap in
+  the ids, never a duplicate. Outside such an overlap a lower value is installed as given, as before.
 - An advance must install a block or throw. One that returns having done neither now throws
   `InvalidOperationException`, where it used to issue an id from a block it never reserved.
 - `TrySetCurrentHi` with a negative value now returns `false` without touching `CurrentHi`, so one advance's

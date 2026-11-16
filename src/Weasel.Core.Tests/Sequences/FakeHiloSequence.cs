@@ -62,6 +62,14 @@ internal sealed class FakeHiloSequence: HiloSequenceBase
     /// <summary>Stands in for the synchronous database round trip.</summary>
     public Action? SyncIo { get; set; }
 
+    /// <summary>
+    ///     When set, the asynchronous advance reserves its block <i>before</i> awaiting
+    ///     <see cref="AsyncIo" /> and installs it after, as a real round trip does: the database
+    ///     hands out the hi when the statement runs, and the install happens on the way back. So a
+    ///     synchronous advance during the await reserves a <i>higher</i> block and installs it first.
+    /// </summary>
+    public bool ReserveBeforeAsyncIo { get; set; }
+
     // Expose the protected hi-setter so a test can drive the "database
     // returned a negative value, could not secure the next hi" branch.
     public bool TrySetCurrentHiForTest(object? raw) => TrySetCurrentHi(raw);
@@ -71,13 +79,22 @@ internal sealed class FakeHiloSequence: HiloSequenceBase
         enter(ref _asyncInFlight);
         try
         {
+            long? reserved = ReserveBeforeAsyncIo ? reserve() : null;
+
             if (AsyncIo != null)
             {
                 await AsyncIo(ct).ConfigureAwait(true);
             }
 
             Interlocked.Increment(ref _asyncAdvanceCount);
-            DoAdvance();
+            if (reserved.HasValue)
+            {
+                install(reserved.Value);
+            }
+            else
+            {
+                DoAdvance();
+            }
         }
         finally
         {
@@ -108,6 +125,12 @@ internal sealed class FakeHiloSequence: HiloSequenceBase
         }
     }
 
+    /// <summary>
+    ///     Moves the "database" counter without installing anything, as a reset or truncated hilo
+    ///     row would: the next advance reserves <paramref name="nextHi" />, lower or not.
+    /// </summary>
+    public void ResetDatabaseTo(long nextHi) => Interlocked.Exchange(ref _nextHi, nextHi);
+
     public override Task SetFloor(long floor)
     {
         // Mirror the dialect contract: ensure the next issued id clears the floor.
@@ -119,11 +142,19 @@ internal sealed class FakeHiloSequence: HiloSequenceBase
 
     private void DoAdvance()
     {
+        install(reserve());
+    }
+
+    private long reserve()
+    {
         Interlocked.Increment(ref _advanceCount);
 
         // Reserve the block the way the database does: atomically, one per advance.
-        var hi = Interlocked.Increment(ref _nextHi) - 1;
+        return Interlocked.Increment(ref _nextHi) - 1;
+    }
 
+    private void install(long hi)
+    {
         // Widen the window an advance is in flight for, so two on one path would overlap.
         Thread.SpinWait(50);
 
