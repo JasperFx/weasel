@@ -6,7 +6,7 @@ namespace Weasel.Core.Sequences;
 ///     state and the client-side id arithmetic (<see cref="AdvanceValue" />,
 ///     <see cref="ShouldAdvanceHi" />, <see cref="NextInt" /> / <see cref="NextLong" />,
 ///     <see cref="NextIntAsync" /> / <see cref="NextLongAsync" />,
-///     <see cref="TrySetCurrentHi" />). Concrete subclasses supply only the
+///     <see cref="TrySetCurrentHi(object?)" />). Concrete subclasses supply only the
 ///     database I/O — fetching the next "hi" allocation
 ///     (<see cref="AdvanceToNextHi" /> / <see cref="AdvanceToNextHiSync" />) and
 ///     resetting the floor (<see cref="SetFloor" />).
@@ -344,18 +344,74 @@ public abstract class HiloSequenceBase: ISequence
     ///     is not above it, the block is dropped instead of installed: the rest of it is a gap.
     ///     That still returns <c>true</c>, since there is nothing for the advance to retry.
     ///     Outside an overlap, and outside an advance (from <see cref="SetFloor" />, say), the
-    ///     value is installed as given, lower than the current one or not.
+    ///     value is installed as given, lower than the current one or not. A caller outside an
+    ///     advance that wants the overlap rule too passes the <see cref="InstallCount" /> it took
+    ///     before reserving the block to <see cref="TrySetCurrentHi(object?, long)" />.
     ///     </para>
     /// </remarks>
     protected bool TrySetCurrentHi(object? raw)
+    {
+        return trySetCurrentHi(raw, _advanceStartedAt.Value - 1);
+    }
+
+    /// <summary>
+    ///     How many blocks this instance has installed so far. Take it before reserving a block
+    ///     from outside <see cref="NextLong" /> and <see cref="NextLongAsync" /> (in
+    ///     <see cref="SetFloor" />, say), and pass it to <see cref="TrySetCurrentHi(object?, long)" />
+    ///     with the block (weasel#849).
+    /// </summary>
+    protected long InstallCount
+    {
+        get
+        {
+            lock (_state)
+            {
+                return _installs;
+            }
+        }
+    }
+
+    /// <summary>
+    ///     <see cref="TrySetCurrentHi(object?)" /> for a block reserved outside
+    ///     <see cref="NextLong" /> and <see cref="NextLongAsync" />, judged by the overlap rule
+    ///     an advance is (weasel#849).
+    /// </summary>
+    /// <param name="raw">The raw scalar from the database call, as for <see cref="TrySetCurrentHi(object?)" />.</param>
+    /// <param name="installCountBefore">
+    ///     The <see cref="InstallCount" /> taken before the block was reserved. If another block was
+    ///     installed since, and <paramref name="raw" /> is not above it, the block is dropped as a
+    ///     gap instead of installed, and this still returns <c>true</c>.
+    /// </param>
+    /// <remarks>
+    ///     <para>
+    ///     For a <see cref="SetFloor" /> that moves the hilo row and then installs a block reserved
+    ///     above it. An advance that reserves after the row moved, and installs first, has a higher
+    ///     block that is also above the floor. Installing the floor's lower block on top of it would
+    ///     hand out ids behind ones already issued: still above the floor and unique, but out of order.
+    ///     Take <see cref="InstallCount" /> once the row has moved, or earlier: any block installed
+    ///     since then that is above this one is above the floor too.
+    ///     </para>
+    ///     <para>
+    ///     With no install since <paramref name="installCountBefore" /> the value is installed as given,
+    ///     lower than the current one or not, so a floor moved down still takes effect.
+    ///     </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="installCountBefore" /> is negative.</exception>
+    protected bool TrySetCurrentHi(object? raw, long installCountBefore)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(installCountBefore);
+        return trySetCurrentHi(raw, installCountBefore);
+    }
+
+    // startedAt is the install count the reservation began at, or negative for "not known": then
+    // the block is installed as given.
+    private bool trySetCurrentHi(object? raw, long startedAt)
     {
         var hi = Convert.ToInt64(raw);
         if (hi < 0)
         {
             return false;
         }
-
-        var startedAt = _advanceStartedAt.Value - 1;
 
         lock (_state)
         {
@@ -385,7 +441,7 @@ public abstract class HiloSequenceBase: ISequence
     ///     exhausted (weasel#808). Never runs concurrently with itself on one instance,
     ///     but since weasel#833 it can overlap an <see cref="AdvanceToNextHiSync" />: each
     ///     must reserve a block of its own from the database and install it through
-    ///     <see cref="TrySetCurrentHi" />. It must install a block or throw; it should honor
+    ///     <see cref="TrySetCurrentHi(object?)" />. It must install a block or throw; it should honor
     ///     <paramref name="ct" />, must not call back into <see cref="NextLongAsync" />, and
     ///     should not rely on a <see cref="SynchronizationContext" />:
     ///     <see cref="NextLongAsync" /> invokes it with none.
@@ -398,7 +454,7 @@ public abstract class HiloSequenceBase: ISequence
     ///     <see cref="NextLong" /> when the current lo allocation is exhausted. Never runs
     ///     concurrently with itself on one instance, but can overlap an
     ///     <see cref="AdvanceToNextHi" /> (weasel#833); it must not wait for one. It must
-    ///     install a block through <see cref="TrySetCurrentHi" /> or throw. Retained for
+    ///     install a block through <see cref="TrySetCurrentHi(object?)" /> or throw. Retained for
     ///     the synchronous path only: once every consumer issues ids through
     ///     <see cref="NextLongAsync" /> it can go (weasel#808).
     /// </summary>

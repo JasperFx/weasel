@@ -215,6 +215,13 @@ but obtained synchronously. Three things a `HiloSequenceBase` subclass should kn
   increase: a block that comes back after the other advance installed a higher one is dropped rather than
   installed, and `TrySetCurrentHi` returns `true` for it all the same. The rest of the unused block is a gap in
   the ids, never a duplicate. Outside such an overlap a lower value is installed as given, as before.
+- A `SetFloor`, or anything else that installs from outside an advance, can opt into the same rule
+  ([weasel#849](https://github.com/JasperFx/weasel/issues/849)). Take the protected `InstallCount` before
+  reserving the block and pass it to `TrySetCurrentHi(raw, installCountBefore)`. If another advance installed a
+  block since then and this one is not above it, this one is dropped. Without it, an advance that reserved after
+  the floor moved and installed first could have its higher block replaced by the floor's lower one, and ids
+  would step back (still above the floor and unique). `TrySetCurrentHi(raw)` from outside an advance still
+  installs as given.
 - An advance must install a block or throw. One that returns having done neither now throws
   `InvalidOperationException`, where it used to issue an id from a block it never reserved.
 - `TrySetCurrentHi` with a negative value now returns `false` without touching `CurrentHi`, so one advance's
