@@ -152,6 +152,12 @@ public abstract class HiloSequenceBase: ISequence
     ///     <see cref="NextLong" /> under the lock when the current lo allocation is
     ///     exhausted.
     /// </summary>
+    /// <remarks>
+    ///     It must install its block from the calling thread. Since weasel#849
+    ///     <see cref="TrySetCurrentHi" /> takes the same lock, so blocking here on
+    ///     asynchronous work whose continuation calls <see cref="TrySetCurrentHi" /> on
+    ///     another thread would deadlock.
+    /// </remarks>
     protected abstract void AdvanceToNextHiSync();
 
     /// <inheritdoc />
