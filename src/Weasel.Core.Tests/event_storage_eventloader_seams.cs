@@ -29,6 +29,9 @@ public class event_storage_eventloader_seams
     public sealed record OrderPlacedV1(string Sku);
     public sealed record OrderPlaced(string Sku, int Quantity);
     public sealed record OrderShipped(string Sku);
+    public interface IOrderEvent;
+    public abstract record OrderEventBase;
+    public sealed record OrderCancelled(string Sku): OrderEventBase, IOrderEvent;
     public sealed record Unrelated(string Name);
     public sealed class OrderAggregate;
 
@@ -146,6 +149,52 @@ public class event_storage_eventloader_seams
         var projection = Projection(AggregationScope.SingleStream);
 
         EventTypeAllowList.For(new NameRegistry(), projection).IsEmpty.ShouldBeTrue();
+    }
+
+    // weasel#845: a stored row carries its concrete type, so an alias for an interface or abstract
+    // type matches nothing, and filtering on it drops every event that implements it.
+
+    [Fact]
+    public void a_subscription_including_an_interface_reads_everything()
+    {
+        var filterable = new EventFilterable();
+        filterable.IncludeType<OrderPlaced>();
+        filterable.IncludeType<IOrderEvent>();
+
+        var list = EventTypeAllowList.For(new NameRegistry(), filterable);
+
+        list.ShouldBeSameAs(EventTypeAllowList.All);
+        list.IsEmpty.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void a_projection_applying_an_abstract_type_reads_everything()
+    {
+        // Apply(OrderEventBase e) puts the abstract type in IncludedEventTypes. The markers a
+        // single-stream projection adds do not turn it back into a filter.
+        var projection = Projection(AggregationScope.SingleStream, typeof(OrderPlaced), typeof(OrderEventBase));
+
+        EventTypeAllowList.For(new NameRegistry(), projection).ShouldBeSameAs(EventTypeAllowList.All);
+    }
+
+    [Theory]
+    [InlineData(typeof(IOrderEvent))]
+    [InlineData(typeof(OrderEventBase))]
+    [InlineData(typeof(object))]
+    public void an_explicit_list_with_a_type_no_row_can_carry_reads_everything(Type type)
+    {
+        EventTypeAllowList.CannotBeAStoredType(type).ShouldBeTrue();
+        EventTypeAllowList.For(new NameRegistry(), [typeof(OrderPlaced), type]).ShouldBeSameAs(EventTypeAllowList.All);
+    }
+
+    [Fact]
+    public void concrete_types_still_filter()
+    {
+        EventTypeAllowList.CannotBeAStoredType(typeof(OrderCancelled)).ShouldBeFalse();
+
+        var list = EventTypeAllowList.For(new NameRegistry(), [typeof(OrderPlaced), typeof(OrderCancelled)]);
+
+        list.Aliases.ShouldBe(["OrderPlaced", "OrderCancelled"]);
     }
 
     private static EventFilterable Projection(AggregationScope scope, params Type[] eventTypes)

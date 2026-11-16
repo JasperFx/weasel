@@ -183,6 +183,25 @@ public class event_loader_base: IDisposable
         loader.HydratedTypes.ShouldBe(["wanted_v1", "wanted"]);
     }
 
+    [Fact]
+    public async Task a_shard_filtered_on_an_interface_reads_the_rows_of_its_implementers()
+    {
+        // weasel#845: rows carry the concrete type, here "cancelled" for Marker0, which implements
+        // IMarkerEvent. Filtering on IMarkerEvent's alias would read nothing, claim the ceiling and
+        // report the shard caught up.
+        Append((1, "cancelled"), (2, "unrelated"), (3, "cancelled"));
+
+        var allowList = EventTypeAllowList.For(new StubRegistry(["cancelled"]), [typeof(IMarkerEvent)]);
+        allowList.IsEmpty.ShouldBeTrue();
+
+        var loader = LoaderFor(new EventLoaderOptions { EventTypes = allowList });
+        var page = await loader.LoadAsync(RequestFor(0, 10), CancellationToken.None);
+
+        // Everything, for the projection's own dispatch to sort out after hydration.
+        page.Select(x => x.Sequence).ShouldBe([1, 2, 3]);
+        page.Ceiling.ShouldBe(10);
+    }
+
     private sealed class RenamingUpcaster(string sourceAlias, Type target): JasperFx.Events.Upcasting.IEventUpcaster
     {
         public string EventTypeName => sourceAlias;
@@ -486,6 +505,8 @@ public class event_loader_base: IDisposable
 
     private sealed record TestEvent(string Type);
 
+    private interface IMarkerEvent;
+
     /// <summary>Maps a handful of marker CLR types onto caller-chosen aliases.</summary>
     private sealed class StubRegistry: EventRegistry
     {
@@ -500,14 +521,13 @@ public class event_loader_base: IDisposable
 
         public override IEventType EventMappingFor(Type eventType)
         {
+            // Anything else gets an alias from its name, as a real registry would give an interface.
             var index = Array.IndexOf(_types, eventType);
-            return new EventTypeData<object>
-            {
-                EventTypeName = _aliases[index], DotNetTypeName = $"dotnet::{_aliases[index]}"
-            };
+            var alias = index < 0 ? eventType.Name : _aliases[index];
+            return new EventTypeData<object> { EventTypeName = alias, DotNetTypeName = $"dotnet::{alias}" };
         }
 
-        private sealed record Marker0;
+        private sealed record Marker0: IMarkerEvent;
         private sealed record Marker1;
         private sealed record Marker2;
         private sealed record Marker3;

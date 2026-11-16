@@ -239,6 +239,12 @@ but obtained synchronously. Three things a `HiloSequenceBase` subclass should kn
   itself rather than offered to the rest of the batch. On PostgreSQL, pass
   `OperationBatchOptions.StatementCompletion = NpgsqlStatementCompletion.HasCompleted` to tell apart a run of
   statements that return no rows; without it they are asked in statement order. `ExecuteEachAsync` is unchanged.
+- `Weasel.Storage.EventTypeAllowList.For` returns `EventTypeAllowList.All` when any included type is an interface,
+  an abstract class or `object` ([weasel#845](https://github.com/JasperFx/weasel/issues/845)). A stored row carries
+  its concrete type, so the alias of `IDomainEvent` (from `IncludeType<IDomainEvent>()` or a projection's
+  `Apply(IDomainEvent e)`) matched nothing, and the pushed-down filter dropped every event implementing it while the
+  shard reported itself caught up. Such a shard now reads every event type and dispatches after hydration, which is
+  Marten's long-standing rule.
 
 ## Dependency lockstep
 
