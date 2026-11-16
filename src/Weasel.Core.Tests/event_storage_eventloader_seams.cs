@@ -77,6 +77,43 @@ public class event_storage_eventloader_seams
     }
 
     [Fact]
+    public void an_upcast_source_that_is_also_a_declared_alias_stays_on_the_upcast_list()
+    {
+        // weasel#851: "same event name, new shape". The upcaster reads rows stored under the new type's
+        // own alias, written when that alias belonged to an older CLR type. Up to #851 the source was
+        // dropped here for already being in Aliases. A type-column dialect did not notice, but a
+        // dotnet_type dialect renders `dotnet_type in (DotNetTypeNames) or type in (UpcastSourceAliases)`,
+        // and the old rows' dotnet_type is OrderPlacedV1's, so they matched neither disjunct.
+        var registry = new NameRegistry();
+        registry.Upcasters.Upcast<OrderPlacedV1, OrderPlaced>("OrderPlaced", old => new OrderPlaced(old.Sku, 1));
+
+        var list = EventTypeAllowList.For(registry, [typeof(OrderPlaced), typeof(OrderShipped)]);
+
+        list.Aliases.ShouldBe(["OrderPlaced", "OrderShipped"]);
+        list.UpcastSourceAliases.ShouldBe(["OrderPlaced"]);
+
+        // The type-column list still names each alias once, so its IN list is what it always was.
+        list.AliasesIncludingUpcastSources.ShouldBe(["OrderPlaced", "OrderShipped"]);
+
+        // The old CLR type is never on the dotnet_type list; the second disjunct is the only way in.
+        list.DotNetTypeNames.ShouldNotContain(typeof(OrderPlacedV1).AssemblyQualifiedName!);
+    }
+
+    [Fact]
+    public void a_shared_source_and_a_renamed_source_are_both_kept_and_listed_once_for_the_type_column()
+    {
+        var registry = new NameRegistry();
+        registry.Upcasters.Upcast<OrderPlacedV1, OrderPlaced>("OrderPlaced", old => new OrderPlaced(old.Sku, 1));
+        registry.Upcasters.Upcast<OrderPlacedV1, OrderPlaced>("order_placed_v1", old => new OrderPlaced(old.Sku, 1));
+
+        var list = EventTypeAllowList.For(registry, [typeof(OrderPlaced)]);
+
+        list.UpcastSourceAliases.ShouldBe(["OrderPlaced", "order_placed_v1"], ignoreOrder: true);
+        list.AliasesIncludingUpcastSources.ShouldBe(["OrderPlaced", "order_placed_v1"]);
+        list.AliasesIncludingUpcastSources.ShouldBeUnique();
+    }
+
+    [Fact]
     public void an_upcast_source_of_a_type_the_shard_does_not_read_is_not()
     {
         var list = EventTypeAllowList.For(RegistryWithUpcaster(), [typeof(OrderShipped)]);

@@ -101,12 +101,28 @@ public sealed class EventTypeAllowList
     /// Admitting every source in the registry would hand a filtered shard rows that upcast into types
     /// it then has no use for.
     /// </para>
+    /// <para>
+    /// <b>Complete, even where a source alias is also in <see cref="Aliases"/></b> (weasel#851). That
+    /// is the "same event name, new shape" upcast: an upcaster from alias <c>X</c> to a new type whose
+    /// own alias is also <c>X</c>. A <c>type</c>-column dialect gains nothing from the repeat, which is
+    /// why <see cref="AliasesIncludingUpcastSources"/> de-duplicates. A <c>dotnet_type</c> dialect
+    /// needs it: the rows written before the migration carry the <em>old</em> CLR type name, which is
+    /// not in <see cref="DotNetTypeNames"/>, so without <c>X</c> here they match neither disjunct and
+    /// the shard reports itself caught up having skipped them.
+    /// </para>
+    /// <para>
+    /// Up to weasel#851 this list left such an alias out. The only change in what it returns is that
+    /// case, and the only effect on a dialect rendering it as documented is that it reads rows it
+    /// should always have read. Do not de-duplicate it against <see cref="Aliases"/> when rendering a
+    /// second disjunct; the repeat is the point.
+    /// </para>
     /// </remarks>
     public IReadOnlyList<string> UpcastSourceAliases { get; }
 
     /// <summary>
     /// <see cref="Aliases"/> followed by any <see cref="UpcastSourceAliases"/> not already among them
     /// — everything a dialect matching on the <c>type</c> column should put in its <c>IN</c> list.
+    /// Each alias appears once, even when an upcast source is also a declared alias.
     /// </summary>
     public IReadOnlyList<string> AliasesIncludingUpcastSources => UpcastSourceAliases.Count == 0
         ? Aliases
@@ -249,7 +265,7 @@ public sealed class EventTypeAllowList
         }
 
         return new EventTypeAllowList(aliases, dotNetTypeNames,
-            UpcastSourcesFor((registry as EventRegistry)?.Upcasters, eventTypes, aliases));
+            UpcastSourcesFor((registry as EventRegistry)?.Upcasters, eventTypes));
     }
 
     /// <summary>
@@ -266,7 +282,7 @@ public sealed class EventTypeAllowList
         eventType.IsInterface || eventType.IsAbstract || eventType == typeof(object);
 
     private static IReadOnlyList<string> UpcastSourcesFor(UpcastingRegistry? upcasters,
-        IReadOnlyList<Type> eventTypes, List<string> aliases)
+        IReadOnlyList<Type> eventTypes)
     {
         if (upcasters is not { HasAny: true })
         {
@@ -282,13 +298,10 @@ public sealed class EventTypeAllowList
                 continue;
             }
 
-            // Ordinal-distinct, and never a name the declared list already carries: a source that is
-            // also a live alias needs no second term in the rendered SQL.
-            if (aliases.Contains(transformation.EventTypeName, StringComparer.Ordinal))
-            {
-                continue;
-            }
-
+            // Ordinal-distinct among the sources, but deliberately NOT against the declared aliases
+            // (weasel#851). A source that is also a live alias is redundant only for a type-column
+            // dialect, and AliasesIncludingUpcastSources drops the repeat for that one. A dotnet_type
+            // dialect matches the old rows through this list alone.
             sources ??= [];
             if (!sources.Contains(transformation.EventTypeName, StringComparer.Ordinal))
             {
