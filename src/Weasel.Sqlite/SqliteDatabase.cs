@@ -16,8 +16,12 @@ public abstract class SqliteDatabase: DatabaseBase<SqliteConnection>
         Migrator migrator,
         string identifier,
         string connectionString
-    ): base(logger, autoCreate, migrator, identifier, () => new SqliteConnection(connectionString))
+    ): base(logger, autoCreate, migrator, identifier, () => new GatedSqliteConnection(connectionString))
     {
+        // Migrations open through that factory, so it hands out a connection whose Open takes the same
+        // per-connection-string pool gate as SqliteDataSource's opens (weasel#857). It is still a
+        // SqliteConnection.
+
         ConnectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
 
         // ReSharper disable once VirtualMemberCallInConstructor

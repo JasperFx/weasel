@@ -55,6 +55,31 @@ application contribute functions later.
 The per-open order is connection-scoped PRAGMAs, then extensions, then functions, so a managed
 function can build on something an extension provides.
 
+## Concurrent opens are serialized per connection string
+
+`Microsoft.Data.Sqlite` 10.0.12 and earlier can hand one native SQLite handle to two open
+`SqliteConnection`s when several threads open connections to the same pool at once. Activating a
+pooled connection publishes it as active before it records its owner, outside the pool's lock, and
+a concurrent open that scans for leaked connections in between reclaims a connection that is still
+being opened. Two sessions then share one handle: one session's `ROLLBACK` ends the other's
+transaction, `Dispose` fails with "unable to delete/modify user-function due to active statements",
+or the process crashes in SQLitePCLRaw's rollback hook
+([weasel#857](https://github.com/JasperFx/weasel/issues/857), found by Fisher in fisher#576).
+
+`SqliteDataSource` therefore takes a lock around the pool checkout, one per exact connection string,
+shared by every data source and every `SqliteDatabase` in the process that uses that string. Only
+the checkout is serialized: PRAGMAs, extensions and functions are applied after the lock is
+released. Connections from `CreateConnection()` and from a `SqliteDatabase`'s connection factory,
+which Weasel's migrations open, take the same lock when you open them. They are still
+`SqliteConnection`s.
+
+Clearing a pool runs the same leaked-connection scan, so use `SqliteDataSource.ClearPool(connectionString)`
+and `SqliteDataSource.ClearAllPools()` instead of the `SqliteConnection` statics of the same names.
+A `new SqliteConnection(...)` that your own code opens is not covered; open through the data source
+when other threads share its connection string. `Microsoft.Data.Sqlite` 10.0.13 and 11.0 fix the
+ordering upstream (dotnet/efcore#39008), and the lock will be removed once Weasel's minimum version
+includes the fix.
+
 ## Why not register on a connection directly?
 
 You can, and the `Microsoft.Data.Sqlite` API for it is `connection.CreateFunction(...)`. The

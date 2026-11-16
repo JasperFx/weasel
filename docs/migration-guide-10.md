@@ -239,6 +239,13 @@ but obtained synchronously. Three things a `HiloSequenceBase` subclass should kn
   itself rather than offered to the rest of the batch. On PostgreSQL, pass
   `OperationBatchOptions.StatementCompletion = NpgsqlStatementCompletion.HasCompleted` to tell apart a run of
   statements that return no rows; without it they are asked in statement order. `ExecuteEachAsync` is unchanged.
+- `SqliteDataSource` serializes the connection-pool checkout per exact connection string
+  ([weasel#857](https://github.com/JasperFx/weasel/issues/857)). `Microsoft.Data.Sqlite` 10.0.12 and earlier can
+  lend one native handle to two open connections under concurrent opens. The lock covers only the checkout,
+  is shared with every other data source and `SqliteDatabase` over the same string, and also applies to
+  connections from `CreateConnection()` and `SqliteDatabase.CreateConnection()` when they are opened. Use the new
+  `SqliteDataSource.ClearPool(connectionString)` and `SqliteDataSource.ClearAllPools()` instead of the
+  `SqliteConnection` statics. See [Functions and Extensions](/sqlite/functions).
 - `Weasel.Storage.EventTypeAllowList.For` returns `EventTypeAllowList.All` when any included type is an interface,
   an abstract class or `object` ([weasel#845](https://github.com/JasperFx/weasel/issues/845)). A stored row carries
   its concrete type, so the alias of `IDomainEvent` (from `IncludeType<IDomainEvent>()` or a projection's
