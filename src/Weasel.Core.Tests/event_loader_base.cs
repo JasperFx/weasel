@@ -43,6 +43,7 @@ public class event_loader_base: IDisposable
             create table events (
                 seq_id integer primary key,
                 type text not null,
+                dotnet_type text not null,
                 is_archived integer not null default 0,
                 tenant_id text not null default '*DEFAULT*'
             );
@@ -60,7 +61,15 @@ public class event_loader_base: IDisposable
     private void Append(params (long Sequence, string Type)[] rows) =>
         Append(rows.Select(x => (x.Sequence, x.Type, false, "*DEFAULT*")).ToArray());
 
-    private void Append(params (long Sequence, string Type, bool Archived, string TenantId)[] rows)
+    private void Append(params (long Sequence, string Type, bool Archived, string TenantId)[] rows) =>
+        Append(rows.Select(x => (x.Sequence, x.Type, StubRegistry.DotNetTypeNameOf(x.Type), x.Archived, x.TenantId))
+            .ToArray());
+
+    /// <summary>A row whose dotnet_type is not the one the stub registry derives from its alias.</summary>
+    private void Append(params (long Sequence, string Type, string DotNetType)[] rows) =>
+        Append(rows.Select(x => (x.Sequence, x.Type, x.DotNetType, false, "*DEFAULT*")).ToArray());
+
+    private void Append(params (long Sequence, string Type, string DotNetType, bool Archived, string TenantId)[] rows)
     {
         using var conn = new SqliteConnection(_connectionString);
         conn.Open();
@@ -69,9 +78,10 @@ public class event_loader_base: IDisposable
         {
             using var cmd = conn.CreateCommand();
             cmd.CommandText =
-                "insert into events (seq_id, type, is_archived, tenant_id) values (@s, @t, @a, @tenant)";
+                "insert into events (seq_id, type, dotnet_type, is_archived, tenant_id) values (@s, @t, @d, @a, @tenant)";
             cmd.Parameters.AddWithValue("@s", row.Sequence);
             cmd.Parameters.AddWithValue("@t", row.Type);
+            cmd.Parameters.AddWithValue("@d", row.DotNetType);
             cmd.Parameters.AddWithValue("@a", row.Archived ? 1 : 0);
             cmd.Parameters.AddWithValue("@tenant", row.TenantId);
             cmd.ExecuteNonQuery();
@@ -92,6 +102,10 @@ public class event_loader_base: IDisposable
 
     private TestLoader LoaderFor(EventLoaderOptions? options = null) =>
         new(_connectionString, options);
+
+    /// <summary>A loader whose dialect matches on <c>dotnet_type</c>, as Polecat's does.</summary>
+    private TestLoader DotNetTypeLoaderFor(EventLoaderOptions options) =>
+        new(_connectionString, new SqliteDotNetTypeTestDialect(), options);
 
     // ----------------------------------------------------------------------------------------
     // The ordinary page read
@@ -200,6 +214,57 @@ public class event_loader_base: IDisposable
 
         page.Select(x => x.Sequence).ShouldBe([1, 3]);
         loader.HydratedTypes.ShouldBe(["wanted_v1", "wanted"]);
+    }
+
+    [Fact]
+    public async Task a_dotnet_type_dialect_reads_an_old_row_stored_under_a_shared_alias()
+    {
+        // weasel#851: "same event name, new shape". Row 1 was written under the alias "wanted" when that
+        // alias belonged to an older CLR type, so its dotnet_type is the old type's name. The upcaster
+        // reads "wanted" into the new type, whose alias is "wanted" too. A dialect matching on
+        // dotnet_type renders `dotnet_type in (DotNetTypeNames) or type in (UpcastSourceAliases)`: the
+        // first disjunct cannot match the old name, so the second is the only way the row is read.
+        // Up to #851 "wanted" was dropped from UpcastSourceAliases for being a declared alias, and the
+        // shard read [3] and reported itself caught up.
+        Append((1, "wanted", "Old.Namespace.Wanted, Old.Assembly"),
+            (2, "unwanted", "dotnet::unwanted"),
+            (3, "wanted", StubRegistry.DotNetTypeNameOf("wanted")),
+            (4, "other", "Old.Namespace.Other, Old.Assembly"));
+
+        var registry = new StubRegistry(["wanted"]);
+        registry.Upcasters.Upcast(new RenamingUpcaster("wanted", StubRegistry.TypeAt(0)));
+
+        var allowList = EventTypeAllowList.For(registry, [StubRegistry.TypeAt(0)]);
+        allowList.UpcastSourceAliases.ShouldBe(["wanted"]);
+
+        var loader = DotNetTypeLoaderFor(new EventLoaderOptions { EventTypes = allowList });
+        var page = await loader.LoadAsync(RequestFor(0, 10), CancellationToken.None);
+
+        page.Select(x => x.Sequence).ShouldBe([1, 3]);
+        loader.HydratedTypes.ShouldBe(["wanted", "wanted"]);
+
+        // The skip-ahead probe takes the same filter.
+        (await loader.ProbeAsync(0, 10)).ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task a_type_column_dialect_renders_a_shared_upcast_alias_once()
+    {
+        // weasel#851's other half: keeping the shared alias on UpcastSourceAliases must not put a
+        // duplicate term or parameter into a type-column dialect's IN list.
+        Append((1, "wanted"), (2, "unwanted"), (3, "wanted"));
+
+        var registry = new StubRegistry(["wanted"]);
+        registry.Upcasters.Upcast(new RenamingUpcaster("wanted", StubRegistry.TypeAt(0)));
+
+        var allowList = EventTypeAllowList.For(registry, [StubRegistry.TypeAt(0)]);
+        var loader = LoaderFor(new EventLoaderOptions { EventTypes = allowList });
+        var page = await loader.LoadAsync(RequestFor(0, 10), CancellationToken.None);
+
+        page.Select(x => x.Sequence).ShouldBe([1, 3]);
+
+        var command = new SqliteTestDialect().BuildPageCommand(loader.PageQueries.Single());
+        command.Parameters.Where(x => x.Name.StartsWith("@type")).Select(x => x.Value).ShouldBe(["wanted"]);
     }
 
     [Fact]
@@ -538,12 +603,14 @@ public class event_loader_base: IDisposable
 
         public static Type TypeAt(int index) => _types[index];
 
+        public static string DotNetTypeNameOf(string alias) => $"dotnet::{alias}";
+
         public override IEventType EventMappingFor(Type eventType)
         {
             // Anything else gets an alias from its name, as a real registry would give an interface.
             var index = Array.IndexOf(_types, eventType);
             var alias = index < 0 ? eventType.Name : _aliases[index];
-            return new EventTypeData<object> { EventTypeName = alias, DotNetTypeName = $"dotnet::{alias}" };
+            return new EventTypeData<object> { EventTypeName = alias, DotNetTypeName = DotNetTypeNameOf(alias) };
         }
 
         private sealed record Marker0: IMarkerEvent;
@@ -552,8 +619,8 @@ public class event_loader_base: IDisposable
         private sealed record Marker3;
     }
 
-    /// <summary>Renders SQLite SQL for the base's two commands.</summary>
-    private sealed class SqliteTestDialect: IEventPagingDialect
+    /// <summary>Renders SQLite SQL for the base's two commands, matching on the <c>type</c> column.</summary>
+    private class SqliteTestDialect: IEventPagingDialect
     {
         public List<EventPageQuery> Queries { get; } = [];
 
@@ -576,7 +643,7 @@ public class event_loader_base: IDisposable
                 $"select seq_id from events where {where} order by seq_id limit 1", parameters);
         }
 
-        private static (string Where, List<EventPageParameter> Parameters) Filters(EventPageQuery query)
+        private (string Where, List<EventPageParameter> Parameters) Filters(EventPageQuery query)
         {
             var clauses = new List<string> { "seq_id > @floor", "seq_id <= @ceiling" };
             var parameters = new List<EventPageParameter>
@@ -598,17 +665,46 @@ public class event_loader_base: IDisposable
             if (!query.EventTypes.IsEmpty)
             {
                 // In SQL, never after hydration.
-                // Upcast sources too, or the history an upcaster exists to read is filtered out.
-                var aliases = query.EventTypes.AliasesIncludingUpcastSources;
-                var names = aliases
-                    .Select((_, i) => $"@type{i}")
-                    .ToArray();
-                clauses.Add($"type in ({string.Join(", ", names)})");
-                parameters.AddRange(aliases
-                    .Select((alias, i) => new EventPageParameter($"@type{i}", alias)));
+                clauses.Add(TypeFilter(query.EventTypes, parameters));
             }
 
             return (string.Join(" and ", clauses), parameters);
+        }
+
+        protected virtual string TypeFilter(EventTypeAllowList eventTypes, List<EventPageParameter> parameters)
+        {
+            // Upcast sources too, or the history an upcaster exists to read is filtered out.
+            var aliases = eventTypes.AliasesIncludingUpcastSources;
+            var names = aliases
+                .Select((_, i) => $"@type{i}")
+                .ToArray();
+            parameters.AddRange(aliases
+                .Select((alias, i) => new EventPageParameter($"@type{i}", alias)));
+            return $"type in ({string.Join(", ", names)})";
+        }
+    }
+
+    /// <summary>
+    /// The <c>dotnet_type</c> shape <see cref="EventPageQuery.EventTypes"/> describes, as Polecat renders
+    /// it: the declared CLR type names, or any upcast source alias in the <c>type</c> column. Each list is
+    /// one parameter, per <see cref="IEventPagingDialect"/>.
+    /// </summary>
+    private sealed class SqliteDotNetTypeTestDialect: SqliteTestDialect
+    {
+        protected override string TypeFilter(EventTypeAllowList eventTypes, List<EventPageParameter> parameters)
+        {
+            parameters.Add(new EventPageParameter("@dotnet_types",
+                System.Text.Json.JsonSerializer.Serialize(eventTypes.DotNetTypeNames)));
+
+            const string byDotNetType = "dotnet_type in (select value from json_each(@dotnet_types))";
+            if (eventTypes.UpcastSourceAliases.Count == 0)
+            {
+                return byDotNetType;
+            }
+
+            parameters.Add(new EventPageParameter("@upcast_sources",
+                System.Text.Json.JsonSerializer.Serialize(eventTypes.UpcastSourceAliases)));
+            return $"({byDotNetType} or type in (select value from json_each(@upcast_sources)))";
         }
     }
 
@@ -626,7 +722,7 @@ public class event_loader_base: IDisposable
         {
         }
 
-        private TestLoader(string connectionString, SqliteTestDialect dialect, EventLoaderOptions? options)
+        public TestLoader(string connectionString, SqliteTestDialect dialect, EventLoaderOptions? options)
             : base(dialect, options)
         {
             _connectionString = connectionString;

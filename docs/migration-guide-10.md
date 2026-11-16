@@ -245,6 +245,15 @@ but obtained synchronously. Three things a `HiloSequenceBase` subclass should kn
   `Apply(IDomainEvent e)`) matched nothing, and the pushed-down filter dropped every event implementing it while the
   shard reported itself caught up. Such a shard now reads every event type and dispatches after hydration, which is
   Marten's long-standing rule.
+- `Weasel.Storage.EventTypeAllowList.UpcastSourceAliases` now keeps an upcast source alias that is also a declared
+  alias ([weasel#851](https://github.com/JasperFx/weasel/issues/851)). That is the "same event name, new shape"
+  upcast: an upcaster from alias `X` to a new type whose alias is also `X`. A dialect matching on `dotnet_type`
+  renders `dotnet_type in (DotNetTypeNames) or type in (UpcastSourceAliases)`, and a row written before the
+  migration carries the old CLR type name, so with `X` left out it matched neither and the shard skipped it while
+  reporting itself caught up. Such a dialect (Polecat's) now reads those rows. `AliasesIncludingUpcastSources` still
+  lists each alias once, so a dialect matching on the `type` column (Marten's, Fisher's) renders exactly what it did.
+  Code that reads `UpcastSourceAliases` for anything other than that second disjunct should not assume it is
+  disjoint from `Aliases`.
 
 ## Dependency lockstep
 

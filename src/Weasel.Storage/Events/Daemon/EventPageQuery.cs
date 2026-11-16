@@ -53,7 +53,10 @@ public sealed record EventPageQuery
     /// <c>type</c> column, or add an <c>or type in (...)</c> disjunct over
     /// <see cref="EventTypeAllowList.UpcastSourceAliases"/> when matching on <c>dotnet_type</c>.
     /// Rendering <see cref="EventTypeAllowList.Aliases"/> alone silently drops every row written
-    /// under a name an upcaster reads from (weasel#743).
+    /// under a name an upcaster reads from (weasel#743). The second disjunct takes
+    /// <see cref="EventTypeAllowList.UpcastSourceAliases"/> as it is, including any alias that is also
+    /// declared: an old row under that alias carries an old CLR type name the first disjunct cannot
+    /// match (weasel#851).
     /// <para>
     /// The list can be long, and the dialect must render it whatever its length: bind it as one
     /// parameter, not one per name. See <see cref="IEventPagingDialect"/> (weasel#846).
