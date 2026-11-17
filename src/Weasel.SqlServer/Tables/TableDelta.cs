@@ -4,7 +4,8 @@ using Weasel.Core;
 namespace Weasel.SqlServer.Tables;
 
 public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferrableForeignKeys,
-    ISchemaObjectDeltaWithReason, ISchemaObjectDeltaWithWithheldDrops
+    ISchemaObjectDeltaWithReason, ISchemaObjectDeltaWithWithheldDrops, ISchemaObjectDeltaWithRebuild,
+    ISchemaObjectDeltaWithPostProcessing
 {
     private readonly List<string> _withheldDrops = new();
 
@@ -67,6 +68,73 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     ///     means the partitioning would have to be rebuilt (column/type change or boundaries removed).
     /// </summary>
     public SchemaPatchDifference PartitioningDifference { get; private set; } = SchemaPatchDifference.None;
+
+    /// <summary>
+    ///     The existing table is not partitioned and the model now partitions it on a RANGE scheme. The
+    ///     rows are moved onto the scheme in place by rebuilding the clustered primary key on it, so
+    ///     nothing is dropped or copied into another table (JasperFx/polecat#1041).
+    /// </summary>
+    public bool MovesOntoPartitionScheme { get; private set; }
+
+    /// <summary>
+    ///     The existing table is partitioned, the model no longer partitions it, and its primary key
+    ///     changes. The clustered key is rebuilt on the default filegroup, which takes the rows off the
+    ///     scheme; a key without the partitioning column could not be built on the scheme at all.
+    /// </summary>
+    public bool MovesOffPartitionScheme { get; private set; }
+
+    private bool movesTable => MovesOntoPartitionScheme || MovesOffPartitionScheme;
+
+    /// <summary>
+    ///     A partitioning change is <see cref="SchemaPatchDifference.Invalid" /> because it cannot be an
+    ///     <c>ALTER</c>, but moving an unpartitioned table onto a RANGE scheme keeps every row, so the
+    ///     migrator rebuilds it rather than dropping it, under <c>AutoCreate.CreateOrUpdate</c> and
+    ///     <c>AutoCreate.All</c> alike.
+    /// </summary>
+    public bool CanRebuildInPlace => MovesOntoPartitionScheme && Difference == SchemaPatchDifference.Invalid;
+
+    /// <summary>
+    ///     Foreign keys on other tables in the same migration that reference this table. Moving the
+    ///     table rebuilds its primary key, which SQL Server refuses while anything references it, so they
+    ///     come off first and the ones their table still declares go back afterwards.
+    /// </summary>
+    internal List<(Table Owner, ForeignKey ForeignKey, bool Restore)> ReferencingForeignKeys { get; } = new();
+
+    public void PostProcess(IList<ISchemaObjectDelta> allDeltas)
+    {
+        ReferencingForeignKeys.Clear();
+        if (!movesTable) return;
+
+        foreach (var other in allDeltas.OfType<TableDelta>())
+        {
+            if (ReferenceEquals(other, this) || other.Actual == null) continue;
+
+            foreach (var foreignKey in other.Actual.ForeignKeys)
+            {
+                if (foreignKey.LinkedTable == null || !sameTable(foreignKey.LinkedTable, Expected.Identifier))
+                {
+                    continue;
+                }
+
+                // Put back only what the other table's own delta leaves alone: a key it drops or
+                // rewrites is its business, and one it still declares unchanged would otherwise be lost
+                var restore = other.Difference is SchemaPatchDifference.Update or SchemaPatchDifference.None
+                              && other.ForeignKeys.Matched.Any(x =>
+                                  x.Name.Equals(foreignKey.Name, StringComparison.OrdinalIgnoreCase));
+
+                var declared = restore
+                    ? other.Expected.ForeignKeys.First(x =>
+                        x.Name.Equals(foreignKey.Name, StringComparison.OrdinalIgnoreCase))
+                    : foreignKey;
+
+                ReferencingForeignKeys.Add((other.Expected, declared, restore));
+            }
+        }
+    }
+
+    private static bool sameTable(DbObjectName left, DbObjectName right)
+        => SchemaUtils.Unbracket(left.Schema).Equals(SchemaUtils.Unbracket(right.Schema), StringComparison.OrdinalIgnoreCase)
+           && SchemaUtils.Unbracket(left.Name).Equals(SchemaUtils.Unbracket(right.Name), StringComparison.OrdinalIgnoreCase);
 
     protected override SchemaPatchDifference compare(Table expected, Table? actual)
     {
@@ -145,7 +213,62 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             };
         }
 
-        return determinePatchDifference();
+        MovesOntoPartitionScheme = false;
+        MovesOffPartitionScheme = false;
+
+        var difference = determinePatchDifference();
+
+        if (difference == SchemaPatchDifference.Invalid && canMoveOntoPartitionScheme(expected, actual))
+        {
+            MovesOntoPartitionScheme = true;
+            InvalidReason =
+                "the table is moved onto its partition scheme by rebuilding its clustered primary key in place";
+        }
+        else if (difference == SchemaPatchDifference.Update && expected.SqlServerPartitioning == null
+                 && actual.PartitionInfo != null && PrimaryKeyDifference != SchemaPatchDifference.None
+                 && expected.PrimaryKeyColumns.Count > 0 && expected.PrimaryKeyIsClustered != false)
+        {
+            MovesOffPartitionScheme = true;
+        }
+
+        return difference;
+    }
+
+    /// <summary>
+    ///     Only an unpartitioned table going onto a RANGE scheme, with nothing else in the delta that
+    ///     cannot be applied in place, and a clustered primary key that carries the partitioning
+    ///     column: SQL Server partitions a table through its clustered index, and a unique clustered
+    ///     index on a scheme must include the partitioning column.
+    /// </summary>
+    private bool canMoveOntoPartitionScheme(Table expected, Table actual)
+    {
+        if (actual.PartitionInfo != null) return false;
+        if (expected.SqlServerPartitioning is not Partitioning.ISplittablePartitioning partitioning) return false;
+        if (PartitioningDifference != SchemaPatchDifference.Invalid) return false;
+
+        if (expected.PrimaryKeyColumns.Count == 0 || expected.PrimaryKeyIsClustered == false) return false;
+        if (!expected.PrimaryKeyColumns.Any(x =>
+                SchemaUtils.Unbracket(x).Equals(SchemaUtils.Unbracket(partitioning.Column), StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        // The existing key is rebuilt, so it has to be the clustered index (or there is none yet)
+        if (actual.PrimaryKeyColumns.Count > 0 && actual.PrimaryKeyIsClustered == false) return false;
+
+        if (actual.PartitionStrategy != expected.PartitionStrategy) return false;
+        if (!actual.PartitionExpressions.SequenceEqual(expected.PartitionExpressions)) return false;
+
+        if (Columns.Different.Any(x => !x.Expected.CanAlter(x.Actual))) return false;
+        if (Columns.Missing.Any(x => !x.CanAdd())) return false;
+
+        var others = new[]
+        {
+            Columns.Difference(), ForeignKeys.Difference(), Indexes.Difference(), CheckConstraints.Difference(),
+            PrimaryKeyDifference
+        };
+
+        return others.All(x => x != SchemaPatchDifference.Invalid);
     }
 
     /// <summary>
@@ -160,7 +283,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
     public override void WriteUpdate(Migrator rules, TextWriter writer)
     {
-        if (Difference == SchemaPatchDifference.Invalid)
+        if (Difference == SchemaPatchDifference.Invalid && !CanRebuildInPlace)
         {
             throw new InvalidOperationException($"TableDelta for {Expected.Identifier} is invalid");
         }
@@ -169,6 +292,13 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         {
             SchemaObject.WriteCreateStatement(rules, writer);
             return;
+        }
+
+        // The partition function and scheme have to exist before anything is built on them
+        if (MovesOntoPartitionScheme)
+        {
+            Expected.SqlServerPartitioning!.WritePartitionDdl(writer, Expected);
+            endBatch(writer);
         }
 
         // Extra indexes
@@ -190,7 +320,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         // clustered index, and a new clustered index cannot be built while it is still there
         // (JasperFx/wolverine#4989)
         var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeUpdate() || primaryKeyRemoved();
-        if (primaryKeyDroppedBeforeColumnChanges)
+        if (movesTable)
+        {
+            writeDropKeysBeforeMove(writer);
+        }
+        else if (primaryKeyDroppedBeforeColumnChanges)
         {
             writer.WriteLine($"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Actual!.PrimaryKeyName)};");
         }
@@ -228,6 +362,23 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         writeForeignKeyUpdates(writer);
         writeCheckConstraintUpdates(writer);
 
+        // The rows move with the clustered key, and everything built after it lands where the table now
+        // is: an index created on a partitioned table without an ON clause is aligned with its scheme
+        if (movesTable)
+        {
+            writeNotNullForPrimaryKeyColumns(writer);
+            if (MovesOntoPartitionScheme)
+            {
+                writeAddPrimaryKey(Expected, Expected, writer, partitionOnClause());
+            }
+            else
+            {
+                writeAddPrimaryKeyOnDefaultFilegroup(Expected, writer);
+            }
+
+            endBatch(writer);
+        }
+
         // Missing indexes
         foreach (var indexDefinition in Indexes.Missing) indexDefinition.WriteCreateStatement(Expected, writer);
 
@@ -248,6 +399,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             && Actual?.PartitionInfo != null)
         {
             rangePartitioning.WriteSplitStatements(writer, Expected, Actual.PartitionInfo);
+        }
+
+        if (movesTable)
+        {
+            foreach (var (owner, foreignKey, restore) in ReferencingForeignKeys)
+            {
+                if (restore) foreignKey.WriteAddStatement(owner, writer);
+            }
+
+            return;
         }
 
         switch (PrimaryKeyDifference)
@@ -383,7 +544,24 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         // reason as on the way forward: it is usually the clustered index (JasperFx/wolverine#4989)
         var primaryKeyDroppedBeforeColumnChanges = requiresPrimaryKeyDropBeforeRollback() ||
                                                    PrimaryKeyDifference == SchemaPatchDifference.Create;
-        if (primaryKeyDroppedBeforeColumnChanges)
+        if (movesTable)
+        {
+            // The reverse move: the key the update built on the new location comes off while the
+            // table is still there
+            writer.WriteLine(MovesOntoPartitionScheme ? $"IF {tableIsPartitioned()}" : $"IF NOT {tableIsPartitioned()}");
+            writer.WriteLine("BEGIN");
+            foreach (var (owner, foreignKey, _) in ReferencingForeignKeys)
+            {
+                writer.Write("    ");
+                foreignKey.WriteDropStatement(owner, writer);
+            }
+
+            writer.WriteLine(
+                $"    alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
+            writer.WriteLine("END");
+            endBatch(writer);
+        }
+        else if (primaryKeyDroppedBeforeColumnChanges)
         {
             writer.WriteLine(
                 $"alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Expected.PrimaryKeyName)};");
@@ -436,6 +614,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
 
         foreach (var change in ForeignKeys.Different) change.Actual.WriteAddStatement(Expected, writer);
 
+        // Back where it came from before any index is rebuilt, for the same reason as going forward
+        if (movesTable)
+        {
+            writeMoveBackForRollback(writer);
+        }
+
         rollbackIndexes(writer);
 
         // Missing columns
@@ -449,6 +633,17 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             && Actual?.PartitionInfo != null)
         {
             rangePartitioning.WriteMergeStatements(writer, Expected, Actual.PartitionInfo);
+        }
+
+        if (movesTable)
+        {
+            // Only the keys the update put back; the others belong to their own table's rollback
+            foreach (var (owner, foreignKey, restore) in ReferencingForeignKeys)
+            {
+                if (restore) foreignKey.WriteAddStatement(owner, writer);
+            }
+
+            return;
         }
 
         switch (PrimaryKeyDifference)
@@ -638,10 +833,107 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     ///     Add the table's primary key unless a key of that name is already there, so a rendered script
     ///     can be run more than once.
     /// </summary>
-    private static void writeAddPrimaryKey(Table table, Table declaring, TextWriter writer)
+    private static void writeAddPrimaryKey(Table table, Table declaring, TextWriter writer, string onClause = "")
     {
         writer.WriteLine(constraintGuard(table, declaring.PrimaryKeyName, "PK"));
-        writer.WriteLine($"    alter table {table.Identifier} add {declaring.PrimaryKeyDeclaration()};");
+        writer.WriteLine($"    alter table {table.Identifier} add {declaring.PrimaryKeyDeclaration()}{onClause};");
+    }
+
+    private string partitionOnClause()
+    {
+        var clause = new StringWriter();
+        Expected.SqlServerPartitioning!.WriteOnClause(clause, Expected);
+        return clause.ToString();
+    }
+
+    /// <summary>
+    ///     Is the table's heap or clustered index on a partition scheme right now? Rendered into the
+    ///     script rather than decided here, so a script that is run twice, or a migration that was cut
+    ///     off part way, does not take the key down again once the table has moved.
+    /// </summary>
+    private string tableIsPartitioned()
+        => "EXISTS (SELECT 1 FROM sys.indexes i INNER JOIN sys.partition_schemes ps ON ps.data_space_id = i.data_space_id "
+           + $"WHERE i.object_id = OBJECT_ID(N'{SchemaUtils.EscapeLiteral(Expected.Identifier.ToString())}') AND i.index_id <= 1)";
+
+    /// <summary>
+    ///     Rebuild the actual primary key where the table was before the update moved it. A table that
+    ///     had no primary key gets a clustered index for just long enough to move it.
+    /// </summary>
+    private void writeMoveBackForRollback(TextWriter writer)
+    {
+        if (MovesOntoPartitionScheme)
+        {
+            if (Actual!.PrimaryKeyColumns.Count > 0)
+            {
+                writeAddPrimaryKeyOnDefaultFilegroup(Actual, writer);
+            }
+            else
+            {
+                // A heap is moved by building a clustered index where it should go and dropping it again
+                const string temporary = "ix_weasel_partition_move";
+                var column = SchemaUtils.QuoteName(Expected.SqlServerPartitioning!.Column);
+                writeOnDefaultFilegroup(writer,
+                    $"create clustered index {SchemaUtils.BracketName(temporary)} on {Expected.Identifier} ({column})");
+                writer.WriteLine($"drop index if exists {SchemaUtils.BracketName(temporary)} on {Expected.Identifier};");
+            }
+        }
+        else
+        {
+            var onClause =
+                $" ON {SchemaUtils.BracketName(Actual!.PartitionInfo!.PartitionSchemeName!)}({SchemaUtils.BracketName(Actual.PartitionInfo.Column!)})";
+            writeAddPrimaryKey(Expected, Actual, writer, onClause);
+        }
+
+        endBatch(writer);
+    }
+
+    /// <summary>
+    ///     <c>ON "default"</c> does not mean the default filegroup when the table is partitioned: SQL
+    ///     Server reads it as "wherever the table is", which is the scheme the key is meant to leave.
+    ///     So the default filegroup is looked up and named.
+    /// </summary>
+    private void writeAddPrimaryKeyOnDefaultFilegroup(Table declaring, TextWriter writer)
+    {
+        writer.WriteLine(constraintGuard(Expected, declaring.PrimaryKeyName, "PK"));
+        writer.WriteLine("BEGIN");
+        writeOnDefaultFilegroup(writer, $"alter table {Expected.Identifier} add {declaring.PrimaryKeyDeclaration()}");
+        writer.WriteLine("END");
+    }
+
+    private static void writeOnDefaultFilegroup(TextWriter writer, string statement)
+    {
+        writer.WriteLine("    DECLARE @weasel_move nvarchar(max) = N'" + SchemaUtils.EscapeLiteral(statement)
+                         + " ON ' + QUOTENAME((SELECT name FROM sys.filegroups WHERE is_default = 1)) + N';';");
+        writer.WriteLine("    EXEC sp_executesql @weasel_move;");
+    }
+
+    /// <summary>
+    ///     Take down what references the primary key, then the key itself, while the table is still
+    ///     where it started. The key goes back with an <c>ON</c> clause once the column changes are in,
+    ///     and that rebuild is what moves the rows.
+    /// </summary>
+    private void writeDropKeysBeforeMove(TextWriter writer)
+    {
+        // A table cut off part way through an earlier move may have nothing left to take down, and an
+        // empty BEGIN ... END does not compile
+        if (ReferencingForeignKeys.Count == 0 && Actual!.PrimaryKeyName.IsEmpty()) return;
+
+        writer.WriteLine(MovesOntoPartitionScheme ? $"IF NOT {tableIsPartitioned()}" : $"IF {tableIsPartitioned()}");
+        writer.WriteLine("BEGIN");
+
+        foreach (var (owner, foreignKey, _) in ReferencingForeignKeys)
+        {
+            writer.Write("    ");
+            foreignKey.WriteDropStatement(owner, writer);
+        }
+
+        if (Actual!.PrimaryKeyName.IsNotEmpty())
+        {
+            writer.WriteLine($"    alter table {Expected.Identifier} drop constraint if exists {SchemaUtils.QuoteName(Actual.PrimaryKeyName)};");
+        }
+
+        writer.WriteLine("END");
+        endBatch(writer);
     }
 
     /// <summary>
