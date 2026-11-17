@@ -17,7 +17,7 @@ public class long_child_index_names_on_partitioned_tables: IntegrationContext
     // 61 characters: a valid name on its own, too long once a partition suffix is appended.
     private const string IndexName = "mt_doc_pre_go_live_care_34_idx_ngram_clientnamevolledigenaam";
 
-    public long_child_index_names_on_partitioned_tables(): base("long_child_index_names")
+    public long_child_index_names_on_partitioned_tables(): base("long_child_index_names", ConnectionSource.ConcurrentIndexConnectionString)
     {
     }
 

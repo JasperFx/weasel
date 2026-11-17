@@ -59,6 +59,19 @@ public class generated_script_re_runs: IntegrationContext
         return table;
     }
 
+    /// <summary>
+    ///     Drops only this class's own tables, children first. Resetting the schema would drop the shared
+    ///     weasel_testing database itself, which every other test class connects to: a class running in
+    ///     parallel failed with "Unknown database 'weasel_testing'" when it opened a connection in the
+    ///     window between the drop and the re-create.
+    /// </summary>
+    private async Task dropTablesAsync(string child, string parent)
+    {
+        await using var cmd = theConnection.CreateCommand(
+            $"DROP TABLE IF EXISTS `{Schema}`.`{child}`, `{Schema}`.`{parent}`");
+        await cmd.ExecuteNonQueryAsync();
+    }
+
     private static async Task runAsync(string script)
     {
         await using var conn = new MySqlConnection(ConnectionSource.ConnectionString);
@@ -89,7 +102,7 @@ public class generated_script_re_runs: IntegrationContext
     [Fact]
     public async Task an_inline_foreign_key_round_trips_with_no_delta()
     {
-        await ResetSchemaAsync(Schema);
+        await dropTablesAsync("rt_child", "rt_parent");
 
         var parent = table("rt_parent");
         var child = table("rt_child", "rt_parent");
@@ -109,7 +122,7 @@ public class generated_script_re_runs: IntegrationContext
     [Fact]
     public async Task the_script_runs_and_re_runs()
     {
-        await ResetSchemaAsync(Schema);
+        await dropTablesAsync("rr_child", "rr_parent");
 
         var db = new DatabaseWithTables(Schema, ConnectionSource.ConnectionString);
         db.AddTable(table("rr_parent"));
@@ -135,7 +148,7 @@ public class generated_script_re_runs: IntegrationContext
     [Fact]
     public async Task a_child_added_before_its_parent_still_runs()
     {
-        await ResetSchemaAsync(Schema);
+        await dropTablesAsync("ord_child", "ord_parent");
 
         var db = new DatabaseWithTables(Schema, ConnectionSource.ConnectionString);
         db.AddTable(table("ord_child", "ord_parent"));

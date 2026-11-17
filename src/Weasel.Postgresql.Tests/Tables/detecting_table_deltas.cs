@@ -8,7 +8,7 @@ using Xunit;
 namespace Weasel.Postgresql.Tests.Tables;
 
 [Collection("deltas")]
-public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas")
+public class detecting_table_deltas(): IndexDeltasDetectionContext("deltas", connectionString: ConnectionSource.ConcurrentIndexConnectionString)
 {
     [Fact]
     public async Task detect_all_new_table()

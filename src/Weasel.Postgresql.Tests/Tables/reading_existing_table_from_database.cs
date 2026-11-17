@@ -8,7 +8,7 @@ namespace Weasel.Postgresql.Tests.Tables;
 [Collection("tables")]
 public class reading_existing_table_from_database: IntegrationContext
 {
-    public reading_existing_table_from_database(): base("tables")
+    public reading_existing_table_from_database(): base("tables", ConnectionSource.ConcurrentIndexConnectionString)
     {
     }
 

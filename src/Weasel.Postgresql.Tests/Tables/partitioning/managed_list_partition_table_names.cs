@@ -27,7 +27,7 @@ namespace Weasel.Postgresql.Tests.Tables.partitioning;
 [Collection("managed_list_names")]
 public class managed_list_partition_table_names: IntegrationContext
 {
-    public managed_list_partition_table_names(): base("managed_list_names")
+    public managed_list_partition_table_names(): base("managed_list_names", ConnectionSource.ConcurrentIndexConnectionString)
     {
     }
 

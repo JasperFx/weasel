@@ -211,6 +211,23 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     public string Filegroup { get; set; } = "PRIMARY";
 
     /// <summary>
+    ///     The command timeout for each <c>ALTER PARTITION FUNCTION ... SPLIT RANGE</c> (and the
+    ///     <c>ALTER PARTITION SCHEME ... NEXT USED</c> just before it). The default, null, leaves them on the
+    ///     connection's own command timeout, as are the registry statements always.
+    /// </summary>
+    /// <remarks>
+    ///     A SPLIT waits for a schema modification lock on the table, and while it waits every later reader
+    ///     and writer of that table queues behind it. A shorter limit here gives up on the SPLIT sooner
+    ///     without also cutting short the registry work on the same connection (weasel#877). A SPLIT that
+    ///     gives up is reported as <see cref="PartitionMigrationStatus.Failed" /> for that table, like any
+    ///     other failed SPLIT, and <see cref="MigrateAllTablesAsync" /> or the next registration fills it in.
+    ///     Zero, a negative value or <see cref="Timeout.InfiniteTimeSpan" /> means no limit. Use the
+    ///     <see cref="AddPartitionsToAllTables(ILogger,IDatabase{SqlConnection},IEnumerable{string},TimeSpan?,CancellationToken)" />
+    ///     overload to set it for one call instead.
+    /// </remarks>
+    public TimeSpan? SplitCommandTimeout { get; set; }
+
+    /// <summary>
     ///     Managed tenant partitioning is always RANGE RIGHT — each ordinal is
     ///     the lower bound of its partition. Exposed for delta detection.
     /// </summary>
@@ -511,7 +528,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
         var ordinal = await upsertTenantAsync(conn, tenantId, token).ConfigureAwait(false);
 
-        await splitTablesForNewOrdinalsAsync(logger, database, conn, token).ConfigureAwait(false);
+        await splitTablesForNewOrdinalsAsync(logger, database, conn, SplitCommandTimeout, token).ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
 
@@ -542,10 +559,30 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     ///     <c>ManagedListPartitions</c> batch add) so callers can surface
     ///     partial failures.
     /// </summary>
+    public Task<TenantPartitionAddResult> AddPartitionsToAllTables(
+        ILogger logger,
+        IDatabase<SqlConnection> database,
+        IEnumerable<string> tenantIds,
+        CancellationToken token)
+    {
+        return AddPartitionsToAllTables(logger, database, tenantIds, SplitCommandTimeout, token);
+    }
+
+    /// <summary>
+    ///     Same as <see cref="AddPartitionsToAllTables(ILogger,IDatabase{SqlConnection},IEnumerable{string},CancellationToken)" />,
+    ///     but every SPLIT in this call runs with <paramref name="splitCommandTimeout" /> instead of
+    ///     <see cref="SplitCommandTimeout" />. Loading the registry and writing the tenants into it keep the
+    ///     connection's command timeout.
+    /// </summary>
+    /// <param name="splitCommandTimeout">
+    ///     The command timeout for each SPLIT in this call. Null leaves them on the connection's command
+    ///     timeout. Zero, a negative value or <see cref="Timeout.InfiniteTimeSpan" /> means no limit.
+    /// </param>
     public async Task<TenantPartitionAddResult> AddPartitionsToAllTables(
         ILogger logger,
         IDatabase<SqlConnection> database,
         IEnumerable<string> tenantIds,
+        TimeSpan? splitCommandTimeout,
         CancellationToken token)
     {
         await using var conn = database.CreateConnection();
@@ -565,7 +602,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
                 await upsertTenantAsync(conn, tenantId, token).ConfigureAwait(false);
         }
 
-        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, splitCommandTimeout, token)
             .ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
@@ -605,7 +642,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
                 await upsertTenantAsync(conn, pair.Key, token, pair.Value).ConfigureAwait(false);
         }
 
-        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, SplitCommandTimeout, token)
             .ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
@@ -669,7 +706,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             }
         }
 
-        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, SplitCommandTimeout, token)
             .ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
@@ -752,7 +789,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
         await InitializeAsync(conn, token).ConfigureAwait(false);
 
-        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, token)
+        var statuses = await splitTablesForNewOrdinalsAsync(logger, database, conn, SplitCommandTimeout, token)
             .ConfigureAwait(false);
 
         await conn.CloseAsync().ConfigureAwait(false);
@@ -1117,6 +1154,7 @@ OUTPUT inserted.ordinal;";
         ILogger logger,
         IDatabase<SqlConnection> database,
         SqlConnection conn,
+        TimeSpan? splitCommandTimeout,
         CancellationToken token)
     {
         var statuses = new List<TablePartitionStatus>();
@@ -1156,6 +1194,7 @@ OUTPUT inserted.ordinal;";
                     {
                         nextUsed.CommandText =
                             $"ALTER PARTITION SCHEME {SchemaUtils.BracketName(psName)} NEXT USED {SchemaUtils.BracketName(Filegroup)};";
+                        applySplitCommandTimeout(nextUsed, splitCommandTimeout);
                         await nextUsed.ExecuteNonQueryAsync(token).ConfigureAwait(false);
                     }
 
@@ -1163,6 +1202,7 @@ OUTPUT inserted.ordinal;";
                     {
                         split.CommandText =
                             $"ALTER PARTITION FUNCTION {SchemaUtils.BracketName(pfName)}() SPLIT RANGE ({ordinal});";
+                        applySplitCommandTimeout(split, splitCommandTimeout);
                         await split.ExecuteNonQueryAsync(token).ConfigureAwait(false);
                     }
 
@@ -1181,6 +1221,25 @@ OUTPUT inserted.ordinal;";
         }
 
         return statuses;
+    }
+
+    // SqlCommand.CommandTimeout is whole seconds and reads 0 as "no limit", so a sub-second value rounds up
+    // rather than turning into no limit at all.
+    private static void applySplitCommandTimeout(SqlCommand command, TimeSpan? timeout)
+    {
+        if (timeout == null)
+        {
+            return;
+        }
+
+        if (timeout.Value <= TimeSpan.Zero || timeout.Value == Timeout.InfiniteTimeSpan)
+        {
+            command.CommandTimeout = 0;
+            return;
+        }
+
+        var seconds = Math.Ceiling(timeout.Value.TotalSeconds);
+        command.CommandTimeout = seconds >= int.MaxValue ? 0 : (int)seconds;
     }
 
     private static async Task<HashSet<string>?> fetchActualBoundariesAsync(

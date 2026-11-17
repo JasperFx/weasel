@@ -12,7 +12,8 @@ public abstract class IndexDeltasDetectionContext: IntegrationContext
     public override ValueTask InitializeAsync() =>
         new(ResetSchema());
 
-    protected IndexDeltasDetectionContext(string schemaName, string tableName = "people"): base(schemaName)
+    protected IndexDeltasDetectionContext(string schemaName, string tableName = "people", string? connectionString = null)
+        : base(schemaName, connectionString ?? ConnectionSource.ConnectionString)
     {
         theTable = new Table($"{schemaName}.{tableName}");
         theTable.AddColumn<int>("id").AsPrimaryKey();

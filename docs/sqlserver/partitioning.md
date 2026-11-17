@@ -245,3 +245,26 @@ The batch `AddPartitionsToAllTables(...)` overloads return a `TenantPartitionAdd
 the assigned `tenant_id -> ordinal` map and a per-table `TablePartitionStatus[]` (parity with the
 PostgreSQL `ManagedListPartitions` batch add), so callers can surface partial failures — one table
 failing to split no longer prevents the remaining tables from being split.
+
+### A time limit for the SPLIT
+
+A `SPLIT` waits for a schema modification lock on the table, and while it waits every later reader and
+writer of that table queues behind it. To give up on the `SPLIT` sooner than the connection's command
+timeout, set `SplitCommandTimeout`:
+
+```cs
+manager.SplitCommandTimeout = TimeSpan.FromSeconds(5);
+```
+
+It applies to each `ALTER PARTITION FUNCTION ... SPLIT RANGE` and the `NEXT USED` before it, and to
+nothing else: loading the registry and writing the tenant into it keep the connection's command timeout.
+A `SPLIT` that gives up is reported as `Failed` for that table like any other failed split, the tenant
+keeps its ordinal, and `MigrateAllTablesAsync` (or the next registration) fills the boundary in later.
+The default, `null`, leaves the `SPLIT` on the connection's command timeout.
+
+To set it for one call instead, pass it to `AddPartitionsToAllTables`:
+
+```cs
+var result = await manager.AddPartitionsToAllTables(logger, database, ["acme"],
+    TimeSpan.FromSeconds(5), token);
+```
