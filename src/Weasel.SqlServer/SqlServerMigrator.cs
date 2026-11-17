@@ -390,13 +390,7 @@ IF NOT EXISTS ( SELECT  *
 
             if (!await databaseExistsAsync(adminConn, databaseName, ct).ConfigureAwait(false))
             {
-                var createCmd = adminConn.CreateCommand();
-
-                // CREATE DATABASE takes no parameters, so the name has to be interpolated. Doubling ']'
-                // is what makes it a well-formed delimited identifier. Bracket rather than
-                // BracketName: this name comes off a connection string, where a leading '[' is part
-                // of the name and not a delimiter the caller added.
-                createCmd.CommandText = $"CREATE DATABASE {SchemaUtils.Bracket(databaseName)}";
+                await using var createCmd = CreateDatabaseCommand(adminConn, databaseName);
 
                 try
                 {
@@ -421,6 +415,20 @@ IF NOT EXISTS ( SELECT  *
 
         await waitUntilDatabaseAcceptsConnectionsAsync(targetConnectionString, databaseName, ct)
             .ConfigureAwait(false);
+    }
+
+    internal SqlCommand CreateDatabaseCommand(SqlConnection conn, string databaseName)
+    {
+        var cmd = conn.CreateCommand();
+
+        // CREATE DATABASE takes no parameters, so the name has to be interpolated. Doubling ']'
+        // is what makes it a well-formed delimited identifier. Bracket rather than
+        // BracketName: this name comes off a connection string, where a leading '[' is part
+        // of the name and not a delimiter the caller added.
+        cmd.CommandText = $"CREATE DATABASE {SchemaUtils.Bracket(databaseName)}";
+
+        // A timeout tuned for queries can fail CREATE DATABASE on a busy server (weasel#875).
+        return cmd.WithProvisioningTimeout(ProvisioningCommandTimeout);
     }
 
     private static async Task<bool> databaseExistsAsync(SqlConnection conn, string databaseName,

@@ -191,22 +191,14 @@ $$;
         CancellationToken ct = default
     )
     {
-        var writer = new StringWriter();
-
-        if (migration.Schemas.Any())
-        {
-            WriteSchemaCreationSql(migration.Schemas, writer);
-        }
-
-        migration.WriteAllUpdates(writer, this, autoCreate);
-
-        var sqlCommands = writer
-            .ToString()
-            .Split(new[] { IndexDefinition.IndexCreationBeginComment, IndexDefinition.IndexCreationEndComment },
-                StringSplitOptions.RemoveEmptyEntries);
-        foreach (var sql in sqlCommands)
+        foreach (var (sql, provisioning) in BuildMigrationCommands(migration, autoCreate))
         {
             var cmd = conn.CreateCommand(sql);
+            if (provisioning)
+            {
+                cmd.WithProvisioningTimeout(ProvisioningCommandTimeout);
+            }
+
             logger.SchemaChange(cmd.CommandText);
 
             try
@@ -230,6 +222,58 @@ $$;
                 logger.OnFailure(cmd, failure);
             }
         }
+    }
+
+    /// <summary>
+    ///     The migration's DDL in execution order, one entry per command. Index creation is split out as
+    ///     before, and an extension install runs as a command of its own flagged as provisioning, so it
+    ///     gets <see cref="Migrator.ProvisioningCommandTimeout" /> while the rest keep the connection's
+    ///     timeout (weasel#875).
+    /// </summary>
+    internal IReadOnlyList<(string Sql, bool Provisioning)> BuildMigrationCommands(SchemaMigration migration,
+        AutoCreate autoCreate)
+    {
+        migration.AssertPatchingIsValid(autoCreate);
+
+        var commands = new List<(string Sql, bool Provisioning)>();
+        var writer = new StringWriter();
+
+        void flush()
+        {
+            var sqlCommands = writer
+                .ToString()
+                .Split(new[] { IndexDefinition.IndexCreationBeginComment, IndexDefinition.IndexCreationEndComment },
+                    StringSplitOptions.RemoveEmptyEntries);
+            commands.AddRange(sqlCommands.Select(sql => (sql, false)));
+            writer = new StringWriter();
+        }
+
+        if (migration.Schemas.Any())
+        {
+            WriteSchemaCreationSql(migration.Schemas, writer);
+        }
+
+        foreach (var delta in migration.Deltas)
+        {
+            if (delta.SchemaObject is Extension)
+            {
+                var extension = new StringWriter();
+                if (WriteUpdate(extension, delta))
+                {
+                    flush();
+                    commands.Add((extension.ToString(), true));
+                }
+
+                continue;
+            }
+
+            WriteUpdate(writer, delta);
+        }
+
+        migration.WriteDeferredForeignKeys(writer, this);
+        flush();
+
+        return commands;
     }
 
     /// <summary>
@@ -479,7 +523,8 @@ $$;
         {
             try
             {
-                await new DatabaseSpecification().BuildDatabase(adminConn, databaseName, ct).ConfigureAwait(false);
+                await new DatabaseSpecification().BuildDatabase(adminConn, databaseName, ProvisioningCommandTimeout, ct)
+                    .ConfigureAwait(false);
             }
             catch (PostgresException e) when (e.SqlState == PostgresErrorCodes.DuplicateDatabase)
             {

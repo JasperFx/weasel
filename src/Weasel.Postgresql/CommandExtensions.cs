@@ -102,16 +102,34 @@ public static class CommandExtensions
     /// <returns></returns>
     public static Task KillIdleSessions(this NpgsqlConnection conn, string databaseName, CancellationToken ct = default)
     {
-        return conn.CreateCommand(
-                "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = :db AND pid <> pg_backend_pid();")
-            .With("db", databaseName)
+        return KillIdleSessionsCommand(conn, databaseName, Migrator.DefaultProvisioningCommandTimeout)
             .ExecuteNonQueryAsync(ct);
     }
 
+    /// <summary>
+    ///     Runs <c>DROP DATABASE IF EXISTS</c> with the default provisioning command timeout of two
+    ///     minutes (weasel#875), or the connection's own if that is longer.
+    /// </summary>
     public static Task DropDatabase(this NpgsqlConnection conn, string databaseName, CancellationToken ct = default)
     {
-        return conn.CreateCommand($"DROP DATABASE IF EXISTS {databaseName}")
+        return DropDatabaseCommand(conn, databaseName, Migrator.DefaultProvisioningCommandTimeout)
             .ExecuteNonQueryAsync(ct);
+    }
+
+    internal static NpgsqlCommand KillIdleSessionsCommand(NpgsqlConnection conn, string databaseName,
+        TimeSpan provisioningTimeout)
+    {
+        return conn.CreateCommand(
+                "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = :db AND pid <> pg_backend_pid();")
+            .With("db", databaseName)
+            .WithProvisioningTimeout(provisioningTimeout);
+    }
+
+    internal static NpgsqlCommand DropDatabaseCommand(NpgsqlConnection conn, string databaseName,
+        TimeSpan provisioningTimeout)
+    {
+        return conn.CreateCommand($"DROP DATABASE IF EXISTS {databaseName}")
+            .WithProvisioningTimeout(provisioningTimeout);
     }
 
     public static async Task<bool> DatabaseExists(
