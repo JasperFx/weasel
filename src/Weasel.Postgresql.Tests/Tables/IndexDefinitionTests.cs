@@ -679,4 +679,36 @@ public class IndexDefinitionTests
         index.IncludeColumns.ShouldBe(["column3", "column4"]);
         index.Predicate.ShouldBe("(column2 IS NOT NULL)");
     }
+
+    [Fact]
+    public void parse_an_index_on_only_a_partitioned_table_whose_name_contains_using()
+    {
+        // weasel#869: pg_get_indexdef prints ON ONLY for an index on a partitioned table
+        var index = IndexDefinition.Parse(
+            "CREATE UNIQUE INDEX pk_mt_events_stream_and_version ON ONLY using_explicit_code.mt_events USING btree (stream_id, version, is_archived)");
+
+        index.Name.ShouldBe("pk_mt_events_stream_and_version");
+        index.IsUnique.ShouldBeTrue();
+        index.Method.ShouldBe(IndexMethod.btree);
+        index.Columns.ShouldBe(["stream_id", "version", "is_archived"]);
+    }
+
+    [Fact]
+    public void parse_an_index_on_only_a_partitioned_table()
+    {
+        var index = IndexDefinition.Parse(
+            "CREATE INDEX idx_1 ON ONLY public.mt_events USING gin (data)");
+
+        index.Method.ShouldBe(IndexMethod.gin);
+        index.Columns.ShouldBe(["data"]);
+    }
+
+    [Fact]
+    public void parse_an_index_with_no_using_clause_on_a_table_whose_name_contains_using()
+    {
+        var index = IndexDefinition.Parse("CREATE INDEX idx_1 ON public.using_things (column1)");
+
+        index.Method.ShouldBe(IndexMethod.btree);
+        index.Columns.ShouldBe(["column1"]);
+    }
 }
