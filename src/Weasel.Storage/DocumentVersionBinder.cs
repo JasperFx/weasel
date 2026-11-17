@@ -12,7 +12,7 @@ namespace Weasel.Storage;
 /// <summary>
 /// W3 spike (M1): <see cref="IDocumentMetadataBinder{TDoc}"/> for the
 /// <c>mt_version</c> column. Generates a new <see cref="Guid"/> per write
-/// via <c>CombGuidIdGeneration.NewGuid()</c>, projects it onto the
+/// via <c>SequentialGuid.NextPostgresOrder()</c>, projects it onto the
 /// document's <c>[Version]</c>-annotated member when one exists, binds
 /// it as a Uuid parameter. Read path projects the stored version back
 /// onto the same member if one exists.
@@ -47,7 +47,7 @@ public sealed class DocumentVersionBinder<TDoc>: IVersionMetadataBinder<TDoc>
 
     public void BindParameter(DbParameter parameter, TDoc document, IStorageSession session)
     {
-        var newVersion = CombGuidIdGeneration.NewGuid();
+        var newVersion = SequentialGuid.NextPostgresOrder();
         _setter?.Invoke(document, newVersion);
 
         parameter.Value = newVersion;
@@ -74,7 +74,7 @@ public sealed class DocumentVersionBinder<TDoc>: IVersionMetadataBinder<TDoc>
 
     public BulkColumnValue GetBulkValue(TDoc document)
     {
-        var newVersion = CombGuidIdGeneration.NewGuid();
+        var newVersion = SequentialGuid.NextPostgresOrder();
         _setter?.Invoke(document, newVersion);
         return new BulkColumnValue(newVersion, StorageColumnType.Guid);
     }

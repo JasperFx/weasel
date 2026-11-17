@@ -78,7 +78,7 @@ public interface IIdentification
 /// </summary>
 /// <remarks>
 ///     Per-call cost is one virtual call into the strategy plus whatever the strategy's body does:
-///     a getter-delegate read on the "already has an id" hot path, or a sequence / CombGuid call on
+///     a getter-delegate read on the "already has an id" hot path, or a sequence / sequential Guid call on
 ///     the generate path. No allocations when the document already has an id.
 ///     <para>
 ///     The non-generic <see cref="IIdentification" /> base is satisfied here by default
@@ -102,7 +102,7 @@ public interface IIdentification<TDoc, TId> : IIdentification
     /// <summary>
     ///     Idempotent identity assignment. If the document already has a non-default id, return it
     ///     unchanged (no allocations, no database round-trip). Otherwise generate a new id by the
-    ///     strategy's rules (CombGuid / Hi-Lo / identity-key / …), write it onto the document via the
+    ///     strategy's rules (sequential Guid / Hi-Lo / identity-key / …), write it onto the document via the
     ///     strategy's setter, and return the new value.
     /// </summary>
     /// <param name="document">The document to inspect and potentially mutate.</param>

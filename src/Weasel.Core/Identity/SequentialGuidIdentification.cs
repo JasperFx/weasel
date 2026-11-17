@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Weasel.Core.Sequences;
 
@@ -8,21 +9,46 @@ namespace Weasel.Core.Identity;
 
 /// <summary>
 ///     <see cref="IIdentification{TDoc,TId}" /> for documents whose id is a <see cref="Guid" />
-///     generated sequentially via <see cref="Guid.CreateVersion7()" /> (a time-ordered UUIDv7, for
-///     index locality) — no database round-trip.
+///     generated sequentially by an <see cref="IGuidGenerator" /> — no database round-trip.
 /// </summary>
+/// <remarks>
+///     The generator defaults to <see cref="SequentialGuid.PostgresOrder" />, so new ids sort after
+///     earlier ones the way PostgreSQL compares a <c>uuid</c>. A store that writes the id to SQL Server
+///     passes <see cref="SequentialGuid.SqlServerOrder" /> instead, because SQL Server compares a
+///     <c>uniqueidentifier</c> in a different byte order.
+/// </remarks>
 public sealed class SequentialGuidIdentification<TDoc> : IIdentification<TDoc, Guid>
     where TDoc : notnull
 {
     private readonly Func<TDoc, Guid> _getter;
     private readonly Action<TDoc, Guid>? _setter;
+    private readonly IGuidGenerator _generator;
 
+    /// <summary>
+    ///     Generates ids in PostgreSQL <c>uuid</c> order (<see cref="SequentialGuid.PostgresOrder" />).
+    /// </summary>
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
-    public SequentialGuidIdentification(MemberInfo idMember)
+    public SequentialGuidIdentification(MemberInfo idMember) : this(idMember, SequentialGuid.PostgresOrder)
     {
+    }
+
+    /// <param name="idMember">The document's <see cref="Guid" /> id member.</param>
+    /// <param name="generator">
+    ///     Makes the new ids, e.g. <see cref="SequentialGuid.SqlServerOrder" /> for a SQL Server table.
+    /// </param>
+    [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
+    public SequentialGuidIdentification(MemberInfo idMember, IGuidGenerator generator)
+    {
+        ArgumentNullException.ThrowIfNull(generator);
         _getter = LambdaBuilder.Getter<TDoc, Guid>(idMember);
         _setter = LambdaBuilder.Setter<TDoc, Guid>(idMember);
+        _generator = generator;
     }
+
+    /// <summary>
+    ///     The generator this strategy assigns new ids from.
+    /// </summary>
+    public IGuidGenerator Generator => _generator;
 
     public Guid Identity(TDoc document) => _getter(document);
 
@@ -41,7 +67,7 @@ public sealed class SequentialGuidIdentification<TDoc> : IIdentification<TDoc, G
             return current;
         }
 
-        var assigned = Guid.CreateVersion7();
+        var assigned = _generator.NewGuid();
         _setter(document, assigned);
         return assigned;
     }
