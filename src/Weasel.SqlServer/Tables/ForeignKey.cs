@@ -172,14 +172,37 @@ public class ForeignKey: ForeignKeyBase
     ///     guard can live here and every emission site, <see cref="ToDDL" /> included, inherits it.
     /// </remarks>
     public void WriteAddStatement(Table parent, TextWriter writer)
+        => writeAddStatement(parent.Identifier, writer, onlyWhenColumnTypesMatch: false);
+
+    /// <summary>
+    ///     Write the constraint so that it is only added when every column pair it links has the same type
+    ///     on both sides when the statement runs, and is skipped otherwise.
+    /// </summary>
+    /// <remarks>
+    ///     For a foreign key a migration took down to change a key column's type (weasel#870). SQL Server
+    ///     refuses a foreign key between columns of different types or lengths (Msg 1778, Msg 1753), and
+    ///     when the two tables are changed one after the other, by two deltas of one migration in either
+    ///     order or by two migrations, the key can only go back once both sides are done. The first side
+    ///     to finish leaves it off, and the second puts it back. If the second side is never changed, the
+    ///     next delta of the table holding the key reports it missing.
+    /// </remarks>
+    public void WriteAddStatementWhenColumnTypesMatch(DbObjectName parent, TextWriter writer)
+        => writeAddStatement(parent, writer, onlyWhenColumnTypesMatch: true);
+
+    private void writeAddStatement(DbObjectName parent, TextWriter writer, bool onlyWhenColumnTypesMatch)
     {
         AssertReachableState();
 
-        writer.WriteLine(
-            $"IF OBJECT_ID(N'{SchemaUtils.EscapeLiteral(parent.Identifier.Schema)}.{SchemaUtils.EscapeLiteral(Name)}', N'F') IS NULL");
+        var constraint = $"N'{SchemaUtils.EscapeLiteral(parent.Schema)}.{SchemaUtils.EscapeLiteral(Name)}'";
+        writer.WriteLine($"IF OBJECT_ID({constraint}, N'F') IS NULL");
+        if (onlyWhenColumnTypesMatch)
+        {
+            writeColumnTypesMatch(parent, writer);
+        }
+
         writer.WriteLine(IsNotTrusted == true
-            ? $"ALTER TABLE {parent.Identifier} WITH NOCHECK"
-            : $"ALTER TABLE {parent.Identifier}");
+            ? $"ALTER TABLE {parent} WITH NOCHECK"
+            : $"ALTER TABLE {parent}");
         writer.WriteLine(
             $"ADD CONSTRAINT {SchemaUtils.QuoteName(Name)} FOREIGN KEY({ColumnNames.Select(SchemaUtils.QuoteName).Join(", ")})");
         writer.Write($" REFERENCES {LinkedTable}({LinkedNames.Select(SchemaUtils.QuoteName).Join(", ")})");
@@ -191,8 +214,28 @@ public class ForeignKey: ForeignKeyBase
 
         if (IsDisabled == true)
         {
-            writer.WriteLine($"ALTER TABLE {parent.Identifier} NOCHECK CONSTRAINT {SchemaUtils.QuoteName(Name)};");
+            if (onlyWhenColumnTypesMatch)
+            {
+                writer.WriteLine($"IF OBJECT_ID({constraint}, N'F') IS NOT NULL");
+            }
+
+            writer.WriteLine($"ALTER TABLE {parent} NOCHECK CONSTRAINT {SchemaUtils.QuoteName(Name)};");
         }
+    }
+
+    private void writeColumnTypesMatch(DbObjectName parent, TextWriter writer)
+    {
+        var pairs = ColumnNames.Zip(LinkedNames, (column, linked) =>
+            $"(N'{SchemaUtils.EscapeLiteral(SchemaUtils.Unbracket(column))}', N'{SchemaUtils.EscapeLiteral(SchemaUtils.Unbracket(linked))}')");
+
+        writer.WriteLine("    AND NOT EXISTS (");
+        writer.WriteLine($"        SELECT 1 FROM (VALUES {pairs.Join(", ")}) AS pair (c, l)");
+        writer.WriteLine(
+            $"        LEFT JOIN sys.columns rc ON rc.object_id = OBJECT_ID(N'{SchemaUtils.EscapeLiteral(parent.ToString())}') AND rc.name = pair.c");
+        writer.WriteLine(
+            $"        LEFT JOIN sys.columns lc ON lc.object_id = OBJECT_ID(N'{SchemaUtils.EscapeLiteral(LinkedTable!.ToString())}') AND lc.name = pair.l");
+        writer.WriteLine("        WHERE rc.column_id IS NULL OR lc.column_id IS NULL OR rc.user_type_id <> lc.user_type_id");
+        writer.WriteLine("            OR rc.max_length <> lc.max_length OR rc.precision <> lc.precision OR rc.scale <> lc.scale)");
     }
 
     public void WriteDropStatement(Table parent, TextWriter writer)
