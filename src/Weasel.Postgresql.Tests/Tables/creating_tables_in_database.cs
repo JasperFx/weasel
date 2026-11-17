@@ -8,7 +8,7 @@ namespace Weasel.Postgresql.Tests.Tables;
 [Collection("tables")]
 public class creating_tables_in_database: IntegrationContext
 {
-    public creating_tables_in_database(): base("tables")
+    public creating_tables_in_database(): base("tables", ConnectionSource.ConcurrentIndexConnectionString)
     {
     }
 
