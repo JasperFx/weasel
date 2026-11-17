@@ -15,7 +15,17 @@ namespace Weasel.Core;
 ///         column. Measured against live databases (weasel#565):
 ///     </para>
 ///     <list type="table">
-///         <item><term>Microsoft.Data.Sqlite</term><description><c>TEXT</c> — streams.</description></item>
+///         <item>
+///             <term>Microsoft.Data.Sqlite</term>
+///             <description>
+///                 Never asked (weasel#863). <c>GetStream</c> on a column with no origin table (a
+///                 literal, a <c>json_object(...)</c>, any expression) beside another computed column
+///                 calls <c>sqlite3_table_column_metadata</c> with a null table name and takes the
+///                 process down with a SIGSEGV, which no <c>catch</c> can turn into a fallback. The
+///                 provider serves blob I/O per call anyway, so the string path costs nothing
+///                 measurable there (fisher#546, fisher#555).
+///             </description>
+///         </item>
 ///         <item><term>Npgsql</term><description><c>jsonb</c>, <c>json</c>, <c>text</c> — all stream.</description></item>
 ///         <item>
 ///             <term>Microsoft.Data.SqlClient</term>
@@ -33,7 +43,8 @@ namespace Weasel.Core;
 ///         costs one exception per reader type per process, and is safe because a failed
 ///         <c>GetStream</c> does not consume the column: <c>GetString</c> on the same column
 ///         afterwards still returns the value, under both <c>CommandBehavior.Default</c> and
-///         <c>SequentialAccess</c> (also measured in weasel#565).
+///         <c>SequentialAccess</c> (also measured in weasel#565). Microsoft.Data.Sqlite is the one
+///         provider named up front, because its failure is a crash rather than a refusal.
 ///     </para>
 ///     <para>
 ///         Only the accessor call itself is guarded. An <see cref="InvalidCastException" /> thrown
@@ -45,6 +56,9 @@ internal static class JsonColumnStreaming
 {
     private static readonly ConcurrentDictionary<Type, bool> _supported = new();
 
+    // Weasel.Core does not reference Microsoft.Data.Sqlite, so the reader is recognised by name.
+    private const string SqliteDataReaderTypeName = "Microsoft.Data.Sqlite.SqliteDataReader";
+
     /// <summary>
     ///     The column's value as a stream, or null when this provider will not stream it — in which
     ///     case the caller should fall back to <see cref="DbDataReader.GetString" />.
@@ -52,7 +66,7 @@ internal static class JsonColumnStreaming
     public static Stream? TryGetStream(DbDataReader reader, int index)
     {
         var readerType = reader.GetType();
-        if (_supported.TryGetValue(readerType, out var supported) && !supported)
+        if (isKnownNotToStream(readerType))
         {
             return null;
         }
@@ -78,7 +92,7 @@ internal static class JsonColumnStreaming
         CancellationToken cancellationToken)
     {
         var readerType = reader.GetType();
-        if (_supported.TryGetValue(readerType, out var supported) && !supported)
+        if (isKnownNotToStream(readerType))
         {
             return null;
         }
@@ -94,5 +108,29 @@ internal static class JsonColumnStreaming
             _supported[readerType] = false;
             return null;
         }
+    }
+
+    /// <summary>
+    ///     True when this reader type has already refused, or must never be asked because asking
+    ///     can crash the process rather than throw (Microsoft.Data.Sqlite, weasel#863). The SQLite
+    ///     answer is decided once per reader type and remembered in the same cache as a refusal.
+    /// </summary>
+    private static bool isKnownNotToStream(Type readerType)
+    {
+        if (_supported.TryGetValue(readerType, out var supported))
+        {
+            return !supported;
+        }
+
+        for (var type = readerType; type != null; type = type.BaseType)
+        {
+            if (type.FullName == SqliteDataReaderTypeName)
+            {
+                _supported[readerType] = false;
+                return true;
+            }
+        }
+
+        return false;
     }
 }
