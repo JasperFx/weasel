@@ -278,6 +278,53 @@ public class moving_an_existing_table_onto_a_partition_scheme: IntegrationContex
     }
 
     [Fact]
+    public async Task a_foreign_key_from_a_table_outside_the_migration_comes_off_and_goes_back()
+    {
+        // Already keyed the way the scheme needs, so the move rebuilds the same primary key
+        var keyed = EventsTable(true);
+        keyed.ClearPartitions();
+        keyed.SqlServerPartitioning = null;
+        await new SqlServerMigrator().ApplyAllAsync(theConnection,
+            await SchemaMigration.DetermineAsync(theConnection, keyed), AutoCreate.CreateOrUpdate);
+
+        // A table no model here knows about, referencing that key. SQL Server refuses to drop a key that
+        // is referenced (Msg 3725), so the move has to take this down and put it back (weasel#870)
+        await theConnection.CreateCommand($"""
+            create table {Schema}.pmove_outside (id bigint not null primary key, seq_id bigint not null, is_archived bit not null,
+                constraint fk_pmove_outside_events foreign key (seq_id, is_archived) references {Schema}.{Events} (seq_id, is_archived));
+
+            insert into {Schema}.{Events} (stream_id, version, data, is_archived)
+            select top (100) newid(), 1, 'row', 0 from sys.all_objects;
+            insert into {Schema}.pmove_outside (id, seq_id, is_archived) select seq_id, seq_id, is_archived from {Schema}.{Events};
+            """).ExecuteNonQueryAsync();
+
+        var migration = await SchemaMigration.DetermineAsync(theConnection, EventsTable(true));
+        ((TableDelta)migration.Deltas[0]).MovesOntoPartitionScheme.ShouldBeTrue();
+        await new SqlServerMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate);
+
+        (await rowsInPartitionAsync(1)).ShouldBe(100);
+        (await outsideForeignKeyIsTrustedAsync()).ShouldBe(true);
+        (await SchemaMigration.DetermineAsync(theConnection, EventsTable(true)))
+            .Difference.ShouldBe(SchemaPatchDifference.None);
+
+        // ...and the same on the way back
+        var rollback = new StringWriter();
+        migration.Deltas[0].WriteRollback(new SqlServerMigrator(), rollback);
+        await runScriptAsync(rollback.ToString());
+
+        (await outsideForeignKeyIsTrustedAsync()).ShouldBe(true);
+        (await SchemaMigration.DetermineAsync(theConnection, keyed)).Difference.ShouldBe(SchemaPatchDifference.None);
+    }
+
+    private async Task<bool?> outsideForeignKeyIsTrustedAsync()
+    {
+        var notTrusted = await theConnection
+            .CreateCommand("select is_not_trusted from sys.foreign_keys where name = 'fk_pmove_outside_events'")
+            .ExecuteScalarAsync();
+        return notTrusted is bool b ? !b : null;
+    }
+
+    [Fact]
     public async Task rolling_the_move_back_keeps_the_rows()
     {
         await createPopulatedTablesAsync();

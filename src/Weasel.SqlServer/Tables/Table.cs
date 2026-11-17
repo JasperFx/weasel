@@ -380,6 +380,14 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>
         PartitionExpressions.Clear();
     }
 
+    internal readonly List<ReferencingForeignKey> _referencingForeignKeys = new();
+
+    /// <summary>
+    ///     The foreign keys on other tables that reference this one, as the catalog had them when this table
+    ///     was read from the database. Always empty on a table declared in code.
+    /// </summary>
+    public IReadOnlyList<ReferencingForeignKey> ReferencingForeignKeys => _referencingForeignKeys;
+
     public ForeignKey FindOrCreateForeignKey(string fkName)
     {
         var fk = ForeignKeys.FirstOrDefault(x => x.Name == fkName);

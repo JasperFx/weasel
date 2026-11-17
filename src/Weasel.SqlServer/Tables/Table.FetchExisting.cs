@@ -193,6 +193,31 @@ from sys.computed_columns comp
     inner join sys.schemas s on s.schema_id = t.schema_id
 where s.name = @schema and t.name = @name;
 
+-- The foreign keys on OTHER tables that reference this one. A primary key or a referenced column can be
+-- neither dropped nor retyped while one of these is in place, so a delta that changes the key has to take
+-- them down and put them back (weasel#870). A table's references to itself are in the result set above.
+select
+    parent.name as constraint_name,
+    rt.name as referencing_table,
+    rs.name as referencing_schema,
+    c.name,
+    cfk.name as referenced_name,
+    parent.delete_referential_action_desc,
+    parent.update_referential_action_desc,
+    parent.is_disabled,
+    parent.is_not_for_replication,
+    parent.is_not_trusted
+from sys.foreign_key_columns fk
+    inner join sys.foreign_keys parent on fk.constraint_object_id = parent.object_id
+    inner join sys.tables t on fk.referenced_object_id = t.object_id
+    inner join sys.schemas s on t.schema_id = s.schema_id
+    inner join sys.tables rt on fk.parent_object_id = rt.object_id
+    inner join sys.schemas rs on rt.schema_id = rs.schema_id
+    inner join sys.columns c on fk.parent_object_id = c.object_id and fk.parent_column_id = c.column_id
+    inner join sys.columns cfk on fk.referenced_object_id = cfk.object_id and fk.referenced_column_id = cfk.column_id
+where s.name = @schema and t.name = @name and fk.parent_object_id <> fk.referenced_object_id
+order by rs.name, rt.name, parent.name, fk.constraint_column_id;
+
 ";
 
     private static readonly string IntrospectionStatement =
@@ -241,6 +266,8 @@ where s.name = @schema and t.name = @name;
         await readCheckConstraintsAsync(reader, existing, ct).ConfigureAwait(false);
 
         await readComputedColumnsAsync(reader, existing, ct).ConfigureAwait(false);
+
+        await readReferencingForeignKeysAsync(reader, existing, ct).ConfigureAwait(false);
 
         return !existing.Columns.Any()
             ? null
@@ -338,6 +365,39 @@ where s.name = @schema and t.name = @name;
         }
     }
 
+
+    private static async Task readReferencingForeignKeysAsync(DbDataReader reader, Table existing,
+        CancellationToken ct = default)
+    {
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            var fkName = await reader.GetFieldValueAsync<string>(0, ct).ConfigureAwait(false);
+            var tableName = await reader.GetFieldValueAsync<string>(1, ct).ConfigureAwait(false);
+            var schemaName = await reader.GetFieldValueAsync<string>(2, ct).ConfigureAwait(false);
+            var columnName = await reader.GetFieldValueAsync<string>(3, ct).ConfigureAwait(false);
+            var referencedName = await reader.GetFieldValueAsync<string>(4, ct).ConfigureAwait(false);
+            var onDelete = await reader.GetFieldValueAsync<string>(5, ct).ConfigureAwait(false);
+            var onUpdate = await reader.GetFieldValueAsync<string>(6, ct).ConfigureAwait(false);
+
+            var referencingTable = new SqlServerObjectName(schemaName, tableName);
+            var referencing = existing._referencingForeignKeys.FirstOrDefault(x =>
+                x.ForeignKey.Name == fkName && x.Table.QualifiedName == referencingTable.QualifiedName);
+            if (referencing == null)
+            {
+                var fk = new ForeignKey(fkName) { LinkedTable = existing.Identifier };
+                fk.ReadReferentialActions(onDelete, onUpdate);
+                fk.IsDisabled = await reader.GetFieldValueAsync<bool>(7, ct).ConfigureAwait(false);
+                fk.IsNotForReplication = await reader.GetFieldValueAsync<bool>(8, ct).ConfigureAwait(false);
+                fk.IsNotTrusted = await reader.GetFieldValueAsync<bool>(9, ct).ConfigureAwait(false);
+
+                referencing = new ReferencingForeignKey(referencingTable, fk);
+                existing._referencingForeignKeys.Add(referencing);
+            }
+
+            referencing.ForeignKey.LinkColumns(columnName, referencedName);
+        }
+    }
 
     private static async Task readColumnsAsync(DbDataReader reader, Table existing, CancellationToken ct = default)
     {

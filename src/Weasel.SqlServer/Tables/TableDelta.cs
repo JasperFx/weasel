@@ -301,6 +301,16 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             endBatch(writer);
         }
 
+        // Foreign keys on other tables that point at a key this update drops or a column it retypes. SQL
+        // Server refuses both while the reference is there (Msg 3725, Msg 5074), so they come off first and
+        // go back at the end, if the other side matches by then (weasel#870).
+        var referencing = referencingForeignKeysToRecreate();
+        foreach (var foreignKey in referencing)
+        {
+            writer.WriteLine(
+                $"alter table {foreignKey.Table} drop constraint if exists {SchemaUtils.QuoteName(foreignKey.ForeignKey.Name)};");
+        }
+
         // Extra indexes
         foreach (var extra in Indexes.Extras) writer.WriteDropIndex(Expected, extra);
 
@@ -385,8 +395,10 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         // Different indexes
         foreach (var change in Indexes.Different) change.Expected.WriteCreateStatement(Expected, writer);
 
-        // ...and back, in the same order the table declares them
-        foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteAddStatement(Expected, writer);
+        // ...and back, in the same order the table declares them. A foreign key only once the column it
+        // links to is the same type: when that is a key column another delta of this migration (or a
+        // later migration) is retyping too, whichever of the two finishes second puts it back (weasel#870).
+        foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteAddStatementWhenColumnTypesMatch(Expected.Identifier, writer);
         foreach (var index in recreatedIndexes) index.WriteCreateStatement(Expected, writer);
 
 
@@ -408,6 +420,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 if (restore) foreignKey.WriteAddStatement(owner, writer);
             }
 
+            writeReferencingForeignKeys(referencing, writer);
             return;
         }
 
@@ -441,7 +454,70 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 }
                 break;
         }
+
+        writeReferencingForeignKeys(referencing, writer);
     }
+
+    /// <summary>
+    ///     Put back the foreign keys on other tables that this update took down, each one only if its
+    ///     columns now match the ones it references. One whose own table still has the old type is left
+    ///     off, and that table's delta puts it back once it has changed (weasel#870).
+    /// </summary>
+    private static void writeReferencingForeignKeys(IReadOnlyList<ReferencingForeignKey> referencing,
+        TextWriter writer)
+    {
+        if (referencing.Count == 0) return;
+
+        // The primary key or index they reference was created in this batch
+        endBatch(writer);
+        foreach (var foreignKey in referencing)
+        {
+            foreignKey.ForeignKey.WriteAddStatementWhenColumnTypesMatch(foreignKey.Table, writer);
+        }
+    }
+
+    /// <summary>
+    ///     The foreign keys on other tables that reference a primary key this update drops, an index it
+    ///     drops, or a column whose type it changes.
+    /// </summary>
+    private IReadOnlyList<ReferencingForeignKey> referencingForeignKeysToRecreate()
+    {
+        if (Actual == null || Actual.ReferencingForeignKeys.Count == 0) return [];
+
+        var recomputed = recomputedColumnNames();
+
+        // Moving the table onto or off a partition scheme rebuilds its primary key as well
+        var primaryKeyDropped = movesTable || requiresPrimaryKeyDropBeforeUpdate() ||
+                                PrimaryKeyDifference is SchemaPatchDifference.Update or SchemaPatchDifference.Invalid;
+
+        var droppedKeys = new List<HashSet<string>>();
+        if (primaryKeyDropped) droppedKeys.Add(columnSet(Actual.PrimaryKeyColumns));
+
+        foreach (var index in Indexes.Extras.Concat(Indexes.Different.Select(x => x.Actual))
+                     .Concat(matchedIndexesOnRecomputedColumns()))
+        {
+            droppedKeys.Add(columnSet(index.Columns));
+        }
+
+        return Actual.ReferencingForeignKeys
+            // A move takes down and restores the keys of the other tables in its migration itself, each
+            // as that table's own delta leaves it, so those are left to it
+            .Where(x => !movedWithTable(x))
+            .Where(x =>
+            {
+                var linked = columnSet(x.ForeignKey.LinkedNames);
+                return linked.Overlaps(recomputed) || droppedKeys.Any(key => key.SetEquals(linked));
+            })
+            .ToList();
+    }
+
+    private bool movedWithTable(ReferencingForeignKey referencing)
+        => movesTable && ReferencingForeignKeys.Any(x =>
+            sameTable(x.Owner.Identifier, referencing.Table) &&
+            x.ForeignKey.Name.Equals(referencing.ForeignKey.Name, StringComparison.OrdinalIgnoreCase));
+
+    private static HashSet<string> columnSet(IEnumerable<string> columns)
+        => columns.Select(SchemaUtils.Unbracket).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     ///     The columns this update changes by dropping and re-adding them, because their computed
@@ -534,6 +610,14 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         {
             Expected.WriteDropStatement(rules, writer);
             return;
+        }
+
+        // The same foreign keys the update took down, for the same reason (weasel#870)
+        var referencing = referencingForeignKeysToRecreate();
+        foreach (var foreignKey in referencing)
+        {
+            writer.WriteLine(
+                $"alter table {foreignKey.Table} drop constraint if exists {SchemaUtils.QuoteName(foreignKey.ForeignKey.Name)};");
         }
 
         foreach (var foreignKey in ForeignKeys.Missing) foreignKey.WriteDropStatement(Expected, writer);
@@ -643,6 +727,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 if (restore) foreignKey.WriteAddStatement(owner, writer);
             }
 
+            writeReferencingForeignKeys(referencing, writer);
             return;
         }
 
@@ -673,6 +758,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 }
                 break;
         }
+
+        writeReferencingForeignKeys(referencing, writer);
     }
 
     /// <summary>
