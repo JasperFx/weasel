@@ -193,4 +193,99 @@ public class SqliteFunctionRegistryTests
         func2.Name.ShouldBe("func2");
         func3.Name.ShouldBe("func3");
     }
+
+    private static int compareAsNumbers(string x, string y) => decimal.Parse(x).CompareTo(decimal.Parse(y));
+
+    [Fact]
+    public void can_add_collation()
+    {
+        var registry = new SqliteFunctionRegistry();
+
+        var collation = registry.AddCollation("numeric_text", compareAsNumbers);
+
+        collation.Name.ShouldBe("numeric_text");
+        registry.Collations.ShouldHaveSingleItem().ShouldBeSameAs(collation);
+        registry.Functions.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void add_collation_validates_its_arguments()
+    {
+        var registry = new SqliteFunctionRegistry();
+
+        Should.Throw<ArgumentException>(() => registry.AddCollation(" ", compareAsNumbers));
+        Should.Throw<ArgumentNullException>(() => registry.AddCollation("numeric_text", null!));
+        registry.Collations.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void clear_removes_collations_too()
+    {
+        var registry = new SqliteFunctionRegistry();
+        registry.AddCollation("numeric_text", compareAsNumbers);
+
+        registry.Clear();
+
+        registry.Collations.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task order_by_collate_uses_a_registered_collation()
+    {
+        var registry = new SqliteFunctionRegistry();
+        registry.AddCollation("numeric_text", compareAsNumbers);
+
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        registry.RegisterAll(connection);
+
+        await using (var create = connection.CreateCommand())
+        {
+            create.CommandText =
+                "create table amounts (value text not null); " +
+                "insert into amounts (value) values ('10'), ('9.5'), ('100'), ('-2');";
+            await create.ExecuteNonQueryAsync();
+        }
+
+        // Plain TEXT ordering compares byte by byte
+        (await readValuesAsync(connection, "select value from amounts order by value"))
+            .ShouldBe(["-2", "10", "100", "9.5"]);
+
+        (await readValuesAsync(connection, "select value from amounts order by value collate numeric_text"))
+            .ShouldBe(["-2", "9.5", "10", "100"]);
+    }
+
+    [Fact]
+    public async Task a_comparison_with_collate_uses_a_registered_collation()
+    {
+        var registry = new SqliteFunctionRegistry();
+        registry.AddCollation("numeric_text", compareAsNumbers);
+
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        await registry.RegisterAllAsync(connection);
+
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = "select '10' > '9', '10' > '9' collate numeric_text, '1.50' = '1.5' collate numeric_text";
+        await using var reader = await cmd.ExecuteReaderAsync();
+        (await reader.ReadAsync()).ShouldBeTrue();
+
+        reader.GetInt64(0).ShouldBe(0L);
+        reader.GetInt64(1).ShouldBe(1L);
+        reader.GetInt64(2).ShouldBe(1L);
+    }
+
+    private static async Task<List<string>> readValuesAsync(SqliteConnection connection, string sql)
+    {
+        await using var cmd = connection.CreateCommand();
+        cmd.CommandText = sql;
+        await using var reader = await cmd.ExecuteReaderAsync();
+        var values = new List<string>();
+        while (await reader.ReadAsync())
+        {
+            values.Add(reader.GetString(0));
+        }
+
+        return values;
+    }
 }

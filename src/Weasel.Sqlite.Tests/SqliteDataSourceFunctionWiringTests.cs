@@ -64,6 +64,21 @@ public class SqliteDataSourceFunctionWiringTests : IDisposable
     }
 
     [Fact]
+    public async Task collations_are_registered_on_every_open()
+    {
+        var functions = new SqliteFunctionRegistry();
+        functions.AddCollation("reverse_text", (x, y) => string.CompareOrdinal(y, x));
+
+        using var dataSource = new SqliteDataSource(ConnectionString, null, functions, null);
+
+        await using var asyncOpened = await dataSource.OpenConnectionAsync(TestContext.Current.CancellationToken);
+        using var syncOpened = dataSource.OpenConnection();
+
+        (await scalarAsync(asyncOpened, "select 'a' > 'b' collate reverse_text")).ShouldBe(1L);
+        (await scalarAsync(syncOpened, "select 'a' > 'b' collate reverse_text")).ShouldBe(1L);
+    }
+
+    [Fact]
     public async Task aggregate_functions_are_registered_too()
     {
         var functions = new SqliteFunctionRegistry();

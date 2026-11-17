@@ -55,6 +55,22 @@ application contribute functions later.
 The per-open order is connection-scoped PRAGMAs, then extensions, then functions, so a managed
 function can build on something an extension provides.
 
+## Collations
+
+A collation has the same lifetime as a function, so it goes in the same registry.
+`AddCollation(name, comparison)` registers it on every connection the data source opens, and SQL
+uses it with `COLLATE name`:
+
+```cs
+var functions = new SqliteFunctionRegistry();
+functions.AddCollation("numeric_text", (x, y) => decimal.Parse(x).CompareTo(decimal.Parse(y)));
+
+// select value from amounts order by value collate numeric_text
+```
+
+The comparison returns a negative number, zero or a positive number, the same as
+`string.Compare`. A collation applies to `ORDER BY`, comparisons, `DISTINCT` and `GROUP BY`.
+
 ## Why not register on a connection directly?
 
 You can, and the `Microsoft.Data.Sqlite` API for it is `connection.CreateFunction(...)`. The

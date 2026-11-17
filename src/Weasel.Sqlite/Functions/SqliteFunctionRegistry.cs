@@ -1,18 +1,24 @@
 namespace Weasel.Sqlite.Functions;
 
 /// <summary>
-/// Registry for SQLite functions that should be registered on connections.
-/// Unlike schema objects, SQLite functions exist only for the connection lifetime
+/// Registry for SQLite functions and collations that should be registered on connections.
+/// Unlike schema objects, SQLite functions and collations exist only for the connection lifetime
 /// and must be re-registered each time a connection is opened.
 /// </summary>
 public class SqliteFunctionRegistry
 {
     private readonly List<SqliteFunction> _functions = new();
+    private readonly List<SqliteCollation> _collations = new();
 
     /// <summary>
     /// All registered functions.
     /// </summary>
     public IReadOnlyList<SqliteFunction> Functions => _functions.AsReadOnly();
+
+    /// <summary>
+    /// All registered collations.
+    /// </summary>
+    public IReadOnlyList<SqliteCollation> Collations => _collations.AsReadOnly();
 
     /// <summary>
     /// Add a scalar function with no parameters.
@@ -96,7 +102,18 @@ public class SqliteFunctionRegistry
     }
 
     /// <summary>
-    /// Register all functions on the given connection.
+    /// Add a collation, used in SQL as <c>COLLATE name</c>. The comparison returns a negative
+    /// number, zero or a positive number, as <see cref="string.Compare(string, string)" /> does.
+    /// </summary>
+    public SqliteCollation AddCollation(string name, Comparison<string> comparison)
+    {
+        var collation = new SqliteCollation(name, comparison);
+        _collations.Add(collation);
+        return collation;
+    }
+
+    /// <summary>
+    /// Register all functions and collations on the given connection.
     /// </summary>
     public void RegisterAll(Microsoft.Data.Sqlite.SqliteConnection connection)
     {
@@ -114,10 +131,15 @@ public class SqliteFunctionRegistry
         {
             function.Register(connection);
         }
+
+        foreach (var collation in _collations)
+        {
+            collation.Register(connection);
+        }
     }
 
     /// <summary>
-    /// Register all functions asynchronously.
+    /// Register all functions and collations asynchronously.
     /// </summary>
     public Task RegisterAllAsync(Microsoft.Data.Sqlite.SqliteConnection connection, CancellationToken ct = default)
     {
@@ -131,10 +153,11 @@ public class SqliteFunctionRegistry
     }
 
     /// <summary>
-    /// Remove all functions from the registry.
+    /// Remove all functions and collations from the registry.
     /// </summary>
     public void Clear()
     {
         _functions.Clear();
+        _collations.Clear();
     }
 }
