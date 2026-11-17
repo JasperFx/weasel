@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Weasel.Core.Sequences;
 
@@ -40,14 +41,30 @@ namespace Weasel.Core.Identity;
 public static class Identifications
 {
     /// <summary>
-    ///     <see cref="SequentialGuidIdentification{TDoc}" /> — <see cref="Guid" /> ids generated as
-    ///     time-ordered UUIDv7, no database round-trip.
+    ///     <see cref="SequentialGuidIdentification{TDoc}" /> — sequential <see cref="Guid" /> ids in
+    ///     PostgreSQL <c>uuid</c> order (<see cref="SequentialGuid.PostgresOrder" />), no database
+    ///     round-trip.
     /// </summary>
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes SequentialGuidIdentification<TDoc> over the document type.")]
     [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(SequentialGuidIdentification<>))]
     public static IIdentification ForSequentialGuid(Type documentType, MemberInfo idMember)
-        => Close(typeof(SequentialGuidIdentification<>), documentType, idMember);
+        => ForSequentialGuid(documentType, idMember, SequentialGuid.PostgresOrder);
+
+    /// <summary>
+    ///     <see cref="SequentialGuidIdentification{TDoc}" /> — <see cref="Guid" /> ids from
+    ///     <paramref name="generator" />, no database round-trip. Pass
+    ///     <see cref="SequentialGuid.SqlServerOrder" /> when the id is stored in a SQL Server
+    ///     <c>uniqueidentifier</c>.
+    /// </summary>
+    [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
+    [RequiresDynamicCode("Closes SequentialGuidIdentification<TDoc> over the document type.")]
+    [DynamicDependency(DynamicallyAccessedMemberTypes.PublicConstructors, typeof(SequentialGuidIdentification<>))]
+    public static IIdentification ForSequentialGuid(Type documentType, MemberInfo idMember, IGuidGenerator generator)
+    {
+        ArgumentNullException.ThrowIfNull(generator);
+        return Close(typeof(SequentialGuidIdentification<>), documentType, idMember, generator);
+    }
 
     /// <summary>
     ///     <see cref="GuidIdentification{TDoc}" /> — <see cref="Guid" /> ids from
@@ -124,28 +141,41 @@ public static class Identifications
         "Reads the id member and the wrapper's value property reflectively; both must survive trimming.")]
     public static IIdentification ForValueType(Type documentType, MemberInfo idMember, ValueTypeInfo valueType,
         Type sequenceKey)
+        => ForValueType(documentType, idMember, valueType, sequenceKey, SequentialGuid.PostgresOrder);
+
+    /// <summary>
+    ///     The strong-typed id strategy, as <see cref="ForValueType(Type,MemberInfo,ValueTypeInfo,Type)" />,
+    ///     with new ids for a Guid inner type made by <paramref name="guidGenerator" />. Pass
+    ///     <see cref="SequentialGuid.SqlServerOrder" /> when the id is stored in a SQL Server
+    ///     <c>uniqueidentifier</c>.
+    /// </summary>
+    [RequiresUnreferencedCode(
+        "Reads the id member and the wrapper's value property reflectively; both must survive trimming.")]
+    public static IIdentification ForValueType(Type documentType, MemberInfo idMember, ValueTypeInfo valueType,
+        Type sequenceKey, IGuidGenerator guidGenerator)
     {
         ArgumentNullException.ThrowIfNull(documentType);
         ArgumentNullException.ThrowIfNull(idMember);
         ArgumentNullException.ThrowIfNull(valueType);
+        ArgumentNullException.ThrowIfNull(guidGenerator);
 
         if (RuntimeFeature.IsDynamicCodeSupported)
         {
-            return CloseValueType(documentType, idMember, valueType, sequenceKey);
+            return CloseValueType(documentType, idMember, valueType, sequenceKey, guidGenerator);
         }
 
-        return new ReflectedValueTypeIdentification(documentType, idMember, valueType, sequenceKey);
+        return new ReflectedValueTypeIdentification(documentType, idMember, valueType, sequenceKey, guidGenerator);
     }
 
     [RequiresUnreferencedCode(
         "Builds FEC-compiled accessor / wrap / unwrap delegates via LambdaBuilder and ValueTypeInfo.")]
     [RequiresDynamicCode("Closes ValueTypeIdentification<TDoc, TWrapper, TInner> and compiles accessor delegates.")]
     private static IIdentification CloseValueType(Type documentType, MemberInfo idMember, ValueTypeInfo valueType,
-        Type sequenceKey)
+        Type sequenceKey, IGuidGenerator guidGenerator)
         => (IIdentification)Activator.CreateInstance(
             typeof(ValueTypeIdentification<,,>).MakeGenericType(documentType, valueType.OuterType,
                 valueType.SimpleType),
-            idMember, valueType, sequenceKey)!;
+            idMember, valueType, sequenceKey, guidGenerator)!;
 
     [RequiresUnreferencedCode("Builds FEC-compiled accessor delegates over the id member via LambdaBuilder.")]
     [RequiresDynamicCode("Closes the strategy's open generic over the document type.")]

@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Shouldly;
 using Weasel.Core.Identity;
@@ -10,7 +11,7 @@ namespace Weasel.Core.Tests;
 
 /// <summary>
 ///     The strong-typed id strategy has to be buildable from runtime <see cref="Type" />s, and the
-///     two implementations that back <see cref="Identifications.ForValueType" /> have to answer
+///     two implementations that back <see cref="Identifications.ForValueType(Type,MemberInfo,ValueTypeInfo,Type)" /> have to answer
 ///     identically.
 /// </summary>
 /// <remarks>
@@ -63,7 +64,7 @@ public class value_type_identification_needs_no_closed_generic
     [MemberData(nameof(Implementations))]
     public void leaves_an_id_that_is_already_there(string implementation)
     {
-        var existing = new GuidId(Guid.CreateVersion7());
+        var existing = new GuidId(SequentialGuid.NextPostgresOrder());
         var strategy = Build<GuidWrapped>(implementation);
         var document = new GuidWrapped { Id = existing };
 
@@ -136,7 +137,7 @@ public class value_type_identification_needs_no_closed_generic
     [MemberData(nameof(Implementations))]
     public void keeps_an_id_that_is_already_on_a_nullable_wrapper_property(string implementation)
     {
-        var existing = new GuidId(Guid.CreateVersion7());
+        var existing = new GuidId(SequentialGuid.NextPostgresOrder());
         var strategy = Build<NullableGuidWrapped>(implementation);
         var document = new NullableGuidWrapped { Id = existing };
 
@@ -157,7 +158,7 @@ public class value_type_identification_needs_no_closed_generic
     [MemberData(nameof(Implementations))]
     public void unwraps_to_the_inner_primitive_for_binding(string implementation)
     {
-        var id = new GuidId(Guid.CreateVersion7());
+        var id = new GuidId(SequentialGuid.NextPostgresOrder());
 
         Build<GuidWrapped>(implementation).ToRawSqlValue(id).ShouldBe(id.Value);
     }
@@ -166,7 +167,7 @@ public class value_type_identification_needs_no_closed_generic
     [MemberData(nameof(Implementations))]
     public void wraps_the_inner_primitive_coming_back_off_a_reader(string implementation)
     {
-        var inner = Guid.CreateVersion7();
+        var inner = SequentialGuid.NextPostgresOrder();
 
         Build<GuidWrapped>(implementation)
             .ReadIdFromReader(new SingleValueReader(inner), 0)

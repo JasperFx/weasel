@@ -3,6 +3,7 @@ using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Weasel.Core.Sequences;
 
@@ -37,7 +38,7 @@ namespace Weasel.Core.Identity;
 ///     </para>
 ///     <para>
 ///     It is slower than the generic strategy — every call boxes and goes through reflection rather
-///     than an FEC-compiled delegate — so <see cref="Identifications.ForValueType" /> hands it out
+///     than an FEC-compiled delegate — so <see cref="Identifications.ForValueType(Type,MemberInfo,ValueTypeInfo,Type)" /> hands it out
 ///     only where the fast path cannot run. Its answers are required to be identical, and
 ///     <c>Weasel.Core.Tests/value_type_identification_needs_no_closed_generic.cs</c> holds the two
 ///     implementations against each other case for case.
@@ -65,18 +66,40 @@ public sealed class ReflectedValueTypeIdentification: IIdentification
     [RequiresUnreferencedCode(
         "Reads the id member and the wrapper's value property reflectively; both must survive trimming.")]
     public ReflectedValueTypeIdentification(Type documentType, MemberInfo idMember, ValueTypeInfo valueType,
-        Type sequenceKey)
+        Type sequenceKey) : this(documentType, idMember, valueType, sequenceKey, SequentialGuid.PostgresOrder)
+    {
+    }
+
+    /// <param name="documentType">The document type owning <paramref name="idMember" />.</param>
+    /// <param name="idMember">
+    ///     The id member — a property or field whose type is the wrapper, or
+    ///     <c>Nullable&lt;wrapper&gt;</c>.
+    /// </param>
+    /// <param name="valueType">The wrapper's shape, from <see cref="ValueTypeInfo.ForType" />.</param>
+    /// <param name="sequenceKey">
+    ///     The type used as the cache key for <see cref="ISequenceSource.SequenceFor" />, for the
+    ///     int / long inner types that generate from a Hi-Lo sequence.
+    /// </param>
+    /// <param name="guidGenerator">
+    ///     Makes new ids for a Guid inner type, e.g. <see cref="SequentialGuid.SqlServerOrder" /> for a
+    ///     SQL Server table. Not used for the other inner types.
+    /// </param>
+    [RequiresUnreferencedCode(
+        "Reads the id member and the wrapper's value property reflectively; both must survive trimming.")]
+    public ReflectedValueTypeIdentification(Type documentType, MemberInfo idMember, ValueTypeInfo valueType,
+        Type sequenceKey, IGuidGenerator guidGenerator)
     {
         ArgumentNullException.ThrowIfNull(documentType);
         ArgumentNullException.ThrowIfNull(idMember);
         ArgumentNullException.ThrowIfNull(valueType);
+        ArgumentNullException.ThrowIfNull(guidGenerator);
 
         DocumentType = documentType;
         RawSqlType = valueType.SimpleType;
         _valueProperty = valueType.ValueProperty;
         (_getter, _setter) = BuildAccessors(idMember);
         _wrap = BuildWrapper(valueType);
-        _generator = PickGenerator(valueType.SimpleType, sequenceKey);
+        _generator = PickGenerator(valueType.SimpleType, sequenceKey, guidGenerator);
         _isDefaultInner = BuildDefaultTest(valueType.SimpleType);
     }
 
@@ -194,11 +217,12 @@ public sealed class ReflectedValueTypeIdentification: IIdentification
             $"{valueType.OuterType.FullName} exposes neither a single-argument constructor nor a static factory method, so Weasel cannot build one from its inner {valueType.SimpleType.Name} value.");
     }
 
-    private static Func<ISequenceSource, object> PickGenerator(Type simpleType, Type sequenceKey)
+    private static Func<ISequenceSource, object> PickGenerator(Type simpleType, Type sequenceKey,
+        IGuidGenerator guidGenerator)
     {
         if (simpleType == typeof(Guid))
         {
-            return _ => Guid.CreateVersion7();
+            return _ => guidGenerator.NewGuid();
         }
 
         if (simpleType == typeof(int))

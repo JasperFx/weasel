@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Reflection;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Shouldly;
 using Weasel.Core.Identity;
@@ -165,7 +166,7 @@ public class identification_has_a_non_generic_facade
     [Fact]
     public void reads_an_id_from_a_reader_through_the_facade()
     {
-        var id = Guid.CreateVersion7();
+        var id = SequentialGuid.NextPostgresOrder();
         IIdentification facade = new SequentialGuidIdentification<GuidDoc>(IdMemberOf<GuidDoc>());
 
         facade.ReadIdFromReader(new SingleValueReader(id), 0).ShouldBe(id);
@@ -174,7 +175,7 @@ public class identification_has_a_non_generic_facade
     [Fact]
     public void reads_a_strong_typed_id_from_a_reader_through_the_facade()
     {
-        var inner = Guid.CreateVersion7();
+        var inner = SequentialGuid.NextPostgresOrder();
         IIdentification facade = new ValueTypeIdentification<WrappedDoc, FooId, Guid>(
             IdMemberOf<WrappedDoc>(), ValueTypeInfo.ForType(typeof(FooId)), typeof(WrappedDoc));
 
@@ -197,7 +198,7 @@ public class identification_has_a_non_generic_facade
     [Fact]
     public void a_strategy_compiled_before_the_facade_existed_still_satisfies_it()
     {
-        var id = Guid.CreateVersion7();
+        var id = SequentialGuid.NextPostgresOrder();
         var document = new GuidDoc();
         IIdentification facade = new StrategyFromAnEarlierWeasel(id);
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
+using JasperFx.Core;
 using JasperFx.Core.Reflection;
 using Weasel.Core.Sequences;
 
@@ -15,9 +16,10 @@ namespace Weasel.Core.Identity;
 ///     int / long / string).
 /// </summary>
 /// <remarks>
-///     Generation strategy depends on the inner type: Guid → <see cref="Guid.CreateVersion7()" />
-///     (time-ordered UUIDv7, for index locality); int / long → per-document Hi-Lo sequence;
-///     string → externally assigned (throws on missing).
+///     Generation strategy depends on the inner type: Guid → an <see cref="IGuidGenerator" />,
+///     <see cref="SequentialGuid.PostgresOrder" /> unless the caller passes another (sequential, for
+///     index locality); int / long → per-document Hi-Lo sequence; string → externally assigned
+///     (throws on missing).
 /// </remarks>
 public sealed class ValueTypeIdentification<TDoc, TWrapper, TInner> : IIdentification<TDoc, TWrapper>
     where TDoc : notnull
@@ -34,12 +36,28 @@ public sealed class ValueTypeIdentification<TDoc, TWrapper, TInner> : IIdentific
     [RequiresUnreferencedCode("Builds FEC-compiled accessor / wrap / unwrap delegates via LambdaBuilder and ValueTypeInfo.")]
     [RequiresDynamicCode("Compiles the nullable-wrapper accessor expression tree.")]
     public ValueTypeIdentification(MemberInfo idMember, ValueTypeInfo vt, Type sequenceKey)
+        : this(idMember, vt, sequenceKey, SequentialGuid.PostgresOrder)
     {
+    }
+
+    /// <param name="idMember">The document's id member.</param>
+    /// <param name="vt">The wrapper's shape.</param>
+    /// <param name="sequenceKey">The Hi-Lo sequence key for int / long inner types.</param>
+    /// <param name="guidGenerator">
+    ///     Makes new ids for a Guid inner type, e.g. <see cref="SequentialGuid.SqlServerOrder" /> for a
+    ///     SQL Server table. Not used for the other inner types.
+    /// </param>
+    [RequiresUnreferencedCode("Builds FEC-compiled accessor / wrap / unwrap delegates via LambdaBuilder and ValueTypeInfo.")]
+    [RequiresDynamicCode("Compiles the nullable-wrapper accessor expression tree.")]
+    public ValueTypeIdentification(MemberInfo idMember, ValueTypeInfo vt, Type sequenceKey,
+        IGuidGenerator guidGenerator)
+    {
+        ArgumentNullException.ThrowIfNull(guidGenerator);
         (_getter, _isNullablePropertyMissing) = BuildAccessors(idMember);
         _setter = LambdaBuilder.Setter<TDoc, TWrapper>(idMember)!;
         _unwrap = LambdaBuilder.Getter<TWrapper, TInner>(vt.ValueProperty);
         _wrap = vt.CreateWrapper<TWrapper, TInner>();
-        _generator = PickGenerator(vt.SimpleType, sequenceKey);
+        _generator = PickGenerator(vt.SimpleType, sequenceKey, guidGenerator);
     }
 
     /// <summary>
@@ -124,11 +142,12 @@ public sealed class ValueTypeIdentification<TDoc, TWrapper, TInner> : IIdentific
         return wrapped;
     }
 
-    private static Func<ISequenceSource, TInner> PickGenerator(Type simpleType, Type sequenceKey)
+    private static Func<ISequenceSource, TInner> PickGenerator(Type simpleType, Type sequenceKey,
+        IGuidGenerator guidGenerator)
     {
         if (simpleType == typeof(Guid))
         {
-            return _ => (TInner)(object)Guid.CreateVersion7();
+            return _ => (TInner)(object)guidGenerator.NewGuid();
         }
         if (simpleType == typeof(int))
         {

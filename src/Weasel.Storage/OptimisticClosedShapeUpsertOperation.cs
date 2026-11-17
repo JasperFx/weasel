@@ -36,7 +36,7 @@ public sealed class OptimisticClosedShapeUpsertOperation<TDoc, TId>: ClosedShape
         : base(document, id, tenantId, descriptor, role)
     {
         _versions = versions;
-        _newVersion = CombGuidIdGeneration.NewGuid();
+        _newVersion = SequentialGuid.NextPostgresOrder();
     }
 
     public override void ConfigureCommand(ICommandBuilder builder, IStorageSession session)
