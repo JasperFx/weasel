@@ -42,6 +42,42 @@ public class sequential_guid_ids_follow_the_database_order
     }
 
     [Fact]
+    public async Task sequential_guid_ids_from_many_threads_are_unique()
+    {
+        var strategy = new SequentialGuidIdentification<GuidDoc>(IdMemberOf<GuidDoc>(), SequentialGuid.SqlServerOrder);
+        const int threads = 8;
+        var perThread = new List<Guid>[threads];
+
+        using var start = new Barrier(threads);
+        await Task.WhenAll(Enumerable.Range(0, threads).Select(t => Task.Factory.StartNew(() =>
+        {
+            start.SignalAndWait();
+            perThread[t] = AssignMany(strategy);
+        }, TaskCreationOptions.LongRunning)));
+
+        var all = perThread.SelectMany(x => x).ToList();
+        all.Distinct().Count().ShouldBe(threads * HowMany);
+
+        // Each thread still sees its own ids increase
+        foreach (var ids in perThread) ids.ShouldBeIncreasingIn(SqlServerOrder);
+    }
+
+    /// <summary>
+    ///     Rows written by Weasel 10.0 alphas before this change carry <c>Guid.CreateVersion7()</c> ids.
+    ///     New ids sort after them in PostgreSQL order, so an existing table keeps appending at the
+    ///     right edge of its primary key index.
+    /// </summary>
+    [Fact]
+    public void new_ids_sort_after_version_7_ids_in_postgresql_order()
+    {
+        var older = Guid.CreateVersion7();
+        var newer = new SequentialGuidIdentification<GuidDoc>(IdMemberOf<GuidDoc>())
+            .AssignIfMissing(new GuidDoc(), theSequences);
+
+        newer.CompareTo(older).ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
     public void sequential_guid_ids_come_from_the_generator_passed_in()
     {
         var generator = new CountingGenerator();

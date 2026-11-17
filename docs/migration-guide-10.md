@@ -19,6 +19,7 @@ newly shipped storage family, and one obsolete method.
 | `MasterTableTenancyBase.TryProvisionControlTableSynchronously`: provision the control table without awaiting ([weasel#850](https://github.com/JasperFx/weasel/issues/850)) | Additive; declines by default. A store that overrides it lets `TryResolveTenant` work in a cold process, before any asynchronous call has provisioned the table |
 | `ConnectionSourceExtensions.RunSql<T>` is `[Obsolete]` | Switch to `RunSqlAsync<T>` |
 | `ISequence.NextLongAsync` / `NextIntAsync` for Hi-Lo ids | Additive; only matters if you build a store on Weasel |
+| Sequential `Guid` ids come from JasperFx's `SequentialGuid`, not `Guid.CreateVersion7()` | None for PostgreSQL; a SQL Server store passes `SequentialGuid.SqlServerOrder` |
 | MySQL tests for the EF Core bridge are compiled out | No library change; Pomelo has no EF Core 10 release |
 | `net11.0` assemblies are compiled with runtime-async | None; opt out with `-p:WeaselRuntimeAsync=false` when building Weasel from source |
 
@@ -228,6 +229,28 @@ but obtained synchronously. Three things a `HiloSequenceBase` subclass should kn
 - `TrySetCurrentHi` with a negative value now returns `false` without touching `CurrentHi`, so one advance's
   failed attempt cannot throw away the block another advance just installed. An override must still not call
   back into `NextLong` or `NextLongAsync`, and `AdvanceToNextHi` should honor its `CancellationToken`.
+
+## Sequential `Guid` ids
+
+`SequentialGuidIdentification<TDoc>`, `ValueTypeIdentification<TDoc, TWrapper, TInner>` and
+`ReflectedValueTypeIdentification` no longer call `Guid.CreateVersion7()`. They take a `JasperFx.Core.IGuidGenerator`
+through a new constructor overload, and the old constructors use `SequentialGuid.PostgresOrder`.
+`Identifications.ForSequentialGuid` and `Identifications.ForValueType` have overloads that take the generator too.
+
+`Guid.CreateVersion7()` is only ordered to the millisecond, and SQL Server does not compare a `uniqueidentifier` in
+that order at all. `SequentialGuid` ids always increase within a process, in the order of the database you pick:
+
+```cs
+// PostgreSQL, SQLite and anything that stores the id as text: the default
+var identification = Identifications.ForSequentialGuid(documentType, idMember);
+
+// SQL Server compares the last six bytes first
+var identification = Identifications.ForSequentialGuid(documentType, idMember, SequentialGuid.SqlServerOrder);
+```
+
+New ids sort after `Guid.CreateVersion7()` ids written earlier in PostgreSQL order, so an existing table keeps
+appending at the end of its primary key index. The `mt_version` values in `Weasel.Storage` come from
+`SequentialGuid.NextPostgresOrder()` instead of the obsolete `CombGuidIdGeneration.NewGuid()`.
 
 ## Behavior and build changes that need no code
 
