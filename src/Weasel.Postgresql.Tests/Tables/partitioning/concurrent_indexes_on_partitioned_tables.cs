@@ -30,7 +30,7 @@ namespace Weasel.Postgresql.Tests.Tables.partitioning;
 [Collection("concurrent_partition_indexes")]
 public class concurrent_indexes_on_partitioned_tables: IntegrationContext
 {
-    public concurrent_indexes_on_partitioned_tables(): base("concurrent_partition_indexes")
+    public concurrent_indexes_on_partitioned_tables(): base("concurrent_partition_indexes", ConnectionSource.ConcurrentIndexConnectionString)
     {
     }
 

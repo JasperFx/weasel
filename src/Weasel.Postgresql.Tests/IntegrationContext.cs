@@ -9,7 +9,7 @@ namespace Weasel.Postgresql.Tests;
 
 public abstract class IntegrationContext: IAsyncLifetime
 {
-    protected readonly NpgsqlDataSource theDataSource = NpgsqlDataSource.Create(ConnectionSource.ConnectionString);
+    protected readonly NpgsqlDataSource theDataSource;
     private NpgsqlConnection? connection;
 
     protected NpgsqlConnection theConnection
@@ -17,8 +17,18 @@ public abstract class IntegrationContext: IAsyncLifetime
         get => (connection ??= theDataSource.CreateConnection());
     }
 
-    protected IntegrationContext(string schemaName)
+    protected IntegrationContext(string schemaName): this(schemaName, ConnectionSource.ConnectionString)
     {
+    }
+
+    /// <summary>
+    ///     For a test class that needs a database other than the configured one, such as
+    ///     <see cref="ConnectionSource.ConcurrentIndexConnectionString" />.
+    /// </summary>
+    protected IntegrationContext(string schemaName, string connectionString)
+    {
+        theDataSource = NpgsqlDataSource.Create(connectionString);
+
         if (!GetType().HasAttribute<CollectionAttribute>())
         {
             throw new InvalidOperationException(

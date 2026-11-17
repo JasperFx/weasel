@@ -32,7 +32,7 @@ public class resuming_a_half_built_partitioned_index: IntegrationContext
 {
     private const string IndexName = "idx_resumed_docs_body";
 
-    public resuming_a_half_built_partitioned_index(): base("resume_partition_index")
+    public resuming_a_half_built_partitioned_index(): base("resume_partition_index", ConnectionSource.ConcurrentIndexConnectionString)
     {
     }
 
