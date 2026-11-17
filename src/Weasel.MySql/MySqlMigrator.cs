@@ -332,6 +332,7 @@ public class MySqlMigrator: Migrator
 
         var cmd = adminConn.CreateCommand();
         cmd.CommandText = $"CREATE DATABASE IF NOT EXISTS {SchemaUtils.QuoteName(databaseName)}";
+        cmd.WithProvisioningTimeout(ProvisioningCommandTimeout);
         await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
     }
 

@@ -330,6 +330,7 @@ END;";
         {
             var cmd = connection.CreateCommand();
             cmd.CommandText = CreateSchemaStatementFor(schemaName);
+            cmd.WithProvisioningTimeout(ProvisioningCommandTimeout);
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }
         finally

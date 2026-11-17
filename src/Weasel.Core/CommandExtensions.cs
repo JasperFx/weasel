@@ -17,6 +17,42 @@ public static class CommandExtensions
     }
 
     /// <summary>
+    ///     Give a database provisioning statement (<c>CREATE DATABASE</c>, <c>DROP DATABASE</c>, an
+    ///     extension install) at least <paramref name="timeout" /> to run. A longer or unlimited command
+    ///     timeout already on the command, usually from the connection string, is kept. Zero, a negative
+    ///     value or <see cref="Timeout.InfiniteTimeSpan" /> means no limit.
+    /// </summary>
+    public static T WithProvisioningTimeout<T>(this T command, TimeSpan timeout) where T : DbCommand
+    {
+        if (command.CommandTimeout == 0)
+        {
+            // Already unlimited
+            return command;
+        }
+
+        var seconds = ToCommandTimeoutSeconds(timeout);
+        if (seconds == 0 || seconds > command.CommandTimeout)
+        {
+            command.CommandTimeout = seconds;
+        }
+
+        return command;
+    }
+
+    // DbCommand.CommandTimeout is whole seconds, and 0 is "no limit". Round up so a sub-second value
+    // never turns into 0.
+    internal static int ToCommandTimeoutSeconds(TimeSpan timeout)
+    {
+        if (timeout <= TimeSpan.Zero || timeout == Timeout.InfiniteTimeSpan)
+        {
+            return 0;
+        }
+
+        var seconds = Math.Ceiling(timeout.TotalSeconds);
+        return seconds >= int.MaxValue ? 0 : (int)seconds;
+    }
+
+    /// <summary>
     ///     Set the CommandText on this DbCommand in a Fluent Interface style
     /// </summary>
     /// <param name="cmd"></param>

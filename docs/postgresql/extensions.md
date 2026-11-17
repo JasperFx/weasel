@@ -20,6 +20,8 @@ Extension names are automatically normalized to lowercase and trimmed.
 
 Include extensions in your `PostgresqlDatabase` subclass so they are created before tables and functions that depend on them.
 
+An extension install runs as its own command with the migrator's `ProvisioningCommandTimeout` (two minutes by default) rather than the connection's command timeout. See [Provisioning command timeout](/core/schema-migrations#provisioning-command-timeout).
+
 <!-- snippet: sample_pg_database_with_extensions -->
 <a id='snippet-sample_pg_database_with_extensions'></a>
 ```cs

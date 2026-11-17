@@ -47,6 +47,13 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
     /// </summary>
     public bool DropAndRecreate { get; set; } = false;
 
+    /// <summary>
+    ///     The command timeout for the statements that create or drop a database here. Default is two
+    ///     minutes. A longer or unlimited command timeout on the master connection string is kept, and no
+    ///     other statement is affected (weasel#875). See <see cref="Migrator.ProvisioningCommandTimeout" />.
+    /// </summary>
+    public TimeSpan ProvisioningCommandTimeout { get; set; } = Migrator.DefaultProvisioningCommandTimeout;
+
     public IReadOnlyList<T> AllDatabases()
     {
         return _databases.Enumerate().Select(x => x.Value).ToList();
@@ -80,14 +87,23 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
 
             if (DropAndRecreate)
             {
-                await conn.KillIdleSessions(databaseName, ct: ct).ConfigureAwait(false);
-                await conn.DropDatabase(databaseName, ct: ct).ConfigureAwait(false);
+                await using (var kill = CommandExtensions.KillIdleSessionsCommand(conn, databaseName, ProvisioningCommandTimeout))
+                {
+                    await kill.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
+
+                await using (var drop = CommandExtensions.DropDatabaseCommand(conn, databaseName, ProvisioningCommandTimeout))
+                {
+                    await drop.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                }
             }
-            else if (!await conn.DatabaseExists(databaseName, ct: ct).ConfigureAwait(false))
+
+            if (DropAndRecreate || !await conn.DatabaseExists(databaseName, ct: ct).ConfigureAwait(false))
             {
                 try
                 {
-                    await Specification.BuildDatabase(conn, databaseName, ct).ConfigureAwait(false);
+                    await using var create = CreateDatabaseCommand(conn, databaseName);
+                    await create.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 }
                 catch (PostgresException e) when (isDuplicateDatabase(e))
                 {
@@ -108,7 +124,7 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
     /// <remarks>
     ///     <para>
     ///     Same cache, same work: a cached database is returned at once; otherwise the existence check,
-    ///     and <c>CREATE DATABASE</c> when it is missing (or the <see cref="DropAndRecreate" /> drop), run
+    ///     and <c>CREATE DATABASE</c> when it is missing (or the <see cref="DropAndRecreate" /> drop and create), run
     ///     over a synchronously opened connection, one statement per command, and the database is
     ///     cached for both paths.
     ///     </para>
@@ -165,21 +181,22 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
 
             if (DropAndRecreate)
             {
-                using (var kill = conn.CreateCommand(
-                           "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = :db AND pid <> pg_backend_pid();")
-                           .With("db", databaseName))
+                using (var kill = CommandExtensions.KillIdleSessionsCommand(conn, databaseName, ProvisioningCommandTimeout))
                 {
                     kill.ExecuteNonQuery();
                 }
 
-                using var drop = conn.CreateCommand($"DROP DATABASE IF EXISTS {databaseName}");
-                drop.ExecuteNonQuery();
+                using (var drop = CommandExtensions.DropDatabaseCommand(conn, databaseName, ProvisioningCommandTimeout))
+                {
+                    drop.ExecuteNonQuery();
+                }
             }
-            else if (!databaseExists(conn, databaseName))
+
+            if (DropAndRecreate || !databaseExists(conn, databaseName))
             {
                 try
                 {
-                    using var create = conn.CreateCommand(Specification.ToCreateDatabaseStatement(databaseName));
+                    using var create = CreateDatabaseCommand(conn, databaseName);
                     create.ExecuteNonQuery();
                 }
                 catch (PostgresException e) when (isDuplicateDatabase(e))
@@ -195,6 +212,12 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
             _syncLock.Exit();
         }
     }
+
+    // CREATE DATABASE copies a template and forces a checkpoint, so it gets the provisioning timeout
+    // rather than one tuned for queries (weasel#875).
+    internal NpgsqlCommand CreateDatabaseCommand(NpgsqlConnection conn, string databaseName) =>
+        conn.CreateCommand(Specification.ToCreateDatabaseStatement(databaseName))
+            .WithProvisioningTimeout(ProvisioningCommandTimeout);
 
     private T publish(string databaseName)
     {

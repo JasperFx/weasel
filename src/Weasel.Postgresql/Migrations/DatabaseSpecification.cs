@@ -1,5 +1,6 @@
 using System.Text;
 using Npgsql;
+using Weasel.Core;
 
 namespace Weasel.Postgresql.Migrations;
 
@@ -57,9 +58,23 @@ public class DatabaseSpecification
         return builder.ToString();
     }
 
+    /// <summary>
+    ///     Run <c>CREATE DATABASE</c> with the default provisioning command timeout of two minutes.
+    /// </summary>
     public Task BuildDatabase(NpgsqlConnection conn, string databaseName, CancellationToken ct = default)
     {
+        return BuildDatabase(conn, databaseName, Migrator.DefaultProvisioningCommandTimeout, ct);
+    }
+
+    /// <summary>
+    ///     Run <c>CREATE DATABASE</c>, giving it at least <paramref name="commandTimeout" /> to finish
+    ///     (weasel#875). See <see cref="Migrator.ProvisioningCommandTimeout" />.
+    /// </summary>
+    public Task BuildDatabase(NpgsqlConnection conn, string databaseName, TimeSpan commandTimeout,
+        CancellationToken ct = default)
+    {
         return conn.CreateCommand(ToCreateDatabaseStatement(databaseName))
+            .WithProvisioningTimeout(commandTimeout)
             .ExecuteNonQueryAsync(ct);
     }
 }

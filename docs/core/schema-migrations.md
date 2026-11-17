@@ -214,6 +214,20 @@ applied.
 
 The `Migrator` is used internally by `WriteCreateStatement()`, `WriteDropStatement()`, and `WriteUpdate()` on every schema object and delta.
 
+### Provisioning command timeout
+
+Creating or dropping a database and installing a PostgreSQL extension can take a lot longer than a query,
+especially on a busy server. Those statements use `ProvisioningCommandTimeout`, two minutes by default,
+instead of the connection's command timeout. Everything else keeps the connection's timeout.
+
+```cs
+migrator.ProvisioningCommandTimeout = TimeSpan.FromMinutes(5);
+```
+
+It's on every `Migrator` (used by `EnsureDatabaseExistsAsync()` and, on PostgreSQL, extension installs)
+and on PostgreSQL's `SingleServerDatabaseCollection<T>` for the databases it creates or drops. If the
+connection's own command timeout is longer, or unlimited, that one is kept.
+
 ## Putting It Together
 
 A typical migration workflow in application startup:

@@ -74,6 +74,21 @@ public abstract class
     /// </remarks>
     public bool RefuseDestructiveChanges { get; set; }
 
+    internal static readonly TimeSpan DefaultProvisioningCommandTimeout = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    ///     The command timeout for database provisioning statements: the <c>CREATE DATABASE</c> in
+    ///     <see cref="EnsureDatabaseExistsAsync" /> and, on PostgreSQL, extension installs. Default is
+    ///     two minutes. Every other statement keeps the connection's own command timeout.
+    /// </summary>
+    /// <remarks>
+    ///     <c>CREATE DATABASE</c> copies a template and forces a checkpoint, so a timeout tuned for
+    ///     queries can fail it on a busy server (weasel#875). A connection whose own command timeout is
+    ///     longer, or unlimited, keeps it. Zero, a negative value or <see cref="Timeout.InfiniteTimeSpan" />
+    ///     means no limit.
+    /// </remarks>
+    public TimeSpan ProvisioningCommandTimeout { get; set; } = DefaultProvisioningCommandTimeout;
+
     public SqlFormatting Formatting { get; set; } = SqlFormatting.Pretty;
 
     /// <summary>
