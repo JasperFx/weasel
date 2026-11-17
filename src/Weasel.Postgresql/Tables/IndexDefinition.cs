@@ -635,11 +635,19 @@ public partial class IndexDefinition: ITableIndex
                     break;
 
                 case "ON":
+                    // pg_get_indexdef prints "ON ONLY table" for every index on a partitioned table
+                    // (weasel#869). Skip the ONLY so the next token taken is the table name.
+                    if (tokens.Any() && tokens.Peek().Equals("ONLY", StringComparison.OrdinalIgnoreCase))
+                    {
+                        tokens.Dequeue();
+                    }
+
                     // Skip the table name
                     tokens.Dequeue();
 
-                    // USING clause is optional hence if next token isn't an USING clause then add it
-                    if (!tokens.Peek().Contains("USING", StringComparison.InvariantCultureIgnoreCase))
+                    // USING clause is optional hence if next token isn't an USING clause then add it.
+                    // Equality, not Contains: a table or column name may contain "using".
+                    if (!tokens.Any() || !tokens.Peek().Equals("USING", StringComparison.OrdinalIgnoreCase))
                     {
                         // btree is default method
                         tokens = new Queue<string>(new[] { "USING", "btree" }.Concat(tokens.ToArray()));

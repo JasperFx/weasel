@@ -196,6 +196,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
             return;
         }
 
+        if (PartitionDelta == PartitionDelta.Rebuild)
+        {
+            writePartitionRebuild(rules, writer);
+            return;
+        }
+
         // Extra indexes
         foreach (var extra in Indexes.Extras) writer.WriteDropIndex(Expected, extra);
 
@@ -212,29 +218,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         foreach (var index in recreatedIndexes) writer.WriteDropIndex(Expected, index);
         foreach (var foreignKey in recreatedForeignKeys) foreignKey.WriteDropStatement(Expected, writer);
 
-        // Missing columns
-        foreach (var column in Columns.Missing) writer.WriteLine(column.AddColumnSql(Expected));
-
-        // Different columns
-        foreach (var change1 in Columns.Different)
-        {
-            if (change1.Expected.ComputedDefinitionChanged(change1.Actual))
-            {
-                // a generation expression can't be altered in place; the data is
-                // derived, so drop + re-add is lossless
-                writer.WriteLine(change1.Expected.DropColumnSql(Expected));
-                writer.WriteLine(change1.Expected.AddColumnSql(Expected));
-            }
-            else if (change1.Expected.Equals(change1.Actual))
-            {
-                // same name/type — the difference is default/nullability drift
-                change1.Expected.WriteDriftCorrections(Expected, change1.Actual, writer);
-            }
-            else
-            {
-                writer.WriteLine(change1.Expected.AlterColumnTypeSql(Expected, change1.Actual));
-            }
-        }
+        writeMissingAndDifferentColumns(writer);
 
         writeForeignKeyUpdates(writer);
         writeCheckConstraintUpdates(writer);
@@ -271,22 +255,69 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
                 partition.WriteCreateStatement(writer, Expected);
             }
         }
-        else if (this.PartitionDelta == PartitionDelta.Rebuild)
+    }
+
+    /// <summary>
+    ///     A change of partitioning cannot be made in place, so the table is copied aside, dropped, created
+    ///     from the expected definition and filled again. Only the column changes are made against the old
+    ///     table first, so the copy has every expected column to select. Indexes, the primary key, foreign
+    ///     keys, check constraints and storage parameters all come from the create statement. Changing them
+    ///     in place first is wasted work at best, and at worst illegal on the table that is still partitioned:
+    ///     a primary key that loses the partition column fails with 0A000 (weasel#871).
+    /// </summary>
+    private void writePartitionRebuild(Migrator rules, TextWriter writer)
+    {
+        writeMissingAndDifferentColumns(writer);
+
+        // Extra columns are not dropped first: the copy back selects only the expected columns, and an
+        // extra column may be the partition column, which PostgreSQL will not drop from a partitioned table.
+
+        var columns = Expected.Columns.Select(x => x.Name).Join(", ");
+
+        var tempName = PostgresqlObjectName.From(
+            new DbObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_temp"));
+        writer.WriteLine($"create table {tempName} as select * from {Expected.Identifier};");
+        writer.WriteLine($"drop table {Expected.Identifier} cascade;");
+
+        Expected.WriteCreateStatement(rules, writer, _deferredForeignKeys);
+
+        writer.WriteLine();
+
+        writer.WriteLine($"insert into {Expected.Identifier}({columns}) select {columns} from {tempName};");
+
+        writer.WriteLine($"drop table {tempName} cascade;");
+
+        // The drop above cascaded to the foreign keys of other tables that reference this one
+        foreach (var (ownerTable, fk) in ReferencingForeignKeys)
         {
-            var columns = Expected.Columns.Select(x => x.Name).Join(", ");
+            fk.WriteAddStatement(ownerTable, writer);
+        }
+    }
 
-            var tempName = PostgresqlObjectName.From(
-                new DbObjectName(Expected.Identifier.Schema, Expected.Identifier.Name + "_temp"));
-            writer.WriteLine($"create table {tempName} as select * from {Expected.Identifier};");
-            writer.WriteLine($"drop table {Expected.Identifier} cascade;");
+    private void writeMissingAndDifferentColumns(TextWriter writer)
+    {
+        // Missing columns
+        foreach (var column in Columns.Missing) writer.WriteLine(column.AddColumnSql(Expected));
 
-            Expected.WriteCreateStatement(rules, writer, _deferredForeignKeys);
-
-            writer.WriteLine();
-
-            writer.WriteLine($"insert into {Expected.Identifier}({columns}) select {columns} from {tempName};");
-
-            writer.WriteLine($"drop table {tempName} cascade;");
+        // Different columns
+        foreach (var change in Columns.Different)
+        {
+            if (change.Expected.ComputedDefinitionChanged(change.Actual))
+            {
+                // a generation expression can't be altered in place; the data is
+                // derived, so drop + re-add is lossless
+                writer.WriteLine(change.Expected.DropColumnSql(Expected));
+                writer.WriteLine(change.Expected.AddColumnSql(Expected));
+            }
+            else if (change.Expected.Equals(change.Actual))
+            {
+                // same name/type — the difference is default/nullability drift
+                change.Expected.WriteDriftCorrections(Expected, change.Actual, writer);
+            }
+            else
+            {
+                writer.WriteLine(change.Expected.AlterColumnTypeSql(Expected, change.Actual));
+            }
         }
     }
 
