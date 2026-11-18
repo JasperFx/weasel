@@ -181,11 +181,10 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         var remainingValues = survivors.Select(x => x.FormatSqlValue()).ToArray();
 
-        var tables = database
-            .AllObjects()
-            .OfType<Table>()
-            .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
-            .ToArray();
+        // Referencing tables first, so a departing value's rows are deleted before the rows they point at
+        // (weasel#890). The re-bind of a table that another managed table references can still be refused
+        // while a surviving member has referencing rows: weasel#891.
+        var tables = managedTablesReferencingFirst(database);
 
         foreach (var table in tables)
         {
@@ -223,6 +222,24 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         }
     }
 
+    /// <summary>
+    /// Every table partitioned by this manager, ordered so a table with a foreign key to another of them comes
+    /// before the table it references: the order their rows and partitions have to be removed in. A
+    /// self-reference doesn't affect the order, and a cycle of foreign keys is broken rather than refused, so
+    /// the removal then fails on that cycle exactly as it would have unordered (see
+    /// <see cref="ReferencingTablesFirst"/>). The sort this replaces threw on any cycle, a self-reference included.
+    /// </summary>
+    private Table[] managedTablesReferencingFirst(PostgresqlDatabase database)
+    {
+        var tables = database
+            .AllObjects()
+            .OfType<Table>()
+            .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
+            .ToArray();
+
+        return ReferencingTablesFirst.Sort(tables);
+    }
+
     public async Task DropPartitionFromAllTables(PostgresqlDatabase database, ILogger logger, string[] suffixNames, CancellationToken token)
     {
         await using var conn = database.CreateConnection();
@@ -240,16 +257,13 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         logger.LogInformation("Removed partition suffixes {SuffixNames} from partition list {TableName}", suffixNames.Join(", "), _table.Identifier.QualifiedName);
 
-        var tables = database
-            .AllObjects()
-            .OfType<Table>()
-            .Where(x => x.Partitioning is ListPartitioning list && list.PartitionManager == this)
-            .ToArray();
-
-        // var ordered = tables.TopologicalSort(t =>
-        //     t.ForeignKeys.Select(fk => tables.FirstOrDefault(x => Equals(x.Identifier, fk.LinkedTable))).Where(x => x != null)
-        //         .ToArray()!).Reverse().Intersect(tables).ToArray();
-
+        // weasel#890: detach and drop the referencing tables' partitions before the partitions they
+        // reference. AllObjects() yields a referenced table first (it has to be created first), and
+        // PostgreSQL refuses to detach a partition while any row still references it, even from a
+        // referencing partition that is already detached, because the detached table keeps its own copy of
+        // the foreign key. Only once that referencing partition is dropped can the referenced one go, which
+        // is what this order gives, since each partition is dropped straight after it is detached.
+        var tables = managedTablesReferencingFirst(database);
 
         foreach (var table in tables)
         {

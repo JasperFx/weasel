@@ -221,6 +221,11 @@ neighboring partition, not deleted. `DropPartitionFromAllTables` therefore takes
 - `TenantDropBehavior.DeleteData` — delete the tenant's rows from every managed table first, then merge.
   This is the hard-delete parity with the PostgreSQL managed drop (`DETACH PARTITION` + `DROP TABLE`).
 
+With `DeleteData`, tables with a foreign key to another managed table are purged before the table they
+reference, so the referenced rows are no longer in use when they are deleted. A self-referencing foreign
+key doesn't matter. Tables whose foreign keys form a cycle can't be ordered: a `DELETE` that fails is
+logged, and that table's boundary is left in place rather than merging the rows it still holds.
+
 ### Tenant bucketing (many tenants per partition)
 
 By default every tenant gets its own ordinal, guarded by a unique index on the registry table. For

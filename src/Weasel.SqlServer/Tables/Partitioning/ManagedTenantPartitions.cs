@@ -986,7 +986,12 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
             return;
         }
 
-        var tables = ResolveManagedTables(database);
+        // weasel#890: purge the referencing tables before the tables they reference. ResolveManagedTables
+        // follows AllObjects(), which yields a referenced table first because it has to be created first,
+        // so with a foreign key between two managed tables the referenced table's DELETE was refused,
+        // logged below, and that table's rows and boundary were left behind. In this order every row
+        // pointing at a tenant's row is gone before the row itself, unless the foreign keys form a cycle.
+        var tables = ReferencingTablesFirst.Sort(ResolveManagedTables(database));
 
         foreach (var table in tables)
         {
@@ -1009,7 +1014,10 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
                     catch (SqlException e)
                     {
                         // Leave the boundary in place rather than merging rows we
-                        // failed to delete into the neighboring partition.
+                        // failed to delete into the neighboring partition. With the
+                        // referencing-first order above, a foreign key between managed
+                        // tables no longer lands here; a cycle of foreign keys, or a
+                        // reference from a table this manager does not own, still can.
                         logger.LogError(e,
                             "Could not delete rows with ordinal {Ordinal} from table {Table} — " +
                             "skipping the boundary merge for this table",
