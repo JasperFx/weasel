@@ -441,7 +441,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         foreach (var change in ForeignKeys.Different)
         {
             change.Actual.WriteDropStatement(Expected, writer);
-            change.Expected.WriteAddStatement(Expected, writer);
+
+            // A deferred one goes back at the end of the migration, with the other deferred keys
+            if (!_deferredForeignKeys.Contains(change.Expected.Name))
+            {
+                change.Expected.WriteAddStatement(Expected, writer);
+            }
         }
     }
 
@@ -600,39 +605,89 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
 
     public void PostProcess(IList<ISchemaObjectDelta> allDeltas)
     {
-        if (Actual?.Partitioning != null)
-        {
-            var others = allDeltas.OfType<TableDelta>().Select(x => x.Actual)
-                .Where(x => x?.Partitioning != null).ToArray();
+        correctForeignKeysToPartitionedTables(allDeltas);
 
-            Actual.ReadOtherTables(others);
-
-            // Correct the foreign keys
-            ForeignKeys = new ItemDelta<ForeignKey>(Expected.ForeignKeys, Actual.ForeignKeys);
-            Difference = compare(Expected, Actual);
-        }
+        ReferencingForeignKeys.Clear();
 
         // When this table's PK is changing, find FKs from other tables that reference it.
         // Those FKs will be dropped by CASCADE and must be recreated after the PK is altered.
-        if (PrimaryKeyDifference is SchemaPatchDifference.Invalid or SchemaPatchDifference.Update
-            && Expected.PrimaryKeyColumns.Any())
+        // A partitioning rebuild drops the whole table with CASCADE, whether its PK changes or not.
+        if ((PrimaryKeyDifference is SchemaPatchDifference.Invalid or SchemaPatchDifference.Update
+             && Expected.PrimaryKeyColumns.Any()) || PartitionDelta == PartitionDelta.Rebuild)
         {
+            var position = allDeltas.IndexOf(this);
+
             foreach (var otherDelta in allDeltas.OfType<TableDelta>())
             {
                 if (ReferenceEquals(otherDelta, this)) continue;
 
+                // The other delta's foreign keys have to be final before they are sorted below
+                otherDelta.correctForeignKeysToPartitionedTables(allDeltas);
+
                 // Check expected FKs that reference this table
                 foreach (var fk in otherDelta.Expected.ForeignKeys)
                 {
-                    if (fk.LinkedTable != null &&
-                        fk.LinkedTable.QualifiedName.Equals(Expected.Identifier.QualifiedName,
+                    if (fk.LinkedTable == null ||
+                        !fk.LinkedTable.QualifiedName.Equals(Expected.Identifier.QualifiedName,
                             StringComparison.OrdinalIgnoreCase))
                     {
+                        continue;
+                    }
+
+                    if (!otherDelta.writesForeignKey(fk))
+                    {
                         ReferencingForeignKeys.Add((otherDelta.Expected, fk));
+                        continue;
+                    }
+
+                    // A key the other table's own delta adds is left to it, after any column it needs: put
+                    // back here as well, it went on twice (42710), or before its column existed (42703)
+                    // (weasel#883). If that delta comes first, the key waits until the end of the
+                    // migration, since it needs the primary key this delta has not built yet.
+                    if (allDeltas.IndexOf(otherDelta) < position)
+                    {
+                        otherDelta.DeferForeignKey(fk.Name);
                     }
                 }
             }
         }
+    }
+
+    private bool _correctedForPartitionedTables;
+
+    /// <summary>
+    ///     Read the foreign keys to partitioned tables against the other tables of the migration. Run by
+    ///     this delta's own <see cref="PostProcess" />, or earlier by another delta that needs this one's
+    ///     foreign keys final, whichever comes first.
+    /// </summary>
+    private void correctForeignKeysToPartitionedTables(IList<ISchemaObjectDelta> allDeltas)
+    {
+        if (_correctedForPartitionedTables) return;
+        _correctedForPartitionedTables = true;
+
+        if (Actual?.Partitioning == null) return;
+
+        var others = allDeltas.OfType<TableDelta>().Select(x => x.Actual)
+            .Where(x => x?.Partitioning != null).Select(x => x!).ToArray();
+
+        Actual.ReadOtherTables(others);
+
+        // Correct the foreign keys
+        Difference = compare(Expected, Actual);
+    }
+
+    /// <summary>
+    ///     Does this delta add <paramref name="foreignKey" /> itself? It does when it creates or rebuilds
+    ///     the whole table, and otherwise when the key is missing or different.
+    /// </summary>
+    private bool writesForeignKey(ForeignKey foreignKey)
+    {
+        if (Difference is not (SchemaPatchDifference.None or SchemaPatchDifference.Update)) return true;
+        if (PartitionDelta == PartitionDelta.Rebuild) return true;
+
+        return ForeignKeys.Missing.Any(x => x.Name.Equals(foreignKey.Name, StringComparison.OrdinalIgnoreCase))
+               || ForeignKeys.Different.Any(x =>
+                   x.Expected.Name.Equals(foreignKey.Name, StringComparison.OrdinalIgnoreCase));
     }
 
     private void rollbackIndexes(TextWriter writer)

@@ -100,9 +100,26 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
     /// </summary>
     internal List<(Table Owner, ForeignKey ForeignKey, bool Restore)> ReferencingForeignKeys { get; } = new();
 
+    /// <summary>
+    ///     The foreign keys on other tables, by table and name, that reference this table and that the
+    ///     other table's own delta in the same migration drops or rewrites. This delta still takes them
+    ///     down before it drops its primary key, but never puts them back (weasel#886).
+    /// </summary>
+    private readonly HashSet<string> _referencingKeysOtherDeltasRewrite = new(StringComparer.OrdinalIgnoreCase);
+
+    private static string keyOf(DbObjectName table, string foreignKeyName)
+        => $"{SchemaUtils.Unbracket(table.Schema)}.{SchemaUtils.Unbracket(table.Name)}.{SchemaUtils.Unbracket(foreignKeyName)}";
+
     public void PostProcess(IList<ISchemaObjectDelta> allDeltas)
     {
         ReferencingForeignKeys.Clear();
+        _referencingKeysOtherDeltasRewrite.Clear();
+
+        if (dropsPrimaryKey())
+        {
+            sortReferencingForeignKeysOfOtherDeltas(allDeltas);
+        }
+
         if (!movesTable) return;
 
         foreach (var other in allDeltas.OfType<TableDelta>())
@@ -131,6 +148,67 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
             }
         }
     }
+
+    /// <summary>
+    ///     A primary key this delta drops is one nothing may reference when it goes, and its replacement
+    ///     only exists once this delta has run. So of the foreign keys that reference this table:
+    ///     <list type="bullet">
+    ///         <item>
+    ///             one the other table's delta drops or rewrites is not put back by this delta, which would
+    ///             restore a key that should be gone, against a primary key it no longer matches (Msg 1776)
+    ///         </item>
+    ///         <item>
+    ///             one the other table's delta adds, when that delta comes first, waits until the end of the
+    ///             migration: added before this delta, it references the old key and the drop is refused
+    ///             (Msg 3725), or the new key that does not exist yet (Msg 1776)
+    ///         </item>
+    ///     </list>
+    /// </summary>
+    private void sortReferencingForeignKeysOfOtherDeltas(IList<ISchemaObjectDelta> allDeltas)
+    {
+        var position = allDeltas.IndexOf(this);
+
+        foreach (var other in allDeltas.OfType<TableDelta>())
+        {
+            if (ReferenceEquals(other, this)) continue;
+
+            // A table that is created, or dropped and created again, writes every key it declares; one that
+            // is moved onto a partition scheme is altered in place like any other update
+            var rewritesItsTable = other.Difference == SchemaPatchDifference.Create ||
+                                   (other.Difference == SchemaPatchDifference.Invalid && !other.CanRebuildInPlace);
+
+            if (other.Actual != null)
+            {
+                var rewritten = rewritesItsTable
+                    ? other.Actual.ForeignKeys
+                    : other.ForeignKeys.Extras.Concat(other.ForeignKeys.Different.Select(x => x.Actual));
+
+                foreach (var foreignKey in rewritten.Where(x => x.LinkedTable != null && sameTable(x.LinkedTable, Expected.Identifier)))
+                {
+                    _referencingKeysOtherDeltasRewrite.Add(keyOf(other.Expected.Identifier, foreignKey.Name));
+                }
+            }
+
+            if (allDeltas.IndexOf(other) > position) continue;
+
+            var added = rewritesItsTable
+                ? other.Expected.ForeignKeys
+                : other.ForeignKeys.Missing.Concat(other.ForeignKeys.Different.Select(x => x.Expected));
+
+            foreach (var foreignKey in added.Where(x => x.LinkedTable != null && sameTable(x.LinkedTable, Expected.Identifier)))
+            {
+                other.DeferForeignKey(foreignKey.Name);
+            }
+        }
+    }
+
+    private bool dropsPrimaryKey()
+        => Actual != null && Actual.PrimaryKeyColumns.Count > 0 &&
+           (movesTable || requiresPrimaryKeyDropBeforeUpdate() ||
+            PrimaryKeyDifference is SchemaPatchDifference.Update or SchemaPatchDifference.Invalid);
+
+    private bool rewrittenByItsOwnDelta(ReferencingForeignKey foreignKey)
+        => _referencingKeysOtherDeltasRewrite.Contains(keyOf(foreignKey.Table, foreignKey.ForeignKey.Name));
 
     private static bool sameTable(DbObjectName left, DbObjectName right)
         => SchemaUtils.Unbracket(left.Schema).Equals(SchemaUtils.Unbracket(right.Schema), StringComparison.OrdinalIgnoreCase)
@@ -420,7 +498,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 if (restore) foreignKey.WriteAddStatement(owner, writer);
             }
 
-            writeReferencingForeignKeys(referencing, writer);
+            writeReferencingForeignKeys(referencing.Where(x => !rewrittenByItsOwnDelta(x)).ToList(), writer);
             return;
         }
 
@@ -455,7 +533,7 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
                 break;
         }
 
-        writeReferencingForeignKeys(referencing, writer);
+        writeReferencingForeignKeys(referencing.Where(x => !rewrittenByItsOwnDelta(x)).ToList(), writer);
     }
 
     /// <summary>
@@ -583,7 +661,12 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithDeferra
         foreach (var change in ForeignKeys.Different)
         {
             change.Actual.WriteDropStatement(Expected, writer);
-            change.Expected.WriteAddStatement(Expected, writer);
+
+            // A deferred one goes back at the end of the migration, with the other deferred keys
+            if (!_deferredForeignKeys.Contains(change.Expected.Name))
+            {
+                change.Expected.WriteAddStatement(Expected, writer);
+            }
         }
     }
 
