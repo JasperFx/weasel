@@ -137,6 +137,11 @@ await manager.DropPartitionFromAllTablesForValue(database, logger, "tenant_a", c
 <sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/PostgresqlPartitioningSamples.cs#L104-L111' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_pg_drop_partition' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
+When the managed tables have foreign keys between them, the drop works through them referencing tables
+first: PostgreSQL won't detach a partition while any row still points at it, so a table's partition is
+detached and dropped before the partitions it references. A self-referencing foreign key doesn't matter.
+Tables whose foreign keys form a cycle can't be ordered, and the drop fails on them.
+
 ## ManagedRangePartitions
 
 Time-series tables -- telemetry, audit trails, events, logs -- want a partition set that *moves*. The
