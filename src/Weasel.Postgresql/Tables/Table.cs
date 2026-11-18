@@ -76,6 +76,17 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
         => WriteCreateStatement(migrator, writer, null);
 
     public void WriteCreateStatement(Migrator migrator, TextWriter writer, IReadOnlySet<string>? deferredForeignKeys)
+        => WriteCreateStatement(migrator, writer, deferredForeignKeys, allowConcurrentIndexes: true);
+
+    /// <summary>
+    ///     As <see cref="WriteCreateStatement(Migrator, TextWriter, IReadOnlySet{string})" />. With
+    ///     <paramref name="allowConcurrentIndexes" /> false, every index is built in place, including one
+    ///     declared <see cref="IndexDefinition.IsConcurrent" />: for a table created inside a transaction,
+    ///     which <c>CREATE INDEX CONCURRENTLY</c> refuses, and empty when its indexes are built, so building
+    ///     them concurrently would buy nothing.
+    /// </summary>
+    internal void WriteCreateStatement(Migrator migrator, TextWriter writer, IReadOnlySet<string>? deferredForeignKeys,
+        bool allowConcurrentIndexes)
     {
         if (migrator.TableCreation == CreationStyle.DropThenCreate)
         {
@@ -164,7 +175,7 @@ public partial class Table: TableBase<TableColumn, IndexDefinition, ForeignKey>,
         foreach (var index in Indexes)
         {
             writer.WriteLine();
-            writer.WriteLine(index.ToCreateSql(this));
+            writer.WriteLine(allowConcurrentIndexes ? index.ToCreateSql(this) : index.ToCreateSql(this, concurrently: false));
         }
     }
 

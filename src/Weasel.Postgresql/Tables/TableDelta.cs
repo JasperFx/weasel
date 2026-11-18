@@ -264,9 +264,25 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
     ///     keys, check constraints and storage parameters all come from the create statement. Changing them
     ///     in place first is wasted work at best, and at worst illegal on the table that is still partitioned:
     ///     a primary key that loses the partition column fails with 0A000 (weasel#871).
+    ///     <para>
+    ///         The whole rebuild runs in one transaction that first takes <c>ACCESS EXCLUSIVE</c> on the
+    ///         table. Without the lock, the copy aside reads a snapshot that misses a row another connection
+    ///         has inserted but not yet committed, the drop then waits for that transaction, and the row is
+    ///         dropped with the table (weasel#882). PostgreSQL refuses <c>LOCK TABLE</c> outside a transaction
+    ///         block, so the rebuild opens one of its own unless the script it is written into already runs as
+    ///         one transaction (<see cref="PostgresqlMigrator.RunsInOneTransaction" />).
+    ///     </para>
     /// </summary>
     private void writePartitionRebuild(Migrator rules, TextWriter writer)
     {
+        var ownTransaction = !PostgresqlMigrator.RunsInOneTransaction(writer);
+        if (ownTransaction)
+        {
+            writer.WriteLine("begin;");
+        }
+
+        writer.WriteLine($"lock table {Expected.Identifier} in access exclusive mode;");
+
         writeMissingAndDifferentColumns(writer);
 
         // Extra columns are not dropped first: the copy back selects only the expected columns, and an
@@ -279,7 +295,8 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         writer.WriteLine($"create table {tempName} as select * from {Expected.Identifier};");
         writer.WriteLine($"drop table {Expected.Identifier} cascade;");
 
-        Expected.WriteCreateStatement(rules, writer, _deferredForeignKeys);
+        // No concurrent index build: it cannot run inside the transaction, and the table is still empty
+        Expected.WriteCreateStatement(rules, writer, _deferredForeignKeys, allowConcurrentIndexes: false);
 
         writer.WriteLine();
 
@@ -291,6 +308,11 @@ public class TableDelta: SchemaObjectDelta<Table>, ISchemaObjectDeltaWithPostPro
         foreach (var (ownerTable, fk) in ReferencingForeignKeys)
         {
             fk.WriteAddStatement(ownerTable, writer);
+        }
+
+        if (ownTransaction)
+        {
+            writer.WriteLine("commit;");
         }
     }
 

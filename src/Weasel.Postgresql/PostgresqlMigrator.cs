@@ -7,6 +7,7 @@ using Weasel.Core;
 using Weasel.Core.Migrations;
 using Weasel.Postgresql.Migrations;
 using Weasel.Postgresql.Tables;
+using Weasel.Postgresql.Tables.Partitioning;
 
 namespace Weasel.Postgresql;
 
@@ -83,7 +84,19 @@ $$;
             writer.WriteLine("");
         }
 
-        writeStep(this, writer);
+        if (IsTransactional)
+        {
+            // The DO block is one transaction already, and plpgsql has no BEGIN/COMMIT statements to
+            // open another: a delta that needs one (a partitioning rebuild, weasel#882) writes into this
+            // and leaves its own out
+            var step = new OneTransactionWriter();
+            writeStep(this, step);
+            writer.Write(step.ToString());
+        }
+        else
+        {
+            writeStep(this, writer);
+        }
 
         if (Role.IsNotEmpty())
         {
@@ -191,7 +204,7 @@ $$;
         CancellationToken ct = default
     )
     {
-        foreach (var (sql, provisioning) in BuildMigrationCommands(migration, autoCreate))
+        foreach (var (sql, provisioning, explicitTransaction) in BuildMigrationCommands(migration, autoCreate))
         {
             var cmd = conn.CreateCommand(sql);
             if (provisioning)
@@ -203,10 +216,18 @@ $$;
 
             try
             {
-                await executeWithConcurrencyRetryAsync(cmd, ct).ConfigureAwait(false);
+                await executeWithConcurrencyRetryAsync(cmd, explicitTransaction, ct).ConfigureAwait(false);
             }
             catch (Exception e)
             {
+                if (explicitTransaction)
+                {
+                    // A statement that failed inside BEGIN leaves the transaction open and aborted, where
+                    // an implicit one would have been rolled back. Close it, or every later command on
+                    // this connection is refused with 25P02.
+                    await rollbackAsync(cmd).ConfigureAwait(false);
+                }
+
                 var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
 
                 if (logger is DefaultMigrationLogger)
@@ -230,22 +251,40 @@ $$;
     ///     gets <see cref="Migrator.ProvisioningCommandTimeout" /> while the rest keep the connection's
     ///     timeout (weasel#875).
     /// </summary>
-    internal IReadOnlyList<(string Sql, bool Provisioning)> BuildMigrationCommands(SchemaMigration migration,
-        AutoCreate autoCreate)
+    /// <remarks>
+    ///     Each command runs as one transaction. Npgsql sends a command's statements as one pipeline, which
+    ///     PostgreSQL runs in an implicit transaction, and that is enough for everything but
+    ///     <c>LOCK TABLE</c>, which PostgreSQL only takes inside a transaction block. A partitioning
+    ///     rebuild locks its table (weasel#882), so in a migration with one every command other than a
+    ///     concurrent index build is wrapped in <c>BEGIN</c> / <c>COMMIT</c>: the same transaction it ran
+    ///     in before, opened explicitly. The rebuild writes no transaction of its own into it.
+    /// </remarks>
+    internal IReadOnlyList<(string Sql, bool Provisioning, bool ExplicitTransaction)> BuildMigrationCommands(
+        SchemaMigration migration, AutoCreate autoCreate)
     {
         migration.AssertPatchingIsValid(autoCreate);
 
-        var commands = new List<(string Sql, bool Provisioning)>();
-        var writer = new StringWriter();
+        var explicitTransactions = migration.Deltas.Any(x => x is TableDelta { PartitionDelta: PartitionDelta.Rebuild });
+
+        var commands = new List<(string Sql, bool Provisioning, bool ExplicitTransaction)>();
+        StringWriter newWriter() => explicitTransactions ? new OneTransactionWriter() : new StringWriter();
+        var writer = newWriter();
 
         void flush()
         {
-            var sqlCommands = writer
-                .ToString()
-                .Split(new[] { IndexDefinition.IndexCreationBeginComment, IndexDefinition.IndexCreationEndComment },
-                    StringSplitOptions.RemoveEmptyEntries);
-            commands.AddRange(sqlCommands.Select(sql => (sql, false)));
-            writer = new StringWriter();
+            foreach (var (sql, concurrentIndex) in splitOnIndexCreation(writer.ToString()))
+            {
+                if (explicitTransactions && !concurrentIndex && sql.IsNotEmpty() && sql.Trim().IsNotEmpty())
+                {
+                    commands.Add(($"begin;{Environment.NewLine}{sql}{Environment.NewLine}commit;{Environment.NewLine}", false, true));
+                }
+                else
+                {
+                    commands.Add((sql, false, false));
+                }
+            }
+
+            writer = newWriter();
         }
 
         if (migration.Schemas.Any())
@@ -261,7 +300,7 @@ $$;
                 if (WriteUpdate(extension, delta))
                 {
                     flush();
-                    commands.Add((extension.ToString(), true));
+                    commands.Add((extension.ToString(), true, false));
                 }
 
                 continue;
@@ -274,6 +313,82 @@ $$;
         flush();
 
         return commands;
+    }
+
+    /// <summary>
+    ///     The script split into commands on the index creation markers, each flagged with whether it is a
+    ///     concurrent index build: the part between a begin and an end marker, which cannot run inside a
+    ///     transaction block. Empty parts are dropped, as the plain split on both markers did.
+    /// </summary>
+    private static IEnumerable<(string Sql, bool ConcurrentIndex)> splitOnIndexCreation(string script)
+    {
+        var position = 0;
+        while (position < script.Length)
+        {
+            var begin = script.IndexOf(IndexDefinition.IndexCreationBeginComment, position, StringComparison.Ordinal);
+            if (begin < 0)
+            {
+                yield return (script.Substring(position), false);
+                yield break;
+            }
+
+            if (begin > position)
+            {
+                yield return (script.Substring(position, begin - position), false);
+            }
+
+            var start = begin + IndexDefinition.IndexCreationBeginComment.Length;
+            var end = script.IndexOf(IndexDefinition.IndexCreationEndComment, start, StringComparison.Ordinal);
+            if (end < 0)
+            {
+                if (start < script.Length)
+                {
+                    yield return (script.Substring(start), true);
+                }
+
+                yield break;
+            }
+
+            if (end > start)
+            {
+                yield return (script.Substring(start, end - start), true);
+            }
+
+            position = end + IndexDefinition.IndexCreationEndComment.Length;
+        }
+    }
+
+    /// <summary>
+    ///     True when SQL written into <paramref name="writer" /> already runs as one transaction: the
+    ///     commands <see cref="BuildMigrationCommands" /> wraps in <c>BEGIN</c> / <c>COMMIT</c>, and the
+    ///     <c>DO</c> block of a transactional script. A delta that needs a transaction block for its own
+    ///     statements (a partitioning rebuild's <c>LOCK TABLE</c>) opens one only when this is false.
+    /// </summary>
+    internal static bool RunsInOneTransaction(TextWriter writer) => writer is OneTransactionWriter;
+
+    /// <summary>
+    ///     A script whose statements run as one transaction that something else has opened
+    /// </summary>
+    private sealed class OneTransactionWriter: StringWriter;
+
+    private static async Task rollbackAsync(DbCommand failed)
+    {
+        if (failed.Connection is not { State: System.Data.ConnectionState.Open } conn)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var rollback = conn.CreateCommand();
+            rollback.CommandText = "rollback;";
+            // Not the migration's token: a cancelled migration still has to close its transaction
+            await rollback.ExecuteNonQueryAsync(CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Best effort: the failure that got here is the one to report
+        }
     }
 
     /// <summary>
@@ -292,7 +407,8 @@ $$;
     ///     (weasel#293, follow-up to #282). A jittered backoff keeps two racers from
     ///     retrying in lockstep.
     /// </summary>
-    private static async Task executeWithConcurrencyRetryAsync(DbCommand cmd, CancellationToken ct)
+    private static async Task executeWithConcurrencyRetryAsync(DbCommand cmd, bool explicitTransaction,
+        CancellationToken ct)
     {
         for (var attempt = 1; ; attempt++)
         {
@@ -306,6 +422,13 @@ $$;
             {
                 var delayMs = (50 * attempt) + Random.Shared.Next(0, 50);
                 await Task.Delay(delayMs, ct).ConfigureAwait(false);
+
+                // The command opened its transaction with BEGIN, so the failure left it aborted rather
+                // than rolled back, and running the command again inside it would fail with 25P02
+                if (explicitTransaction)
+                {
+                    await rollbackAsync(cmd).ConfigureAwait(false);
+                }
 
                 // Some transient PostgreSQL errors (40P01 deadlock_detected and
                 // XX000 "tuple concurrently updated" in particular) leave the
