@@ -359,12 +359,19 @@ $$;
     }
 
     /// <summary>
-    ///     True when SQL written into <paramref name="writer" /> already runs as one transaction: the
-    ///     commands <see cref="BuildMigrationCommands" /> wraps in <c>BEGIN</c> / <c>COMMIT</c>, and the
-    ///     <c>DO</c> block of a transactional script. A delta that needs a transaction block for its own
-    ///     statements (a partitioning rebuild's <c>LOCK TABLE</c>) opens one only when this is false.
+    ///     True when the SQL a delta writes into <paramref name="writer" /> already runs inside one transaction
+    ///     that the migrator opened. That is every command of a migration applied with a partitioning rebuild
+    ///     in it, which the migrator wraps in <c>BEGIN</c> / <c>COMMIT</c>, and the <c>DO</c> block of a
+    ///     transactional script (<see cref="Migrator.IsTransactional" />).
+    ///     <para>
+    ///         A custom delta that needs a transaction block for its own statements, such as a
+    ///         <c>LOCK TABLE</c>, checks this in <c>WriteUpdate</c> and writes its own <c>begin;</c> and
+    ///         <c>commit;</c> only when it is false. Inside the migrator's transaction, its own
+    ///         <c>commit;</c> would end that transaction early and leave the rest of the command outside it.
+    ///     </para>
     /// </summary>
-    internal static bool RunsInOneTransaction(TextWriter writer) => writer is OneTransactionWriter;
+    /// <param name="writer">The writer the migrator handed to the delta's <c>WriteUpdate</c></param>
+    public static bool RunsInOneTransaction(TextWriter writer) => writer is OneTransactionWriter;
 
     /// <summary>
     ///     A script whose statements run as one transaction that something else has opened

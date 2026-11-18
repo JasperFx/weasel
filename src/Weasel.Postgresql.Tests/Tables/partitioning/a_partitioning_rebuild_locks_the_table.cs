@@ -340,6 +340,134 @@ public class a_partitioning_rebuild_locks_the_table: IntegrationContext
         (await theConnection.CreateCommand("select 1").ExecuteScalarAsync()).ShouldBe(1);
     }
 
+    /// <summary>
+    ///     weasel#888: a custom delta that needs a transaction block of its own, the way Wolverine's inbox
+    ///     delta does, asks <see cref="PostgresqlMigrator.RunsInOneTransaction" /> before writing its own
+    ///     begin and commit. It records each answer it got.
+    /// </summary>
+    private class TransactionAwareTableDelta: TableDelta
+    {
+        public TransactionAwareTableDelta(Table expected, Table? actual): base(expected, actual)
+        {
+        }
+
+        public List<bool> Answers { get; } = new();
+
+        public override void WriteUpdate(Migrator rules, TextWriter writer)
+        {
+            var inOneTransaction = PostgresqlMigrator.RunsInOneTransaction(writer);
+            Answers.Add(inOneTransaction);
+
+            if (!inOneTransaction)
+            {
+                writer.WriteLine("begin;");
+            }
+
+            writer.WriteLine($"lock table {Expected.Identifier} in access exclusive mode;");
+            base.WriteUpdate(rules, writer);
+
+            if (!inOneTransaction)
+            {
+                writer.WriteLine("commit;");
+            }
+        }
+    }
+
+    private static Table others(bool withName)
+    {
+        var table = new Table($"{Schema}.others");
+        table.AddColumn<int>("id").AsPrimaryKey();
+        if (withName)
+        {
+            table.AddColumn<string>("name");
+        }
+
+        return table;
+    }
+
+    [Fact]
+    public void runs_in_one_transaction_is_true_for_every_command_of_a_migration_with_a_rebuild()
+    {
+        var custom = new TransactionAwareTableDelta(others(true), others(false));
+        var migration = new SchemaMigration(new ISchemaObjectDelta[]
+        {
+            new TableDelta(partitioned(), unpartitioned()),
+            custom
+        });
+
+        var commands = new PostgresqlMigrator().BuildMigrationCommands(migration, AutoCreate.CreateOrUpdate);
+
+        custom.Answers.ShouldBe([true]);
+
+        // The migrator's begin and commit are the only ones in the command
+        var command = commands.Single(x => x.Sql.Contains($"lock table {Schema}.others"));
+        command.ExplicitTransaction.ShouldBeTrue();
+        command.Sql.Split("begin;").Length.ShouldBe(2);
+        command.Sql.Split("commit;").Length.ShouldBe(2);
+    }
+
+    [Fact]
+    public void runs_in_one_transaction_is_false_without_a_rebuild_in_the_migration()
+    {
+        // Public, so a delta outside Weasel can ask
+        typeof(PostgresqlMigrator).GetMethod(nameof(PostgresqlMigrator.RunsInOneTransaction)).ShouldNotBeNull();
+
+        var custom = new TransactionAwareTableDelta(others(true), others(false));
+
+        var commands = new PostgresqlMigrator().BuildMigrationCommands(new SchemaMigration(custom),
+            AutoCreate.CreateOrUpdate);
+
+        custom.Answers.ShouldBe([false]);
+
+        var command = commands.Single(x => x.Sql.Contains($"lock table {Schema}.others"));
+        command.ExplicitTransaction.ShouldBeFalse();
+        command.Sql.ShouldContain("begin;");
+        command.Sql.ShouldContain("commit;");
+
+        // Nor for a delta written out on its own
+        PostgresqlMigrator.RunsInOneTransaction(new StringWriter()).ShouldBeFalse();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void runs_in_one_transaction_inside_a_migration_script(bool transactional)
+    {
+        var custom = new TransactionAwareTableDelta(others(true), others(false));
+        var migrator = new PostgresqlMigrator { IsTransactional = transactional };
+
+        var writer = new StringWriter();
+        migrator.WriteScript(writer, (m, w) => new SchemaMigration(custom).WriteAllUpdates(w, m, AutoCreate.All));
+
+        // The DO block of a transactional script is one transaction, and has no begin or commit to offer
+        custom.Answers.ShouldBe([transactional]);
+    }
+
+    [Fact]
+    public async Task a_custom_delta_that_asks_stays_in_the_migrators_transaction()
+    {
+        await startWithOneRowAsync();
+        await CreateSchemaObjectInDatabase(others(false));
+
+        var custom = new TransactionAwareTableDelta(others(true), await others(false).FetchExistingAsync(theConnection));
+
+        // Fails on create, after the rebuild and the custom delta, in the same command
+        var broken = new Table($"{Schema}.broken");
+        broken.AddColumn("id", "not_a_type").AsPrimaryKey();
+
+        var migration = await partitioningMigrationAsync(custom, new SchemaObjectDelta(broken, SchemaPatchDifference.Create));
+
+        await Should.ThrowAsync<Exception>(() =>
+            new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate));
+
+        // A commit of its own would have ended the migrator's transaction after the custom delta, and
+        // left the rebuild and the new column in place
+        (await isPartitionedAsync()).ShouldBeFalse();
+        (await others(true).FindDeltaAsync(theConnection)).Difference.ShouldNotBe(SchemaPatchDifference.None);
+        (await rowExistsAsync(1)).ShouldBeTrue();
+        custom.Answers.ShouldBe([true]);
+    }
+
     [Fact]
     public void a_migration_without_a_rebuild_is_unchanged()
     {
