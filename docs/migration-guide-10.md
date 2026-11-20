@@ -293,6 +293,13 @@ appending at the end of its primary key index. The `mt_version` values in `Wease
   SQLitePCLRaw's rollback hook. 10.0.13 fixed it upstream, and NuGet resolves the new floor for any
   application that referenced an older version transitively. That fixes connections an application opens
   itself too, not just Weasel's. SQLitePCLRaw stays on 3.0.5.
+- On SQL Server, a schema introspection read chosen as a deadlock victim (error 1205) is read again instead of
+  failing the migration ([weasel#900](https://github.com/JasperFx/weasel/issues/900)). It happened when another
+  connection ran DDL against the same database at the same time. A 1205 while applying DDL is still not retried.
+- `Weasel.Storage.EventLoaderBase` honors `EventRequest.ParksUnreadableEvents`
+  ([weasel#901](https://github.com/JasperFx/weasel/issues/901)). With it set, an event whose body will not
+  deserialize is reported on `EventPage.Unreadable` and counted as skipped, rather than thrown or passed to
+  `RecordSkippedEventAsync`. Without it, nothing changes.
 
 ## Dependency lockstep
 
