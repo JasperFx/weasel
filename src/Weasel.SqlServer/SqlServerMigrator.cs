@@ -50,6 +50,42 @@ $$;
     }
 
     /// <summary>
+    ///     A catalog read chosen as a deadlock victim (<c>1205</c>) is read again (weasel#900).
+    /// </summary>
+    /// <remarks>
+    ///     <para>
+    ///         Reading <c>sys.*</c> and <c>INFORMATION_SCHEMA</c> takes locks on the catalog, and another
+    ///         connection running DDL takes them in a different order, so SQL Server can pick the read as
+    ///         the deadlock victim. Nothing the read did was wrong, and the same read a moment later
+    ///         succeeds. It showed up in a schema apply at startup while other tests ran DDL against the
+    ///         same server (wolverine#5676).
+    ///     </para>
+    ///     <para>
+    ///         This only governs the introspection re-read in <c>SchemaMigration</c>. A <c>1205</c> while
+    ///         applying DDL is a different case and is not retried here, which is why the number stays out
+    ///         of <see cref="IsTransientConnectionError" />.
+    ///     </para>
+    /// </remarks>
+    public override bool IsConcurrentIntrospectionFailure(Exception exception)
+    {
+        foreach (var e in ExceptionChain.Flatten(exception))
+        {
+            if (e is SqlException sql && isDeadlockVictim(sql))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    internal const int DeadlockVictim = 1205;
+
+    private static bool isDeadlockVictim(SqlException exception)
+        => exception.Number == DeadlockVictim
+           || exception.Errors.Cast<SqlError>().Any(x => x.Number == DeadlockVictim);
+
+    /// <summary>
     ///     True for the SQL Server error numbers that unambiguously mean "could not give you a connection
     ///     right now, try again" rather than "your migration is wrong" (weasel#356) -- the on-premises
     ///     connection-limit error plus the Azure SQL resource/throttling set:

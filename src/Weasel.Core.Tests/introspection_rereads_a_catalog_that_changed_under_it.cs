@@ -23,7 +23,8 @@ namespace Weasel.Core.Tests;
 ///         Which provider it is, though, is not what these tests pin. They pin the three things the
 ///         seam has to get right whatever the provider: a raced read is read again, a read that keeps
 ///         racing still gives up and reports, and a migrator that has not opted in does not re-read at
-///         all. The third matters most — every provider but Firebird answers
+///         all. The third matters most — every provider but Firebird and SQL Server (weasel#900, see
+///         <c>Weasel.SqlServer.Tests.introspection_rereads_after_a_deadlock</c>) answers
 ///         <c>IsConcurrentIntrospectionFailure</c> false, and must make exactly one attempt as before.
 ///     </para>
 ///     <para>
@@ -87,19 +88,20 @@ public class introspection_rereads_a_catalog_that_changed_under_it
     }
 
     [Fact]
-    public void no_provider_but_firebird_treats_an_introspection_failure_as_transient()
+    public void only_firebird_and_sql_server_treat_an_introspection_failure_as_transient()
     {
         // Any exception at all: the others answer false unconditionally, which is the point.
         var boom = new RacedException();
 
         new SqliteMigrator().IsConcurrentIntrospectionFailure(boom).ShouldBeFalse();
         new Postgresql.PostgresqlMigrator().IsConcurrentIntrospectionFailure(boom).ShouldBeFalse();
-        new SqlServer.SqlServerMigrator().IsConcurrentIntrospectionFailure(boom).ShouldBeFalse();
         new MySql.MySqlMigrator().IsConcurrentIntrospectionFailure(boom).ShouldBeFalse();
         new Oracle.OracleMigrator().IsConcurrentIntrospectionFailure(boom).ShouldBeFalse();
 
-        // Firebird's own answer is false for anything that is not its BLOB error; the error number
-        // itself is pinned against a live server in Weasel.Firebird.Tests.
+        // Firebird's and SQL Server's own answers are false for anything that is not their error: BLOB
+        // not found for Firebird, a 1205 deadlock for SQL Server. Both numbers are pinned against a live
+        // server, in Weasel.Firebird.Tests and Weasel.SqlServer.Tests.
+        new SqlServer.SqlServerMigrator().IsConcurrentIntrospectionFailure(boom).ShouldBeFalse();
         new Firebird.FirebirdMigrator().IsConcurrentIntrospectionFailure(boom).ShouldBeFalse();
     }
 

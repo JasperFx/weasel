@@ -311,6 +311,12 @@ public abstract class EventLoaderBase: IEventLoader
     /// Called for each row the loader skipped. The default does nothing; override to record a dead
     /// letter or log, as Marten does for a suppressed serialization failure.
     /// </summary>
+    /// <remarks>
+    /// Not called for an event reported on <see cref="EventPage.Unreadable"/>: when the request sets
+    /// <see cref="EventRequest.ParksUnreadableEvents"/>, a row whose body will not deserialize is
+    /// reported on the page whatever <see cref="ShouldSkip"/> says, and the shard parks its stream
+    /// rather than dead-lettering the event (marten#6003, weasel#901).
+    /// </remarks>
     protected virtual ValueTask RecordSkippedEventAsync(
         Exception ex, EventRequest request, CancellationToken token) => default;
 
@@ -365,6 +371,28 @@ public abstract class EventLoaderBase: IEventLoader
         var page = new EventPage(pageFloor);
         page.CalculateCeiling(request.BatchSize, ceiling, 0);
         return page;
+    }
+
+    /// <summary>
+    /// The page's report of a row whose body would not deserialize, for a request that parks them
+    /// (marten#6003). The stream, tenant and event type come from the store's exception — a store reads
+    /// them off the row before it tries the body and puts them on its
+    /// <see cref="EventDeserializationFailureException"/> — and the sequence from the row itself, as
+    /// for <see cref="EventPage.LastObservedSequence"/>.
+    /// </summary>
+    private static UnreadableEvent unreadableEvent(Exception ex, long sequence)
+    {
+        for (var e = ex; e is not null; e = e.InnerException)
+        {
+            if (e is IEventFailureContext context)
+            {
+                return new UnreadableEvent(sequence, context.StreamId, context.StreamKey, context.TenantId,
+                    context.EventTypeName, e);
+            }
+        }
+
+        // Unreachable: the caller only gets here when Classify found a context in the chain.
+        return new UnreadableEvent(sequence, null, null, null, null, ex);
     }
 
     [SuppressMessage("Reliability", "CA2100:Review SQL queries for security vulnerabilities",
@@ -429,6 +457,16 @@ public abstract class EventLoaderBase: IEventLoader
                 try
                 {
                     @event = await ReadEventAsync(reader, token).ConfigureAwait(false);
+                }
+                catch (Exception e) when (request.ParksUnreadableEvents &&
+                                          Classify(e) == ShardFailureCategory.EventSerialization)
+                {
+                    // marten#6003 / weasel#901: the shard parks the stream instead, so report the event on
+                    // the page and count it as skipped for the ceiling. Not dead-lettered, not thrown, and
+                    // RecordSkippedEventAsync is not called.
+                    skipped++;
+                    page.AddUnreadable(unreadableEvent(e, lastObserved.Value));
+                    continue;
                 }
                 catch (Exception e) when (ShouldSkip(e, request.ErrorOptions))
                 {

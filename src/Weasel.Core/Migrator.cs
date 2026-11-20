@@ -598,10 +598,12 @@ public abstract class
     ///         and a genuine failure is never retried into a slower version of itself.
     ///     </para>
     ///     <para>
-    ///         Only Firebird answers true today (weasel#723): its catalog keeps a view's, routine's or
-    ///         trigger's source in a BLOB, the row carries only the BLOB's id, and a concurrent
+    ///         Two providers answer true today. Firebird (weasel#723): its catalog keeps a view's, routine's
+    ///         or trigger's source in a BLOB, the row carries only the BLOB's id, and a concurrent
     ///         <c>CREATE OR ALTER</c> can collect the blob between the read of the row and the read of the
-    ///         blob -- "BLOB not found", which is not a failure of anything the reader did.
+    ///         blob -- "BLOB not found", which is not a failure of anything the reader did. SQL Server
+    ///         (weasel#900): a catalog read chosen as the victim of a deadlock with another connection's
+    ///         DDL, error 1205.
     ///     </para>
     /// </remarks>
     public virtual bool IsConcurrentIntrospectionFailure(Exception exception) => false;
