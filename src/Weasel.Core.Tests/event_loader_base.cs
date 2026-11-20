@@ -89,11 +89,12 @@ public class event_loader_base: IDisposable
     }
 
     private static EventRequest RequestFor(long floor, long highWater, int batchSize = 10,
-        bool skipUnknown = false, bool skipSerialization = false) => new()
+        bool skipUnknown = false, bool skipSerialization = false, bool parksUnreadable = false) => new()
     {
         Floor = floor,
         HighWater = highWater,
         BatchSize = batchSize,
+        ParksUnreadableEvents = parksUnreadable,
         ErrorOptions = new ErrorHandlingOptions
         {
             SkipUnknownEvents = skipUnknown, SkipSerializationErrors = skipSerialization
@@ -417,6 +418,99 @@ public class event_loader_base: IDisposable
     }
 
     // ----------------------------------------------------------------------------------------
+    // A request that parks unreadable events (marten#6003, weasel#901)
+    // ----------------------------------------------------------------------------------------
+
+    [Fact]
+    public async Task a_request_that_parks_reports_an_unreadable_event_on_the_page()
+    {
+        Append((1, "a"), (2, TestLoader.PoisonWithStreamType), (3, "c"));
+
+        // As under SerializationErrors = Park, where SkipSerializationErrors reads false
+        var loader = LoaderFor();
+        var page = await loader.LoadAsync(RequestFor(0, 10, parksUnreadable: true), CancellationToken.None);
+
+        page.Select(x => x.Sequence).ShouldBe([1, 3]);
+
+        var unreadable = page.Unreadable.ShouldHaveSingleItem();
+        unreadable.Sequence.ShouldBe(2);
+        unreadable.StreamId.ShouldBe(TestLoader.PoisonStreamId);
+        unreadable.StreamKey.ShouldBeNull();
+        unreadable.TenantId.ShouldBe(TestLoader.PoisonTenant);
+        unreadable.EventTypeName.ShouldBe("poison_event");
+        unreadable.Exception.ShouldBeOfType<EventDeserializationFailureException>().Sequence.ShouldBe(2);
+
+        // Reported on the page for the shard to park, so not dead-lettered as a skipped event
+        loader.Skipped.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task an_unreadable_event_is_found_inside_a_store_wrapper_and_keeps_its_stream_key()
+    {
+        Append((1, TestLoader.WrappedPoisonWithKeyType), (2, "b"));
+
+        var page = await LoaderFor()
+            .LoadAsync(RequestFor(0, 10, parksUnreadable: true), CancellationToken.None);
+
+        page.Select(x => x.Sequence).ShouldBe([2]);
+
+        var unreadable = page.Unreadable.ShouldHaveSingleItem();
+        unreadable.Sequence.ShouldBe(1);
+        unreadable.StreamId.ShouldBeNull();
+        unreadable.StreamKey.ShouldBe(TestLoader.PoisonStreamKey);
+        unreadable.Exception.ShouldBeOfType<EventDeserializationFailureException>();
+    }
+
+    [Fact]
+    public async Task an_unreadable_event_counts_as_skipped_for_the_ceiling()
+    {
+        // Batch of three, one of them unreadable: the batch was saturated, so the ceiling is the last
+        // event read rather than the high-water mark.
+        Append((1, "a"), (2, TestLoader.PoisonWithStreamType), (3, "c"), (4, "d"));
+
+        var page = await LoaderFor()
+            .LoadAsync(RequestFor(0, 500, batchSize: 3, parksUnreadable: true), CancellationToken.None);
+
+        page.Count.ShouldBe(2);
+        page.Unreadable.Count.ShouldBe(1);
+        page.Ceiling.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task a_request_that_does_not_park_throws_an_unreadable_event_as_before()
+    {
+        Append((1, "a"), (2, TestLoader.PoisonWithStreamType), (3, "c"));
+
+        var ex = await Should.ThrowAsync<EventDeserializationFailureException>(
+            () => LoaderFor().LoadAsync(RequestFor(0, 10), CancellationToken.None));
+
+        ex.Sequence.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task a_request_that_does_not_park_skips_and_records_an_unreadable_event_as_before()
+    {
+        Append((1, "a"), (2, TestLoader.PoisonWithStreamType), (3, "c"));
+
+        var loader = LoaderFor();
+        var page = await loader.LoadAsync(RequestFor(0, 10, skipSerialization: true), CancellationToken.None);
+
+        page.Select(x => x.Sequence).ShouldBe([1, 3]);
+        page.Unreadable.ShouldBeEmpty();
+        loader.Skipped.ShouldHaveSingleItem().ShouldBeOfType<EventDeserializationFailureException>();
+    }
+
+    [Fact]
+    public async Task parking_does_not_cover_an_unknown_event_type()
+    {
+        // An unregistered type is not a body that will not read, and SkipUnknownEvents still governs it
+        Append((1, "a"), (2, TestLoader.UnknownType));
+
+        await Should.ThrowAsync<TestUnknownEventTypeException>(
+            () => LoaderFor().LoadAsync(RequestFor(0, 10, parksUnreadable: true), CancellationToken.None));
+    }
+
+    // ----------------------------------------------------------------------------------------
     // Skip-ahead
     // ----------------------------------------------------------------------------------------
 
@@ -714,6 +808,19 @@ public class event_loader_base: IDisposable
         public const string UnresolvableType = "!unresolvable";
         public const string PoisonType = "!poison";
 
+        /// <summary>
+        /// A body that will not read, thrown the way Marten, Polecat and Fisher throw it: an
+        /// <see cref="EventDeserializationFailureException"/> carrying the row's stream and tenant.
+        /// </summary>
+        public const string PoisonWithStreamType = "!poison-with-stream";
+
+        /// <summary>The same, for a string-keyed stream, wrapped by a store's exception transformer.</summary>
+        public const string WrappedPoisonWithKeyType = "!poison-wrapped-with-key";
+
+        public static readonly Guid PoisonStreamId = Guid.Parse("7e1d4a59-6f0c-4f62-9a3e-0b5bb2b8c901");
+        public const string PoisonStreamKey = "poisoned-stream";
+        public const string PoisonTenant = "tenant-a";
+
         private readonly string _connectionString;
         private readonly SqliteTestDialect _dialect;
 
@@ -760,6 +867,17 @@ public class event_loader_base: IDisposable
             {
                 UnknownType => throw new TestUnknownEventTypeException(sequence),
                 PoisonType => throw new TestDeserializationException(sequence),
+                PoisonWithStreamType => throw new EventDeserializationFailureException(sequence, "poison_event",
+                    new FormatException("bad json"))
+                {
+                    StreamId = PoisonStreamId, TenantId = PoisonTenant
+                },
+                WrappedPoisonWithKeyType => throw new InvalidOperationException("wrapped by the store",
+                    new EventDeserializationFailureException(sequence, "poison_event",
+                        new FormatException("bad json"))
+                    {
+                        StreamKey = PoisonStreamKey, TenantId = PoisonTenant
+                    }),
                 UnresolvableType => ValueTask.FromResult<IEvent?>(null),
                 _ => ValueTask.FromResult<IEvent?>(
                     new Event<TestEvent>(new TestEvent(type)) { Sequence = sequence, EventTypeName = type })

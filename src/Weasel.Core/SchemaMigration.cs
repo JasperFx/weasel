@@ -180,7 +180,8 @@ public class SchemaMigration
     /// </summary>
     /// <remarks>
     ///     Only reached by a provider whose <see cref="Migrator.IsConcurrentIntrospectionFailure" /> says
-    ///     yes, so for every provider but Firebird this is exactly one attempt and nothing changes.
+    ///     yes, so for every provider but Firebird and SQL Server this is exactly one attempt and nothing
+    ///     changes.
     /// </remarks>
     private const int MaxIntrospectionAttempts = 3;
 
