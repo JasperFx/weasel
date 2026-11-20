@@ -285,6 +285,171 @@ public class managed_list_partitions_with_foreign_keys: IntegrationContext
         database.Partitions.Partitions.ShouldBeEmpty();
     }
 
+    /// <summary>
+    ///     The registry's rows, value => suffix
+    /// </summary>
+    private static async Task<Dictionary<string, string>> registry()
+    {
+        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
+        await conn.OpenAsync();
+        await using var reader = await conn
+            .CreateCommand($"select partition_value, partition_suffix from {SchemaName}.partitions")
+            .ExecuteReaderAsync();
+
+        var values = new Dictionary<string, string>();
+        while (await reader.ReadAsync())
+        {
+            values[reader.GetString(0)] = reader.GetString(1);
+        }
+
+        return values;
+    }
+
+    /// <summary>
+    ///     weasel#896: customers (referenced) and orders (referencing customers) share bucket "small" between "a" and
+    ///     "b", and "a" has just left it, so customers_small still covers "a" while orders_small doesn't
+    /// </summary>
+    private async Task<ForeignKeyDatabase> aValueThatLeftASharedBucketOfAReferencedTable()
+    {
+        var customers = tenantTable("customers");
+        var orders = tenantTable("orders");
+        addForeignKey(orders, "customer_id", customers);
+
+        var database = await theDatabase(new Dictionary<string, string> { { "a", "small" }, { "b", "small" } },
+            customers, orders);
+
+        await execute($"insert into {SchemaName}.customers (tenant_id, id) values ('a', 1), ('b', 1)");
+        await execute($"insert into {SchemaName}.orders (tenant_id, id, customer_id) values ('a', 10, 1), ('b', 10, 1)");
+
+        await database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, "a",
+            CancellationToken.None);
+
+        (await partitionValues("customers_small")).ShouldBe(["a", "b"]);
+        (await partitionValues("orders_small")).ShouldBe(["b"]);
+
+        return database;
+    }
+
+    private async Task theValueIsBackInTheSharedBucket(ForeignKeyDatabase database)
+    {
+        (await tableExists("customers_a")).ShouldBeFalse();
+        (await tableExists("orders_a")).ShouldBeFalse();
+
+        (await partitionValues("customers_small")).ShouldBe(["a", "b"]);
+        (await partitionValues("orders_small")).ShouldBe(["a", "b"]);
+
+        // The registry and the in-memory map agree with the tables
+        (await registry()).ShouldBe(new Dictionary<string, string> { { "a", "small" }, { "b", "small" } },
+            ignoreOrder: true);
+        database.Partitions.Partitions["a"].ShouldBe("small");
+        ((IListPartitionManager)database.Partitions).Partitions().Single().Suffix.ShouldBe("small");
+
+        database.Partitions.ForceReload();
+        await database.Partitions.InitializeAsync(database, CancellationToken.None);
+        database.Partitions.Partitions["a"].ShouldBe("small");
+
+        // and the value works again on both tables
+        await execute($"insert into {SchemaName}.customers (tenant_id, id) values ('a', 1)");
+        await execute($"insert into {SchemaName}.orders (tenant_id, id, customer_id) values ('a', 10, 1)");
+        (await tenantsIn("orders")).ShouldBe(["a", "b"]);
+    }
+
+    [Fact]
+    public async Task re_adding_a_value_under_a_different_suffix_goes_back_into_the_bucket_that_still_covers_it()
+    {
+        // weasel#896: the request for suffix "a" used to create orders_a and fail on customers, whose
+        // customers_small bound still covers "a", leaving the two tables disagreeing
+        var database = await aValueThatLeftASharedBucketOfAReferencedTable();
+
+        var statuses = await database.Partitions.AddPartitionToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string> { { "a", "a" } }, CancellationToken.None);
+
+        statuses.ShouldAllBe(x => x.Status == PartitionMigrationStatus.Complete);
+
+        await theValueIsBackInTheSharedBucket(database);
+    }
+
+    [Fact]
+    public async Task re_adding_a_single_value_under_a_different_suffix_goes_back_into_the_bucket_that_still_covers_it()
+    {
+        var database = await aValueThatLeftASharedBucketOfAReferencedTable();
+
+        await database.Partitions.AddPartitionToAllTables(database, "a", "a", CancellationToken.None);
+
+        await theValueIsBackInTheSharedBucket(database);
+    }
+
+    [Fact]
+    public async Task resetting_values_keeps_a_covered_value_in_its_bucket()
+    {
+        var database = await aValueThatLeftASharedBucketOfAReferencedTable();
+
+        await database.Partitions.ResetValues(database,
+            new Dictionary<string, string> { { "a", "a" }, { "b", "small" } }, CancellationToken.None);
+
+        (await registry()).ShouldBe(new Dictionary<string, string> { { "a", "small" }, { "b", "small" } },
+            ignoreOrder: true);
+        database.Partitions.Partitions["a"].ShouldBe("small");
+    }
+
+    [Fact]
+    public async Task a_value_never_in_a_bucket_still_gets_its_own_partition()
+    {
+        var database = await aValueThatLeftASharedBucketOfAReferencedTable();
+
+        var statuses = await database.Partitions.AddPartitionToAllTables(NullLogger.Instance, database,
+            new Dictionary<string, string> { { "c", "c" } }, CancellationToken.None);
+
+        statuses.ShouldAllBe(x => x.Status == PartitionMigrationStatus.Complete);
+
+        (await partitionValues("customers_c")).ShouldBe(["c"]);
+        (await partitionValues("orders_c")).ShouldBe(["c"]);
+        (await partitionValues("customers_small")).ShouldBe(["a", "b"]);
+        (await partitionValues("orders_small")).ShouldBe(["b"]);
+
+        (await registry()).ShouldBe(new Dictionary<string, string> { { "b", "small" }, { "c", "c" } },
+            ignoreOrder: true);
+        database.Partitions.Partitions["c"].ShouldBe("c");
+    }
+
+    [Fact]
+    public async Task re_adding_is_refused_when_a_referenced_table_would_have_to_widen_its_bucket()
+    {
+        // The other way around from #891: here the referenced table's bucket no longer covers "a" (it was narrowed
+        // before the foreign key existed), while the referencing table's still does. Putting "a" back into "small"
+        // would need a DETACH of customers_small, which PostgreSQL refuses while b's rows are referenced.
+        var customers = tenantTable("customers");
+        var orders = tenantTable("orders");
+        addForeignKey(orders, "customer_id", customers);
+
+        var database = await theDatabase(new Dictionary<string, string> { { "a", "small" }, { "b", "small" } },
+            customers, orders);
+
+        await execute(
+            $"alter table {SchemaName}.customers detach partition {SchemaName}.customers_small; alter table {SchemaName}.customers attach partition {SchemaName}.customers_small for values in ('b')");
+        await execute($"delete from {SchemaName}.partitions where partition_value = 'a'");
+        database.Partitions.ForceReload();
+
+        await execute($"insert into {SchemaName}.customers (tenant_id, id) values ('b', 1)");
+        await execute($"insert into {SchemaName}.orders (tenant_id, id, customer_id) values ('b', 10, 1)");
+
+        var ex = await Should.ThrowAsync<InvalidOperationException>(() =>
+            database.Partitions.AddPartitionToAllTables(NullLogger.Instance, database,
+                new Dictionary<string, string> { { "a", "a" } }, CancellationToken.None));
+
+        ex.Message.ShouldContain("'a'");
+        ex.Message.ShouldContain("orders_small");
+        ex.Message.ShouldContain("customers_small");
+
+        // Nothing was changed
+        (await tableExists("customers_a")).ShouldBeFalse();
+        (await tableExists("orders_a")).ShouldBeFalse();
+        (await partitionValues("customers_small")).ShouldBe(["b"]);
+        (await partitionValues("orders_small")).ShouldBe(["a", "b"]);
+        (await registry()).ShouldBe(new Dictionary<string, string> { { "b", "small" } });
+        database.Partitions.Partitions.Keys.ShouldBe(["b"]);
+    }
+
     [Fact]
     public async Task removing_one_value_from_a_shared_partition_of_a_self_referencing_table()
     {
