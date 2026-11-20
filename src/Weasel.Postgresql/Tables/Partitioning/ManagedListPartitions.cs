@@ -168,7 +168,8 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
     /// <summary>
     /// Remove one value from a shared ("bucketed") partition without disturbing the other values in it:
-    /// delete just this value's rows, then re-bind the partition to the remaining members.
+    /// delete just this value's rows, then re-bind the partition to the remaining members. A table that a
+    /// foreign key references keeps its bound as it is (weasel#891).
     /// </summary>
     private async Task removeValueFromSharedPartitionAsync(PostgresqlDatabase database, ILogger logger,
         NpgsqlConnection conn, string value, string sanitizedSuffix, string[] survivors, CancellationToken token)
@@ -182,8 +183,7 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         var remainingValues = survivors.Select(x => x.FormatSqlValue()).ToArray();
 
         // Referencing tables first, so a departing value's rows are deleted before the rows they point at
-        // (weasel#890). The re-bind of a table that another managed table references can still be refused
-        // while a surviving member has referencing rows: weasel#891.
+        // (weasel#890).
         var tables = managedTablesReferencingFirst(database);
 
         foreach (var table in tables)
@@ -212,6 +212,20 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
             await conn.CreateCommand($"delete from {partitionName} where {column} = :value")
                 .With("value", value)
                 .ExecuteNonQueryAsync(token).ConfigureAwait(false);
+
+            // weasel#891: PostgreSQL refuses to DETACH a partition of a referenced table while any row of it is still
+            // referenced, and the surviving members' rows usually are, so a referenced table can't be narrowed.
+            // Its bound keeps the departing value instead. That is harmless: the value's rows are gone and so is
+            // its registry row, so nothing routes to it, and the partition goes with its last member. A
+            // self-reference counts (PostgreSQL 17 checks those on detach too), and so does a table outside
+            // this manager, since the catalog is what the DETACH checks.
+            if (bound.IsAttached && await isReferencedAsync(conn, table, token).ConfigureAwait(false))
+            {
+                logger.LogInformation(
+                    "Removed value {Value} from shared partition {Partition} and left its bound as it is, because {Table} is referenced by a foreign key",
+                    value, partitionName, table.Identifier);
+                continue;
+            }
 
             await rebindPartitionAsync(conn, table, partitionName, bound.IsAttached, remainingValues, token)
                 .ConfigureAwait(false);
@@ -248,12 +262,31 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         // This is idempotent, so just do it here
         await InitializeAsync(conn, token).ConfigureAwait(false);
 
-        var cmd = conn
-            .CreateCommand(
-                $"delete from {_table.Identifier} where partition_suffix = ANY(:suffix)")
-            .With("suffix", suffixNames);
+        var removedValues = new List<string>();
+        await using (var reader = await conn
+                         .CreateCommand(
+                             $"delete from {_table.Identifier} where partition_suffix = ANY(:suffix) returning partition_value")
+                         .With("suffix", suffixNames)
+                         .ExecuteReaderAsync(token).ConfigureAwait(false))
+        {
+            while (await reader.ReadAsync(token).ConfigureAwait(false))
+            {
+                removedValues.Add(await reader.GetFieldValueAsync<string>(0, token).ConfigureAwait(false));
+            }
+        }
 
-        await cmd.ExecuteNonQueryAsync(token).ConfigureAwait(false);
+        // weasel#892: the published map has to lose the dropped values too, or Partitions (and the generated DDL
+        // and partition deltas fed by IListPartitionManager.Partitions()) go on listing them until a ForceReload().
+        // Exactly the values whose registry rows this delete removed, rather than every value in the map with one
+        // of these suffixes: a store over several databases (Marten's sharded tenancy) adds every database's
+        // values to this one map, and another database's bucket can have the same suffix.
+        swapPartitions(map =>
+        {
+            foreach (var value in removedValues)
+            {
+                map.Remove(value);
+            }
+        });
 
         logger.LogInformation("Removed partition suffixes {SuffixNames} from partition list {TableName}", suffixNames.Join(", "), _table.Identifier.QualifiedName);
 
@@ -285,6 +318,16 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                 continue;
             }
 
+            // weasel#895: PostgreSQL 17 checks a self-referencing foreign key when a partition is detached and refuses
+            // the detach while any row of the partition references another row of it, which a tree of rows always
+            // does. Dropping the attached partition instead is no answer: a plain DROP is refused because the
+            // parent's foreign key depends on the partition, and DROP ... CASCADE takes that foreign key off the
+            // parent table altogether, for every partition and every referencing table. So the departing
+            // partition is emptied first, in one statement so the rows referencing each other go together, and
+            // then detached as before. Only a self-referencing table needs it: the rows of other managed tables
+            // that reference this one are already gone with their own partitions (weasel#890).
+            var isSelfReferencing = await isSelfReferencingAsync(conn, table, token).ConfigureAwait(false);
+
             foreach (var suffixName in suffixNames)
             {
                 // weasel#338: the CREATE path (ListPartition) names the partition table with a SANITIZED
@@ -296,6 +339,18 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
                 var sanitizedSuffix = ListPartition.SanitizeSuffix(suffixName);
                 var partitionName = PostgresqlObjectName.From(
                     new DbObjectName(table.Identifier.Schema, table.Identifier.Name + "_" + sanitizedSuffix));
+
+                if (isSelfReferencing)
+                {
+                    var bound = await fetchPartitionBoundAsync(conn, table.Identifier.Schema,
+                        table.Identifier.Name + "_" + sanitizedSuffix, token).ConfigureAwait(false);
+
+                    if (bound is { IsAttached: true })
+                    {
+                        await conn.CreateCommand($"delete from {partitionName}")
+                            .ExecuteNonQueryAsync(token).ConfigureAwait(false);
+                    }
+                }
 
                 try
                 {
@@ -552,6 +607,35 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
     }
 
     private sealed record PartitionBound(string[] Values, bool IsAttached);
+
+    /// <summary>
+    /// Does any foreign key, from any table including this one, reference <paramref name="table"/>? Read from the
+    /// catalog rather than the configured model, because the catalog is what PostgreSQL checks on DETACH.
+    /// </summary>
+    private static async Task<bool> isReferencedAsync(NpgsqlConnection conn, Table table, CancellationToken token)
+    {
+        var result = await conn
+            .CreateCommand(
+                "select exists (select 1 from pg_constraint where contype = 'f' and confrelid = to_regclass(:qualified))")
+            .With("qualified", table.Identifier.QualifiedName)
+            .ExecuteScalarAsync(token).ConfigureAwait(false);
+
+        return result is true;
+    }
+
+    /// <summary>
+    /// Does <paramref name="table"/> have a foreign key to itself?
+    /// </summary>
+    private static async Task<bool> isSelfReferencingAsync(NpgsqlConnection conn, Table table, CancellationToken token)
+    {
+        var result = await conn
+            .CreateCommand(
+                "select exists (select 1 from pg_constraint where contype = 'f' and conrelid = to_regclass(:qualified) and confrelid = conrelid)")
+            .With("qualified", table.Identifier.QualifiedName)
+            .ExecuteScalarAsync(token).ConfigureAwait(false);
+
+        return result is true;
+    }
 
     public Task AddPartitionToAllTables(NpgsqlConnection conn, CancellationToken token, string value, string? suffix = null)
     {

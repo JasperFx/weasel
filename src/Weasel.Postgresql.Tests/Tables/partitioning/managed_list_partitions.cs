@@ -579,6 +579,67 @@ public class managed_list_partitions : IntegrationContext
         (await partitionExists("players", "shared_bucket")).ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task dropping_by_suffix_takes_the_values_out_of_the_partition_map()
+    {
+        // weasel#892: the registry rows went, the in-memory map kept them until a ForceReload()
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database,
+            new Dictionary<string, string> { { "red", "red" }, { "green", "green" }, { "blue", "blue" } },
+            CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        await database.Partitions.DropPartitionFromAllTables(database, NullLogger.Instance, ["red", "green"],
+            CancellationToken.None);
+
+        database.Partitions.Partitions.Keys.ShouldBe(["blue"]);
+        ((IListPartitionManager)database.Partitions).Partitions().Select(x => x.Suffix).ShouldBe(["blue"]);
+
+        // The map agrees with the registry
+        database.Partitions.ForceReload();
+        await database.Partitions.InitializeAsync(database, CancellationToken.None);
+        database.Partitions.Partitions.Keys.ShouldBe(["blue"]);
+    }
+
+    [Fact]
+    public async Task dropping_the_last_value_of_a_partition_takes_it_out_of_the_partition_map()
+    {
+        // weasel#892: by value, the last member of a partition goes through the by-suffix drop
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database,
+            new Dictionary<string, string> { { "red", "red" }, { "blue", "blue" } }, CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        await database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, "red",
+            CancellationToken.None);
+
+        database.Partitions.Partitions.Keys.ShouldBe(["blue"]);
+
+        // and the value can be dropped again only once it is registered again
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(() =>
+            database.Partitions.DropPartitionFromAllTablesForValue(database, NullLogger.Instance, "red",
+                CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task dropping_a_bucket_by_suffix_takes_every_member_out_of_the_partition_map()
+    {
+        await dropManagedListsSchema();
+        var database = new ManagedListDatabase();
+        await database.Partitions.ResetValues(database, new Dictionary<string, string>(), CancellationToken.None);
+        await database.ApplyAllConfiguredChangesToDatabaseAsync();
+
+        await database.Partitions.AddPartitionToAllTables(database, "smalla", "shared_bucket", CancellationToken.None);
+        await database.Partitions.AddPartitionToAllTables(database, "smallb", "shared_bucket", CancellationToken.None);
+        await database.Partitions.AddPartitionToAllTables(database, "big", "big", CancellationToken.None);
+
+        await database.Partitions.DropPartitionFromAllTables(database, NullLogger.Instance, ["shared_bucket"],
+            CancellationToken.None);
+
+        database.Partitions.Partitions.Keys.ShouldBe(["big"]);
+        (await partitionExists("teams", "shared_bucket")).ShouldBeFalse();
+    }
+
     private static async Task insertTeam(string name, string color)
     {
         await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);

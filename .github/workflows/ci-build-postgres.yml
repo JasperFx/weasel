@@ -54,7 +54,7 @@ jobs:
     # define the test matrix
         matrix:
             postgres-image:
-                - postgres:15.3-alpine
+                - postgres:17-alpine
             framework:
                 - net11.0
                 - net10.0

@@ -4,7 +4,9 @@
 # the matching weasel_*_testing_database variable at it. See "Local gate" in CLAUDE.md.
 services:
   postgresql:
-    image: "postgres:15.3-alpine"
+    # A current 17.x: PostgreSQL 17 checks things 15.3 let through, like a self-referencing foreign key on
+    # DETACH PARTITION (weasel#895).
+    image: "postgres:17-alpine"
     # The local gate runs the Postgres suite on 4 lanes, which peak at about 90 client connections:
     # too close to the stock 100. On a server left at 100 the gate drops to 3 lanes (build/LocalGate.cs).
     command: ["postgres", "-c", "max_connections=200"]

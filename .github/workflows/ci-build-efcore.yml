@@ -51,7 +51,7 @@ jobs:
 
     services:
       postgresql:
-        image: postgres:15.3-alpine
+        image: postgres:17-alpine
         ports:
           - 5432:5432
         env:
