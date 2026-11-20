@@ -99,6 +99,11 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
 
         await _table.MigrateAsync(conn, token).ConfigureAwait(false);
 
+        // weasel#896: a value a partition's bound still covers stays in that partition's bucket
+        values = await resolveSuffixesAgainstExistingBoundsAsync(NullLogger.Instance, database, conn,
+            values.Select(pair => new KeyValuePair<string, string>(pair.Key, pair.Value ?? pair.Key)).ToArray(),
+            token).ConfigureAwait(false);
+
         var tx = await conn.BeginTransactionAsync(token).ConfigureAwait(false);
 
         await conn.CreateCommand($"delete from {_table.Identifier}")
@@ -254,6 +259,149 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         return ReferencingTablesFirst.Sort(tables);
     }
 
+    /// <summary>
+    /// weasel#896: the suffix each requested value is actually recorded and created under. A referenced table keeps
+    /// a departing value in its shared partition's bound (weasel#891), so registering that value again under a
+    /// DIFFERENT suffix would ask for a partition whose bound overlaps the old one: PostgreSQL refuses it on the
+    /// referenced table while the other tables accept it, and the tables end up disagreeing. Instead, a value that an
+    /// attached partition of any managed table still covers goes back into that partition's bucket, on every table
+    /// and in the registry, and the requested suffix is ignored with a warning. Read from the catalog, because the
+    /// bound is what PostgreSQL checks for an overlap, and the registry no longer lists a departed value.
+    ///
+    /// Refused up front, before anything is written, when that can't be done consistently: the value is covered by
+    /// more than one bucket, or a referenced table would have to widen a bucket that doesn't cover it, which needs a
+    /// DETACH that PostgreSQL refuses while the bucket's rows are referenced.
+    /// </summary>
+    private async Task<Dictionary<string, string>> resolveSuffixesAgainstExistingBoundsAsync(ILogger logger,
+        PostgresqlDatabase database, NpgsqlConnection conn,
+        IReadOnlyCollection<KeyValuePair<string, string>> requested, CancellationToken token)
+    {
+        var resolved = new Dictionary<string, string>();
+        foreach (var pair in requested)
+        {
+            resolved[pair.Key] = pair.Value;
+        }
+
+        var tables = managedTablesReferencingFirst(database);
+        if (requested.Count == 0 || tables.Length == 0) return resolved;
+
+        var bounds = await fetchAttachedListBoundsAsync(conn, tables, token).ConfigureAwait(false);
+        if (bounds.Count == 0) return resolved;
+
+        var referenced = new Dictionary<Table, bool>();
+        var partitions = _partitions;
+
+        foreach (var pair in requested)
+        {
+            var requestedSuffix = ListPartition.SanitizeSuffix(pair.Value);
+            var normalizedValue = pair.Key.FormatSqlValue().NormalizePartitionValue();
+
+            var holders = bounds.Where(x => x.Values.Contains(normalizedValue)).ToArray();
+            var holdingSuffixes = holders.Select(x => x.Suffix).Distinct().ToArray();
+
+            if (holdingSuffixes.Length == 0 || (holdingSuffixes.Length == 1 && holdingSuffixes[0] == requestedSuffix))
+            {
+                continue;
+            }
+
+            if (holdingSuffixes.Length > 1)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot add partition value '{pair.Key}' with suffix '{pair.Value}': it is already covered by more than one existing partition ({describe(holders)}). Nothing was changed.");
+            }
+
+            var existingSuffix = holdingSuffixes[0];
+
+            // Every table has to end up with the value in the existing bucket. A table whose bucket doesn't cover it
+            // yet is widened with DETACH + ATTACH, which PostgreSQL refuses on a referenced table while any row of
+            // the bucket is referenced.
+            foreach (var table in tables)
+            {
+                var bucket = bounds.FirstOrDefault(x => x.Table == table && x.Suffix == existingSuffix);
+                if (bucket == null || bucket.Values.Contains(normalizedValue)) continue;
+
+                if (!referenced.TryGetValue(table, out var isReferenced))
+                {
+                    isReferenced = await isReferencedAsync(conn, table, token).ConfigureAwait(false);
+                    referenced[table] = isReferenced;
+                }
+
+                if (isReferenced)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot add partition value '{pair.Key}' with suffix '{pair.Value}': it is still covered by {describe(holders)}, so it would have to go back into bucket '{existingSuffix}', but {bucket.PartitionName.QualifiedName} doesn't cover it and can't be widened because {table.Identifier.QualifiedName} is referenced by a foreign key. Nothing was changed.");
+                }
+            }
+
+            // Record it under the suffix the bucket's members are registered with, so the registry, the in-memory
+            // map and the partition table name all agree.
+            var existingRawSuffix = requested
+                .Where(x => x.Key != pair.Key && ListPartition.SanitizeSuffix(x.Value) == existingSuffix)
+                .Select(x => x.Value)
+                .Concat(partitions
+                    .Where(x => ListPartition.SanitizeSuffix(x.Value) == existingSuffix)
+                    .Select(x => x.Value))
+                .FirstOrDefault() ?? existingSuffix;
+
+            resolved[pair.Key] = existingRawSuffix;
+
+            logger.LogWarning(
+                "Partition value {Value} was requested with suffix {RequestedSuffix}, but {Partitions} still cover it, so it was added back to the existing bucket {ExistingSuffix} on every table instead",
+                pair.Key, pair.Value, describe(holders), existingRawSuffix);
+        }
+
+        return resolved;
+
+        static string describe(IEnumerable<AttachedListBound> holders) =>
+            holders.Select(x => x.PartitionName.QualifiedName).Join(", ");
+    }
+
+    /// <summary>
+    /// The list bound of every partition attached to one of <paramref name="tables"/>, keyed by the partition's
+    /// suffix. A DEFAULT partition, or a partition whose name doesn't follow the parent_suffix convention, is left out.
+    /// </summary>
+    private static async Task<List<AttachedListBound>> fetchAttachedListBoundsAsync(NpgsqlConnection conn,
+        Table[] tables, CancellationToken token)
+    {
+        var byName = tables
+            .GroupBy(x => x.Identifier.QualifiedName)
+            .ToDictionary(x => x.Key, x => x.First());
+        var list = new List<AttachedListBound>();
+
+        await using var reader = await conn
+            .CreateCommand(
+                "select t.qualified, c.relname, pg_get_expr(c.relpartbound, c.oid) from unnest(:names) as t(qualified) join pg_inherits i on i.inhparent = to_regclass(t.qualified) join pg_class c on c.oid = i.inhrelid")
+            .With("names", byName.Keys.ToArray())
+            .ExecuteReaderAsync(token).ConfigureAwait(false);
+
+        while (await reader.ReadAsync(token).ConfigureAwait(false))
+        {
+            var table = byName[await reader.GetFieldValueAsync<string>(0, token).ConfigureAwait(false)];
+            var partitionTableName = await reader.GetFieldValueAsync<string>(1, token).ConfigureAwait(false);
+            if (await reader.IsDBNullAsync(2, token).ConfigureAwait(false)) continue;
+            var expression = await reader.GetFieldValueAsync<string>(2, token).ConfigureAwait(false);
+
+            var prefix = table.Identifier.Name + "_";
+            if (!expression.StartsWith("FOR VALUES IN", StringComparison.OrdinalIgnoreCase) ||
+                !partitionTableName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var values = expression.GetStringWithinParantheses().ToDelimitedArray(',')
+                .Select(x => x.NormalizePartitionValue())
+                .ToHashSet();
+
+            list.Add(new AttachedListBound(table, partitionTableName.Substring(prefix.Length),
+                PostgresqlObjectName.From(new DbObjectName(table.Identifier.Schema, partitionTableName)), values));
+        }
+
+        return list;
+    }
+
+    private sealed record AttachedListBound(Table Table, string Suffix, PostgresqlObjectName PartitionName,
+        HashSet<string> Values);
+
     public async Task DropPartitionFromAllTables(PostgresqlDatabase database, ILogger logger, string[] suffixNames, CancellationToken token)
     {
         await using var conn = database.CreateConnection();
@@ -386,9 +534,17 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         // This is idempotent, so just do it here
         await InitializeAsync(conn, token).ConfigureAwait(false);
 
-        await AddPartitionToAllTables(conn, token, value, suffix).ConfigureAwait(false);
+        if (value.IsEmpty()) throw new ArgumentNullException(nameof(value));
 
-        var resolvedSuffix = suffix.IsEmpty() ? value.ToLowerInvariant() : suffix!;
+        var requestedSuffix = suffix.IsEmpty() ? value.ToLowerInvariant() : suffix!;
+
+        // weasel#896: a value a partition's bound still covers stays in that partition's bucket
+        var resolved = await resolveSuffixesAgainstExistingBoundsAsync(NullLogger.Instance, database, conn,
+            [new KeyValuePair<string, string>(value, requestedSuffix)], token).ConfigureAwait(false);
+        var resolvedSuffix = resolved[value];
+
+        await AddPartitionToAllTables(conn, token, value, resolvedSuffix).ConfigureAwait(false);
+
         await additivelyMigrateTablesForNewPartitions(NullLogger.Instance, database, token, conn,
             new[] { new KeyValuePair<string, string>(value, resolvedSuffix) }).ConfigureAwait(false);
 
@@ -404,6 +560,11 @@ public class ManagedListPartitions : FeatureSchemaBase, IDatabaseInitializer<Npg
         await InitializeAsync(conn, token).ConfigureAwait(false);
 
         await _table.MigrateAsync(conn, token).ConfigureAwait(false);
+
+        // weasel#896: a value a partition's bound still covers stays in that partition's bucket. Resolved before
+        // anything is written, so a refusal leaves the registry and every table as they were.
+        values = await resolveSuffixesAgainstExistingBoundsAsync(logger, database, conn, values.ToArray(), token)
+            .ConfigureAwait(false);
 
         await using var tx = await conn.BeginTransactionAsync(token).ConfigureAwait(false);
         foreach (var pair in values)

@@ -142,6 +142,13 @@ first: PostgreSQL won't detach a partition while any row still points at it, so 
 detached and dropped before the partitions it references. A self-referencing foreign key doesn't matter.
 Tables whose foreign keys form a cycle can't be ordered, and the drop fails on them.
 
+Several values can share one suffix, and so one partition. When one of those values is removed from a table
+that a foreign key references, its rows are deleted but the partition's bound keeps the value, because
+PostgreSQL won't detach a partition while other rows in it are referenced. If that value is added again
+later under a *different* suffix, Weasel puts it back into the partition that still covers it, on every
+table and in the registry, and logs a warning that the requested suffix was ignored. If that can't be done
+on every table, the add throws an `InvalidOperationException` before changing anything.
+
 ## ManagedRangePartitions
 
 Time-series tables -- telemetry, audit trails, events, logs -- want a partition set that *moves*. The
