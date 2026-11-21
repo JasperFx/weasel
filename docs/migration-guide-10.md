@@ -11,7 +11,7 @@ newly shipped storage family, and one obsolete method.
 | --- | --- |
 | `net9.0` dropped; targets are `net10.0` and `net11.0` | Move your application to `net10.0` or later |
 | `JasperFx` / `JasperFx.Events` 3.0 | Pin bump (move the rest of the Critter Stack with it) |
-| `Npgsql` 10 on `net10.0` and 11 on `net11.0`, `Microsoft.Data.SqlClient` 7, `Oracle.ManagedDataAccess.Core` 23.26, `MySqlConnector` 3.0 | Pin bump; read the driver release notes |
+| `Npgsql` 11 on both frameworks, `Microsoft.Data.SqlClient` 7, `Oracle.ManagedDataAccess.Core` 23.26, `MySqlConnector` 3.0 | Pin bump; read the driver release notes |
 | `Weasel.EntityFrameworkCore` uses EF Core 10 on `net10.0` and EF Core 11 on `net11.0` | Pin bump. Oracle's EF provider has no EF Core 11 release yet |
 | `AdvisoryLock` takes its PostgreSQL advisory locks itself; `Patched.DistributedLock.Postgres` is gone ([weasel#908](https://github.com/JasperFx/weasel/issues/908)) | None; same API and behaviour |
 | `Weasel.Sqlite` stays on the `e_sqlite3` bundle, SQLitePCLRaw 3.0.x | None, unless you choose a different bundle |
@@ -37,18 +37,20 @@ Weasel 10.0 drops `net9.0`. Every package targets `net10.0;net11.0`.
 ```
 
 An application still on `net9.0` cannot reference Weasel 10.0; stay on the 9.x line until you can move.
-Weasel's dependencies follow the target framework: the `net10.0` build stays on the .NET 10 packages, and the
-`net11.0` build moves to the .NET 11 ones (Npgsql 11, EF Core 11, `Microsoft.Data.Sqlite` 11,
-`Microsoft.Extensions.*` 11). If you pin those packages yourself on `net11.0`, do not pin them below what Weasel
-and JasperFx ask for, or restore fails with `NU1605` (package downgrade).
+Npgsql 11 supports `net10.0`, so both builds use it. Otherwise Weasel's dependencies follow the target framework:
+the `net10.0` build stays on the .NET 10 packages, and the `net11.0` build moves to the .NET 11 ones (EF Core 11,
+`Microsoft.Data.Sqlite` 11, `Microsoft.Extensions.*` 11). If you pin those packages yourself, do not pin them
+below what Weasel, Npgsql and JasperFx ask for, or restore fails with `NU1605` (package downgrade). That includes
+`Microsoft.Extensions.Logging.Abstractions` and `Microsoft.Extensions.DependencyInjection.Abstractions` on
+`net10.0`, which Npgsql 11 asks for at 11.0.0.
 
 ## Package pins
 
 | Package | 9.x | 10.0 |
 | --- | --- | --- |
-| `JasperFx`, `JasperFx.Events`, `JasperFx.SourceGenerator` | `2.x` | `3.0.0` |
-| `Npgsql` | `9.0.x` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
-| `Npgsql.NetTopologySuite` | `9.0.x` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
+| `JasperFx`, `JasperFx.Events`, `JasperFx.SourceGenerator` | `2.x` | `3.12.x` |
+| `Npgsql` | `9.0.x` | `11.0.x` |
+| `Npgsql.NetTopologySuite` | `9.0.x` | `11.0.x` |
 | `Microsoft.Data.SqlClient` | `6.1.x` | `7.1.x` |
 | `MySqlConnector` | `2.x` | `3.0.x` |
 | `Oracle.ManagedDataAccess.Core` | `23.7.x` | `23.26.x` |
@@ -61,13 +63,19 @@ and JasperFx ask for, or restore fails with `NU1605` (package downgrade).
 Weasel's packages are versioned together: bump every `Weasel.*` package your application references in one
 change, and do not mix Weasel 10.0 with the Marten, Polecat, Fisher or Wolverine majors of the previous wave.
 
-### Npgsql 10 and 11
+### Npgsql 11
 
-`Weasel.Postgresql` is built and tested against Npgsql 10 on `net10.0` and Npgsql 11 on `net11.0`. If your
-application pins Npgsql itself, pin the same major for that framework. See the
+`Weasel.Postgresql` is built and tested against Npgsql 11 on both `net10.0` and `net11.0`. If your application
+pins Npgsql itself, pin 11. Coming from Weasel 9.x, that is two driver majors, so read both the
 [Npgsql 10](https://www.npgsql.org/doc/release-notes/10.0.html) and
-[Npgsql 11](https://www.npgsql.org/doc/release-notes/11.0.html) release notes for the driver's own breaking
-changes. Npgsql 11 removed multiplexing, so a connection string with `Multiplexing=true` fails on `net11.0`.
+[Npgsql 11](https://www.npgsql.org/doc/release-notes/11.0.html) release notes.
+
+Npgsql 11 removed multiplexing, so a connection string with `Multiplexing=true` now fails on both frameworks.
+Take it out of your connection strings. Weasel had code that worked around multiplexing (falling back to the
+asynchronous path where Npgsql refused synchronous I/O); that is gone too
+([weasel#812](https://github.com/JasperFx/weasel/issues/812)).
+
+On `net10.0`, `Npgsql.EntityFrameworkCore.PostgreSQL` stays on 10.x, which runs on Npgsql 11.
 
 ### AdvisoryLock without DistributedLock
 

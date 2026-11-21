@@ -35,11 +35,11 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
         await base.DisposeAsync();
     }
 
-    private TestTenancy TenancyFor(string? connectionString = null)
+    private TestTenancy TenancyFor()
     {
         var tenancy = new TestTenancy(new MasterTableTenancyOptions<NpgsqlDataSource>(PostgresqlProvider.Instance)
         {
-            ConnectionString = connectionString ?? ConnectionSource.ConnectionString, SchemaName = SchemaName
+            ConnectionString = ConnectionSource.ConnectionString, SchemaName = SchemaName
         });
 
         _tenancies.Add(tenancy);
@@ -200,44 +200,6 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
         nobody.ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Unknown, null));
     }
 
-    // Npgsql 11 (net11.0) removed multiplexing and rejects the Multiplexing keyword, so this scenario
-    // only exists on net10.0 with Npgsql 10 (weasel#907).
-#if !NET11_0_OR_GREATER
-    [Fact]
-    public async Task a_multiplexing_data_source_hands_resolution_back_to_the_asynchronous_path()
-    {
-        // Npgsql refuses synchronous commands under multiplexing.
-        var writer = TenancyFor();
-        await writer.AddDatabaseRecordAsync("red", "Host=red");
-
-        var tenancy = TenancyFor(ConnectionSource.ConnectionString + ";Multiplexing=true");
-        await tenancy.AllDisabledAsync();
-
-        tenancy.TryResolveTenant("red", out var resolution).ShouldBeFalse();
-        resolution.ShouldBe(default);
-        tenancy.SynchronousReadAttempts.ShouldBe(0, "the connection string says multiplexing, so nothing is tried");
-
-        (await tenancy.ResolveTenantAsync("red")).Status.ShouldBe(MasterTenantStatus.Enabled);
-    }
-
-    [Fact]
-    public async Task npgsqls_refusal_is_caught_when_the_connection_string_check_is_overridden()
-    {
-        // The safety net under the check: a store whose override says yes regardless still falls
-        // back on the driver's NotSupportedException, rather than throwing it at a caller.
-        var writer = TenancyFor();
-        await writer.AddDatabaseRecordAsync("red", "Host=red");
-
-        var tenancy = TenancyFor(ConnectionSource.ConnectionString + ";Multiplexing=true");
-        tenancy.ClaimSynchronousReads = true;
-        await tenancy.AllDisabledAsync();
-
-        tenancy.TryResolveTenant("red", out _).ShouldBeFalse();
-        tenancy.TryResolveTenant("red", out _).ShouldBeFalse();
-        tenancy.SynchronousReadAttempts.ShouldBe(1, "the refusal is remembered");
-    }
-#endif
-
     [Fact]
     public void the_qualified_name_quotes_what_needs_quoting()
     {
@@ -258,18 +220,5 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
 
         protected override TestDatabase BuildDatabase(string tenantId, string connectionString) =>
             new(tenantId, connectionString);
-
-        public int SynchronousReadAttempts { get; private set; }
-
-        public bool ClaimSynchronousReads { get; set; }
-
-        protected override bool SupportsSynchronousControlTableReads =>
-            ClaimSynchronousReads || base.SupportsSynchronousControlTableReads;
-
-        protected override T ExecuteSynchronously<T>(Func<T> operation)
-        {
-            SynchronousReadAttempts++;
-            return base.ExecuteSynchronously(operation);
-        }
     }
 }

@@ -78,7 +78,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     private volatile bool _synchronousProvisioningRefused;
 
     // weasel#838: whether the control-plane data source takes synchronous I/O. Unknown until first
-    // asked; Refused once it has refused (Npgsql with Multiplexing=true). An int written with
+    // asked; Refused once it has refused (a NotSupportedException from a synchronous read). An int written with
     // Interlocked rather than a bool?: a bool? is two fields, and a caller racing the first one to ask
     // could read it half-written, HasValue set with Value still false, and decline a tenant it
     // should have resolved (weasel#907's gate caught a_burst_of_cold_callers doing it).
@@ -619,10 +619,9 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// <list type="bullet">
     /// <item>The dialect does not render <see cref="IMasterTenantTableDialect.SelectTenantRow" />, so
     /// telling a disabled tenant from an unknown one would take a second read.</item>
-    /// <item>The control-plane data source does not take synchronous I/O
-    /// (<see cref="SupportsSynchronousControlTableReads" />): Npgsql refuses it when
-    /// <c>Multiplexing=true</c>. A <see cref="NotSupportedException" /> from the read itself is taken
-    /// as the same refusal, and remembered.</item>
+    /// <item>The store says its control-plane data source does not take synchronous I/O
+    /// (<see cref="SupportsSynchronousControlTableReads" />). A <see cref="NotSupportedException" />
+    /// from the read itself is taken as the same refusal, and remembered.</item>
     /// <item>No entry point has provisioned the control table yet, and the store cannot provision it
     /// synchronously. <see cref="ProvisionControlTableAsync" /> is asynchronous, so this never calls
     /// it; it asks <see cref="TryProvisionControlTableSynchronously" /> instead, which declines by
@@ -663,8 +662,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         }
         catch (NotSupportedException)
         {
-            // Npgsql's "Synchronous command execution is not supported when multiplexing is on",
-            // for a data source whose connection string did not say so where it could be read.
+            // A driver that refuses synchronous commands
             Volatile.Write(ref _synchronousReads, SynchronousReadsRefused);
             return false;
         }
@@ -689,31 +687,11 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// <see cref="TryResolveTenant" />. Asked once per instance.
     /// </summary>
     /// <remarks>
-    /// The default reads the data source's connection string and answers false when it sets
-    /// <c>Multiplexing=true</c>, which Npgsql refuses synchronous commands under; every other
-    /// provider ignores the keyword. Override where a store knows better, for example from its own
-    /// data source's settings.
+    /// The default is true. Override for a data source that you know refuses synchronous commands.
+    /// Until Weasel 10 the default read the connection string and answered false for Npgsql's
+    /// <c>Multiplexing=true</c>, but Npgsql 11 removed multiplexing (weasel#812).
     /// </remarks>
-    protected virtual bool SupportsSynchronousControlTableReads
-    {
-        get
-        {
-            var builder = new DbConnectionStringBuilder();
-            try
-            {
-                builder.ConnectionString = MasterDataSource.ConnectionString;
-            }
-            catch (ArgumentException)
-            {
-                // Not in the generic key=value form, so nothing here can be read from it.
-                return true;
-            }
-
-            return !(builder.TryGetValue("Multiplexing", out var value)
-                     && bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out var multiplexing)
-                     && multiplexing);
-        }
-    }
+    protected virtual bool SupportsSynchronousControlTableReads => true;
 
     /// <summary>
     /// Run one synchronous control-plane operation, for <see cref="TryResolveTenant" />. The default
