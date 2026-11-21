@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <!--
+        weasel#910: Weasel 9 is built against Npgsql 9, but its Npgsql dependency is only a minimum, so an
+        application can run it on Npgsql 11. Npgsql 11 removed NpgsqlConnectionStringBuilder.Multiplexing,
+        and two things read it: DistributedLock.Postgres, under AdvisoryLock, and
+        SingleServerDatabaseCollection (weasel#912). Both threw MissingMethodException there.
+
+        This project compiles Weasel.Postgresql.Tests' sources unchanged and runs them on Npgsql 11, against
+        the Weasel.Postgresql assembly built against Npgsql 9, which is what such an application runs.
+        Npgsql 11 targets net10.0 only. NPGSQL11 leaves out the scenarios Npgsql 11 cannot express
+        (Multiplexing=true).
+    -->
+    <PropertyGroup>
+        <TargetFrameworks>net10.0</TargetFrameworks>
+        <RootNamespace>Weasel.Postgresql.Tests</RootNamespace>
+        <DefineConstants>$(DefineConstants);NPGSQL11</DefineConstants>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Npgsql" VersionOverride="11.0.0" />
+        <PackageReference Include="Npgsql.NetTopologySuite" VersionOverride="11.0.0" />
+        <PackageReference Include="NSubstitute" />
+        <PackageReference Include="Shouldly" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Compile Include="..\Weasel.Postgresql.Tests\**\*.cs"
+                 Exclude="..\Weasel.Postgresql.Tests\bin\**;..\Weasel.Postgresql.Tests\obj\**"
+                 Link="Weasel.Postgresql.Tests\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Weasel.Postgresql\Weasel.Postgresql.csproj" />
+        <ProjectReference Include="..\Weasel.Testing\Weasel.Testing.csproj" />
+    </ItemGroup>
+
+    <Import Project="../../Tests.Build.props" />
+</Project>

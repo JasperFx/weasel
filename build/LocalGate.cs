@@ -98,6 +98,10 @@ partial class Build
                 .On("postgres")
                 .LaunchingWith(unit => lanesFor(unit, PostgresLanes));
 
+            // The same suite on Npgsql 11, which an application can take under Weasel 9 (weasel#910).
+            // net10.0 only, like Npgsql 11. One worker on the configured database.
+            gate.Project(testProject("Weasel.Postgresql.Npgsql11.Tests")).On("postgres");
+
             // Postgres-backed despite the name: it shares Weasel.Postgresql.Tests' ConnectionSource and
             // drops real schemas, in the configured database and in `postgres`. One worker, as in CI.
             gate.Project(testProject("Weasel.CommandLine.Tests")).On("postgres");
@@ -175,7 +179,8 @@ partial class Build
     /// <c>dotnet build &lt;solution&gt; -f &lt;tfm&gt;</c>, which fails on any project in the solution that does
     /// not target that framework (bobcat#774, found in Marten), and builds every project in the
     /// solution besides. This restores the solution once and then builds exactly the test projects the
-    /// gate runs, plus the docs samples, for each framework the gate runs.
+    /// gate runs, plus the docs samples, for each framework the gate runs that the project targets
+    /// (Weasel.Postgresql.Npgsql11.Tests is net10.0 only).
     /// </summary>
     Task buildForGate(GateBuild request, CancellationToken ct)
     {
@@ -183,7 +188,12 @@ partial class Build
 
         foreach (var framework in request.Frameworks)
         {
-            foreach (var project in request.Projects.Select(p => p.Path).Append((string)DocSamplesPath))
+            var projects = request.Projects
+                .Where(p => p.DeclaredFrameworks.Contains(framework, StringComparer.OrdinalIgnoreCase))
+                .Select(p => p.Path)
+                .Append((string)DocSamplesPath);
+
+            foreach (var project in projects)
             {
                 ct.ThrowIfCancellationRequested();
                 DotNetBuild(s => s
