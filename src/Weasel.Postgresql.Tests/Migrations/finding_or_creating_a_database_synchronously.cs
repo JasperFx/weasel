@@ -164,27 +164,9 @@ public class finding_or_creating_a_database_synchronously: IAsyncLifetime
         }
     }
 
-    // Npgsql 11 (net11.0) removed multiplexing and rejects the Multiplexing keyword, so this scenario
-    // only exists on net10.0 with Npgsql 10 (weasel#907).
-#if !NET11_0_OR_GREATER
-    [Fact]
-    public async Task a_multiplexing_master_falls_back_to_the_asynchronous_path()
-    {
-        // Npgsql refuses synchronous I/O under multiplexing.
-        var databases = new Databases(ConnectionSource.ConnectionString + ";Multiplexing=true");
-        var name = NewDatabaseName();
-
-        var database = databases.FindOrCreateDatabaseSynchronously(name);
-
-        database.ShouldNotBeNull();
-        (await ExistsOnServer(name)).ShouldBeTrue();
-        (await databases.FindOrCreateDatabase(name)).ShouldBeSameAs(database);
-    }
-#endif
-
-    public class Databases(string? masterConnectionString = null)
+    public class Databases()
         : SingleServerDatabaseCollection<TestDatabaseWithTables>(new DefaultNpgsqlDataSourceFactory(),
-            masterConnectionString ?? ConnectionSource.ConnectionString)
+            ConnectionSource.ConnectionString)
     {
         protected override TestDatabaseWithTables buildDatabase(string databaseName, NpgsqlDataSource dataSource) =>
             new(databaseName, dataSource);

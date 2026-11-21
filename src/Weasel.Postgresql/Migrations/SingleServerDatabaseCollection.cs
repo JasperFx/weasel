@@ -31,9 +31,6 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
     private readonly Lock _publish = new();
 
     private ImHashMap<string, T> _databases = ImHashMap<string, T>.Empty;
-#if !NET11_0_OR_GREATER
-    private bool? _masterTakesSynchronousIo;
-#endif
 
     protected SingleServerDatabaseCollection(INpgsqlDataSourceFactory dataSourceFactory, string masterConnectionString)
     {
@@ -138,10 +135,8 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
     ///     <see cref="TimeoutException" /> after five seconds waiting for another synchronous caller.
     ///     </para>
     ///     <para>
-    ///     When the master connection string sets <c>Multiplexing=true</c>, Npgsql refuses synchronous
-    ///     I/O, and this falls back to blocking on <see cref="FindOrCreateDatabase" /> -- what the caller
-    ///     would have done without it. It does not call an override of <see cref="FindOrCreateDatabase" />
-    ///     otherwise; a subclass that overrides one should override both.
+    ///     It does not call an override of <see cref="FindOrCreateDatabase" />; a subclass that overrides
+    ///     one should override both.
     ///     </para>
     ///     <para>
     ///     Named apart from <see cref="FindOrCreateDatabase" /> on purpose: an overload taking only the
@@ -153,15 +148,6 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
         if (_databases.TryFind(databaseName, out var database))
         {
             return database;
-        }
-
-        if (!masterTakesSynchronousIo())
-        {
-            // The one blocking wait, and only because Npgsql leaves no synchronous alternative under
-            // multiplexing. It is what the caller did before this method existed.
-#pragma warning disable VSTHRD002
-            return FindOrCreateDatabase(databaseName, CancellationToken.None).AsTask().GetAwaiter().GetResult();
-#pragma warning restore VSTHRD002
         }
 
         if (!_syncLock.TryEnter(LockTimeout))
@@ -253,12 +239,4 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
     private static bool isDuplicateDatabase(PostgresException e) =>
         e.SqlState == PostgresErrorCodes.DuplicateDatabase
         || (e.SqlState == PostgresErrorCodes.UniqueViolation && e.ConstraintName == "pg_database_datname_index");
-
-#if NET11_0_OR_GREATER
-    // Npgsql 11 (net11.0) removed multiplexing, so every master takes synchronous I/O.
-    private bool masterTakesSynchronousIo() => true;
-#else
-    private bool masterTakesSynchronousIo() =>
-        _masterTakesSynchronousIo ??= !new NpgsqlConnectionStringBuilder(_masterConnectionString).Multiplexing;
-#endif
 }

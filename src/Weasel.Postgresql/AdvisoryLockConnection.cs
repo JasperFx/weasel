@@ -21,10 +21,6 @@ namespace Weasel.Postgresql;
 ///         one second, so a cancellation Npgsql loses costs at most that.
 ///     </para>
 ///     <para>
-///         Npgsql 10 refuses <c>WaitAsync</c> under <c>Multiplexing=true</c>; there the monitor falls back to a
-///         <c>SELECT 1</c> every few seconds.
-///     </para>
-///     <para>
 ///         This replaces DistributedLock.Postgres (weasel#908), whose monitor waited the same way, and which stopped
 ///         working on Npgsql 11 because it read the removed <c>NpgsqlConnectionStringBuilder.Multiplexing</c>.
 ///     </para>
@@ -35,7 +31,6 @@ internal sealed class AdvisoryLockConnection: IAsyncDisposable
     // a lock or unlock would sit out the whole wait. The probe still only goes out after a minute of silence.
     private const int MonitorWaitMilliseconds = 1_000;
     private static readonly TimeSpan SilenceBeforeProbe = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan ProbeInterval = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan BackOff = TimeSpan.FromSeconds(1);
 
     private readonly NpgsqlConnection _connection;
@@ -258,13 +253,10 @@ internal sealed class AdvisoryLockConnection: IAsyncDisposable
 
     private async Task monitorAsync(CancellationToken stop)
     {
-        var useWait = true;
         var lastHeard = Stopwatch.StartNew();
 
         while (!stop.IsCancellationRequested && !IsLost)
         {
-            if (!useWait && !await delayAsync(ProbeInterval, stop).ConfigureAwait(false)) return;
-
             try
             {
                 await _gate.WaitAsync(stop).ConfigureAwait(false);
@@ -292,12 +284,9 @@ internal sealed class AdvisoryLockConnection: IAsyncDisposable
                 {
                     // WaitAsync is true only for a notification, which nothing here listens for. A minute of silence
                     // gets a round trip, for a connection that died without the server saying so.
-                    if (useWait)
-                    {
-                        await _connection.WaitAsync(MonitorWaitMilliseconds, wait.Token).ConfigureAwait(false);
-                    }
+                    await _connection.WaitAsync(MonitorWaitMilliseconds, wait.Token).ConfigureAwait(false);
 
-                    if (!useWait || lastHeard.Elapsed >= SilenceBeforeProbe)
+                    if (lastHeard.Elapsed >= SilenceBeforeProbe)
                     {
                         await executeAsync("SELECT 1", CancellationToken.None).ConfigureAwait(false);
                         lastHeard.Restart();
@@ -307,11 +296,6 @@ internal sealed class AdvisoryLockConnection: IAsyncDisposable
             catch (OperationCanceledException) when (wait is { IsCancellationRequested: true } && !isBroken())
             {
                 // Cut short for a lock, an unlock or disposal
-            }
-            catch (NotSupportedException) when (useWait && !isBroken())
-            {
-                // Npgsql 10 under Multiplexing=true
-                useWait = false;
             }
             catch (Exception)
             {

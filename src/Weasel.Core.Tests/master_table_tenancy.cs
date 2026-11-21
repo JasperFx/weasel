@@ -945,7 +945,7 @@ public class master_table_tenancy: IAsyncDisposable
         await tenancy.AddDatabaseRecordAsync("blue", "Data Source=blue.db");
         await tenancy.EvictForTestAsync("blue");
 
-        // What Npgsql throws for a synchronous command under Multiplexing=true.
+        // A driver that refuses synchronous commands
         tenancy.RefuseSynchronousIo = true;
         tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
 
@@ -1091,7 +1091,7 @@ public class master_table_tenancy: IAsyncDisposable
 
         var tenancy = TenancyFor();
         tenancy.SynchronousProvisioning = () =>
-            throw new NotSupportedException("Synchronous command execution is not supported when multiplexing is on");
+            throw new NotSupportedException("Synchronous command execution is not supported");
 
         tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
         tenancy.TryResolveTenant("blue", out _).ShouldBeFalse();
@@ -1296,7 +1296,7 @@ public class master_table_tenancy: IAsyncDisposable
         /// <summary>Every synchronous control-plane call, through ExecuteSynchronously.</summary>
         public int SynchronousExecutions { get; private set; }
 
-        /// <summary>Throw what Npgsql throws for a synchronous command under multiplexing.</summary>
+        /// <summary>Throw what a driver that refuses synchronous commands throws.</summary>
         public bool RefuseSynchronousIo { get; set; }
 
         public bool SynchronousReadsSupported { get; set; } = true;
@@ -1308,7 +1308,7 @@ public class master_table_tenancy: IAsyncDisposable
             SynchronousExecutions++;
             if (RefuseSynchronousIo)
             {
-                throw new NotSupportedException("Synchronous command execution is not supported when multiplexing is on");
+                throw new NotSupportedException("Synchronous command execution is not supported");
             }
 
             return base.ExecuteSynchronously(operation);
