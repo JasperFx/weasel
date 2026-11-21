@@ -1,6 +1,5 @@
 using JasperFx.Core;
 using JasperFx.Events.Daemon;
-using Medallion.Threading.Postgres;
 using Microsoft.Extensions.Logging;
 using Npgsql;
 
@@ -15,7 +14,7 @@ public sealed class AdvisoryLockOptions
 
     /// <summary>
     ///     When true, each lock is held by a transaction on its own connection. When false (the default), locks are
-    ///     session-scoped and multiplexed so that several held locks share one connection.
+    ///     session-scoped and several held locks share one connection.
     /// </summary>
     public bool TransactionalLockEnabled { get; set; }
 
@@ -35,6 +34,23 @@ public sealed class AdvisoryLockOptions
 /// <summary>
 ///     PostgreSQL implementation of <see cref="IAdvisoryLock" />.
 /// </summary>
+/// <remarks>
+///     <para>
+///         Takes PostgreSQL advisory locks on the bigint key <c>(long)lockId</c>, on connections it opens from the
+///         data source and keeps open while it holds a lock there. Session locks share a connection: a lock goes on
+///         the first open connection that does not already hold that id, and a new one is opened only when every
+///         connection does (advisory locks are reentrant within a session, so two holds of one id on one session would
+///         both succeed). A connection goes back to the pool once it holds nothing. A transactional lock is taken with
+///         <c>pg_try_advisory_xact_lock</c> in a transaction of its own, and released by rolling that back.
+///     </para>
+///     <para>
+///         Until weasel#910 (the 9.x port of weasel#908) this sat on DistributedLock.Postgres, which does not
+///         work on Npgsql 11. The behaviour is the same, connection loss included: with
+///         <see cref="AdvisoryLockOptions.LockMonitoringEnabled" /> on, <see cref="HasLock" /> turns false as soon as
+///         the connection holding the lock is lost (see <see cref="AdvisoryLockConnection" />), and the lock can then
+///         be taken again on a new connection.
+///     </para>
+/// </remarks>
 public class AdvisoryLock : IAdvisoryLock
 {
     private readonly string _databaseName;
@@ -42,32 +58,18 @@ public class AdvisoryLock : IAdvisoryLock
     private readonly ILogger _logger;
     private readonly NpgsqlDataSource _dataSource;
 
-    // Guards _handles and _disposed. Acquire, release and disposal can run concurrently, and storing a newly
-    // acquired handle must be atomic with disposal (see TryAttainLockAsync).
-    private readonly object _handlesLock = new();
-    private readonly Dictionary<int, PostgresDistributedLockHandle> _handles = new();
-    private readonly LightweightCache<int, PostgresDistributedLock> _distributedLockProviders;
+    // Guards _handles, _sessionConnections, the connections' Held/Users/Closing counts and _disposed. Acquire,
+    // release and disposal can run concurrently, and storing a newly acquired lock must be atomic with disposal
+    // (see TryAttainLockAsync).
+    private readonly Lock _handlesLock = new();
+    private readonly Dictionary<int, AdvisoryLockConnection> _handles = new();
+    private readonly List<AdvisoryLockConnection> _sessionConnections = new();
     private bool _disposed;
 
     public AdvisoryLock(NpgsqlDataSource dataSource, ILogger logger, string databaseName, AdvisoryLockOptions options)
     {
         _logger = logger;
         _dataSource = EnsurePrimaryWhenMultiHost(dataSource);
-
-        _distributedLockProviders = new LightweightCache<int, PostgresDistributedLock>(
-            (lockId => new PostgresDistributedLock(new PostgresAdvisoryLockKey(lockId),
-                EnsurePrimaryWhenMultiHost(dataSource), builder =>
-                {
-                    // Multiplexing can't be combined with transaction-scoped locks
-                    if (options.TransactionalLockEnabled)
-                    {
-                        builder.UseTransaction();
-                    }
-                    else
-                    {
-                        builder.UseMultiplexing();
-                    }
-                })));
         _databaseName = databaseName;
         _options = options;
     }
@@ -93,10 +95,10 @@ public class AdvisoryLock : IAdvisoryLock
 
     public bool HasLock(int lockId)
     {
-        PostgresDistributedLockHandle? handle;
+        AdvisoryLockConnection? connection;
         lock (_handlesLock)
         {
-            if (!_handles.TryGetValue(lockId, out handle))
+            if (!_handles.TryGetValue(lockId, out connection))
             {
                 return false;
             }
@@ -104,7 +106,7 @@ public class AdvisoryLock : IAdvisoryLock
 
         if (_options.LockMonitoringEnabled)
         {
-            return !handle.HandleLostToken.IsCancellationRequested;
+            return !connection.IsLost;
         }
 
         return true;
@@ -125,37 +127,9 @@ public class AdvisoryLock : IAdvisoryLock
 
         try
         {
-            var locker = _distributedLockProviders[lockId];
-            var handle = await locker.TryAcquireAsync(cancellationToken: token).ConfigureAwait(false);
-            if (handle is null) return false;
-
-            // DisposeAsync can drain _handles while this acquire is in flight. Storing under the same lock means
-            // either the drain disposes this handle, or this call sees the disposal and disposes it itself, so a
-            // granted lock is never left held for the life of the process.
-            PostgresDistributedLockHandle? orphaned = null;
-            var stored = false;
-
-            lock (_handlesLock)
-            {
-                if (_disposed)
-                {
-                    orphaned = handle;
-                }
-                else
-                {
-                    // An existing handle here is one whose connection was lost, so dispose it too
-                    _handles.Remove(lockId, out orphaned);
-                    _handles[lockId] = handle;
-                    stored = true;
-                }
-            }
-
-            if (orphaned is not null)
-            {
-                await disposeHandleSafelyAsync(orphaned).ConfigureAwait(false);
-            }
-
-            return stored;
+            return _options.TransactionalLockEnabled
+                ? await tryAttainTransactionalLockAsync(lockId, token).ConfigureAwait(false)
+                : await tryAttainSessionLockAsync(lockId, token).ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {
@@ -175,6 +149,207 @@ public class AdvisoryLock : IAdvisoryLock
         }
     }
 
+    private async Task<bool> tryAttainTransactionalLockAsync(int lockId, CancellationToken token)
+    {
+        var connection = await AdvisoryLockConnection.OpenAsync(_dataSource, true, token).ConfigureAwait(false);
+
+        bool attained;
+        try
+        {
+            attained = await connection.TryLockAsync(lockId, token).ConfigureAwait(false);
+        }
+        catch
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+
+        if (!attained)
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+            return false;
+        }
+
+        // DisposeAsync can drain _handles while this acquire is in flight. Storing under the same lock means
+        // either the drain releases this lock, or this call sees the disposal and releases it itself, so a
+        // granted lock is never left held for the life of the process.
+        AdvisoryLockConnection? orphaned = null;
+        AdvisoryLockConnection? replaced = null;
+        lock (_handlesLock)
+        {
+            if (_disposed)
+            {
+                orphaned = connection;
+            }
+            else
+            {
+                // An existing hold here is one whose connection was lost, or the server would have refused this one
+                _handles.Remove(lockId, out replaced);
+                _handles[lockId] = connection;
+            }
+        }
+
+        if (orphaned is not null)
+        {
+            await disposeConnectionSafelyAsync(orphaned).ConfigureAwait(false);
+            return false;
+        }
+
+        if (replaced is not null)
+        {
+            await disposeConnectionSafelyAsync(replaced).ConfigureAwait(false);
+        }
+
+        if (_options.LockMonitoringEnabled) connection.StartMonitoring();
+
+        return true;
+    }
+
+    private async Task<bool> tryAttainSessionLockAsync(int lockId, CancellationToken token)
+    {
+        // One retry, for a shared connection that turns out to have died since its last use
+        for (var attempt = 0; ; attempt++)
+        {
+            var connection = await claimSessionConnectionAsync(lockId, token).ConfigureAwait(false);
+            if (connection is null) return false;
+
+            bool attained;
+            try
+            {
+                attained = await connection.TryLockAsync(lockId, token).ConfigureAwait(false);
+            }
+            catch (Exception) when (connection.IsLost && attempt == 0 && !IsDisposed)
+            {
+                await unclaimSessionConnectionAsync(connection).ConfigureAwait(false);
+                continue;
+            }
+            catch
+            {
+                await unclaimSessionConnectionAsync(connection).ConfigureAwait(false);
+                throw;
+            }
+
+            if (!attained)
+            {
+                await unclaimSessionConnectionAsync(connection).ConfigureAwait(false);
+                return false;
+            }
+
+            var stored = false;
+            var duplicate = false;
+            AdvisoryLockConnection? replaced = null;
+            lock (_handlesLock)
+            {
+                if (_disposed)
+                {
+                    // Released below, see tryAttainTransactionalLockAsync
+                }
+                else if (_handles.TryGetValue(lockId, out var existing) && ReferenceEquals(existing, connection))
+                {
+                    // A concurrent acquire of the same id on this connection got there first, and the session
+                    // granted this one again on top of it
+                    duplicate = true;
+                }
+                else
+                {
+                    // An existing hold here is one whose connection was lost, or the server would have refused
+                    // this one
+                    if (_handles.Remove(lockId, out replaced))
+                    {
+                        replaced.Held--;
+
+                        // Keeps it open until releaseSessionLockAsync is done with it
+                        replaced.Users++;
+                    }
+
+                    _handles[lockId] = connection;
+                    connection.Held++;
+                    stored = true;
+                }
+            }
+
+            if (!stored)
+            {
+                await unlockSafelyAsync(connection, lockId).ConfigureAwait(false);
+            }
+
+            await unclaimSessionConnectionAsync(connection).ConfigureAwait(false);
+
+            if (replaced is not null)
+            {
+                await releaseSessionLockAsync(replaced, lockId, rethrow: false).ConfigureAwait(false);
+            }
+
+            if (stored && _options.LockMonitoringEnabled) connection.StartMonitoring();
+
+            return stored && !duplicate;
+        }
+    }
+
+    /// <summary>
+    ///     The first open session connection that does not hold <paramref name="lockId" />, or a new one. Null once
+    ///     this lock is disposed.
+    /// </summary>
+    private async Task<AdvisoryLockConnection?> claimSessionConnectionAsync(int lockId, CancellationToken token)
+    {
+        lock (_handlesLock)
+        {
+            if (_disposed) return null;
+
+            _handles.TryGetValue(lockId, out var holder);
+            foreach (var candidate in _sessionConnections)
+            {
+                if (candidate.IsLost || candidate.Closing || ReferenceEquals(candidate, holder)) continue;
+
+                candidate.Users++;
+                return candidate;
+            }
+        }
+
+        var connection = await AdvisoryLockConnection.OpenAsync(_dataSource, false, token).ConfigureAwait(false);
+
+        lock (_handlesLock)
+        {
+            if (!_disposed)
+            {
+                connection.Users++;
+                _sessionConnections.Add(connection);
+                return connection;
+            }
+        }
+
+        await connection.DisposeAsync().ConfigureAwait(false);
+        return null;
+    }
+
+    private Task unclaimSessionConnectionAsync(AdvisoryLockConnection connection)
+    {
+        lock (_handlesLock)
+        {
+            connection.Users--;
+        }
+
+        return closeSessionConnectionIfIdleAsync(connection);
+    }
+
+    /// <summary>
+    ///     Close a session connection that holds nothing and that nothing is using, or one that is lost. Whoever
+    ///     finds it idle last closes it, once.
+    /// </summary>
+    private async Task closeSessionConnectionIfIdleAsync(AdvisoryLockConnection connection)
+    {
+        lock (_handlesLock)
+        {
+            if (connection.Closing || connection.Users > 0) return;
+            if (connection.Held > 0 && !connection.IsLost) return;
+
+            connection.Closing = true;
+            _sessionConnections.Remove(connection);
+        }
+
+        await disposeConnectionSafelyAsync(connection).ConfigureAwait(false);
+    }
+
     /// <summary>
     ///     Who holds <paramref name="lockId" />, or null when nothing does.
     /// </summary>
@@ -187,11 +362,11 @@ public class AdvisoryLock : IAdvisoryLock
     ///         the same shard (weasel#650).
     ///     </para>
     ///     <para>
-    ///         <c>pg_locks</c> reports the advisory key as two 32-bit halves of the 64-bit key Medallion
-    ///         builds from the id, so a negative id sign-extends into <c>classid = 0xFFFFFFFF</c> rather
+    ///         <c>pg_locks</c> reports the advisory key as two 32-bit halves of the 64-bit key the lock
+    ///         takes for the id, so a negative id sign-extends into <c>classid = 0xFFFFFFFF</c> rather
     ///         than 0. Measured against the server for both signs and for both session and transactional
-    ///         locks; <c>objsubid</c> is deliberately not matched, so the read survives Medallion moving
-    ///         between the two-int and bigint forms of the key.
+    ///         locks; <c>objsubid</c> is deliberately not matched, so the read does not depend on whether
+    ///         the key is taken in its bigint or two-int form.
     ///     </para>
     ///     <para>
     ///         Scoped to the current database. An advisory lock is taken on the acquiring session's
@@ -267,15 +442,82 @@ public class AdvisoryLock : IAdvisoryLock
 
     public async Task ReleaseLockAsync(int lockId)
     {
-        PostgresDistributedLockHandle? handle;
+        AdvisoryLockConnection? connection;
         lock (_handlesLock)
         {
-            _handles.Remove(lockId, out handle);
+            if (!_handles.Remove(lockId, out connection)) return;
+
+            if (!connection.IsTransactional)
+            {
+                connection.Held--;
+
+                // Keeps it open until releaseSessionLockAsync is done with it
+                connection.Users++;
+            }
         }
 
-        if (handle is not null)
+        if (connection.IsTransactional)
         {
-            await handle.DisposeAsync().ConfigureAwait(false);
+            await connection.DisposeAsync().ConfigureAwait(false);
+        }
+        else
+        {
+            await releaseSessionLockAsync(connection, lockId, rethrow: true).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    ///     Unlock one session lock already taken out of <see cref="_handles" />, then close its connection if that
+    ///     left it holding nothing. The caller claimed the connection (Users) when it took the lock out.
+    /// </summary>
+    private async Task releaseSessionLockAsync(AdvisoryLockConnection connection, int lockId, bool rethrow)
+    {
+        try
+        {
+            if (rethrow)
+            {
+                await unlockAsync(connection, lockId).ConfigureAwait(false);
+            }
+            else
+            {
+                await unlockSafelyAsync(connection, lockId).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await unclaimSessionConnectionAsync(connection).ConfigureAwait(false);
+        }
+    }
+
+    private static async Task unlockAsync(AdvisoryLockConnection connection, int lockId)
+    {
+        // A lost connection took its locks with it
+        if (connection.IsLost) return;
+
+        try
+        {
+            await connection.UnlockAsync(lockId).ConfigureAwait(false);
+        }
+        catch (Exception) when (connection.IsLost)
+        {
+            // Lost during the unlock, which released the lock just the same
+        }
+    }
+
+    private async Task unlockSafelyAsync(AdvisoryLockConnection connection, int lockId)
+    {
+        try
+        {
+            await unlockAsync(connection, lockId).ConfigureAwait(false);
+        }
+        catch (InvalidOperationException)
+        {
+            // The connection or data source is already closed (ObjectDisposedException derives from this)
+        }
+        catch (Exception e)
+        {
+            _logger.LogError(e, "Error trying to release advisory lock {LockId} for database {Identifier}", lockId,
+                _databaseName);
         }
     }
 
@@ -284,53 +526,68 @@ public class AdvisoryLock : IAdvisoryLock
     /// </summary>
     /// <remarks>
     ///     <para>
-    ///         weasel#676. A session-scoped lock multiplexes several held locks onto one connection, and Medallion's
-    ///         connection monitor — which <see cref="HasLock" /> activates when
-    ///         <see cref="AdvisoryLockOptions.LockMonitoringEnabled" /> is on — parks that connection in a
-    ///         one-minute wait between checks. Releasing a lock has to take the connection away from the
-    ///         monitor, which it does by firing the monitor's state-changed token, but
-    ///         <c>ConnectionMonitor.AcquireConnectionLockAsync</c> only fires it while monitoring handles are
-    ///         still registered, and a handle drops its monitoring registration BEFORE it runs its
-    ///         <c>pg_advisory_unlock</c>. So the last release on a given connection can find the count already
-    ///         at zero, fire nothing, and sit in its own two-second retry loop — re-evaluating that same false
-    ///         condition — until the monitor's window expires on its own. With two such connections a host stop
-    ///         took 120 seconds.
+    ///         weasel#676. With DistributedLock.Postgres underneath (until weasel#910), the last release on a
+    ///         monitored, shared session connection could find the connection parked in the monitor's one-minute
+    ///         wait and sit there until the wait ran out. With two such connections a host stop took 120 seconds.
+    ///         <see cref="AdvisoryLockConnection" /> now cancels that wait before every command, but the two
+    ///         safeguards added for it stay, because a release still depends on a database round trip.
     ///     </para>
     ///     <para>
-    ///         Two things follow, and both are implemented here. The releases run concurrently, so a stop pays
-    ///         at most one stalled window rather than one per connection. And the wait is bounded by
-    ///         <see cref="AdvisoryLockOptions.ReleaseTimeout" />, after which the remaining releases are left to
-    ///         finish in the background: the unlock still goes through when the monitor's window ends, and the
-    ///         process is usually exiting anyway, which closes the connections and drops the session-scoped
-    ///         locks regardless. Abandoning the wait delays leadership handover for the rest of that window; it
-    ///         does not leak a lock.
+    ///         The releases run concurrently, one per connection, so a stop pays for the slowest connection rather
+    ///         than for all of them. And the wait is bounded by <see cref="AdvisoryLockOptions.ReleaseTimeout" />,
+    ///         after which the remaining releases are left to finish in the background: the unlock still goes
+    ///         through when the round trip completes, and the process is usually exiting anyway, which closes the
+    ///         connections and drops the locks regardless. Abandoning the wait delays leadership handover; it does
+    ///         not leak a lock.
     ///     </para>
     ///     <para>
-    ///         A release that overruns is logged. It used to be entirely silent — nothing on this path logs
-    ///         unless it throws — which is why a minute-long host stop came with no explanation at all.
+    ///         A release that overruns is logged.
     ///     </para>
     /// </remarks>
     public async ValueTask DisposeAsync()
     {
-        PostgresDistributedLockHandle[] handles;
+        List<(AdvisoryLockConnection Connection, int[] LockIds)> releases;
+        AdvisoryLockConnection[] idle;
 
         lock (_handlesLock)
         {
-            // Latch and drain atomically so no handle can be stored after this point (see TryAttainLockAsync)
+            // Latch and drain atomically so no lock can be stored after this point (see TryAttainLockAsync)
             _disposed = true;
-            handles = _handles.Values.ToArray();
+
+            releases = _handles
+                .GroupBy(x => x.Value, x => x.Key)
+                .Select(x => (x.Key, x.ToArray()))
+                .ToList();
+
             _handles.Clear();
+
+            // Session connections that hold nothing, and that no acquire in flight is using
+            idle = _sessionConnections.Where(x => x.Users == 0 && x.Held == 0).ToArray();
+
+            foreach (var (connection, _) in releases)
+            {
+                connection.Held = 0;
+
+                // Keeps it open until releaseOnDisposalAsync is done with it
+                if (!connection.IsTransactional) connection.Users++;
+            }
         }
 
-        if (handles.Length == 0) return;
-
-        var releases = new Task[handles.Length];
-        for (var i = 0; i < handles.Length; i++)
+        foreach (var connection in idle)
         {
-            releases[i] = disposeHandleSafelyAsync(handles[i]);
+            await closeSessionConnectionIfIdleAsync(connection).ConfigureAwait(false);
         }
 
-        var all = Task.WhenAll(releases);
+        var total = releases.Sum(x => x.LockIds.Length);
+        if (total == 0) return;
+
+        var tasks = new Task[releases.Count];
+        for (var i = 0; i < releases.Count; i++)
+        {
+            tasks[i] = releaseOnDisposalAsync(releases[i].Connection, releases[i].LockIds);
+        }
+
+        var all = Task.WhenAll(tasks);
 
         // Same convention as JasperFx's DaemonSettings.StopAndDrainTimeout, which is what a daemon host
         // feeds this from: a non-positive or infinite value opts out of the separate bound rather than
@@ -351,25 +608,51 @@ public class AdvisoryLock : IAdvisoryLock
         {
             await timer.CancelAsync().ConfigureAwait(false);
 
-            // Observe the faults -- disposeHandleSafelyAsync already swallows them, so this only unwraps
+            // Observe the faults -- releaseOnDisposalAsync already swallows them, so this only unwraps
             await all.ConfigureAwait(false);
             return;
         }
 
-        var outstanding = releases.Count(x => !x.IsCompleted);
+        var outstanding = 0;
+        for (var i = 0; i < tasks.Length; i++)
+        {
+            if (!tasks[i].IsCompleted) outstanding += releases[i].LockIds.Length;
+        }
+
         _logger.LogWarning(
             "Timed out after {Timeout} waiting to release {Outstanding} of {Total} advisory locks for database {Identifier}. The releases are still running and the locks will be released when they complete, but leadership of those locks cannot move to another node until then. See https://github.com/JasperFx/weasel/issues/676",
-            _options.ReleaseTimeout, outstanding, handles.Length, _databaseName);
+            _options.ReleaseTimeout, outstanding, total, _databaseName);
 
         // Don't leave the abandoned releases as unobserved faulted tasks
         _ = all.ContinueWith(static t => _ = t.Exception, TaskScheduler.Default);
     }
 
-    private async Task disposeHandleSafelyAsync(PostgresDistributedLockHandle handle)
+    private async Task releaseOnDisposalAsync(AdvisoryLockConnection connection, int[] lockIds)
+    {
+        if (connection.IsTransactional)
+        {
+            await disposeConnectionSafelyAsync(connection).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            foreach (var lockId in lockIds)
+            {
+                await unlockSafelyAsync(connection, lockId).ConfigureAwait(false);
+            }
+        }
+        finally
+        {
+            await unclaimSessionConnectionAsync(connection).ConfigureAwait(false);
+        }
+    }
+
+    private async Task disposeConnectionSafelyAsync(AdvisoryLockConnection connection)
     {
         try
         {
-            await handle.DisposeAsync().ConfigureAwait(false);
+            await connection.DisposeAsync().ConfigureAwait(false);
         }
         catch (InvalidOperationException)
         {
