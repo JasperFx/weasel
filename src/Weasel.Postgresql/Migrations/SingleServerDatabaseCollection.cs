@@ -229,6 +229,10 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
         e.SqlState == PostgresErrorCodes.DuplicateDatabase
         || (e.SqlState == PostgresErrorCodes.UniqueViolation && e.ConstraintName == "pg_database_datname_index");
 
+    // Read by keyword rather than through NpgsqlConnectionStringBuilder.Multiplexing. Weasel 9's Npgsql
+    // dependency is only a minimum, and Npgsql 11 removed that property, so reading it threw
+    // MissingMethodException there. Npgsql 11 has no multiplexing and does not know the keyword (weasel#912).
     private bool masterTakesSynchronousIo() =>
-        _masterTakesSynchronousIo ??= !new NpgsqlConnectionStringBuilder(_masterConnectionString).Multiplexing;
+        _masterTakesSynchronousIo ??= !(new NpgsqlConnectionStringBuilder(_masterConnectionString)
+            .TryGetValue("Multiplexing", out var multiplexing) && multiplexing is true);
 }

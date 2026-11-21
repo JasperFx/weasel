@@ -49,6 +49,10 @@ partial class Build
     Target TestPostgresql => _ => _.Executes(() =>
         RunSupervised("Weasel.Postgresql.Tests", workers: 4, isolation: PostgresLanes));
 
+    // weasel#910: the Postgres suite again, on Npgsql 11, which an application can take under Weasel 9.
+    // net10.0 only, like Npgsql 11. One worker on the configured database.
+    Target TestPostgresqlNpgsql11 => _ => _.Executes(() => RunSupervised("Weasel.Postgresql.Npgsql11.Tests"));
+
     Target TestSqlServer => _ => _.Executes(() =>
         RunSupervised("Weasel.SqlServer.Tests", workers: 4, isolation: SqlServerLanes));
 

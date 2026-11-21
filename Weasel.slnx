@@ -51,6 +51,7 @@
     <Project Path="src/Weasel.Oracle/Weasel.Oracle.csproj" />
   </Folder>
   <Folder Name="/PostgreSQL/">
+    <Project Path="src/Weasel.Postgresql.Npgsql11.Tests/Weasel.Postgresql.Npgsql11.Tests.csproj" />
     <Project Path="src/Weasel.Postgresql.Tests/Weasel.Postgresql.Tests.csproj" />
     <Project Path="src/Weasel.Postgresql/Weasel.Postgresql.csproj" />
   </Folder>
