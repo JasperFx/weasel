@@ -7,70 +7,61 @@ namespace Weasel.SqlServer.Tables;
 
 public partial class Table
 {
-    private static readonly string IntrospectionSql = @"
+    // Every statement below filters on the table's object id, resolved once by the wrapper, and names its
+    // columns, types and tables through the metadata functions (col_name, type_name, object_name,
+    // object_schema_name) rather than joining sys.tables, sys.schemas, sys.columns and sys.types again.
+    // Each of those catalog views expands into a join of system base tables of its own, and the plan for
+    // this batch is cached per database: in a database it had never run in, compiling the joined version
+    // cost 700-1,000 ms of CPU on SQL Server 2025 before the first row came back, and several seconds on a
+    // loaded server (weasel#905). The result sets, their columns and their order are what they were.
+    private static readonly string CatalogSql = @"
 -- Columns come from sys.columns rather than information_schema.columns because the latter exposes
 -- no is_identity, and reports length only in characters -- it cannot express decimal(18,2) or
--- datetime2(3) at all, so both read back as a bare type name.
+-- datetime2(3) at all, so both read back as a bare type name. A column's default is read through its
+-- default_object_id, but only when that is a default CONSTRAINT: a legacy CREATE DEFAULT object bound
+-- with sp_bindefault is not one, and was never read as a default.
 select
     c.name,
-    tp.name as type_name,
+    type_name(c.user_type_id) as type_name,
     c.max_length,
     c.precision,
     c.scale,
     c.is_nullable,
     c.is_identity,
-    dc.definition as default_definition
+    case when objectproperty(c.default_object_id, 'IsDefaultCnst') = 1
+        then object_definition(c.default_object_id) end as default_definition
 from sys.columns c
-    inner join sys.tables t on t.object_id = c.object_id
-    inner join sys.schemas s on s.schema_id = t.schema_id
-    inner join sys.types tp on tp.user_type_id = c.user_type_id
-    left join sys.default_constraints dc on dc.parent_object_id = c.object_id and dc.parent_column_id = c.column_id
-where s.name = @schema and t.name = @name
+where c.object_id = @id
 order by c.column_id;
 
 -- CONSTRAINT_COLUMN_USAGE cannot express key order, so the primary key comes from sys.index_columns
 -- via the backing index: key_ordinal is the declared order, which for a composite key is not
--- necessarily the table's column order.
+-- necessarily the table's column order. The backing index always carries the constraint's name
+-- (renaming either renames both), so sys.key_constraints is not joined for it.
 select
-    c.name as COLUMN_NAME,
-    kc.name as CONSTRAINT_NAME,
+    col_name(ic.object_id, ic.column_id) as COLUMN_NAME,
+    i.name as CONSTRAINT_NAME,
     i.type_desc
-from sys.key_constraints kc
-    inner join sys.tables t on t.object_id = kc.parent_object_id
-    inner join sys.schemas s on s.schema_id = t.schema_id
-    inner join sys.indexes i on i.object_id = kc.parent_object_id and i.index_id = kc.unique_index_id
+from sys.indexes i
     inner join sys.index_columns ic on ic.object_id = i.object_id and ic.index_id = i.index_id
-    inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
-where s.name = @schema and t.name = @name and kc.type = 'PK'
+where i.object_id = @id and i.is_primary_key = 1
 order by ic.key_ordinal;
 
-   select
-          parent.name as constraint_name,
-          fkt.name as referenced_table,
-          fks.name as referenced_schema,
-          c.name,
-          cfk.name as referenced_name,
-          parent.delete_referential_action_desc,
-          parent.update_referential_action_desc,
-          parent.is_disabled,
-          parent.is_not_for_replication,
-          parent.is_not_trusted
-
-   from sys.foreign_key_columns fk
-       inner join sys.foreign_keys parent on fk.constraint_object_id = parent.object_id
-       inner join sys.tables t on fk.parent_object_id = t.object_id
-       inner join sys.schemas s on t.schema_id = s.schema_id
-       inner join sys.tables fkt on fk.referenced_object_id = fkt.object_id
-       inner join sys.schemas fks on fkt.schema_id = fks.schema_id
-       inner join sys.columns c on fk.parent_object_id = c.object_id and fk.parent_column_id = c.column_id
-       inner join sys.columns cfk on fk.referenced_object_id = cfk.object_id and fk.referenced_column_id = cfk.column_id
-   where
-        s.name = @schema and
-        t.name = @name
-   order by parent.name, fk.constraint_column_id;
-
-
-
+select
+    parent.name as constraint_name,
+    object_name(fk.referenced_object_id) as referenced_table,
+    object_schema_name(fk.referenced_object_id) as referenced_schema,
+    col_name(fk.parent_object_id, fk.parent_column_id) as name,
+    col_name(fk.referenced_object_id, fk.referenced_column_id) as referenced_name,
+    parent.delete_referential_action_desc,
+    parent.update_referential_action_desc,
+    parent.is_disabled,
+    parent.is_not_for_replication,
+    parent.is_not_trusted
+from sys.foreign_key_columns fk
+    inner join sys.foreign_keys parent on parent.object_id = fk.constraint_object_id
+where fk.parent_object_id = @id
+order by parent.name, fk.constraint_column_id;
 
 select
     i.index_id,
@@ -80,13 +71,9 @@ select
     i.fill_factor,
     i.has_filter,
     i.filter_definition
-from
-    sys.indexes i
-    inner join sys.tables t on t.object_id = i.object_id
-    inner join sys.schemas s on s.schema_id = t.schema_id
+from sys.indexes i
 where
-    t.name = @name and
-    s.name = @schema and
+    i.object_id = @id and
     i.is_primary_key = 0 and
     -- A SQL Server 2025 JSON index IS in sys.indexes, but its sys.index_columns row carries
     -- key_ordinal = 0, which the column query below filters out. Read through here it would arrive
@@ -95,28 +82,21 @@ where
     -- has this type_desc before 2025.
     i.type_desc <> 'JSON';
 
-
 select
     ic.index_id,
-    c.name,
+    col_name(ic.object_id, ic.column_id) as name,
     ic.is_descending_key,
     ic.is_included_column
-
-from
-    sys.index_columns ic
-    inner join sys.tables t on t.object_id = ic.object_id
-    inner join sys.schemas s on s.schema_id = t.schema_id
-    inner join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
+from sys.index_columns ic
 where
-        t.name = @name and
-        s.name = @schema and
-        -- An index aligned with the table's partition scheme carries an implicit row for the
-        -- partitioning column: key_ordinal 0, is_included_column 0, partition_ordinal >= 1. It is
-        -- not a column the index declares, and reading it as one makes every aligned index compare
-        -- unequal to itself. Discriminating on partition_ordinal instead would be wrong the other
-        -- way: an aligned UNIQUE index is required to carry the partitioning column IN its key,
-        -- where it has both a key_ordinal and a partition_ordinal.
-        (ic.key_ordinal >= 1 or ic.is_included_column = 1)
+    ic.object_id = @id and
+    -- An index aligned with the table's partition scheme carries an implicit row for the
+    -- partitioning column: key_ordinal 0, is_included_column 0, partition_ordinal >= 1. It is
+    -- not a column the index declares, and reading it as one makes every aligned index compare
+    -- unequal to itself. Discriminating on partition_ordinal instead would be wrong the other
+    -- way: an aligned UNIQUE index is required to carry the partitioning column IN its key,
+    -- where it has both a key_ordinal and a partition_ordinal.
+    (ic.key_ordinal >= 1 or ic.is_included_column = 1)
 -- key_ordinal is the index's key order; index_column_id is just the column's position in the
 -- table. Ordering by the latter silently reorders a composite index -- (ProductId, Id) came back
 -- as (Id, ProductId), which is a different index. Included columns carry key_ordinal 0, so they
@@ -133,14 +113,12 @@ order by
 -- the same column shapes so the reader's result-set sequence is fixed regardless of version.
 if object_id('sys.json_indexes') is not null
     exec sp_executesql N'
-        select ji.index_id, ji.name, c.name as column_name, ji.fill_factor, ji.optimize_for_array_search
+        select ji.index_id, ji.name, col_name(ic.object_id, ic.column_id) as column_name, ji.fill_factor,
+               ji.optimize_for_array_search
         from sys.json_indexes ji
-            inner join sys.tables t on t.object_id = ji.object_id
-            inner join sys.schemas s on s.schema_id = t.schema_id
             left join sys.index_columns ic on ic.object_id = ji.object_id and ic.index_id = ji.index_id
-            left join sys.columns c on c.object_id = ic.object_id and c.column_id = ic.column_id
-        where t.name = @name and s.name = @schema;',
-        N'@name sysname, @schema sysname', @name = @name, @schema = @schema;
+        where ji.object_id = @id;',
+        N'@id int', @id = @id;
 else
     select cast(null as int) as index_id, cast(null as sysname) as name,
            cast(null as sysname) as column_name, cast(null as tinyint) as fill_factor,
@@ -151,77 +129,73 @@ if object_id('sys.json_index_paths') is not null
     exec sp_executesql N'
         select p.index_id, p.path
         from sys.json_index_paths p
-            inner join sys.tables t on t.object_id = p.object_id
-            inner join sys.schemas s on s.schema_id = t.schema_id
-        where t.name = @name and s.name = @schema
+        where p.object_id = @id
         order by p.index_id;',
-        N'@name sysname, @schema sysname', @name = @name, @schema = @schema;
+        N'@id int', @id = @id;
 else
     select cast(null as int) as index_id, cast(null as nvarchar(max)) as path
     where 1 = 0;
 
-
 select
     pf.name as partition_function,
     ps.name as partition_scheme,
-    pc.name as partition_column,
-    pt.name as partition_type,
+    col_name(icp.object_id, icp.column_id) as partition_column,
+    type_name(pp.user_type_id) as partition_type,
     pf.boundary_value_on_right,
     prv.value as boundary_value
-from sys.tables tbl
-    inner join sys.schemas sch on tbl.schema_id = sch.schema_id
-    inner join sys.indexes idx on tbl.object_id = idx.object_id and idx.index_id in (0, 1)
+from sys.indexes idx
     inner join sys.partition_schemes ps on idx.data_space_id = ps.data_space_id
     inner join sys.partition_functions pf on ps.function_id = pf.function_id
-    inner join sys.index_columns icp on icp.object_id = tbl.object_id and icp.index_id = idx.index_id and icp.partition_ordinal >= 1
-    inner join sys.columns pc on pc.object_id = tbl.object_id and pc.column_id = icp.column_id
+    inner join sys.index_columns icp on icp.object_id = idx.object_id and icp.index_id = idx.index_id and icp.partition_ordinal >= 1
     inner join sys.partition_parameters pp on pp.function_id = pf.function_id
-    inner join sys.types pt on pt.user_type_id = pp.user_type_id
     left join sys.partition_range_values prv on prv.function_id = pf.function_id
-where sch.name = @schema and tbl.name = @name
+where idx.object_id = @id and idx.index_id in (0, 1)
 order by prv.boundary_id;
 
 select cc.name, cc.definition
 from sys.check_constraints cc
-    inner join sys.tables t on t.object_id = cc.parent_object_id
-    inner join sys.schemas s on s.schema_id = t.schema_id
-where s.name = @schema and t.name = @name;
+where cc.parent_object_id = @id;
 
 select comp.name, comp.definition, comp.is_persisted
 from sys.computed_columns comp
-    inner join sys.tables t on t.object_id = comp.object_id
-    inner join sys.schemas s on s.schema_id = t.schema_id
-where s.name = @schema and t.name = @name;
+where comp.object_id = @id;
 
 -- The foreign keys on OTHER tables that reference this one. A primary key or a referenced column can be
 -- neither dropped nor retyped while one of these is in place, so a delta that changes the key has to take
 -- them down and put them back (weasel#870). A table's references to itself are in the result set above.
 select
     parent.name as constraint_name,
-    rt.name as referencing_table,
-    rs.name as referencing_schema,
-    c.name,
-    cfk.name as referenced_name,
+    object_name(fk.parent_object_id) as referencing_table,
+    object_schema_name(fk.parent_object_id) as referencing_schema,
+    col_name(fk.parent_object_id, fk.parent_column_id) as name,
+    col_name(fk.referenced_object_id, fk.referenced_column_id) as referenced_name,
     parent.delete_referential_action_desc,
     parent.update_referential_action_desc,
     parent.is_disabled,
     parent.is_not_for_replication,
     parent.is_not_trusted
 from sys.foreign_key_columns fk
-    inner join sys.foreign_keys parent on fk.constraint_object_id = parent.object_id
-    inner join sys.tables t on fk.referenced_object_id = t.object_id
-    inner join sys.schemas s on t.schema_id = s.schema_id
-    inner join sys.tables rt on fk.parent_object_id = rt.object_id
-    inner join sys.schemas rs on rt.schema_id = rs.schema_id
-    inner join sys.columns c on fk.parent_object_id = c.object_id and fk.parent_column_id = c.column_id
-    inner join sys.columns cfk on fk.referenced_object_id = cfk.object_id and fk.referenced_column_id = cfk.column_id
-where s.name = @schema and t.name = @name and fk.parent_object_id <> fk.referenced_object_id
-order by rs.name, rt.name, parent.name, fk.constraint_column_id;
+    inner join sys.foreign_keys parent on parent.object_id = fk.constraint_object_id
+where fk.referenced_object_id = @id and fk.parent_object_id <> fk.referenced_object_id
+order by referencing_schema, referencing_table, parent.name, fk.constraint_column_id;
+";
 
+    // The table is resolved by name exactly once. A table that does not exist answers with a null id and
+    // nothing else, so the catalog statements above are neither run nor even compiled in a database where
+    // none of the tables exist yet -- a new tenant or test database, which is where the compile hurt most.
+    // The catalog batch goes through sp_executesql of its own for that reason: a statement inside an IF
+    // branch is still compiled with its batch.
+    private static readonly string IntrospectionSql = $@"
+declare @id int = object_id(quotename(@schema) + N'.' + quotename(@name), N'U');
+select @id as object_id;
+if @id is not null
+    exec sp_executesql {unicodeLiteral(CatalogSql)}, N'@id int', @id = @id;
 ";
 
     private static readonly string IntrospectionStatement =
-        $"exec sp_executesql N'{IntrospectionSql.Replace("'", "''")}', N'@schema sysname, @name sysname'";
+        $"exec sp_executesql {unicodeLiteral(IntrospectionSql)}, N'@schema sysname, @name sysname'";
+
+    private static string unicodeLiteral(string sql) => $"N'{sql.Replace("'", "''")}'";
 
     public override void ConfigureQueryCommand(DbCommandBuilder builder)
     {
@@ -245,6 +219,15 @@ order by rs.name, rt.name, parent.name, fk.constraint_column_id;
 
     private async Task<Table?> readExistingAsync(DbDataReader reader, CancellationToken ct = default)
     {
+        // The first result set is the table's object id, null when there is no such table, in which case
+        // nothing else follows for it.
+        if (!await reader.ReadAsync(ct).ConfigureAwait(false) || await reader.IsDBNullAsync(0, ct).ConfigureAwait(false))
+        {
+            return null;
+        }
+
+        await reader.NextResultAsync(ct).ConfigureAwait(false);
+
         var existing = new Table(Identifier);
 
         await readColumnsAsync(reader, existing, ct).ConfigureAwait(false);
