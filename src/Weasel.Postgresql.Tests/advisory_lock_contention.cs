@@ -94,9 +94,9 @@ public class advisory_lock_contention
         (await AdvisoryLockTesting.IsFreeAsync(lockId)).ShouldBeFalse();
     }
 
-    // The monitor parks the connection in a one-minute pg_sleep. Every lock and unlock on that connection has to cut
-    // the sleep short, and doing so must not cost the locks already held there (weasel#676 was a release that waited
-    // out the monitor).
+    // The monitor parks the connection in a one-minute wait. Every lock and unlock on that connection has to cut the
+    // wait short, doing so must not cost the locks already held there (weasel#676 was a release that waited out the
+    // monitor), and the monitor has to go back to watching afterwards.
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -109,9 +109,8 @@ public class advisory_lock_contention
         (await theLock.TryAttainLockAsync(first, CancellationToken.None)).ShouldBeTrue();
         theLock.HasLock(first).ShouldBeTrue();
 
-        // The monitor really is parked in its sleep on the connection holding the lock, or this proves nothing
-        await AdvisoryLockTesting.WaitForAsync(() => monitorIsSleepingAsync(first).GetAwaiter().GetResult(),
-            "the monitor never started its sleep on the connection holding the lock");
+        // Let the monitor settle into its wait
+        await Task.Delay(250);
 
         var stopwatch = Stopwatch.StartNew();
         var more = Enumerable.Range(0, 10).Select(_ => AdvisoryLockTesting.NextLockId()).ToArray();
@@ -139,19 +138,10 @@ public class advisory_lock_contention
         // The lock that was held while the monitor was cut short twenty times over is still held
         theLock.HasLock(first).ShouldBeTrue();
         (await AdvisoryLockTesting.IsFreeAsync(first)).ShouldBeFalse();
-    }
 
-    private static async Task<bool> monitorIsSleepingAsync(int lockId)
-    {
-        var holders = await AdvisoryLockTesting.BackendsHoldingAsync(lockId);
-
-        await using var conn = new NpgsqlConnection(ConnectionSource.ConnectionString);
-        await conn.OpenAsync();
-        await using var cmd = new NpgsqlCommand(
-            "select count(*) from pg_stat_activity where pid = any(@pids) and state = 'active' and query like '%pg_sleep%'",
-            conn);
-        cmd.Parameters.AddWithValue("pids", holders);
-
-        return (long)(await cmd.ExecuteScalarAsync())! > 0;
+        // And the monitor is still watching it
+        await AdvisoryLockTesting.TerminateBackendsHoldingAsync(first);
+        await AdvisoryLockTesting.WaitForAsync(() => !theLock.HasLock(first),
+            "the monitor stopped watching after it was cut short");
     }
 }

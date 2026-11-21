@@ -77,9 +77,15 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     // point has provisioned the table.
     private volatile bool _synchronousProvisioningRefused;
 
-    // weasel#838: whether the control-plane data source takes synchronous I/O. Null until first
-    // asked; false once it has refused (Npgsql with Multiplexing=true).
-    private bool? _synchronousReads;
+    // weasel#838: whether the control-plane data source takes synchronous I/O. Unknown until first
+    // asked; Refused once it has refused (Npgsql with Multiplexing=true). An int written with
+    // Interlocked rather than a bool?: a bool? is two fields, and a caller racing the first one to ask
+    // could read it half-written, HasValue set with Value still false, and decline a tenant it
+    // should have resolved (weasel#907's gate caught a_burst_of_cold_callers doing it).
+    private const int SynchronousReadsUnknown = 0;
+    private const int SynchronousReadsSupported = 1;
+    private const int SynchronousReadsRefused = 2;
+    private int _synchronousReads = SynchronousReadsUnknown;
 
     /// <param name="options">
     /// The shared options — master connection string or data source, schema name, application name,
@@ -659,7 +665,7 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
         {
             // Npgsql's "Synchronous command execution is not supported when multiplexing is on",
             // for a data source whose connection string did not say so where it could be read.
-            _synchronousReads = false;
+            Volatile.Write(ref _synchronousReads, SynchronousReadsRefused);
             return false;
         }
 
@@ -775,7 +781,20 @@ public abstract class MasterTableTenancyBase<TDatabase, TDataSource>:
     /// </remarks>
     protected virtual bool TryProvisionControlTableSynchronously() => false;
 
-    private bool canReadSynchronously() => _synchronousReads ??= SupportsSynchronousControlTableReads;
+    private bool canReadSynchronously()
+    {
+        var state = Volatile.Read(ref _synchronousReads);
+        if (state == SynchronousReadsUnknown)
+        {
+            var asked = SupportsSynchronousControlTableReads ? SynchronousReadsSupported : SynchronousReadsRefused;
+
+            // The first answer wins; a refusal recorded meanwhile by a failed read stands
+            state = Interlocked.CompareExchange(ref _synchronousReads, asked, SynchronousReadsUnknown);
+            if (state == SynchronousReadsUnknown) state = asked;
+        }
+
+        return state == SynchronousReadsSupported;
+    }
 
     // weasel#850: the synchronous counterpart of ensureControlTableAsync, publishing the same flag.
     private bool ensureControlTableSynchronously()
