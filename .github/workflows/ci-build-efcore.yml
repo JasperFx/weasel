@@ -9,7 +9,7 @@ on:
 # A re-pushed pull request branch supersedes its predecessor, so cancel the older run instead of
 # letting it hold a slot (weasel#611). JasperFx is on the Free org plan, where the concurrent-job
 # ceiling is shared across every repo, so a superseded weasel run is a slot marten, wolverine or
-# fisher does not get -- and one commit here is 22 jobs across the eight workflows.
+# fisher does not get -- and one commit here is 20 jobs across the eight workflows.
 #
 # Two deliberate choices, neither of them boilerplate:
 #   - cancel-in-progress is conditional rather than true. On a pull request the older run really is
@@ -38,7 +38,7 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-    # Oracle takes several minutes to become healthy on every leg
+    # Oracle takes several minutes to become healthy on the net10.0 leg
     timeout-minutes: 45
 
     strategy:
@@ -80,9 +80,9 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
-      # Both frameworks: the Firebird EF provider has a release for EF Core 9 and for EF Core 10.
-      # The suite connects to localhost:3065 (docker-compose's firebird5) and creates its own
-      # database file; see ci-build-firebird.yml for the health check.
+      # Both frameworks: the Firebird EF provider has a release for EF Core 10 (13.x, net10.0) and
+      # for EF Core 11 (14.x, net11.0). The suite connects to localhost:3065 (docker-compose's
+      # firebird5) and creates its own database file; see ci-build-firebird.yml for the health check.
       firebird:
         image: firebirdsql/firebird:5
         ports:
@@ -103,8 +103,11 @@ jobs:
     # Oracle needs the init SQL in docker/oracle mounted to grant the weasel user
     # its schema privileges, which a GitHub service container cannot do - so it
     # comes up through docker compose, the same way ci-build-oracle.yml does it.
-    # Every leg needs it: Oracle.EntityFrameworkCore 10 supports net10.0 and net11.0 alike.
+    # net10.0 only: Oracle has no EF Core 11 provider yet, so the Oracle EF tests are compiled out
+    # of the net11.0 build (weasel#909). Starting it there only spent minutes waiting on a server
+    # no test touched.
     - name: Start Oracle via docker-compose
+      if: matrix.framework == 'net10.0'
       run: docker compose up -d oracle
 
     - name: Install .NET
@@ -123,13 +126,14 @@ jobs:
     # Waiting here rather than straight after `up -d` lets Oracle warm up during
     # the SDK install, restore and build.
     - name: Wait for Oracle to be healthy
+      if: matrix.framework == 'net10.0'
       run: |
         echo "Waiting for Oracle to be ready..."
         timeout 300 bash -c 'until docker compose exec -T oracle healthcheck.sh; do sleep 10; done'
         echo "Oracle is ready"
 
     # No test filter: the MySql suite is compiled out of every build (Pomelo has no EF Core 10
-    # release yet), so each framework runs everything it actually built.
+    # release yet) and the Oracle suite out of net11.0, so each framework runs everything it built.
     # The ledger the supervisor balances lanes with, from the newest successful master run of this
     # workflow (bobcat#730: the ledger travels as a CI artifact, nothing is committed). Missing is
     # fine: the first run, or a new matrix leg, balances by test count.
@@ -163,5 +167,5 @@ jobs:
         if-no-files-found: ignore
 
     - name: Stop Oracle
-      if: always()
+      if: always() && matrix.framework == 'net10.0'
       run: docker compose down
