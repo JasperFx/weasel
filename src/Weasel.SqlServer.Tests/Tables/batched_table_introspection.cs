@@ -152,24 +152,49 @@ public class batched_table_introspection: IntegrationContext
         {
             var table = new Table($"batched_intro.many{i}");
             table.AddColumn<int>("id").AsPrimaryKey();
-            return (ISchemaObject)table;
+            return table;
         }).ToArray();
 
-        var before = await introspectionPlanUseCount();
-        await SchemaMigration.DetermineAsync(theConnection, tables);
-        var after = await introspectionPlanUseCount();
+        // The tables have to exist: a missing table is answered by the wrapper alone, and never runs (or
+        // compiles) the catalog reads this is about.
+        foreach (var table in tables)
+        {
+            await CreateSchemaObjectInDatabase(table);
+        }
 
-        (after - before).ShouldBeGreaterThanOrEqualTo(tables.Length);
+        var before = await catalogReadPlanUseCounts();
+        await SchemaMigration.DetermineAsync(theConnection, tables.Cast<ISchemaObject>().ToArray());
+        var after = await catalogReadPlanUseCounts();
+
+        // One cached plan served every table. Twelve plans used once each would sum to twelve too, so this
+        // looks for a single plan whose use count went up by at least that much.
+        var mostUsesOfOnePlan = after
+            .Select(x => x.Value - before.GetValueOrDefault(x.Key))
+            .DefaultIfEmpty(0)
+            .Max();
+
+        mostUsesOfOnePlan.ShouldBeGreaterThanOrEqualTo(tables.Length);
     }
 
-    private async Task<long> introspectionPlanUseCount()
+    /// <summary>
+    ///     Use counts of the cached plans for the catalog reads in this database, by plan handle. The small
+    ///     wrapper that resolves the table's name to its id is not one of them: its text carries theirs as a
+    ///     literal, but it is a zero-cost batch that SQL Server compiles on every call and never caches (on
+    ///     2019, 2022 and 2025 alike), so matching it reads nothing at all.
+    /// </summary>
+    private async Task<Dictionary<string, long>> catalogReadPlanUseCounts()
     {
-        var count = await theConnection.CreateCommand("""
-            select isnull(sum(cast(cp.usecounts as bigint)), 0)
+        await using var cmd = theConnection.CreateCommand("""
+            select convert(varchar(130), cp.plan_handle, 1), cast(cp.usecounts as bigint)
             from sys.dm_exec_cached_plans cp
                 cross apply sys.dm_exec_sql_text(cp.plan_handle) st
-            where st.text like '(@schema sysname, @name sysname)%from sys.computed_columns comp%'
-            """).ExecuteScalarAsync();
-        return (long)count!;
+            where st.dbid = db_id()
+                and st.text like N'(@id int)%from sys.computed_columns comp%'
+            """);
+
+        var counts = new Dictionary<string, long>();
+        await using var reader = await cmd.ExecuteReaderAsync();
+        while (await reader.ReadAsync()) counts[reader.GetString(0)] = reader.GetInt64(1);
+        return counts;
     }
 }
