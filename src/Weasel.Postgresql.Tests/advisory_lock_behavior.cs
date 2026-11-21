@@ -347,6 +347,25 @@ internal static class AdvisoryLockTesting
         await using var cmd = new NpgsqlCommand("select pg_terminate_backend(pid) from unnest(@pids) as pid", conn);
         cmd.Parameters.AddWithValue("pids", pids);
         await cmd.ExecuteNonQueryAsync();
+
+        // pg_terminate_backend only sends the signal, and a backend's locks go when it exits. A test that takes
+        // the lock straight afterwards raced that exit (weasel#913), so wait until the backends are gone.
+        await using var remaining = new NpgsqlCommand(
+            "select (select count(*) from pg_stat_activity where pid = any(@pids)) " +
+            "+ (select count(*) from pg_locks where pid = any(@pids))", conn);
+        remaining.Parameters.AddWithValue("pids", pids);
+
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while ((long)(await remaining.ExecuteScalarAsync())! > 0)
+        {
+            if (DateTime.UtcNow > deadline)
+            {
+                throw new TimeoutException(
+                    $"Backends {string.Join(", ", pids)} were still running 10 seconds after pg_terminate_backend");
+            }
+
+            await Task.Delay(20);
+        }
     }
 
     public static async Task WaitForAsync(Func<bool> condition, string failureMessage)
