@@ -3,14 +3,15 @@
 Weasel 10.0 ships with the **Critter Stack .NET 11 release train**: JasperFx 3.0, Weasel 10.0, Marten 10.0,
 Polecat 6.0, Fisher 2.0, Wolverine 7.0 and CritterWatch 2.0 all move to `net10.0;net11.0` together. For Weasel
 itself there is no large API rewrite; the work is the target framework floor, newer driver majors, one
-newly shipped storage family, and one obsolete method.
+newly shipped storage family, one obsolete method, and a set of schema migration fixes that change what a
+migration does on SQL Server and on partitioned PostgreSQL tables.
 
 ## At a glance
 
 | Theme | Effort |
 | --- | --- |
 | `net9.0` dropped; targets are `net10.0` and `net11.0` | Move your application to `net10.0` or later |
-| `JasperFx` / `JasperFx.Events` 3.0 | Pin bump (move the rest of the Critter Stack with it) |
+| `JasperFx` / `JasperFx.Events` 3.x, 3.12.1 or later | Pin bump (move the rest of the Critter Stack with it) |
 | `Npgsql` 11 on both frameworks, `Microsoft.Data.SqlClient` 7, `Oracle.ManagedDataAccess.Core` 23.26, `MySqlConnector` 3.0 | Pin bump; read the driver release notes |
 | `Weasel.EntityFrameworkCore` uses EF Core 10 on `net10.0` and EF Core 11 on `net11.0` | Pin bump. Oracle's EF provider has no EF Core 11 release yet |
 | `AdvisoryLock` takes its PostgreSQL advisory locks itself; `Patched.DistributedLock.Postgres` is gone ([weasel#908](https://github.com/JasperFx/weasel/issues/908)) | None; same API and behaviour |
@@ -23,6 +24,11 @@ newly shipped storage family, and one obsolete method.
 | Sequential `Guid` ids come from JasperFx's `SequentialGuid`, not `Guid.CreateVersion7()` | None for PostgreSQL; a SQL Server store passes `SequentialGuid.SqlServerOrder` |
 | MySQL tests for the EF Core bridge are compiled out, and Oracle's on `net11.0` | No library change; Pomelo has no EF Core 10 release, Oracle no EF Core 11 one |
 | `net11.0` assemblies are compiled with runtime-async | None; opt out with `-p:WeaselRuntimeAsync=false` when building Weasel from source |
+| SQL Server migrations move a table onto RANGE partitioning in place, change key columns across foreign keys, and fill NULLs before a column becomes NOT NULL | None, but read [Schema migrations](#schema-migrations) before a migration runs against data you care about |
+| PostgreSQL partitioning rebuilds lock the table and run in a transaction | None |
+| `CREATE DATABASE` and extension installs run under `ProvisioningCommandTimeout` (two minutes) | None, unless you counted on the connection's command timeout there |
+| `MasterTableTenancyBase` evicts tenants another node removed or disabled, and tells a disabled tenant from an unknown one | None; the default refusal is still `UnknownTenantIdException` |
+| `OperationBatchExecutor` drains every result set, so an error the reader used to swallow now throws | None, unless you build a store on `Weasel.Storage` |
 
 ## Target frameworks
 
@@ -54,11 +60,22 @@ below what Weasel, Npgsql and JasperFx ask for, or restore fails with `NU1605` (
 | `Microsoft.Data.SqlClient` | `6.1.x` | `7.1.x` |
 | `MySqlConnector` | `2.x` | `3.0.x` |
 | `Oracle.ManagedDataAccess.Core` | `23.7.x` | `23.26.x` |
-| `Microsoft.Data.Sqlite` | `9.x` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
-| `Microsoft.EntityFrameworkCore.Relational` / `.SqlServer` | `9.x` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
-| `Npgsql.EntityFrameworkCore.PostgreSQL` | `9.x` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
-| `Oracle.EntityFrameworkCore` | not part of the EF Core bridge's suite on `net9.0` | `10.23.x`, on `net10.0` only |
+| `Microsoft.Data.Sqlite` | `10.0.x` on both frameworks | `10.0.15` or later on `net10.0`, `11.0.x` on `net11.0` |
+| `Microsoft.EntityFrameworkCore.Relational` | `9.0.x` on `net9.0`, `10.0.x` on `net10.0` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
+| `System.Security.Cryptography.Pkcs` (`Weasel.SqlServer`, `Weasel.Oracle`) | patched floor, `9.0.21` / `10.0.13` | removed; the drivers bring a patched one |
 | `Patched.DistributedLock.Postgres` | `1.3.x` | removed |
+
+`Weasel.EntityFrameworkCore` itself depends only on `Microsoft.EntityFrameworkCore.Relational`. The EF Core
+providers below are what its test suite runs against, so they are the versions Weasel is known to work with,
+not package dependencies:
+
+| Provider | 9.x | 10.0 |
+| --- | --- | --- |
+| `Microsoft.EntityFrameworkCore.SqlServer` | `9.0.x` on `net9.0`, `10.0.x` on `net10.0` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
+| `Npgsql.EntityFrameworkCore.PostgreSQL` | `9.0.x` on `net9.0`, `10.0.x` on `net10.0` | `10.0.x` on `net10.0`, `11.0.x` on `net11.0` |
+| `FirebirdSql.EntityFrameworkCore.Firebird` | `12.0.x` on `net9.0`, `13.0.x` on `net10.0` | `13.0.x` on `net10.0`, `14.0.x` on `net11.0` |
+| `Oracle.EntityFrameworkCore` | `9.23.x`, on `net9.0` only | `10.23.x`, on `net10.0` only |
+| `Pomelo.EntityFrameworkCore.MySql` | `9.0.0-preview.2`, on `net9.0` only | not tested (no EF Core 10 release) |
 
 Weasel's packages are versioned together: bump every `Weasel.*` package your application references in one
 change, and do not mix Weasel 10.0 with the Marten, Polecat, Fisher or Wolverine majors of the previous wave.
@@ -104,7 +121,8 @@ reach your own code, such as `VARBINARY(16)` columns no longer read as `Guid` wi
 
 `Oracle.ManagedDataAccess.Core` moves to 23.26. With `net9.0` gone, Oracle builds on the same two frameworks as
 every other provider and the `Weasel.Oracle` package no longer carries a per-framework reference split.
-`Oracle.EntityFrameworkCore` 10 is now supported by the EF Core bridge on `net10.0`, and its tests run in the gate.
+In 9.x the EF Core bridge was only tested with Oracle on `net9.0`. In 10.0 it is tested with
+`Oracle.EntityFrameworkCore` 10 on `net10.0`.
 
 ### EF Core 10 and 11
 
@@ -228,6 +246,40 @@ truncation. Build it with `ClosedShapeDocumentProviderFactory.BuildSubClass` or 
 derive it. By default a sub-class truncate empties the **whole hierarchy's table**: answer `TruncateSql` if a
 sub-class truncate must leave sibling rows alone.
 
+### The rest of the shared storage code
+
+Weasel 10 also takes in code Marten, Polecat and Fisher each carried a copy of. All of it is additive:
+
+- The storage helpers ([weasel#741](https://github.com/JasperFx/weasel/issues/741)): `StorageCastingSelector`,
+  `StorageVersionTracker`, `StorageChangeSet`, `DirtyTrackingSweep`, `OperationBatchExecutor` with
+  `ResultSetWalk`, `QueuedSqlOperation`, `WhereStorageOperation`, `ConnectionClosingDataReader` and
+  `ForeignKeyOrdering`.
+- Event reading and appending ([weasel#743](https://github.com/JasperFx/weasel/issues/743)): `EventRowReaderBase`,
+  `PerEventQuickAppendOperationBase`, and upcast source aliases plus the `Archived` and `Compacted<T>` markers
+  on `EventTypeAllowList`.
+- Union members ([weasel#744](https://github.com/JasperFx/weasel/issues/744)): `IUnionSqlDialect`, with
+  PostgreSQL, SQL Server and SQLite implementations, for querying a member typed as a C# union.
+- Document metadata ([weasel#745](https://github.com/JasperFx/weasel/issues/745)): `DocumentMetadataColumns`,
+  `MetadataConfig<T>` and `DocumentBinderPlan<TDoc>`, with a new `DocumentStorageDescriptor` constructor that
+  takes the plan.
+- An `IEventPagingDialect` must now render an event type allow list of **any** length in one statement, by
+  binding the list as a single parameter ([weasel#846](https://github.com/JasperFx/weasel/issues/846)). On
+  SQL Server that is `openjson(@types)` with a typed `with` clause; one parameter per name fails past SQL
+  Server's 2,100 parameter limit.
+
+### `OperationBatchExecutor` drains the batch
+
+`OperationBatchExecutor` now reads every result set in a batch to the end
+([weasel#810](https://github.com/JasperFx/weasel/issues/810)). Before, a statement behind a result set the walk
+never advanced past lost its error: SQL Server and Microsoft.Data.Sqlite swallowed it when the reader was
+disposed, and Npgsql threw it from the disposal, past the exception transforms. That error now surfaces.
+
+Also new: `IStorageOperationWrapper`, so an operation that wraps another can expose it; an
+`OperationBatchOptions` overload that throws `SurplusResultSetsException` when a batch returns more result
+sets than its operations expect; and `IOperationBatchListener`, a per-command hook (before, success, failure
+with the raw provider exception) reached through `OperationBatchOptions.Listener`. No existing interface gained
+a member.
+
 ## Asynchronous Hi-Lo ids
 
 `ISequence` gains `ValueTask<long> NextLongAsync(CancellationToken)` and `ValueTask<int> NextIntAsync(CancellationToken)`
@@ -284,10 +336,137 @@ New ids sort after `Guid.CreateVersion7()` ids written earlier in PostgreSQL ord
 appending at the end of its primary key index. The `mt_version` values in `Weasel.Storage` come from
 `SequentialGuid.NextPostgresOrder()` instead of the obsolete `CombGuidIdGeneration.NewGuid()`.
 
+## Schema migrations
+
+None of these need a code change, but a migration that failed or was refused in 9.x may now run, and one
+that ran may now run differently. Look at the generated script (`db-patch`) before you apply a migration
+to a database whose data you care about.
+
+### SQL Server
+
+- **Turning on RANGE partitioning for a table that already has rows moves it in place.** In 9.x that delta
+  was invalid, so `AutoCreate.CreateOrUpdate` refused it and `AutoCreate.All` dropped the table and every row
+  in it. Now the clustered primary key is rebuilt on the partition scheme, which moves the rows where they
+  are. Foreign keys from other tables in the migration come off first and go back afterwards. The delta is
+  still reported as invalid, so `AutoCreate.CreateOnly` still refuses it.
+- **A key column's type change migrates across foreign keys on other tables**
+  ([weasel#870](https://github.com/JasperFx/weasel/issues/870)). Table introspection now also reads the
+  foreign keys on other tables that reference a table (`Table.ReferencingForeignKeys`). The delta drops the
+  ones in its way and puts them back at the end, once the column types on both sides match. When one
+  migration changes a primary key and, on another table, the foreign key that references it, the key is left
+  to that other table's delta ([weasel#886](https://github.com/JasperFx/weasel/issues/886)).
+- **A column changed to NOT NULL has its existing NULLs filled first.** With `DetectColumnDrift` on, the new
+  default is set, existing NULL rows are filled with it, and then the column is altered. Without a default
+  there is nothing to fill them with, so the patch stops with a message naming the column. In 9.x it failed
+  with error 515.
+- **A column type change works on a column with a default.** The actual default constraint is dropped, the
+  type changed, and the model's default added back.
+- **Foreign key, primary key and trigger state is read back faithfully.** `ForeignKey.IsDisabled`,
+  `IsNotForReplication` and `IsNotTrusted`, `Table.PrimaryKeyIsClustered` and `Trigger.IsDisabled` are new.
+  Each is compared only when your model sets it, so an existing model sees no new drift. Pinning
+  `IsNotTrusted = false` on a disabled or NOT FOR REPLICATION key now throws, since SQL Server always keeps
+  those untrusted and the migration could never converge.
+- **`Trigger.IgnoreHeaderSpelling`** compares a stored trigger's header by meaning (name, target, timing,
+  events and body) instead of by text, so a trigger written with `FOR`, brackets or a different event order
+  stops reporting drift. It is off by default.
+- **Generated scripts re-run.** On top of the guards in [the list below](#behavior-and-build-changes-that-need-no-code),
+  `CREATE TABLE` guards look for a table (`'U'`) by an `N''` name, a JSON index guard checks its own column,
+  and partition `SPLIT RANGE` and `MERGE RANGE` check the boundary first.
+- **`ManagedTenantPartitions.SplitCommandTimeout`** gives a `SPLIT RANGE` its own command timeout
+  ([weasel#877](https://github.com/JasperFx/weasel/issues/877)). It is `null` by default, which keeps the
+  connection's.
+- A function whose body ends in a newline no longer reports drift against itself.
+
+### PostgreSQL
+
+- **A partitioning rebuild locks the table first** ([weasel#882](https://github.com/JasperFx/weasel/issues/882))
+  and makes no index or primary key changes against the old table
+  ([weasel#871](https://github.com/JasperFx/weasel/issues/871)). In 9.x a row another connection had inserted
+  but not committed could be missed by the copy and dropped with the old table. The lock needs a transaction,
+  so a migration with a rebuild, applied through `PostgresqlMigrator`, runs each command except a concurrent
+  index build in its own `BEGIN`/`COMMIT`. A custom `TableDelta` that writes its own transaction can ask
+  `PostgresqlMigrator.RunsInOneTransaction(writer)` whether it is already inside one
+  ([weasel#888](https://github.com/JasperFx/weasel/issues/888)).
+- **A primary key change no longer adds a foreign key twice** when another table's delta in the same
+  migration rewrites that key ([weasel#883](https://github.com/JasperFx/weasel/issues/883)). A rebuild that
+  drops a table with `CASCADE` puts back the foreign keys from other tables, even when its own key stays the
+  same.
+- `IndexDefinition.Parse` reads `ON ONLY` and compares `USING` exactly
+  ([weasel#869](https://github.com/JasperFx/weasel/issues/869)).
+
+### Managed partitions (both)
+
+- `ManagedTenantPartitions` (SQL Server) and `ManagedListPartitions` (PostgreSQL) remove data from the
+  referencing tables first ([weasel#890](https://github.com/JasperFx/weasel/issues/890)). In 9.x a referenced
+  table came first and its foreign keys refused the delete or detach.
+- `ManagedListPartitions` on a table a foreign key references, its own included: removing one value from a
+  shared partition deletes that value's rows and leaves the bound as it is
+  ([weasel#891](https://github.com/JasperFx/weasel/issues/891)), and PostgreSQL 17's self-referencing case
+  is handled ([weasel#895](https://github.com/JasperFx/weasel/issues/895)). Adding a value an existing
+  partition still covers puts it back in that partition, with a warning that the requested suffix was
+  ignored, or throws `InvalidOperationException` before changing anything when that can't be done
+  consistently ([weasel#896](https://github.com/JasperFx/weasel/issues/896)).
+  `DropPartitionFromAllTables` also removes the values from the in-memory map
+  ([weasel#892](https://github.com/JasperFx/weasel/issues/892)).
+
+### Provisioning timeouts
+
+`CREATE DATABASE`, the matching drop and session kill, Oracle's `CREATE USER`, and PostgreSQL extension
+installs now run under a provisioning timeout of their own, two minutes by default, instead of the
+connection's command timeout ([weasel#875](https://github.com/JasperFx/weasel/issues/875)). A longer or
+unlimited connection timeout is kept. Set `Migrator.ProvisioningCommandTimeout` or
+`SingleServerDatabaseCollection<T>.ProvisioningCommandTimeout` to change it. PostgreSQL extension installs
+now run as a command of their own in a migration.
+
+`SingleServerDatabaseCollection.DropAndRecreate` used to drop the database and never create it again. It
+now creates it again.
+
+## Master table tenancy
+
+`MasterTableTenancyBase` changes in four ways, all additive by default:
+
+- **Stale tenants are evicted on refresh** ([weasel#809](https://github.com/JasperFx/weasel/issues/809)).
+  `BuildDatabasesAsync` now evicts a cached tenant the control table no longer lists as enabled, because
+  another node removed or disabled it, through the new `protected virtual EvictStaleTenantAsync` (default:
+  evict and dispose). `ITenantedSource.RefreshAsync` relies on that instead of disposing every live tenant
+  database first. `EvictTenantAsync` exposes eviction to a derived store.
+- **Disabled and unknown tenants can be told apart.** `LookupTenantAsync` and `ResolveTenantAsync` report a
+  `MasterTenantStatus` of `Unknown`, `Disabled` or `Enabled`. The `protected virtual CreateTenantRefusal`
+  picks the exception, and the default is still `UnknownTenantIdException` for both.
+- **Synchronous resolution** through `TryResolveTenant` and `TryProvisionControlTableSynchronously`, in the
+  table at the top. `SupportsSynchronousControlTableReads` now defaults to `true`, since Npgsql 11 has no
+  multiplexing to refuse synchronous I/O.
+- **Dialects.** `IMasterTenantTableDialect` gains `SelectTenantRow`, defaulted to `null` (the base then reads
+  twice). `PostgresqlMasterTenantTableDialect` (Marten's `mt_tenant_databases` shape) and
+  `SqlServerMasterTenantTableDialect` (Polecat's `pc_tenants` shape) are new and render it.
+
+`SingleServerDatabaseCollection.FindOrCreateDatabaseSynchronously` finds or creates a tenant database over a
+synchronous connection, so a store's synchronous lookup no longer blocks a thread on the asynchronous one
+([weasel#839](https://github.com/JasperFx/weasel/issues/839), also in 9.51).
+
 ## Behavior and build changes that need no code
 
 - Several static regular expressions are now source-generated (internal performance work).
-- The SQL Server table introspection query reuses one compiled plan.
+- SQL Server table introspection reuses one compiled plan, compiles in about a tenth of the time, and
+  compiles nothing at all for a table that does not exist yet
+  ([weasel#905](https://github.com/JasperFx/weasel/issues/905)). Its result sets are unchanged.
+- `TryGetDbType` on every provider returns `null` for an unmapped generic, nullable or collection type such as
+  `List<int>` on SQL Server, where it used to throw `NotSupportedException`
+  ([weasel#826](https://github.com/JasperFx/weasel/issues/826)). `ToParameterType` still throws for an unmapped
+  type, and its message now names the type you asked about. Parameter-type lookups no longer allocate on a
+  cache hit, and PostgreSQL remembers a type Npgsql has no mapping for
+  ([weasel#804](https://github.com/JasperFx/weasel/issues/804)).
+- SQL Server's reserved-word check is a hash lookup for printable ASCII names, with the same answers
+  ([weasel#825](https://github.com/JasperFx/weasel/issues/825)).
+- `ISerializer` gains `FromJson<T>(string)` and `FromJson(Type, string)`, implemented by default through the
+  `Stream` overloads, so a serializer compiled against 9.x still loads.
+- `db-patch` and `db-dump` create a missing output directory, including a one-level relative one
+  ([weasel#813](https://github.com/JasperFx/weasel/issues/813), also in 9.50.2).
+- `SqliteFunctionRegistry.AddCollation` registers a collation on every connection, like a function
+  ([weasel#861](https://github.com/JasperFx/weasel/issues/861)).
+- Reading a JSON column on SQLite never calls `GetStream`, which could crash the process with a SIGSEGV on a
+  computed column ([weasel#863](https://github.com/JasperFx/weasel/issues/863)).
+- Firebird retries a `CREATE OR ALTER` that lost a race to another rewrite with "BLOB not found".
 - Rendered SQL Server update and rollback scripts re-run cleanly, extending what 9.35 did for creation:
   column adds are guarded by `COL_LENGTH`, primary key and check constraint adds by `OBJECT_ID`, and column,
   primary key and table type drops use `IF EXISTS`. `TableColumn.AddColumnSql` now returns two lines, the
@@ -337,12 +516,13 @@ appending at the end of its primary key index. The `mt_version` values in `Wease
 
 | Weasel | JasperFx | JasperFx.Events | Marten | Polecat | Fisher | Wolverine |
 | --- | --- | --- | --- | --- | --- | --- |
-| 10.0 | 3.0 | 3.0 | 10.0 | 6.0 | 2.0 | 7.0 |
+| 10.0 | 3.x (3.12.1 or later) | 3.x (3.12.1 or later) | 10.0 | 6.0 | 2.0 | 7.0 |
 
 Mixing majors across products is unsupported in this wave.
 
 ## References
 
+- [Weasel 10.0 release notes](/release-10-0)
 - [Migrating from 8.x to 9.0](/migration-guide)
 - [Provider Trait Matrix](/core/provider-trait-matrix)
 - [Weasel 10.0 migration guide tracking issue](https://github.com/JasperFx/weasel/issues/746)
