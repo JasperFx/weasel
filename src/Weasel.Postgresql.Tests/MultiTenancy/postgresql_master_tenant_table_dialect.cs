@@ -200,6 +200,9 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
         nobody.ShouldBe(new MasterTenantResolution<TestDatabase>(MasterTenantStatus.Unknown, null));
     }
 
+    // Npgsql 11 (net11.0) removed multiplexing and rejects the Multiplexing keyword, so this scenario
+    // only exists on net10.0 with Npgsql 10 (weasel#907).
+#if !NET11_0_OR_GREATER
     [Fact]
     public async Task a_multiplexing_data_source_hands_resolution_back_to_the_asynchronous_path()
     {
@@ -233,6 +236,7 @@ public class postgresql_master_tenant_table_dialect: IntegrationContext
         tenancy.TryResolveTenant("red", out _).ShouldBeFalse();
         tenancy.SynchronousReadAttempts.ShouldBe(1, "the refusal is remembered");
     }
+#endif
 
     [Fact]
     public void the_qualified_name_quotes_what_needs_quoting()

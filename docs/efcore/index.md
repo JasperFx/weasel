@@ -14,6 +14,8 @@ dotnet add package Weasel.EntityFrameworkCore
 
 The package depends on `Weasel.Core` and `Microsoft.EntityFrameworkCore.Relational`. You still need a database-specific Weasel package (e.g., `Weasel.Postgresql` or `Weasel.SqlServer`) for the `Migrator` implementation.
 
+The `net10.0` build uses EF Core 10 and the `net11.0` build uses EF Core 11, so use the EF Core provider release that matches your target framework. Oracle has no EF Core 11 provider yet, so Oracle's EF provider works with Weasel on `net10.0` only for now.
+
 ## Use Cases
 
 **Marten + EF Core side by side** -- When your application uses [Marten](https://martendb.io) for document storage and EF Core for relational entities, both systems can share Weasel's schema management. Marten already uses Weasel internally, so adding the EF Core integration unifies all schema migrations under one tool.

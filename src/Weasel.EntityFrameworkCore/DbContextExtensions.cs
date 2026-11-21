@@ -672,8 +672,10 @@ public static class DbContextExtensions
             var name = index.GetDatabaseName(storeObjectIdentifier);
             if (name == null || !addedIndexes.Add(name)) continue;
 
+            // EF Core 11 types index members as IPropertyBase (an index can name a complex property);
+            // only scalar properties map to a column here, so anything else drops the index below.
             var columnNames = index.Properties
-                .Select(p => p.GetColumnName(storeObjectIdentifier))
+                .Select(p => p is IProperty property ? property.GetColumnName(storeObjectIdentifier) : null)
                 .Where(c => c != null)
                 .Cast<string>()
                 .ToArray();

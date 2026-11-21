@@ -70,8 +70,6 @@ jobs:
         dotnet-version: |
             10.0.x
             11.0.x
-        # .NET 11 is a release candidate until November
-        dotnet-quality: preview
 
     - name: Restore dependencies
       run: dotnet restore
