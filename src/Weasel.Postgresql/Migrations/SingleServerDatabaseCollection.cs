@@ -31,7 +31,9 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
     private readonly Lock _publish = new();
 
     private ImHashMap<string, T> _databases = ImHashMap<string, T>.Empty;
+#if !NET11_0_OR_GREATER
     private bool? _masterTakesSynchronousIo;
+#endif
 
     protected SingleServerDatabaseCollection(INpgsqlDataSourceFactory dataSourceFactory, string masterConnectionString)
     {
@@ -252,6 +254,11 @@ public abstract class SingleServerDatabaseCollection<T> where T : PostgresqlData
         e.SqlState == PostgresErrorCodes.DuplicateDatabase
         || (e.SqlState == PostgresErrorCodes.UniqueViolation && e.ConstraintName == "pg_database_datname_index");
 
+#if NET11_0_OR_GREATER
+    // Npgsql 11 (net11.0) removed multiplexing, so every master takes synchronous I/O.
+    private bool masterTakesSynchronousIo() => true;
+#else
     private bool masterTakesSynchronousIo() =>
         _masterTakesSynchronousIo ??= !new NpgsqlConnectionStringBuilder(_masterConnectionString).Multiplexing;
+#endif
 }

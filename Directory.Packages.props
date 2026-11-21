@@ -25,26 +25,27 @@
          its owner, read by a concurrent ReclaimLeakedConnections), failing as a "completed" transaction,
          "unable to delete/modify user-function", or a crash in SQLitePCLRaw's rollback hook bridge.
          Pinned instead of locking around Open in Weasel, so connections applications open themselves are
-         fixed too. no_pooled_handle_is_lent_to_two_open_connections guards it: do not go below 10.0.13. -->
+         fixed too. no_pooled_handle_is_lent_to_two_open_connections guards it: do not go below 10.0.13.
+         net11.0 takes 11.0.0 (weasel#907, below), which has the same fix and the same test on it. -->
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.15" />
     <!-- Override the transitive SQLitePCLRaw 2.1.11 (vulnerable native lib,
          GHSA-2m69-gcr7-jv3q) with 3.0.3, which ships the patched SQLite build. -->
     <!-- weasel#739: stay on the e_sqlite3 bundle, on the SQLitePCLRaw 3.0.x line.
-         Microsoft.Data.Sqlite 11.x itself depends on bundle_e_sqlite3 3.0.5, so this pin
-         is what 11 resolves to anyway: no SQLite3MC swap and no "M.D.S < 11" cap needed.
+         Microsoft.Data.Sqlite 11.0.0 (net11.0) itself depends on bundle_e_sqlite3 3.0.5, so this
+         pin is what 11 resolves to anyway: no SQLite3MC swap and no "M.D.S < 11" cap needed.
          Keep this at or above whatever the newest Microsoft.Data.Sqlite we reference asks for. -->
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
-    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.1" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="7.1.2" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
-    <PackageVersion Include="MySqlConnector" Version="2.6.1" />
+    <PackageVersion Include="MySqlConnector" Version="3.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
     <PackageVersion Include="Npgsql" Version="10.0.3" />
     <PackageVersion Include="Npgsql.NetTopologySuite" Version="10.0.3" />
     <PackageVersion Include="NSubstitute" Version="5.3.0" />
     <PackageVersion Include="Nuke.Common" Version="9.0.4" />
-    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.400" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.26.401" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
     <!-- The assertion/attribute surface without the runner, for Weasel.Testing: a library of
@@ -52,29 +53,38 @@
     <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.2" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
   </ItemGroup>
-  <!-- Override the transitive System.Security.Cryptography.Pkcs (GHSA-846f-f764-76mx /
-       CVE-2026-84008, high: SignedCms.CheckSignature DoS). Microsoft.Data.SqlClient 6.1.3 pins
-       9.0.4 and Oracle.ManagedDataAccess.Core 23.7.0 pins 8.0.0; even SqlClient 7.1.1 still pins
-       9.0.18. Weasel.SqlServer and Weasel.Oracle reference it directly so the patched floor lands
-       in their published nuspecs. Drop once both drivers depend on a patched version. -->
-  <ItemGroup>
-    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
-  </ItemGroup>
-  <!-- JasperFx 3.11.0's net11.0 build depends on the 11.0.0-rc.3 hosting packages, so the net11.0
-       restore takes the same versions or NU1605 (downgrade) fails it; net10.0 stays on 10.0.0. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
-    <PackageVersion Update="Microsoft.Extensions.Hosting" Version="11.0.0-rc.3.26522.148" />
-    <PackageVersion Update="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0-rc.3.26522.148" />
-  </ItemGroup>
-  <!-- EF Core 10 is the floor on net10.0 and net11.0 alike (weasel#736): a stable package cannot
-       depend on an EF Core 11 prerelease, and EF Core 10 runs on the .NET 11 runtime. -->
+  <!-- weasel#907 dropped the System.Security.Cryptography.Pkcs 10.0.13 override (GHSA-846f-f764-76mx /
+       CVE-2026-84008). Both drivers now depend on a patched Pkcs themselves: Microsoft.Data.SqlClient
+       7.1.2 on 9.0.21 (the first patched 9.0.x) and Oracle.ManagedDataAccess.Core 23.26.401 on 10.0.13. -->
+  <!-- net10.0 stays on the .NET 10 lines (Npgsql 10, EF Core 10, Microsoft.Data.Sqlite 10,
+       Microsoft.Extensions.* 10); net11.0 moves to the .NET 11 GA releases (weasel#907). Until
+       weasel#907, EF Core 10 was the floor on net11.0 too (weasel#736) only because EF Core 11 was
+       still a prerelease, and a stable package cannot depend on one. Now that EF Core 11.0.0,
+       Npgsql 11.0.0 and Microsoft.Extensions.* 11.0.0 are GA, a net11.0 consumer gets the .NET 11
+       stack and a net10.0 consumer is not forced onto it. -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
     <PackageVersion Include="FirebirdSql.EntityFrameworkCore.Firebird" Version="13.0.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    <!-- Oracle has no EF Core 11 provider yet (10.23.26400 is the newest, and it asks for EF Core
+         [10.0.0, 11.0.0)), so it stays on 10.23.26400 on both frameworks. -->
     <PackageVersion Include="Oracle.EntityFrameworkCore" Version="10.23.26400" />
     <!-- Pomelo.EntityFrameworkCore.MySql has no EF Core 10 release (latest is 9.0.0-preview.3), so
          the MySQL EF tests stay compiled out; see the EF test project. -->
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'net11.0'">
+    <PackageVersion Update="Npgsql" Version="11.0.0" />
+    <PackageVersion Update="Npgsql.NetTopologySuite" Version="11.0.0" />
+    <PackageVersion Update="Microsoft.EntityFrameworkCore.Relational" Version="11.0.0" />
+    <PackageVersion Update="Microsoft.EntityFrameworkCore.SqlServer" Version="11.0.0" />
+    <PackageVersion Update="Npgsql.EntityFrameworkCore.PostgreSQL" Version="11.0.0" />
+    <!-- 14.0.0 is the Firebird provider's EF Core 11 line (net11.0 only). -->
+    <PackageVersion Update="FirebirdSql.EntityFrameworkCore.Firebird" Version="14.0.0" />
+    <PackageVersion Update="Microsoft.Data.Sqlite" Version="11.0.0" />
+    <!-- JasperFx 3.11.0's net11.0 build depends on the 11.0.0-rc.3 hosting packages; 11.0.0 is above
+         them, so no NU1605 downgrade. -->
+    <PackageVersion Update="Microsoft.Extensions.Hosting" Version="11.0.0" />
+    <PackageVersion Update="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
   </ItemGroup>
 </Project>
