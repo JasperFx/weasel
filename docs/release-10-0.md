@@ -64,4 +64,8 @@ out. `Weasel.MySql` itself is unaffected.
 - `Weasel.Sqlite` stays on the `e_sqlite3` bundle, and its `Microsoft.Data.Sqlite` floor fixes a pool race
   that could share one native handle between two connections
   ([weasel#857](https://github.com/JasperFx/weasel/issues/857)).
+- Two PostgreSQL sessions applying a migration that creates the same table at the same moment both succeed.
+  The one that loses the race used to fail with `23505` on `pg_type_typname_nsp_index` or `42P07`; it now
+  determines its migration again and applies whatever is still missing
+  ([weasel#918](https://github.com/JasperFx/weasel/issues/918)).
 - The Nuke build host targets `net10.0`, and `./build.sh LocalGate` runs every CI suite locally.
