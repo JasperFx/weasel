@@ -196,12 +196,29 @@ $$;
             : base.RoleFor(conn);
     }
 
-    protected override async Task executeDelta(
+    protected override Task executeDelta(
         SchemaMigration migration,
         DbConnection conn,
         AutoCreate autoCreate,
         IMigrationLogger logger,
         CancellationToken ct = default
+    ) => executeDelta(migration, conn, autoCreate, logger, lostRaces: 0, ct);
+
+    /// <summary>
+    ///     How many times one migration may lose a create race and be determined again before the
+    ///     failure is reported. Each loss means another session committed objects this migration also
+    ///     creates, so a second loss needs a third session; the bound is what keeps a genuine
+    ///     <c>42P07</c> from looping.
+    /// </summary>
+    private const int MaxLostCreateRaces = 3;
+
+    private async Task executeDelta(
+        SchemaMigration migration,
+        DbConnection conn,
+        AutoCreate autoCreate,
+        IMigrationLogger logger,
+        int lostRaces,
+        CancellationToken ct
     )
     {
         foreach (var (sql, provisioning, explicitTransaction) in BuildMigrationCommands(migration, autoCreate))
@@ -226,6 +243,28 @@ $$;
                     // an implicit one would have been rolled back. Close it, or every later command on
                     // this connection is refused with 25P02.
                     await rollbackAsync(cmd).ConfigureAwait(false);
+                }
+
+                if (lostRaces < MaxLostCreateRaces
+                    && e is PostgresException race && IsLostCreateRace(race.SqlState, race.SchemaName))
+                {
+                    // Another session created what this command was creating, and has committed it. The
+                    // failed command rolled back whole, and the commands before it are applied, so the
+                    // migration is stale rather than wrong: determine it again against the catalog as it
+                    // is now and apply what is still missing, which is nothing when the other session
+                    // was creating the same thing. Re-running the same SQL would not do: only the table
+                    // is IF NOT EXISTS, and the indexes after it would fail with 42P07 (weasel#918).
+                    var objects = migration.Deltas.Select(x => x.SchemaObject).ToArray();
+                    var redetermined = await SchemaMigration.DetermineAsync(conn, this, ct, objects)
+                        .ConfigureAwait(false);
+
+                    if (redetermined.Difference != SchemaPatchDifference.None)
+                    {
+                        await executeDelta(redetermined, conn, autoCreate, logger, lostRaces + 1, ct)
+                            .ConfigureAwait(false);
+                    }
+
+                    return;
                 }
 
                 var failure = TranslateMigrationFailure(conn, cmd.CommandText, e);
@@ -412,7 +451,8 @@ $$;
     ///     on the transient PostgreSQL catalog-concurrency errors that surface when
     ///     two sessions lazily ensure storage against the same database at once
     ///     (weasel#293, follow-up to #282). A jittered backoff keeps two racers from
-    ///     retrying in lockstep.
+    ///     retrying in lockstep. A create that lost the race to create the same object is
+    ///     not retried here: see <see cref="IsLostCreateRace" />.
     /// </summary>
     private static async Task executeWithConcurrencyRetryAsync(DbCommand cmd, bool explicitTransaction,
         CancellationToken ct)
@@ -505,6 +545,36 @@ $$;
             PostgresErrorCodes.InternalError =>
                 messageText is not null
                 && messageText.Contains("tuple concurrently updated", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+    }
+
+    /// <summary>
+    ///     True when a create lost a race with another session creating the same object (weasel#918).
+    ///     <c>CREATE TABLE IF NOT EXISTS</c>, like every other <c>IF NOT EXISTS</c> PostgreSQL offers, is not
+    ///     atomic: it checks the catalog for the name and then inserts, so a session that passes the check
+    ///     while another session's create is still uncommitted waits on that session's catalog entry, and
+    ///     once it commits fails with one of:
+    ///     <list type="bullet">
+    ///         <item>
+    ///             <c>23505</c> unique_violation <b>on a catalog index</b>, such as
+    ///             <c>pg_type_typname_nsp_index</c> for a table's row type or <c>pg_class_relname_nsp_index</c>
+    ///             for a relation. The schema of the violated index is the guard: a unique violation in any
+    ///             other schema is a user index refusing duplicate data, which no retry will fix.
+    ///         </item>
+    ///         <item><c>42P07</c> duplicate_table, when the second check inside the create sees it</item>
+    ///     </list>
+    ///     By the time this error is raised the other session has committed, so the migration that lost is
+    ///     stale and <c>executeDelta</c> determines it again rather than reporting a failure. Made once
+    ///     here for every object type, rather than written into the DDL of each as the schema guard of
+    ///     weasel#282 is.
+    /// </summary>
+    internal static bool IsLostCreateRace(string? sqlState, string? schemaName)
+    {
+        return sqlState switch
+        {
+            PostgresErrorCodes.UniqueViolation => schemaName == "pg_catalog",
+            PostgresErrorCodes.DuplicateTable => true,
             _ => false
         };
     }

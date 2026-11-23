@@ -82,6 +82,29 @@ public class PostgresqlMigratorConcurrencyRetryTests
             .ShouldBeFalse();
     }
 
+    // weasel#918: a create that lost the race to create the same object. Re-determined by executeDelta
+    // rather than retried, but the classification is the same kind of pure function.
+
+    [Theory]
+    [InlineData("23505", "pg_catalog")] // pg_type_typname_nsp_index, pg_class_relname_nsp_index
+    [InlineData("42P07", null)] // duplicate_table
+    [InlineData("42P07", "create_table_race")]
+    public void a_lost_create_race_is_recognised(string sqlState, string? schemaName)
+    {
+        PostgresqlMigrator.IsLostCreateRace(sqlState, schemaName).ShouldBeTrue();
+    }
+
+    [Theory]
+    [InlineData("23505", "public")] // a user's unique index refusing duplicate data
+    [InlineData("23505", null)]
+    [InlineData("42P06", "pg_catalog")] // duplicate_schema is the #282 DO-block's
+    [InlineData("40P01", "pg_catalog")] // deadlock_detected is the same-SQL retry's
+    [InlineData(null, null)]
+    public void anything_else_is_not_a_lost_create_race(string? sqlState, string? schemaName)
+    {
+        PostgresqlMigrator.IsLostCreateRace(sqlState, schemaName).ShouldBeFalse();
+    }
+
     // Reopen-on-retry behavior: a transient PostgreSQL error can move the
     // Npgsql connection to Closed or Broken. The retry has to put it back to
     // Open before re-invoking the command; otherwise the next call throws
