@@ -86,7 +86,7 @@ out. `Weasel.MySql` itself is unaffected.
 ## Since the release candidate
 
 - Two PostgreSQL sessions applying a migration that creates the same table at the same moment both succeed.
-  The one that loses the race used to fail with `23505` on `pg_type_typname_nsp_index` or `42P07`. It now
+  The one that loses the race used to fail with `23505` on `pg_type_typname_nsp_index`, `42P07` or `42710`. It now
   determines its migration again and applies whatever is still missing
   ([weasel#918](https://github.com/JasperFx/weasel/issues/918)). You're most likely to have hit this when two
   application nodes started together with `AutoCreate` on.

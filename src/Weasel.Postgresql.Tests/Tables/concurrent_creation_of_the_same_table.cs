@@ -13,7 +13,9 @@ namespace Weasel.Postgresql.Tests.Tables;
 ///     passes the check while another session's create is still uncommitted then waits on that session's
 ///     unique index entry, and once it commits fails with
 ///     <c>23505 duplicate key value violates unique constraint "pg_type_typname_nsp_index"</c> (or
-///     <c>42P07</c> when the second check sees it). The migration asked for the table to exist, and it does.
+///     <c>42P07</c> when the second check sees it, or <c>42710</c> <c>type "..." already exists</c> when the
+///     other session commits between the relation-name check and the row-type check). The migration asked for
+///     the table to exist, and it does.
 ///     Two Marten nodes starting together with <c>AutoCreate</c> on hit exactly this.
 /// </summary>
 [Collection("create_table_race")]
@@ -110,7 +112,7 @@ public class concurrent_creation_of_the_same_table: IntegrationContext
 
                 go.SetResult();
 
-                // Pre-fix: some of these fail with 23505 (pg_type_typname_nsp_index) or 42P07
+                // Pre-fix: some of these fail with 23505 (pg_type_typname_nsp_index), 42P07 or 42710
                 await Task.WhenAll(applying);
             }
             finally
@@ -176,6 +178,29 @@ public class concurrent_creation_of_the_same_table: IntegrationContext
             new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate));
 
         e.SqlState.ShouldBe(PostgresErrorCodes.DuplicateTable);
+    }
+
+    /// <summary>
+    ///     The same for a 42710: a type that really holds the table's name (a table's row type shares its
+    ///     name) is reported once determining the migration again stops changing anything. An enum, because a
+    ///     composite type has a pg_class row of its own, which CREATE TABLE IF NOT EXISTS skips quietly.
+    /// </summary>
+    [Fact]
+    public async Task a_type_that_genuinely_holds_the_name_still_fails_the_migration()
+    {
+        await ResetSchema();
+
+        await theConnection.CreateCommand($"create type {Schema}.occupied as enum ('one')").ExecuteNonQueryAsync();
+
+        var table = new Table($"{Schema}.occupied");
+        table.AddColumn<int>("id").AsPrimaryKey();
+
+        var migration = await SchemaMigration.DetermineAsync(theConnection, table);
+
+        var e = await Should.ThrowAsync<PostgresException>(() =>
+            new PostgresqlMigrator().ApplyAllAsync(theConnection, migration, AutoCreate.CreateOrUpdate));
+
+        e.SqlState.ShouldBe(PostgresErrorCodes.DuplicateObject);
     }
 
     private async Task waitUntilBlockedAsync(int pid, Task applying)
