@@ -5,7 +5,7 @@ namespace Weasel.SqlServer.Tables.Partitioning;
 
 /// <summary>
 ///     SQL Server RANGE partitioning via partition function + partition scheme.
-///     Supports RANGE LEFT (default) and RANGE RIGHT boundary semantics.
+///     Supports RANGE RIGHT (default) and RANGE LEFT boundary semantics.
 /// </summary>
 public class RangePartitioning : ISplittablePartitioning
 {
@@ -52,11 +52,18 @@ public class RangePartitioning : ISplittablePartitioning
         return this;
     }
 
+    /// <summary>
+    ///     <c>pf_{schema}_{table}_{column}</c>, the name a newly partitioned table's function gets. A table
+    ///     that is already partitioned keeps the function it is on; see <see cref="SqlServerPartitionObjects" />.
+    /// </summary>
     public string PartitionFunctionName(Table parent)
-        => $"pf_{parent.Identifier.Name}_{Column}";
+        => SqlServerPartitionObjects.FunctionNameFor(parent, Column);
 
+    /// <summary>
+    ///     <c>ps_{schema}_{table}_{column}</c>, the name a newly partitioned table's scheme gets.
+    /// </summary>
     public string PartitionSchemeName(Table parent)
-        => $"ps_{parent.Identifier.Name}_{Column}";
+        => SqlServerPartitionObjects.SchemeNameFor(parent, Column);
 
     public void WritePartitionDdl(TextWriter writer, Table parent)
     {
@@ -124,8 +131,9 @@ public class RangePartitioning : ISplittablePartitioning
     /// </summary>
     public void WriteSplitStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual)
     {
-        var pfName = PartitionFunctionName(parent);
-        var psName = PartitionSchemeName(parent);
+        // The objects the table is actually on, which may carry a pre-10.0 name (weasel#920)
+        var pfName = actual.PartitionFunctionName ?? PartitionFunctionName(parent);
+        var psName = actual.PartitionSchemeName ?? PartitionSchemeName(parent);
         var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
 
         foreach (var boundary in _boundaryValues)
@@ -143,7 +151,7 @@ public class RangePartitioning : ISplittablePartitioning
     /// </summary>
     public void WriteMergeStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual)
     {
-        var pfName = PartitionFunctionName(parent);
+        var pfName = actual.PartitionFunctionName ?? PartitionFunctionName(parent);
         var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
 
         foreach (var boundary in _boundaryValues)

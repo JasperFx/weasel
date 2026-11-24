@@ -29,10 +29,10 @@ public class managed_tenant_partitions_with_foreign_keys: IntegrationContext
         foreach (var tableName in theTableNames)
         {
             await theConnection.CreateCommand($@"
-IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = 'ps_{tableName}_tenant_ordinal')
-    DROP PARTITION SCHEME [ps_{tableName}_tenant_ordinal];
-IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = 'pf_{tableName}_tenant_ordinal')
-    DROP PARTITION FUNCTION [pf_{tableName}_tenant_ordinal];")
+IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = 'ps_mtpfk_{tableName}_tenant_ordinal')
+    DROP PARTITION SCHEME [ps_mtpfk_{tableName}_tenant_ordinal];
+IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = 'pf_mtpfk_{tableName}_tenant_ordinal')
+    DROP PARTITION FUNCTION [pf_mtpfk_{tableName}_tenant_ordinal];")
                 .ExecuteNonQueryAsync();
         }
     }
@@ -103,7 +103,7 @@ FROM sys.partition_functions pf
 JOIN sys.partition_range_values prv ON pf.function_id = prv.function_id
 WHERE pf.name = @pf
 ORDER BY prv.boundary_id;";
-        cmd.Parameters.AddWithValue("@pf", $"pf_{tableName}_tenant_ordinal");
+        cmd.Parameters.AddWithValue("@pf", $"pf_mtpfk_{tableName}_tenant_ordinal");
 
         var list = new List<int>();
         await using var reader = await cmd.ExecuteReaderAsync();

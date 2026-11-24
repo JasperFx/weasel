@@ -16,7 +16,7 @@ Each database provider has its own `ICommandBuilder` interface and `BatchBuilder
 The provider-specific `ICommandBuilder` interface (defined in both `Weasel.Postgresql` and `Weasel.SqlServer`) exposes methods for building SQL incrementally:
 
 <!-- snippet: sample_ICommandBuilder_interface -->
-<a id='snippet-sample_icommandbuilder_interface'></a>
+<a id='snippet-sample_ICommandBuilder_interface'></a>
 ```cs
 public interface ICommandBuilder_Sample
 {
@@ -31,7 +31,7 @@ public interface ICommandBuilder_Sample
     // ... additional members
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/CommandBuilderSamples.cs#L6-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_icommandbuilder_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/CommandBuilderSamples.cs#L6-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ICommandBuilder_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Key methods:

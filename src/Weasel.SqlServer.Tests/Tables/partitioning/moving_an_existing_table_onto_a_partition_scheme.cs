@@ -32,8 +32,8 @@ public class moving_an_existing_table_onto_a_partition_scheme: IntegrationContex
     {
         await ResetSchema();
         await theConnection.CreateCommand($"""
-            if exists (select 1 from sys.partition_schemes where name = 'ps_{Events}_is_archived') drop partition scheme ps_{Events}_is_archived;
-            if exists (select 1 from sys.partition_functions where name = 'pf_{Events}_is_archived') drop partition function pf_{Events}_is_archived;
+            if exists (select 1 from sys.partition_schemes where name = 'ps_{Schema}_{Events}_is_archived') drop partition scheme ps_{Schema}_{Events}_is_archived;
+            if exists (select 1 from sys.partition_functions where name = 'pf_{Schema}_{Events}_is_archived') drop partition function pf_{Schema}_{Events}_is_archived;
             """).ExecuteNonQueryAsync();
     }
 

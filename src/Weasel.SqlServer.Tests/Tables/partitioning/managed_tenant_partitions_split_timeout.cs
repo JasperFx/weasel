@@ -32,8 +32,8 @@ public class managed_tenant_partitions_split_timeout: IntegrationContext
     {
     }
 
-    private string PartitionFunction => $"pf_{_tableName}_tenant_ordinal";
-    private string PartitionScheme => $"ps_{_tableName}_tenant_ordinal";
+    private string PartitionFunction => $"pf_{Schema}_{_tableName}_tenant_ordinal";
+    private string PartitionScheme => $"ps_{Schema}_{_tableName}_tenant_ordinal";
     private string QualifiedTable => $"[{Schema}].[{_tableName}]";
     private const string QualifiedRegistry = $"[{Schema}].[tenant_registry]";
 

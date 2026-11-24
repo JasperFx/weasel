@@ -208,7 +208,7 @@ $$;
     ///     How many times one migration may lose a create race and be determined again before the
     ///     failure is reported. Each loss means another session committed objects this migration also
     ///     creates, so a second loss needs a third session; the bound is what keeps a genuine
-    ///     <c>42P07</c> from looping.
+    ///     <c>42P07</c> or <c>42710</c> from looping.
     /// </summary>
     private const int MaxLostCreateRaces = 3;
 
@@ -563,6 +563,11 @@ $$;
     ///             other schema is a user index refusing duplicate data, which no retry will fix.
     ///         </item>
     ///         <item><c>42P07</c> duplicate_table, when the second check inside the create sees it</item>
+    ///         <item>
+    ///             <c>42710</c> duplicate_object, <c>type "..." already exists</c>, when the other session
+    ///             commits after this one's relation-name check but before its row-type check. Rare, and only
+    ///             seen under many sessions at once; CI caught it on the 10.0.0 release PR.
+    ///         </item>
     ///     </list>
     ///     By the time this error is raised the other session has committed, so the migration that lost is
     ///     stale and <c>executeDelta</c> determines it again rather than reporting a failure. Made once
@@ -575,6 +580,7 @@ $$;
         {
             PostgresErrorCodes.UniqueViolation => schemaName == "pg_catalog",
             PostgresErrorCodes.DuplicateTable => true,
+            PostgresErrorCodes.DuplicateObject => true,
             _ => false
         };
     }

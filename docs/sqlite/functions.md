@@ -61,12 +61,16 @@ A collation has the same lifetime as a function, so it goes in the same registry
 `AddCollation(name, comparison)` registers it on every connection the data source opens, and SQL
 uses it with `COLLATE name`:
 
+<!-- snippet: sample_sqlite_collation -->
+<a id='snippet-sample_sqlite_collation'></a>
 ```cs
 var functions = new SqliteFunctionRegistry();
 functions.AddCollation("numeric_text", (x, y) => decimal.Parse(x).CompareTo(decimal.Parse(y)));
 
 // select value from amounts order by value collate numeric_text
 ```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqliteSamples.cs#L490-L495' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_sqlite_collation' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
 
 The comparison returns a negative number, zero or a positive number, the same as
 `string.Compare`. A collation applies to `ORDER BY`, comparisons, `DISTINCT` and `GROUP BY`.

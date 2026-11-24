@@ -89,6 +89,7 @@ public class PostgresqlMigratorConcurrencyRetryTests
     [InlineData("23505", "pg_catalog")] // pg_type_typname_nsp_index, pg_class_relname_nsp_index
     [InlineData("42P07", null)] // duplicate_table
     [InlineData("42P07", "create_table_race")]
+    [InlineData("42710", null)] // duplicate_object: type "..." already exists, the row type's own check
     public void a_lost_create_race_is_recognised(string sqlState, string? schemaName)
     {
         PostgresqlMigrator.IsLostCreateRace(sqlState, schemaName).ShouldBeTrue();

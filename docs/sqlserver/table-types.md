@@ -14,7 +14,7 @@ tableType.AddColumn<int>("product_id").NotNull();
 tableType.AddColumn<int>("quantity").NotNull();
 tableType.AddColumn("unit_price", "decimal(10,2)");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L354-L361' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_table_type' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L384-L391' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_table_type' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Column Configuration
@@ -32,7 +32,7 @@ You can add columns by .NET type or by explicit database type string:
 tableType.AddColumn<string>("name");            // maps to varchar(100)
 tableType.AddColumn("notes", "nvarchar(max)");  // explicit type
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L369-L372' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_table_type_columns' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L399-L402' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_table_type_columns' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating DDL
@@ -45,7 +45,7 @@ var writer = new StringWriter();
 tableType.WriteCreateStatement(migrator, writer);
 // Output: IF TYPE_ID(N'dbo.OrderItemType') IS NULL, then CREATE TYPE dbo.OrderItemType AS TABLE (...)
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L380-L385' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_table_type_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L410-L415' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_table_type_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `CREATE TYPE` has neither an `OR ALTER` form nor an `IF NOT EXISTS` clause, so the create statement
@@ -66,7 +66,7 @@ await conn.OpenAsync();
 var delta = await tableType.FindDeltaAsync(conn);
 // delta.Difference: None, Create, or Update
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L394-L400' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_table_type_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L424-L430' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_table_type_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 When an update is needed, the delta generates a DROP followed by CREATE since SQL Server does not support `ALTER TYPE`.

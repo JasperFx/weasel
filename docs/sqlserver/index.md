@@ -34,7 +34,7 @@ Weasel.SqlServer uses standard SQL Server connection strings with `Microsoft.Dat
 ```cs
 var connectionString = "Server=localhost;Database=mydb;User Id=sa;Password=YourPassword;TrustServerCertificate=true;";
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L16-L18' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_connection_string' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L17-L19' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_connection_string' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Creating a Migrator
@@ -44,7 +44,7 @@ var connectionString = "Server=localhost;Database=mydb;User Id=sa;Password=YourP
 ```cs
 var migrator = new SqlServerMigrator();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L23-L25' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_create_migrator' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L24-L26' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_create_migrator' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The migrator can also ensure the target database exists before running migrations:
@@ -55,7 +55,7 @@ The migrator can also ensure the target database exists before running migration
 await using var conn = new SqlConnection(connectionString);
 await migrator.EnsureDatabaseExistsAsync(conn);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L33-L36' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_ensure_database_exists' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L34-L37' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_ensure_database_exists' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Schema Management
@@ -70,7 +70,7 @@ var writer = new StringWriter();
 migrator.WriteSchemaCreationSql(new[] { "myschema" }, writer);
 // Generates: IF NOT EXISTS (...) EXEC('CREATE SCHEMA [myschema]');
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L41-L46' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_schema_management' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L42-L47' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_schema_management' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Batch separators and re-runnable scripts
