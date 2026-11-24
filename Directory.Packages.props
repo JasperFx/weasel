@@ -14,12 +14,12 @@
     <PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.12.19" />
     <PackageVersion Include="DotNet.ReproducibleBuilds" Version="1.2.39" />
     <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
-    <!-- JasperFx 3.12.1 (weasel#812; 3.10.0 brought EventRequest.ParksUnreadableEvents for weasel#901). Its net11.0
+    <!-- JasperFx 3.15.0 for 10.0.0 GA (was 3.12.1 for weasel#812; 3.10.0 brought EventRequest.ParksUnreadableEvents for weasel#901). Its net11.0
          build depends on the .NET 11 GA packages; 3.11.0's pulled in 11.0.0-rc.3 ones. Keep JasperFx,
          JasperFx.Events and JasperFx.SourceGenerator on the same version. -->
-    <PackageVersion Include="JasperFx" Version="3.12.1" />
-    <PackageVersion Include="JasperFx.Events" Version="3.12.1" />
-    <PackageVersion Include="JasperFx.SourceGenerator" Version="3.12.1" />
+    <PackageVersion Include="JasperFx" Version="3.15.0" />
+    <PackageVersion Include="JasperFx.Events" Version="3.15.0" />
+    <PackageVersion Include="JasperFx.SourceGenerator" Version="3.15.0" />
     <!-- weasel#857: 10.0.13 is the first with dotnet/efcore#39012. Up to 10.0.12 the pool could lend one
          native handle to two open connections when opens raced (an Activate that published _active before
          its owner, read by a concurrent ReclaimLeakedConnections), failing as a "completed" transaction,
@@ -83,7 +83,7 @@
     <!-- 14.0.0 is the Firebird provider's EF Core 11 line (net11.0 only). -->
     <PackageVersion Update="FirebirdSql.EntityFrameworkCore.Firebird" Version="14.0.0" />
     <PackageVersion Update="Microsoft.Data.Sqlite" Version="11.0.0" />
-    <!-- JasperFx 3.12.1's net11.0 build depends on the 11.0.0 GA packages, the same as these. -->
+    <!-- JasperFx 3.15.0's net11.0 build depends on the 11.0.0 GA packages, the same as these. -->
     <PackageVersion Update="Microsoft.Extensions.Hosting" Version="11.0.0" />
     <PackageVersion Update="Microsoft.Extensions.Logging.Abstractions" Version="11.0.0" />
   </ItemGroup>
