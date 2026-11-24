@@ -29,17 +29,17 @@ public class range_partitioning : IntegrationContext
         var ddl = writer.ToString();
 
         // Should have partition function
-        ddl.ShouldContain("CREATE PARTITION FUNCTION [pf_events_is_archived] (bit)");
+        ddl.ShouldContain("CREATE PARTITION FUNCTION [pf_partitioning_events_is_archived] (bit)");
         ddl.ShouldContain("RANGE RIGHT");
         ddl.ShouldContain("FOR VALUES (1)");
 
         // Should have partition scheme
-        ddl.ShouldContain("CREATE PARTITION SCHEME [ps_events_is_archived]");
-        ddl.ShouldContain("AS PARTITION [pf_events_is_archived]");
+        ddl.ShouldContain("CREATE PARTITION SCHEME [ps_partitioning_events_is_archived]");
+        ddl.ShouldContain("AS PARTITION [pf_partitioning_events_is_archived]");
         ddl.ShouldContain("ALL TO ([PRIMARY])");
 
         // Table should be ON the scheme
-        ddl.ShouldContain("ON [ps_events_is_archived]([is_archived])");
+        ddl.ShouldContain("ON [ps_partitioning_events_is_archived]([is_archived])");
 
         // Should NOT have PostgreSQL syntax
         ddl.ShouldNotContain("PARTITION BY RANGE");
@@ -62,7 +62,7 @@ public class range_partitioning : IntegrationContext
         table.WriteCreateStatement(new SqlServerMigrator(), writer);
         var ddl = writer.ToString();
 
-        ddl.ShouldContain("CREATE PARTITION FUNCTION [pf_orders_order_date] (datetime)");
+        ddl.ShouldContain("CREATE PARTITION FUNCTION [pf_partitioning_orders_order_date] (datetime)");
         ddl.ShouldContain("FOR VALUES ('2024-01-01 00:00:00', '2025-01-01 00:00:00', '2026-01-01 00:00:00')");
     }
 
@@ -87,13 +87,13 @@ public class range_partitioning : IntegrationContext
 
         // Verify the partition function exists
         var pfExists = await theConnection.CreateCommand(
-                "SELECT COUNT(*) FROM sys.partition_functions WHERE name = 'pf_partitioned_events_is_archived'")
+                "SELECT COUNT(*) FROM sys.partition_functions WHERE name = 'pf_partitioning_partitioned_events_is_archived'")
             .ExecuteScalarAsync();
         ((int)pfExists!).ShouldBeGreaterThan(0);
 
         // Verify the partition scheme exists
         var psExists = await theConnection.CreateCommand(
-                "SELECT COUNT(*) FROM sys.partition_schemes WHERE name = 'ps_partitioned_events_is_archived'")
+                "SELECT COUNT(*) FROM sys.partition_schemes WHERE name = 'ps_partitioning_partitioned_events_is_archived'")
             .ExecuteScalarAsync();
         ((int)psExists!).ShouldBeGreaterThan(0);
 

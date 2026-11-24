@@ -19,12 +19,14 @@ public interface ISqlServerPartitioning
     string SqlDataType { get; }
 
     /// <summary>
-    ///     Name of the partition function (e.g., "pf_tablename_column").
+    ///     Name of the partition function a newly partitioned table gets. Weasel's strategies use
+    ///     <c>pf_{schema}_{table}_{column}</c>, because a partition function is database-scoped; a table
+    ///     already partitioned keeps the function it is on (weasel#920, <see cref="SqlServerPartitionObjects" />).
     /// </summary>
     string PartitionFunctionName(Table parent);
 
     /// <summary>
-    ///     Name of the partition scheme (e.g., "ps_tablename_column").
+    ///     Name of the partition scheme a newly partitioned table gets (<c>ps_{schema}_{table}_{column}</c>).
     /// </summary>
     string PartitionSchemeName(Table parent);
 

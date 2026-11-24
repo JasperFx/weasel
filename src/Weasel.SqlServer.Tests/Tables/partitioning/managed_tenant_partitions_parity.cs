@@ -48,7 +48,7 @@ public class managed_tenant_partitions_parity: IntegrationContext
     {
         await ResetSchema();
 
-        foreach (var pfName in new[] { "pf_porders_tenant_ordinal", "pf_pevents_tenant_ordinal" })
+        foreach (var pfName in new[] { "pf_mtpp_porders_tenant_ordinal", "pf_mtpp_pevents_tenant_ordinal" })
         {
             var psName = pfName.Replace("pf_", "ps_");
             await theConnection.CreateCommand($@"
@@ -167,7 +167,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
             x.Identifier.QualifiedName == "mtpp.porders" && x.Status == PartitionMigrationStatus.Complete);
 
         // three tenants, two partitions
-        var boundaries = await ReadBoundariesAsync("pf_porders_tenant_ordinal");
+        var boundaries = await ReadBoundariesAsync("pf_mtpp_porders_tenant_ordinal");
         boundaries.ShouldBe(new[] { 0, 1, 2 });
 
         manager.Ordinals.Count.ShouldBe(3);
@@ -249,7 +249,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
         manager.Ordinals.ShouldNotContainKey("acme");
         manager.Ordinals.ShouldContainKeyAndValue("globex", 1);
 
-        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
+        (await ReadBoundariesAsync("pf_mtpp_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
 
         var remaining = (int)(await theConnection.CreateCommand(
             "SELECT COUNT(*) FROM mtpp.porders").ExecuteScalarAsync())!;
@@ -260,7 +260,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
             NullLogger.Instance, database, new[] { "globex" }, TenantDropBehavior.DeleteData,
             CancellationToken.None);
 
-        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0 });
+        (await ReadBoundariesAsync("pf_mtpp_porders_tenant_ordinal")).ShouldBe(new[] { 0 });
         ((int)(await theConnection.CreateCommand(
             "SELECT COUNT(*) FROM mtpp.porders").ExecuteScalarAsync())!).ShouldBe(0);
     }
@@ -291,7 +291,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
             x.Identifier.QualifiedName == "mtpp.pevents" && x.Status == PartitionMigrationStatus.Complete);
 
         // the new table has every registered ordinal
-        (await ReadBoundariesAsync("pf_pevents_tenant_ordinal")).ShouldBe(new[] { 0, 1, 2 });
+        (await ReadBoundariesAsync("pf_mtpp_pevents_tenant_ordinal")).ShouldBe(new[] { 0, 1, 2 });
     }
 
     [Fact]
@@ -315,7 +315,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
         database.AddTable(events);
         await CreateSchemaObjectInDatabase(events);
 
-        (await ReadBoundariesAsync("pf_pevents_tenant_ordinal")).ShouldBe(new[] { 0, 1, 2 });
+        (await ReadBoundariesAsync("pf_mtpp_pevents_tenant_ordinal")).ShouldBe(new[] { 0, 1, 2 });
     }
 
     [Fact]
@@ -374,7 +374,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
         manager.Buckets.ShouldContainKeyAndValue("shared_bucket", first.Ordinals["smalla"]);
 
         // One bucket, one boundary — beyond the sentinel. Pre-fix this was { 0, 1, 2 }.
-        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
+        (await ReadBoundariesAsync("pf_mtpp_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
     }
 
     [Fact]
@@ -437,7 +437,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
         result.Ordinals["smalla"].ShouldBe(result.Ordinals["smallb"]);
 
         // four tenants, three partitions
-        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).Length.ShouldBe(4);
+        (await ReadBoundariesAsync("pf_mtpp_porders_tenant_ordinal")).Length.ShouldBe(4);
         manager.Ordinals.Values.Distinct().Count().ShouldBe(3);
     }
 
@@ -463,7 +463,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
 
         // still one member, so the bucket and its partition survive
         manager.Buckets.ShouldContainKey("shared_bucket");
-        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
+        (await ReadBoundariesAsync("pf_mtpp_porders_tenant_ordinal")).ShouldBe(new[] { 0, 1 });
 
         await manager.DropPartitionFromAllTables(NullLogger.Instance, database, new[] { "smallb" },
             TenantDropBehavior.DeleteData, CancellationToken.None);
@@ -471,7 +471,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
         // last member gone — the bucket is forgotten and the ordinal genuinely released. This is why the
         // bucket key is a nullable column and not a pseudo-tenant row: a row would have pinned it forever.
         manager.Buckets.ShouldNotContainKey("shared_bucket");
-        (await ReadBoundariesAsync("pf_porders_tenant_ordinal")).ShouldBe(new[] { 0 });
+        (await ReadBoundariesAsync("pf_mtpp_porders_tenant_ordinal")).ShouldBe(new[] { 0 });
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using JasperFx.Core;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
@@ -35,6 +36,7 @@ namespace Weasel.SqlServer.Tables.Partitioning;
 public class ManagedRangePartitions: ISplittablePartitioning
 {
     private readonly TimeProvider _timeProvider;
+    private readonly ConcurrentDictionary<string, byte> _warnedSharedFunctions = new();
 
     /// <summary>
     ///     Create a rolling-window partition strategy.
@@ -140,11 +142,16 @@ public class ManagedRangePartitions: ISplittablePartitioning
         return RangePartitioning.FormatSqlValue(value);
     }
 
-    /// <inheritdoc />
-    public string PartitionFunctionName(Table parent) => $"pf_{parent.Identifier.Name}_{Column}";
+    /// <summary>
+    ///     <c>pf_{schema}_{table}_{column}</c>, the name a newly partitioned table's function gets. A table
+    ///     that is already partitioned keeps the function it is on; see <see cref="SqlServerPartitionObjects" />.
+    /// </summary>
+    public string PartitionFunctionName(Table parent) => SqlServerPartitionObjects.FunctionNameFor(parent, Column);
 
-    /// <inheritdoc />
-    public string PartitionSchemeName(Table parent) => $"ps_{parent.Identifier.Name}_{Column}";
+    /// <summary>
+    ///     <c>ps_{schema}_{table}_{column}</c>, the name a newly partitioned table's scheme gets.
+    /// </summary>
+    public string PartitionSchemeName(Table parent) => SqlServerPartitionObjects.SchemeNameFor(parent, Column);
 
     /// <inheritdoc />
     public void WritePartitionDdl(TextWriter writer, Table parent)
@@ -220,8 +227,9 @@ public class ManagedRangePartitions: ISplittablePartitioning
     /// <inheritdoc />
     public void WriteSplitStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual)
     {
-        var pfName = PartitionFunctionName(parent);
-        var psName = PartitionSchemeName(parent);
+        // The objects the table is actually on, which may carry a pre-10.0 name (weasel#920)
+        var pfName = actual.PartitionFunctionName ?? PartitionFunctionName(parent);
+        var psName = actual.PartitionSchemeName ?? PartitionSchemeName(parent);
         var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
 
         foreach (var boundary in Boundaries().Where(x => !actualSet.Contains(x)))
@@ -233,7 +241,7 @@ public class ManagedRangePartitions: ISplittablePartitioning
     /// <inheritdoc />
     public void WriteMergeStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual)
     {
-        var pfName = PartitionFunctionName(parent);
+        var pfName = actual.PartitionFunctionName ?? PartitionFunctionName(parent);
         var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
 
         foreach (var boundary in Boundaries().Where(x => !actualSet.Contains(x)))
@@ -349,6 +357,12 @@ public class ManagedRangePartitions: ISplittablePartitioning
 
             try
             {
+                // A table already partitioned keeps the function and scheme it is on, which may carry a
+                // pre-10.0 name with no schema in it (weasel#920)
+                var bound = await SqlServerPartitionObjects
+                    .ResolveAsync(conn, table, this, logger, _warnedSharedFunctions, token).ConfigureAwait(false);
+                pfName = bound.FunctionName;
+
                 var actual = await fetchActualBoundariesAsync(conn, pfName, token).ConfigureAwait(false);
 
                 // A configured table that was never physically migrated onto this database has no
@@ -364,7 +378,7 @@ public class ManagedRangePartitions: ISplittablePartitioning
 
                 if (rollForward)
                 {
-                    await rollForwardAsync(conn, table, pfName, expected, actual, logger, token)
+                    await rollForwardAsync(conn, table, pfName, bound.SchemeName, expected, actual, logger, token)
                         .ConfigureAwait(false);
                 }
 
@@ -385,10 +399,9 @@ public class ManagedRangePartitions: ISplittablePartitioning
         return statuses.ToArray();
     }
 
-    private async Task rollForwardAsync(SqlConnection conn, Table table, string pfName, string[] expected,
-        IReadOnlyList<ActualBoundary> actual, ILogger logger, CancellationToken token)
+    private async Task rollForwardAsync(SqlConnection conn, Table table, string pfName, string psName,
+        string[] expected, IReadOnlyList<ActualBoundary> actual, ILogger logger, CancellationToken token)
     {
-        var psName = PartitionSchemeName(table);
         var present = new HashSet<string>(actual.Select(x => x.Literal), StringComparer.OrdinalIgnoreCase);
 
         foreach (var boundary in expected.Where(x => !present.Contains(x)))

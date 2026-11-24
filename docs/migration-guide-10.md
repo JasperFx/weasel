@@ -25,6 +25,7 @@ migration does on SQL Server and on partitioned PostgreSQL tables.
 | MySQL tests for the EF Core bridge are compiled out, and Oracle's on `net11.0` | No library change; Pomelo has no EF Core 10 release, Oracle no EF Core 11 one |
 | `net11.0` assemblies are compiled with runtime-async | None; opt out with `-p:WeaselRuntimeAsync=false` when building Weasel from source |
 | SQL Server migrations move a table onto RANGE partitioning in place, change key columns across foreign keys, and fill NULLs before a column becomes NOT NULL | None, but read [Schema migrations](#schema-migrations) before a migration runs against data you care about |
+| SQL Server partition functions and schemes carry the schema in their names ([weasel#920](https://github.com/JasperFx/weasel/issues/920)) | None for existing tables, which keep the objects they're on; read [SQL Server](#sql-server) if two schemas of one database already share one |
 | PostgreSQL partitioning rebuilds lock the table and run in a transaction | None |
 | `CREATE DATABASE` and extension installs run under `ProvisioningCommandTimeout` (two minutes) | None, unless you counted on the connection's command timeout there |
 | `MasterTableTenancyBase` evicts tenants another node removed or disabled, and tells a disabled tenant from an unknown one | None; the default refusal is still `UnknownTenantIdException` |
@@ -376,6 +377,18 @@ to a database whose data you care about.
   ([weasel#877](https://github.com/JasperFx/weasel/issues/877)). It is `null` by default, which keeps the
   connection's.
 - A function whose body ends in a newline no longer reports drift against itself.
+- **Partition functions and schemes are named after the schema too**
+  ([weasel#920](https://github.com/JasperFx/weasel/issues/920)). `RangePartitioning`, `ManagedRangePartitions`
+  and `ManagedTenantPartitions` used to name them `pf_{table}_{column}` and `ps_{table}_{column}`. Both are
+  database-scoped, so the same table in two schemas of one database shared them, and a `SPLIT` or `MERGE` for
+  one schema's tenants or boundaries changed the other's. A table partitioned from scratch now gets
+  `pf_{schema}_{table}_{column}`. A table that's already partitioned keeps the objects it's on: the delta
+  doesn't compare names, and every `SPLIT`, `MERGE` and `NEXT USED` goes to the function the table is actually
+  on, so nothing is rebuilt. If you ran more than one schema against one database, those tables still share
+  one function. `SqlServerPartitionObjects.FindSharedAcrossSchemasAsync` lists them, and
+  [Partition Function and Scheme Names](/sqlserver/partitioning#partition-function-and-scheme-names) says how
+  to move a table off one. Anything of yours that names these objects by hand, a cleanup script or a
+  monitoring query, needs the new names for new tables.
 
 ### PostgreSQL
 

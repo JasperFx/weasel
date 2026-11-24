@@ -3,6 +3,7 @@ using Weasel.SqlServer;
 using Weasel.SqlServer.Functions;
 using Weasel.SqlServer.Procedures;
 using Weasel.SqlServer.Tables;
+using Weasel.SqlServer.Tables.Partitioning;
 using Microsoft.Data.SqlClient;
 
 namespace DocSamples;
@@ -117,6 +118,35 @@ public class SqlServerSamples
 
         var delta = await table.FindDeltaAsync(conn);
         // delta.Difference is None, Create, Update, or Recreate
+        #endregion
+    }
+
+    public async Task ss_find_shared_partition_functions(SqlConnection conn)
+    {
+        #region sample_ss_find_shared_partition_functions
+        // Partition functions that tables in more than one schema are partitioned on. Only a database
+        // partitioned by a Weasel older than 10.0 can have these by Weasel's doing (weasel#920)
+        var shared = await SqlServerPartitionObjects.FindSharedAcrossSchemasAsync(conn);
+
+        foreach (var function in shared)
+        {
+            Console.WriteLine(
+                $"{function.FunctionName} is shared by {string.Join(", ", function.Tables.Select(x => x.QualifiedName))}");
+        }
+        #endregion
+    }
+
+    public void ss_partition_object_names()
+    {
+        #region sample_ss_partition_object_names
+        var table = new Table("tenant_a.orders");
+
+        // What a table partitioned from scratch gets: pf_tenant_a_orders_tenant_ordinal
+        var function = SqlServerPartitionObjects.FunctionNameFor(table, "tenant_ordinal");
+        var scheme = SqlServerPartitionObjects.SchemeNameFor(table, "tenant_ordinal");
+
+        // What 9.x and the 10.0 release candidates named it: pf_orders_tenant_ordinal
+        var legacy = SqlServerPartitionObjects.LegacyFunctionNameFor(table, "tenant_ordinal");
         #endregion
     }
 

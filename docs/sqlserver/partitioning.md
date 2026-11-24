@@ -38,10 +38,10 @@ This generates a `CREATE PARTITION FUNCTION`, a `CREATE PARTITION SCHEME`, and a
 scheme:
 
 ```sql
-CREATE PARTITION FUNCTION [pf_metrics_sample_bucket_end] (datetime)
+CREATE PARTITION FUNCTION [pf_metrics_metrics_sample_bucket_end] (datetime)
     AS RANGE RIGHT FOR VALUES ('2026-01-01 00:00:00', '2026-02-01 00:00:00', '2026-03-01 00:00:00');
-CREATE PARTITION SCHEME [ps_metrics_sample_bucket_end]
-    AS PARTITION [pf_metrics_sample_bucket_end] ALL TO ([PRIMARY]);
+CREATE PARTITION SCHEME [ps_metrics_metrics_sample_bucket_end]
+    AS PARTITION [pf_metrics_metrics_sample_bucket_end] ALL TO ([PRIMARY]);
 ```
 
 ::: tip
@@ -101,10 +101,10 @@ cast to the partition function's type before it is compared, because the catalog
 `sql_variant`:
 
 ```sql
-IF NOT EXISTS (SELECT 1 FROM sys.partition_range_values rv INNER JOIN sys.partition_functions pf ON pf.function_id = rv.function_id WHERE pf.name = 'pf_metrics_sample_bucket_end' AND rv.value = CAST('2026-03-01 00:00:00' AS datetime))
+IF NOT EXISTS (SELECT 1 FROM sys.partition_range_values rv INNER JOIN sys.partition_functions pf ON pf.function_id = rv.function_id WHERE pf.name = 'pf_metrics_metrics_sample_bucket_end' AND rv.value = CAST('2026-03-01 00:00:00' AS datetime))
 BEGIN
-    ALTER PARTITION SCHEME [ps_metrics_sample_bucket_end] NEXT USED [PRIMARY];
-    ALTER PARTITION FUNCTION [pf_metrics_sample_bucket_end]() SPLIT RANGE ('2026-03-01 00:00:00');
+    ALTER PARTITION SCHEME [ps_metrics_metrics_sample_bucket_end] NEXT USED [PRIMARY];
+    ALTER PARTITION FUNCTION [pf_metrics_metrics_sample_bucket_end]() SPLIT RANGE ('2026-03-01 00:00:00');
 END
 ```
 
@@ -273,3 +273,110 @@ To set it for one call instead, pass it to `AddPartitionsToAllTables`:
 var result = await manager.AddPartitionsToAllTables(logger, database, ["acme"],
     TimeSpan.FromSeconds(5), token);
 ```
+
+## Partition Function and Scheme Names
+
+A partition function and a partition scheme belong to the *database*, not to a schema. So Weasel names
+them after the schema as well as the table and column, `pf_{schema}_{table}_{column}` and
+`ps_{schema}_{table}_{column}`, and the same table in two schemas of one database gets objects of its
+own. That matters as soon as the two want different boundaries: two stores in different schemas, each
+with its own tenants, or the same document table with different date ranges per schema
+([weasel#920](https://github.com/JasperFx/weasel/issues/920)).
+
+<!-- snippet: sample_ss_partition_object_names -->
+<a id='snippet-sample_ss_partition_object_names'></a>
+```cs
+var table = new Table("tenant_a.orders");
+
+// What a table partitioned from scratch gets: pf_tenant_a_orders_tenant_ordinal
+var function = SqlServerPartitionObjects.FunctionNameFor(table, "tenant_ordinal");
+var scheme = SqlServerPartitionObjects.SchemeNameFor(table, "tenant_ordinal");
+
+// What 9.x and the 10.0 release candidates named it: pf_orders_tenant_ordinal
+var legacy = SqlServerPartitionObjects.LegacyFunctionNameFor(table, "tenant_ordinal");
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L141-L150' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_partition_object_names' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+A name longer than SQL Server's 128 characters is shortened, and ends in a hash of the full name so two
+long names can't collide.
+
+::: warning Upgrading from 9.x or the 10.0 release candidates
+Weasel 9.x and the 10.0 release candidates named these objects `pf_{table}_{column}` and
+`ps_{table}_{column}`, with no schema. SQL Server can't rename a partition function, and moving a table
+onto another scheme rewrites every row, so Weasel leaves a table that's already partitioned on the objects
+it's on, whatever they're called:
+
+- the delta compares boundaries, never names, so your existing tables stay clean and nothing is rebuilt
+  or dropped;
+- every `SPLIT RANGE`, `MERGE RANGE` and `NEXT USED` that migration, `ManagedRangePartitions` or
+  `ManagedTenantPartitions` issues goes to the function and scheme the table is actually on.
+
+Only a table that's partitioned from scratch gets the new names: a new table, a table moved onto its
+partition scheme, or a table rebuilt for some other reason. You don't need to do anything, unless two of
+your schemas already share a function.
+:::
+
+### Finding a function shared across schemas
+
+If you ran more than one schema against one database before 10.0, the same table in each of them is on
+one shared function, and every boundary one of them gets, they all get. Ask the database which functions
+are shared:
+
+<!-- snippet: sample_ss_find_shared_partition_functions -->
+<a id='snippet-sample_ss_find_shared_partition_functions'></a>
+```cs
+// Partition functions that tables in more than one schema are partitioned on. Only a database
+// partitioned by a Weasel older than 10.0 can have these by Weasel's doing (weasel#920)
+var shared = await SqlServerPartitionObjects.FindSharedAcrossSchemasAsync(conn);
+
+foreach (var function in shared)
+{
+    Console.WriteLine(
+        $"{function.FunctionName} is shared by {string.Join(", ", function.Tables.Select(x => x.QualifiedName))}");
+}
+```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L126-L136' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_find_shared_partition_functions' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
+
+`ManagedTenantPartitions` and `ManagedRangePartitions` also log a warning, once per function, the first
+time they split or merge a function that a table in another schema is on.
+
+### Moving a table off a shared function
+
+Weasel won't do this for you, because it rewrites the whole table. Do it deliberately, in a maintenance
+window, for every schema but one. For a table `tenant_a.orders` partitioned on `tenant_ordinal`:
+
+```sql
+-- 1. The function and scheme Weasel would create for this table today, with the boundaries this
+--    table wants: its declared boundaries for RangePartitioning, or 0 and the ordinals in this
+--    store's registry for ManagedTenantPartitions
+CREATE PARTITION FUNCTION [pf_tenant_a_orders_tenant_ordinal] (int)
+    AS RANGE RIGHT FOR VALUES (0, 1, 2);
+CREATE PARTITION SCHEME [ps_tenant_a_orders_tenant_ordinal]
+    AS PARTITION [pf_tenant_a_orders_tenant_ordinal] ALL TO ([PRIMARY]);
+
+-- 2. Rebuild the clustered primary key on the new scheme. This moves every row. Drop any foreign
+--    key that references this key first, and add it back afterwards
+ALTER TABLE [tenant_a].[orders] DROP CONSTRAINT [pkey_orders_tenant_ordinal_id];
+ALTER TABLE [tenant_a].[orders] ADD CONSTRAINT [pkey_orders_tenant_ordinal_id]
+    PRIMARY KEY CLUSTERED ([tenant_ordinal], [id])
+    ON [ps_tenant_a_orders_tenant_ordinal]([tenant_ordinal]);
+
+-- 3. Every other index on the table is aligned with the old scheme; rebuild each one on the new one
+CREATE INDEX [ix_orders_placed_at] ON [tenant_a].[orders] ([placed_at])
+    WITH (DROP_EXISTING = ON) ON [ps_tenant_a_orders_tenant_ordinal]([tenant_ordinal]);
+```
+
+Once no table is on the old function and scheme any more, drop them:
+
+```sql
+DROP PARTITION SCHEME [ps_orders_tenant_ordinal];
+DROP PARTITION FUNCTION [pf_orders_tenant_ordinal];
+```
+
+::: tip
+If the table's data is disposable, say in development or test, it's simpler to drop the table and let
+Weasel create it again: it gets the new names, and the old function and scheme can be dropped once
+nothing is on them.
+:::

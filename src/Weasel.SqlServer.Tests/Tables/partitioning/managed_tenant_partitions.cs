@@ -38,10 +38,10 @@ public class managed_tenant_partitions: IntegrationContext
         var ddl = writer.ToString();
 
         ddl.ShouldContain(
-            "CREATE PARTITION FUNCTION [pf_orders_tenant_ordinal] (int) AS RANGE RIGHT FOR VALUES (0)");
+            "CREATE PARTITION FUNCTION [pf_mtp_orders_tenant_ordinal] (int) AS RANGE RIGHT FOR VALUES (0)");
         ddl.ShouldContain(
-            "CREATE PARTITION SCHEME [ps_orders_tenant_ordinal] AS PARTITION [pf_orders_tenant_ordinal] ALL TO ([PRIMARY]);");
-        ddl.ShouldContain("ON [ps_orders_tenant_ordinal]([tenant_ordinal])");
+            "CREATE PARTITION SCHEME [ps_mtp_orders_tenant_ordinal] AS PARTITION [pf_mtp_orders_tenant_ordinal] ALL TO ([PRIMARY]);");
+        ddl.ShouldContain("ON [ps_mtp_orders_tenant_ordinal]([tenant_ordinal])");
     }
 
     [Fact]
@@ -64,7 +64,7 @@ public class managed_tenant_partitions: IntegrationContext
         var ddl = writer.ToString();
 
         ddl.ShouldContain(
-            "CREATE PARTITION FUNCTION [pf_events_tenant_ordinal] (int) AS RANGE RIGHT FOR VALUES (0, 1, 2, 3)");
+            "CREATE PARTITION FUNCTION [pf_mtp_events_tenant_ordinal] (int) AS RANGE RIGHT FOR VALUES (0, 1, 2, 3)");
     }
 
     [Fact]
@@ -102,8 +102,8 @@ public class managed_tenant_partitions: IntegrationContext
         table.WriteCreateStatement(new SqlServerMigrator(), writer);
         var ddl = writer.ToString();
 
-        ddl.ShouldContain("CREATE PARTITION FUNCTION [pf_events_tenant_slot] (int) AS RANGE RIGHT");
-        ddl.ShouldContain("ON [ps_events_tenant_slot]([tenant_slot])");
+        ddl.ShouldContain("CREATE PARTITION FUNCTION [pf_mtp_events_tenant_slot] (int) AS RANGE RIGHT");
+        ddl.ShouldContain("ON [ps_mtp_events_tenant_slot]([tenant_slot])");
     }
 
     [Fact]
@@ -211,9 +211,9 @@ public class managed_tenant_partitions: IntegrationContext
         ddl.ShouldNotContain("SPLIT RANGE (0)");
         ddl.ShouldNotContain("SPLIT RANGE (1)");
         ddl.ShouldNotContain("SPLIT RANGE (2)");
-        ddl.ShouldContain("ALTER PARTITION SCHEME [ps_events_tenant_ordinal] NEXT USED [PRIMARY];");
-        ddl.ShouldContain("ALTER PARTITION FUNCTION [pf_events_tenant_ordinal]() SPLIT RANGE (3);");
-        ddl.ShouldContain("ALTER PARTITION FUNCTION [pf_events_tenant_ordinal]() SPLIT RANGE (4);");
+        ddl.ShouldContain("ALTER PARTITION SCHEME [ps_mtp_events_tenant_ordinal] NEXT USED [PRIMARY];");
+        ddl.ShouldContain("ALTER PARTITION FUNCTION [pf_mtp_events_tenant_ordinal]() SPLIT RANGE (3);");
+        ddl.ShouldContain("ALTER PARTITION FUNCTION [pf_mtp_events_tenant_ordinal]() SPLIT RANGE (4);");
     }
 
     [Fact]
@@ -265,7 +265,7 @@ public class managed_tenant_partitions: IntegrationContext
     {
         await ResetSchema();
 
-        foreach (var pfName in new[] { "pf_orders_tenant_ordinal", "pf_events_tenant_ordinal" })
+        foreach (var pfName in new[] { "pf_mtp_orders_tenant_ordinal", "pf_mtp_events_tenant_ordinal" })
         {
             var psName = pfName.Replace("pf_", "ps_");
             await theConnection.CreateCommand($@"
@@ -323,7 +323,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
         manager.Ordinals.ShouldContainKeyAndValue("globex", 2);
 
         // Partition function should have boundaries 1 and 2
-        var boundaries = await ReadBoundariesAsync("pf_orders_tenant_ordinal");
+        var boundaries = await ReadBoundariesAsync("pf_mtp_orders_tenant_ordinal");
         boundaries.ShouldBe(new[] { 0, 1, 2 });
 
         // Registry table should have two rows
@@ -356,7 +356,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
         first.ShouldBe(1);
         second.ShouldBe(1);
 
-        var boundaries = await ReadBoundariesAsync("pf_orders_tenant_ordinal");
+        var boundaries = await ReadBoundariesAsync("pf_mtp_orders_tenant_ordinal");
         boundaries.ShouldBe(new[] { 0, 1 });
 
         var registryCount = (int)(await theConnection.CreateCommand(
@@ -395,9 +395,9 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
 
         // Both tables' partition functions should now hold the sentinel 0
         // plus tenant ordinals 1 and 2.
-        (await ReadBoundariesAsync("pf_orders_tenant_ordinal"))
+        (await ReadBoundariesAsync("pf_mtp_orders_tenant_ordinal"))
             .ShouldBe(new[] { 0, 1, 2 });
-        (await ReadBoundariesAsync("pf_events_tenant_ordinal"))
+        (await ReadBoundariesAsync("pf_mtp_events_tenant_ordinal"))
             .ShouldBe(new[] { 0, 1, 2 });
     }
 
@@ -425,7 +425,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
 
         await manager.AddPartitionToAllTables(database, "acme", CancellationToken.None);
 
-        var boundaries = await ReadBoundariesAsync("pf_orders_tenant_ordinal");
+        var boundaries = await ReadBoundariesAsync("pf_mtp_orders_tenant_ordinal");
         boundaries.ShouldBe(new[] { 0, 1 });
     }
 
@@ -459,7 +459,7 @@ IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = '{pfName}')
 
         // Boundary 2 should have been MERGE'd out; sentinel 0 plus
         // boundaries 1 and 3 remain.
-        var boundaries = await ReadBoundariesAsync("pf_orders_tenant_ordinal");
+        var boundaries = await ReadBoundariesAsync("pf_mtp_orders_tenant_ordinal");
         boundaries.ShouldBe(new[] { 0, 1, 3 });
 
         var registryCount = (int)(await theConnection.CreateCommand(

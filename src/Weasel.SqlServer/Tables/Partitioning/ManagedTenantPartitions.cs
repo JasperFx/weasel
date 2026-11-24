@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using JasperFx.Core;
@@ -76,6 +77,7 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     // modified" or — worse, because nothing reports it — read a torn, half-loaded boundary set.
     private volatile RegistrySnapshot _registryState = RegistrySnapshot.Empty();
     private readonly SemaphoreSlim _semaphore = new(1, 1);
+    private readonly ConcurrentDictionary<string, byte> _warnedSharedFunctions = new();
     private bool _hasInitialized;
 
     // Serializes the read-copy-write sequences against each other. Deliberately NOT _semaphore, which is held
@@ -263,13 +265,19 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     // ISqlServerPartitioning
     // ---------------------------------------------------------------------
 
-    /// <inheritdoc />
+    /// <summary>
+    ///     <c>pf_{schema}_{table}_{column}</c>, the name a newly partitioned table's function gets, so two
+    ///     stores in different schemas of one database keep tenant boundaries of their own. A table that is
+    ///     already partitioned keeps the function it is on; see <see cref="SqlServerPartitionObjects" />.
+    /// </summary>
     public string PartitionFunctionName(Table parent)
-        => $"pf_{parent.Identifier.Name}_{Column}";
+        => SqlServerPartitionObjects.FunctionNameFor(parent, Column);
 
-    /// <inheritdoc />
+    /// <summary>
+    ///     <c>ps_{schema}_{table}_{column}</c>, the name a newly partitioned table's scheme gets.
+    /// </summary>
     public string PartitionSchemeName(Table parent)
-        => $"ps_{parent.Identifier.Name}_{Column}";
+        => SqlServerPartitionObjects.SchemeNameFor(parent, Column);
 
     /// <inheritdoc />
     public void WritePartitionDdl(TextWriter writer, Table parent)
@@ -366,8 +374,9 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
     /// </summary>
     public void WriteSplitStatements(TextWriter writer, Table parent, SqlServerPartitionInfo actual)
     {
-        var pfName = PartitionFunctionName(parent);
-        var psName = PartitionSchemeName(parent);
+        // The objects the table is actually on, which may carry a pre-10.0 name (weasel#920)
+        var pfName = actual.PartitionFunctionName ?? PartitionFunctionName(parent);
+        var psName = actual.PartitionSchemeName ?? PartitionSchemeName(parent);
         var actualSet = new HashSet<string>(actual.BoundaryValues, StringComparer.OrdinalIgnoreCase);
 
         foreach (var ordinal in OrderedBoundaries())
@@ -995,7 +1004,11 @@ public class ManagedTenantPartitions: FeatureSchemaBase, ISqlServerPartitioning,
 
         foreach (var table in tables)
         {
-            var pfName = PartitionFunctionName(table);
+            // The function the table is actually on, which may carry a pre-10.0 name (weasel#920)
+            var pfName = (await SqlServerPartitionObjects
+                .ResolveAsync(conn, table, this, logger, _warnedSharedFunctions, token).ConfigureAwait(false))
+                .FunctionName;
+
             foreach (var ordinal in ordinalsToMerge)
             {
                 if (behavior == TenantDropBehavior.DeleteData)
@@ -1176,8 +1189,11 @@ OUTPUT inserted.ordinal;";
         {
             try
             {
-                var pfName = PartitionFunctionName(table);
-                var psName = PartitionSchemeName(table);
+                // The objects the table is actually on, which may carry a pre-10.0 name (weasel#920)
+                var bound = await SqlServerPartitionObjects
+                    .ResolveAsync(conn, table, this, logger, _warnedSharedFunctions, token).ConfigureAwait(false);
+                var pfName = bound.FunctionName;
+                var psName = bound.SchemeName;
 
                 var existing = await fetchActualBoundariesAsync(conn, pfName, token).ConfigureAwait(false);
                 if (existing == null)
