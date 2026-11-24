@@ -11,7 +11,7 @@ migration does on SQL Server and on partitioned PostgreSQL tables.
 | Theme | Effort |
 | --- | --- |
 | `net9.0` dropped; targets are `net10.0` and `net11.0` | Move your application to `net10.0` or later |
-| `JasperFx` / `JasperFx.Events` 3.x, 3.12.1 or later | Pin bump (move the rest of the Critter Stack with it) |
+| `JasperFx` / `JasperFx.Events` 3.x, 3.15.0 or later | Pin bump (move the rest of the Critter Stack with it) |
 | `Npgsql` 11 on both frameworks, `Microsoft.Data.SqlClient` 7, `Oracle.ManagedDataAccess.Core` 23.26, `MySqlConnector` 3.0 | Pin bump; read the driver release notes |
 | `Weasel.EntityFrameworkCore` uses EF Core 10 on `net10.0` and EF Core 11 on `net11.0` | Pin bump. Oracle's EF provider has no EF Core 11 release yet |
 | `AdvisoryLock` takes its PostgreSQL advisory locks itself; `Patched.DistributedLock.Postgres` is gone ([weasel#908](https://github.com/JasperFx/weasel/issues/908)) | None; same API and behaviour |
@@ -26,6 +26,7 @@ migration does on SQL Server and on partitioned PostgreSQL tables.
 | `net11.0` assemblies are compiled with runtime-async | None; opt out with `-p:WeaselRuntimeAsync=false` when building Weasel from source |
 | SQL Server migrations move a table onto RANGE partitioning in place, change key columns across foreign keys, and fill NULLs before a column becomes NOT NULL | None, but read [Schema migrations](#schema-migrations) before a migration runs against data you care about |
 | PostgreSQL partitioning rebuilds lock the table and run in a transaction | None |
+| A PostgreSQL migration that loses a race to create the same table determines itself again instead of failing ([weasel#918](https://github.com/JasperFx/weasel/issues/918)) | None |
 | `CREATE DATABASE` and extension installs run under `ProvisioningCommandTimeout` (two minutes) | None, unless you counted on the connection's command timeout there |
 | `MasterTableTenancyBase` evicts tenants another node removed or disabled, and tells a disabled tenant from an unknown one | None; the default refusal is still `UnknownTenantIdException` |
 | `OperationBatchExecutor` drains every result set, so an error the reader used to swallow now throws | None, unless you build a store on `Weasel.Storage` |
@@ -54,7 +55,7 @@ below what Weasel, Npgsql and JasperFx ask for, or restore fails with `NU1605` (
 
 | Package | 9.x | 10.0 |
 | --- | --- | --- |
-| `JasperFx`, `JasperFx.Events`, `JasperFx.SourceGenerator` | `2.x` | `3.12.x` |
+| `JasperFx`, `JasperFx.Events`, `JasperFx.SourceGenerator` | `2.x` | `3.15.0` or later |
 | `Npgsql` | `9.0.x` | `11.0.x` |
 | `Npgsql.NetTopologySuite` | `9.0.x` | `11.0.x` |
 | `Microsoft.Data.SqlClient` | `6.1.x` | `7.1.x` |
@@ -87,10 +88,13 @@ pins Npgsql itself, pin 11. Coming from Weasel 9.x, that is two driver majors, s
 [Npgsql 10](https://www.npgsql.org/doc/release-notes/10.0.html) and
 [Npgsql 11](https://www.npgsql.org/doc/release-notes/11.0.html) release notes.
 
+::: warning
 Npgsql 11 removed multiplexing, so a connection string with `Multiplexing=true` now fails on both frameworks.
-Take it out of your connection strings. Weasel had code that worked around multiplexing (falling back to the
-asynchronous path where Npgsql refused synchronous I/O); that is gone too
-([weasel#812](https://github.com/JasperFx/weasel/issues/812)).
+Take it out of your connection strings.
+:::
+
+Weasel had code that worked around multiplexing, falling back to the asynchronous path where Npgsql refused
+synchronous I/O. That is gone too ([weasel#812](https://github.com/JasperFx/weasel/issues/812)).
 
 On `net10.0`, `Npgsql.EntityFrameworkCore.PostgreSQL` stays on 10.x, which runs on Npgsql 11.
 
@@ -140,14 +144,14 @@ unaffected.
 
 ## Runtime-async on `net11.0`
 
-The `net11.0` build of every Weasel assembly is compiled with the C# compiler's **runtime-async** feature
-(Critter Stack plan decision D4, as in Wolverine 7.0 and JasperFx 3.0). The `net10.0` build is unchanged:
-`net10.0` cannot load runtime-async code.
+The `net11.0` build of every Weasel assembly is compiled with the C# compiler's **runtime-async** feature,
+the same as Wolverine 7.0 and JasperFx 3.0. The `net10.0` build is unchanged, because `net10.0` cannot load
+runtime-async code.
 
 Nothing in your code changes. What you may notice on `net11.0` is how async code looks at runtime: async stack
 traces, debugger stepping, and APM agents or profilers that hook compiler-generated async state machines can
 behave differently, because those state machines are gone (async iterators keep theirs). Wolverine measured
-38–84% fewer allocations on its in-process lane with it on.
+38 to 84% fewer allocations on its in-process lane with it on.
 
 If you build Weasel from source and need it off, pass `-p:WeaselRuntimeAsync=false`. The switch does not
 trigger a recompile, so clean `bin/` and `obj/` between a build with it and a build without.
@@ -218,15 +222,15 @@ Leaving it `null` keeps today's behaviour exactly. A store that sets it must als
   (marten#5262). An operation that is never disposed is only collected, unpooled; a wrapping operation must
   forward `Dispose`.
 - **Override `IStorageDialect.SetBinaryParameterValue`** so the slice is bound without a copy. The new member
-  defaults to copying it into an array, which every driver accepts. Measured: Npgsql binds a
-  `ReadOnlyMemory<byte>` for `bytea` as it is; Microsoft.Data.SqlClient needs a `Stream` over the slice
-  (`new MemoryStream(array, offset, count, writable: false)`); Microsoft.Data.Sqlite takes only a `byte[]`, so a
-  SQLite store gains nothing from the slot.
+  defaults to copying it into an array, which every driver accepts. What each driver takes, as measured:
+  Npgsql binds a `ReadOnlyMemory<byte>` for `bytea` as it is, Microsoft.Data.SqlClient needs a `Stream` over
+  the slice (`new MemoryStream(array, offset, count, writable: false)`), and Microsoft.Data.Sqlite takes only a
+  `byte[]`, so a SQLite store gains nothing from the slot.
 
 ### Deriving the closed-shape storages
 
 The tracking-mode bases are public, so a store can derive them to carry its own storage interfaces
-(weasel#811): `QueryOnlyClosedShapeDocumentStorage<TDoc, TId>`,
+([weasel#811](https://github.com/JasperFx/weasel/issues/811)): `QueryOnlyClosedShapeDocumentStorage<TDoc, TId>`,
 `LightweightClosedShapeDocumentStorage<TDoc, TId>`, `IdentityMapClosedShapeDocumentStorage<TDoc, TId>` and
 `DirtyTrackingClosedShapeDocumentStorage<TDoc, TId>`, over the abstract `ClosedShapeDocumentStorage<TDoc, TId>`.
 A derived class needs only a constructor: the base builds the write operations and the selector for the
@@ -292,7 +296,7 @@ arithmetic. `NextLong` and `NextLongAsync` can be mixed on one instance without 
 burst of synchronous callers starves the thread pool.
 
 Both are additive. An `ISequence` that implements neither gets a default that calls its own `NextLong`: a real id,
-but obtained synchronously. Three things a `HiloSequenceBase` subclass should know:
+but obtained synchronously. Four things a `HiloSequenceBase` subclass should know:
 
 - An `AdvanceToNextHi` never overlaps another `AdvanceToNextHi` on one instance, nor an `AdvanceToNextHiSync`
   another `AdvanceToNextHiSync`, but the two **can overlap each other**. A synchronous caller that needs a block
@@ -339,16 +343,21 @@ appending at the end of its primary key index. The `mt_version` values in `Wease
 ## Schema migrations
 
 None of these need a code change, but a migration that failed or was refused in 9.x may now run, and one
-that ran may now run differently. Look at the generated script (`db-patch`) before you apply a migration
-to a database whose data you care about.
+that ran may now run differently.
+
+::: warning
+Look at the generated script from `db-patch` before you apply a migration to a database whose data you care
+about.
+:::
 
 ### SQL Server
 
 - **Turning on RANGE partitioning for a table that already has rows moves it in place.** In 9.x that delta
   was invalid, so `AutoCreate.CreateOrUpdate` refused it and `AutoCreate.All` dropped the table and every row
   in it. Now the clustered primary key is rebuilt on the partition scheme, which moves the rows where they
-  are. Foreign keys from other tables in the migration come off first and go back afterwards. The delta is
-  still reported as invalid, so `AutoCreate.CreateOnly` still refuses it.
+  are. Foreign keys on other tables that reference the key come off first, and the ones those tables still
+  declare go back afterwards. The delta is still reported as invalid, so `AutoCreate.CreateOnly` still
+  refuses it. See [Partitioning a table that already has rows](/sqlserver/partitioning#partitioning-a-table-that-already-has-rows).
 - **A key column's type change migrates across foreign keys on other tables**
   ([weasel#870](https://github.com/JasperFx/weasel/issues/870)). Table introspection now also reads the
   foreign keys on other tables that reference a table (`Table.ReferencingForeignKeys`). The delta drops the
@@ -369,7 +378,8 @@ to a database whose data you care about.
 - **`Trigger.IgnoreHeaderSpelling`** compares a stored trigger's header by meaning (name, target, timing,
   events and body) instead of by text, so a trigger written with `FOR`, brackets or a different event order
   stops reporting drift. It is off by default.
-- **Generated scripts re-run.** On top of the guards in [the list below](#behavior-and-build-changes-that-need-no-code),
+- **Generated scripts re-run.** On top of the guards in [the list below](#behavior-and-build-changes-that-need-no-code)
+  and in [re-runnable scripts](/sqlserver/#batch-separators-and-re-runnable-scripts),
   `CREATE TABLE` guards look for a table (`'U'`) by an `N''` name, a JSON index guard checks its own column,
   and partition `SPLIT RANGE` and `MERGE RANGE` check the boundary first.
 - **`ManagedTenantPartitions.SplitCommandTimeout`** gives a `SPLIT RANGE` its own command timeout
@@ -393,6 +403,13 @@ to a database whose data you care about.
   same.
 - `IndexDefinition.Parse` reads `ON ONLY` and compares `USING` exactly
   ([weasel#869](https://github.com/JasperFx/weasel/issues/869)).
+- **Two sessions creating the same table at the same moment both succeed**
+  ([weasel#918](https://github.com/JasperFx/weasel/issues/918)). `CREATE TABLE IF NOT EXISTS` is not atomic
+  in PostgreSQL, so the session that lost the race used to fail with `23505` on `pg_type_typname_nsp_index`
+  (or another catalog index) or with `42P07`. That shows up when two application nodes start together with
+  `AutoCreate` on. `PostgresqlMigrator` now treats either error as a lost race: it determines the migration
+  again against the catalog as it is now and applies whatever is still missing, which is usually nothing. It
+  tries that at most three times, so a genuine `42P07` is still reported. The rendered DDL is unchanged.
 
 ### Managed partitions (both)
 
@@ -471,12 +488,13 @@ synchronous connection, so a store's synchronous lookup no longer blocks a threa
   column adds are guarded by `COL_LENGTH`, primary key and check constraint adds by `OBJECT_ID`, and column,
   primary key and table type drops use `IF EXISTS`. `TableColumn.AddColumnSql` now returns two lines, the
   guard and the `alter table`; code that ran it through its own `SqlCommand` keeps working.
-- The Nuke build host targets `net10.0`. `./build.sh Pack`, `AotSmoke` and `LocalGate` are the local-train
-  entry points; see `CLAUDE.md` in the repository.
+- The Nuke build host targets `net10.0`. If you build Weasel from source, `./build.sh Pack` packs every
+  package locally, `./build.sh AotSmoke` publishes and runs the Native AOT smoke test, and
+  `./build.sh LocalGate` runs every CI test suite on your own machine.
 - `Weasel.Storage.OperationBatchExecutor.ExecuteAsync` lets only the operation whose statement raised a provider
   error translate it ([weasel#832](https://github.com/JasperFx/weasel/issues/832)). It used to offer the error to
-  every operation in order whenever the driver did not name the failing command — on Npgsql, always — so an
-  operation matching by error code alone could claim another statement's error. The failing statement is now
+  every operation in order whenever the driver did not name the failing command, which on Npgsql is always, so
+  an operation matching by error code alone could claim another statement's error. The failing statement is now
   found from where the reader was when the error surfaced, and an error no candidate translates is rethrown as
   itself rather than offered to the rest of the batch. On PostgreSQL, pass
   `OperationBatchOptions.StatementCompletion = NpgsqlStatementCompletion.HasCompleted` to tell apart a run of
@@ -496,8 +514,7 @@ synchronous connection, so a store's synchronous lookup no longer blocks a threa
   lists each alias once, so a dialect matching on the `type` column (Marten's, Fisher's) renders exactly what it did.
   Code that reads `UpcastSourceAliases` for anything other than that second disjunct should not assume it is
   disjoint from `Aliases`.
-
-- Weasel.Sqlite now depends on Microsoft.Data.Sqlite **10.0.15** ([weasel#857](https://github.com/JasperFx/weasel/issues/857)).
+- `Weasel.Sqlite` now depends on `Microsoft.Data.Sqlite` **10.0.15** ([weasel#857](https://github.com/JasperFx/weasel/issues/857)).
   Up to 10.0.12 its connection pool could lend one native SQLite handle to two open connections when opens of
   one database raced (dotnet/efcore#39008). The symptoms were a transaction that "has completed" under you,
   "unable to delete/modify user-function due to active statements" from `Dispose`, or a process crash in
@@ -516,7 +533,7 @@ synchronous connection, so a store's synchronous lookup no longer blocks a threa
 
 | Weasel | JasperFx | JasperFx.Events | Marten | Polecat | Fisher | Wolverine |
 | --- | --- | --- | --- | --- | --- | --- |
-| 10.0 | 3.x (3.12.1 or later) | 3.x (3.12.1 or later) | 10.0 | 6.0 | 2.0 | 7.0 |
+| 10.0 | 3.x (3.15.0 or later) | 3.x (3.15.0 or later) | 10.0 | 6.0 | 2.0 | 7.0 |
 
 Mixing majors across products is unsupported in this wave.
 
