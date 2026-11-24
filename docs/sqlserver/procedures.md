@@ -23,7 +23,7 @@ WHERE Active = 1 AND Age >= @MinAge;
 END;
 ");
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L139-L153' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_stored_procedure' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L169-L183' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_define_stored_procedure' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Generating DDL
@@ -43,7 +43,7 @@ proc.WriteCreateOrAlterStatement(migrator, writer);
 // DROP PROCEDURE IF EXISTS
 proc.WriteDropStatement(migrator, writer);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L161-L173' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_procedure_ddl' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L191-L203' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_procedure_ddl' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `WriteCreateStatement` and `WriteCreateOrAlterStatement` emit the same thing, because only one form
@@ -90,7 +90,7 @@ else if (delta.Difference == SchemaPatchDifference.Update)
     // Procedure body has changed
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L182-L195' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_procedure_delta_detection' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L212-L225' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_procedure_delta_detection' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Fetching Existing Definitions
@@ -104,5 +104,5 @@ if (existing != null)
     // existing contains the current procedure body from the database
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L207-L213' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_procedure_fetch_existing' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SqlServerSamples.cs#L237-L243' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ss_procedure_fetch_existing' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->

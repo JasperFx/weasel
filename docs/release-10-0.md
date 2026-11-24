@@ -90,4 +90,11 @@ out. `Weasel.MySql` itself is unaffected.
   determines its migration again and applies whatever is still missing
   ([weasel#918](https://github.com/JasperFx/weasel/issues/918)). You're most likely to have hit this when two
   application nodes started together with `AutoCreate` on.
+- SQL Server partition functions and schemes are named after the schema as well as the table and column,
+  `pf_{schema}_{table}_{column}` ([weasel#920](https://github.com/JasperFx/weasel/issues/920)). Both are
+  database-scoped, so the same table in two schemas of one database used to share them, and a `SPLIT` or
+  `MERGE` for one schema's tenants or boundaries changed the other's. A table that's already partitioned keeps
+  the function and scheme it's on, so nothing is rebuilt, and `SqlServerPartitionObjects.FindSharedAcrossSchemasAsync`
+  tells you whether two of your schemas already share one. See
+  [Partition Function and Scheme Names](/sqlserver/partitioning#partition-function-and-scheme-names).
 - `JasperFx` and `JasperFx.Events` move from 3.12.1 to 3.15.0.

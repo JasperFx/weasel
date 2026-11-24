@@ -52,10 +52,10 @@ public class managed_range_partitions: IntegrationContext
         var ddl = writer.ToString();
 
         ddl.ShouldContain(
-            "CREATE PARTITION FUNCTION [pf_metrics_occurred_at] (datetime2) AS RANGE RIGHT FOR VALUES ('2026-06-01 00:00:00', '2026-07-01 00:00:00', '2026-08-01 00:00:00');");
+            "CREATE PARTITION FUNCTION [pf_mrp_metrics_occurred_at] (datetime2) AS RANGE RIGHT FOR VALUES ('2026-06-01 00:00:00', '2026-07-01 00:00:00', '2026-08-01 00:00:00');");
         ddl.ShouldContain(
-            "CREATE PARTITION SCHEME [ps_metrics_occurred_at] AS PARTITION [pf_metrics_occurred_at] ALL TO ([PRIMARY]);");
-        ddl.ShouldContain("ON [ps_metrics_occurred_at]([occurred_at])");
+            "CREATE PARTITION SCHEME [ps_mrp_metrics_occurred_at] AS PARTITION [pf_mrp_metrics_occurred_at] ALL TO ([PRIMARY]);");
+        ddl.ShouldContain("ON [ps_mrp_metrics_occurred_at]([occurred_at])");
     }
 
     [Fact]
@@ -104,9 +104,9 @@ public class managed_range_partitions: IntegrationContext
         manager.WriteSplitStatements(writer, theMetricsTable(manager), actual);
         var sql = writer.ToString();
 
-        sql.ShouldContain("ALTER PARTITION SCHEME [ps_metrics_occurred_at] NEXT USED [PRIMARY];");
+        sql.ShouldContain("ALTER PARTITION SCHEME [ps_mrp_metrics_occurred_at] NEXT USED [PRIMARY];");
         sql.ShouldContain(
-            "ALTER PARTITION FUNCTION [pf_metrics_occurred_at]() SPLIT RANGE ('2026-10-01 00:00:00');");
+            "ALTER PARTITION FUNCTION [pf_mrp_metrics_occurred_at]() SPLIT RANGE ('2026-10-01 00:00:00');");
         sql.ShouldNotContain("'2026-09-01 00:00:00'");
     }
 
@@ -231,7 +231,7 @@ public class managed_range_partitions: IntegrationContext
         // A hand-added mid-month boundary well below the retention floor. It is not a period start for
         // this policy, so Weasel did not create it and Weasel does not get to merge it away.
         await theConnection.CreateCommand(
-                "ALTER PARTITION SCHEME [ps_metrics_occurred_at] NEXT USED [PRIMARY];ALTER PARTITION FUNCTION [pf_metrics_occurred_at]() SPLIT RANGE ('2026-05-15 00:00:00');")
+                "ALTER PARTITION SCHEME [ps_mrp_metrics_occurred_at] NEXT USED [PRIMARY];ALTER PARTITION FUNCTION [pf_mrp_metrics_occurred_at]() SPLIT RANGE ('2026-05-15 00:00:00');")
             .ExecuteNonQueryAsync();
 
         clock.UtcNow = July.AddMonths(2);
@@ -314,8 +314,8 @@ public class managed_range_partitions: IntegrationContext
     private static SqlServerPartitionInfo theActualInfo(ManagedRangePartitions manager)
         => new()
         {
-            PartitionFunctionName = "pf_metrics_occurred_at",
-            PartitionSchemeName = "ps_metrics_occurred_at",
+            PartitionFunctionName = "pf_mrp_metrics_occurred_at",
+            PartitionSchemeName = "ps_mrp_metrics_occurred_at",
             Column = "occurred_at",
             SqlDataType = "datetime2",
             IsRangeRight = true,
@@ -327,10 +327,10 @@ public class managed_range_partitions: IntegrationContext
         await ResetSchema();
 
         await theConnection.CreateCommand("""
-                                          IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = 'ps_metrics_occurred_at')
-                                              DROP PARTITION SCHEME [ps_metrics_occurred_at];
-                                          IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = 'pf_metrics_occurred_at')
-                                              DROP PARTITION FUNCTION [pf_metrics_occurred_at];
+                                          IF EXISTS (SELECT 1 FROM sys.partition_schemes WHERE name = 'ps_mrp_metrics_occurred_at')
+                                              DROP PARTITION SCHEME [ps_mrp_metrics_occurred_at];
+                                          IF EXISTS (SELECT 1 FROM sys.partition_functions WHERE name = 'pf_mrp_metrics_occurred_at')
+                                              DROP PARTITION FUNCTION [pf_mrp_metrics_occurred_at];
                                           """)
             .ExecuteNonQueryAsync();
     }
@@ -343,7 +343,7 @@ public class managed_range_partitions: IntegrationContext
                                                                    SELECT prv.value
                                                                    FROM sys.partition_functions pf
                                                                    JOIN sys.partition_range_values prv ON pf.function_id = prv.function_id
-                                                                   WHERE pf.name = 'pf_metrics_occurred_at'
+                                                                   WHERE pf.name = 'pf_mrp_metrics_occurred_at'
                                                                    ORDER BY prv.boundary_id;
                                                                    """).ExecuteReaderAsync();
 
