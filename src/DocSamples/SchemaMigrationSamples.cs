@@ -114,6 +114,13 @@ public class SchemaMigrationSamples
         #endregion
     }
 
+    public void provisioning_command_timeout(Migrator migrator)
+    {
+        #region sample_provisioning_command_timeout
+        migrator.ProvisioningCommandTimeout = TimeSpan.FromMinutes(5);
+        #endregion
+    }
+
     public async Task generate_migration_script(DatabaseBase<Npgsql.NpgsqlConnection> database)
     {
         #region sample_generate_migration_script

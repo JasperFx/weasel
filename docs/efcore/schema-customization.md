@@ -86,7 +86,7 @@ var customization = new EfSchemaMappingCustomization
 // The same customization is applied on every mapping pass
 var database = serviceProvider.CreateDatabase(dbContext, customization);
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreCustomizationSamples.cs#L67-L79' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_customization_create_database' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/EfCoreCustomizationSamples.cs#L100-L112' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_efcore_customization_create_database' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Ordering guarantees

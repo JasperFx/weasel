@@ -18,7 +18,7 @@ In a sharded multi-tenant architecture, each tenant's data lives in one of sever
 Manages the registry of databases and tenant assignments:
 
 <!-- snippet: sample_ITenantDatabasePool_interface -->
-<a id='snippet-sample_itenantdatabasepool_interface'></a>
+<a id='snippet-sample_ITenantDatabasePool_interface'></a>
 ```cs
 public interface ITenantDatabasePool_Sample
 {
@@ -30,7 +30,7 @@ public interface ITenantDatabasePool_Sample
     ValueTask RemoveTenantAsync(string tenantId, CancellationToken ct);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L7-L17' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_itenantdatabasepool_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L7-L17' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ITenantDatabasePool_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Each `PooledDatabase` tracks a database's identifier, connection string, and whether it is full (accepting no more tenants).
@@ -40,7 +40,7 @@ Each `PooledDatabase` tracks a database's identifier, connection string, and whe
 Determines which database a new tenant should be assigned to:
 
 <!-- snippet: sample_ITenantAssignmentStrategy_interface -->
-<a id='snippet-sample_itenantassignmentstrategy_interface'></a>
+<a id='snippet-sample_ITenantAssignmentStrategy_interface'></a>
 ```cs
 public interface ITenantAssignmentStrategy_Sample
 {
@@ -49,7 +49,7 @@ public interface ITenantAssignmentStrategy_Sample
         IReadOnlyList<PooledDatabase> availableDatabases);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L19-L26' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_itenantassignmentstrategy_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L19-L26' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ITenantAssignmentStrategy_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Weasel ships with several built-in strategies:
@@ -65,14 +65,14 @@ Weasel ships with several built-in strategies:
 Controls when a database is considered "full" and should stop accepting new tenants:
 
 <!-- snippet: sample_IDatabaseSizingStrategy_interface -->
-<a id='snippet-sample_idatabasesizingstrategy_interface'></a>
+<a id='snippet-sample_IDatabaseSizingStrategy_interface'></a>
 ```cs
 public interface IDatabaseSizingStrategy_Sample
 {
     ValueTask<string> FindSmallestDatabaseAsync(IReadOnlyList<PooledDatabase> databases);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L28-L33' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_idatabasesizingstrategy_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L28-L33' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IDatabaseSizingStrategy_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## IDatabase.TenantIds
@@ -80,7 +80,7 @@ public interface IDatabaseSizingStrategy_Sample
 The `IDatabase` interface includes a `TenantIds` property that lists which tenants are assigned to that database instance:
 
 <!-- snippet: sample_IDatabase_TenantIds -->
-<a id='snippet-sample_idatabase_tenantids'></a>
+<a id='snippet-sample_IDatabase_TenantIds'></a>
 ```cs
 public interface IDatabase_TenantIds_Sample
 {
@@ -88,7 +88,7 @@ public interface IDatabase_TenantIds_Sample
     // ... other members
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L37-L43' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_idatabase_tenantids' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/MultiTenancySamples.cs#L37-L43' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IDatabase_TenantIds' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 This is used by the migration infrastructure to apply schema changes to the correct databases when running in a multi-tenant configuration.

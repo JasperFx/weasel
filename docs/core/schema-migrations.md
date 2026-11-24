@@ -23,7 +23,7 @@ flowchart TD
 `IDatabase` (in `Weasel.Core.Migrations`) is the central interface for managing a database's schema lifecycle:
 
 <!-- snippet: sample_IDatabase_interface -->
-<a id='snippet-sample_idatabase_interface'></a>
+<a id='snippet-sample_IDatabase_interface'></a>
 ```cs
 public interface IDatabase_Sample
 {
@@ -48,7 +48,7 @@ public interface IDatabase_Sample
     string ToDatabaseScript();
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L8-L31' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_idatabase_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L9-L32' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IDatabase_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Key methods:
@@ -66,7 +66,7 @@ Key methods:
 An `IFeatureSchema` groups related schema objects together (for example, all the tables and indexes for a document storage feature):
 
 <!-- snippet: sample_IFeatureSchema_interface -->
-<a id='snippet-sample_ifeatureschema_interface'></a>
+<a id='snippet-sample_IFeatureSchema_interface'></a>
 ```cs
 public interface IFeatureSchema_Sample
 {
@@ -76,7 +76,7 @@ public interface IFeatureSchema_Sample
     Type StorageType { get; }
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L33-L41' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_ifeatureschema_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L34-L42' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IFeatureSchema_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 Weasel processes features in the order returned by `BuildFeatureSchemas()`, so dependency relationships between features should be reflected by their position in the array.
@@ -96,7 +96,7 @@ if (migration.Difference == SchemaPatchDifference.None)
     // Database is up to date
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L55-L63' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_check_migration_result' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L56-L64' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_check_migration_result' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 `SchemaMigration` exposes the collection of `ISchemaObjectDelta` instances and computes the aggregate `Difference` as the minimum (most severe) difference across all deltas.
@@ -146,7 +146,7 @@ database.AutoCreate = AutoCreate.All;
 // In production -- never migrate lazily. Pair with db-assert to fail on drift
 database.AutoCreate = AutoCreate.None;
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L68-L74' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_set_autocreate_policy' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L69-L75' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_set_autocreate_policy' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 You can also override the policy for a single call:
@@ -158,7 +158,7 @@ await database.ApplyAllConfiguredChangesToDatabaseAsync(
     @override: AutoCreate.CreateOrUpdate
 );
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L79-L83' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_override_autocreate_policy' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L97-L101' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_override_autocreate_policy' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## The Migrator
@@ -220,9 +220,13 @@ Creating or dropping a database and installing a PostgreSQL extension can take a
 especially on a busy server. Those statements use `ProvisioningCommandTimeout`, two minutes by default,
 instead of the connection's command timeout. Everything else keeps the connection's timeout.
 
+<!-- snippet: sample_provisioning_command_timeout -->
+<a id='snippet-sample_provisioning_command_timeout'></a>
 ```cs
 migrator.ProvisioningCommandTimeout = TimeSpan.FromMinutes(5);
 ```
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L119-L121' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_provisioning_command_timeout' title='Start of snippet'>anchor</a></sup>
+<!-- endSnippet -->
 
 It's on every `Migrator` (used by `EnsureDatabaseExistsAsync()` and, on PostgreSQL, extension installs)
 and on PostgreSQL's `SingleServerDatabaseCollection<T>` for the databases it creates or drops. If the
@@ -243,7 +247,7 @@ var result = await database.ApplyAllConfiguredChangesToDatabaseAsync();
 
 // result is SchemaPatchDifference.None if no changes were needed
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L88-L96' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_typical_migration_workflow' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L106-L114' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_typical_migration_workflow' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 For CI/CD pipelines, you can generate migration scripts without applying them:
@@ -257,7 +261,7 @@ await database.WriteMigrationFileAsync("migrations/next.sql");
 // Or get the full creation script
 var script = database.ToDatabaseScript();
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L101-L107' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_generate_migration_script' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L126-L132' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_generate_migration_script' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 ## Permissions
@@ -317,7 +321,7 @@ that is demonstrably not empty points at grants rather than at drift.
 Implement `IMigrationLogger` to capture the SQL that Weasel generates:
 
 <!-- snippet: sample_IMigrationLogger_interface -->
-<a id='snippet-sample_imigrationlogger_interface'></a>
+<a id='snippet-sample_IMigrationLogger_interface'></a>
 ```cs
 public interface IMigrationLogger_Sample
 {
@@ -325,7 +329,7 @@ public interface IMigrationLogger_Sample
     void OnFailure(DbCommand command, Exception ex);
 }
 ```
-<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L43-L49' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_imigrationlogger_interface' title='Start of snippet'>anchor</a></sup>
+<sup><a href='https://github.com/JasperFx/weasel/blob/master/src/DocSamples/SchemaMigrationSamples.cs#L44-L50' title='Snippet source file'>snippet source</a> | <a href='#snippet-sample_IMigrationLogger_interface' title='Start of snippet'>anchor</a></sup>
 <!-- endSnippet -->
 
 The default logger writes SQL to the console and rethrows exceptions. It also accepts a `TextWriter`, which is the simplest way to capture one database's DDL without implementing the interface:

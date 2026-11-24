@@ -484,4 +484,14 @@ public class SqliteSamples
         cmd.CommandText = "select id from vectors order by cosine_distance(embedding, @q) limit 10";
         #endregion
     }
+
+    public void sqlite_collation()
+    {
+        #region sample_sqlite_collation
+        var functions = new SqliteFunctionRegistry();
+        functions.AddCollation("numeric_text", (x, y) => decimal.Parse(x).CompareTo(decimal.Parse(y)));
+
+        // select value from amounts order by value collate numeric_text
+        #endregion
+    }
 }

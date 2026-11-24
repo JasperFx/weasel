@@ -137,7 +137,7 @@ await batch.ExecuteAsync();
 // to ensure the underlying DbCommands are properly disposed.
 await using var batch = context.CreateBatchQuery();
 
-// 1. Queue phase — EF Core prepares each query, reading the values it captures,
+// 1. Queue phase — each query is recorded,
 //    but nothing is sent to the database yet.
 var customersTask = batch.Query(context.Customers);
 var ordersTask = batch.Query(context.Orders);
